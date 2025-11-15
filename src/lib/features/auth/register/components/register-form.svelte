@@ -1,0 +1,150 @@
+<script lang="ts">
+	import { superForm } from "sveltekit-superforms";
+	import { zodClient } from "sveltekit-superforms/adapters";
+	import { registerSchema } from "../utils";
+	import { authClient } from "$lib/auth-client";
+	import * as Form from "$lib/components/ui/form";
+	import { Input } from "$lib/components/ui/input";
+	import { Button } from "$lib/components/ui/button";
+	import * as Alert from "$lib/components/ui/alert";
+	import PasswordInput from "$lib/features/auth/components/password-input.svelte";
+	import { AlertCircle, Loader2 } from "lucide-svelte";
+
+	interface Props {
+		data: any;
+	}
+
+	let { data }: Props = $props();
+
+	let errorMessage = $state<string | null>(null);
+	let isLoading = $state(false);
+
+	const form = superForm(data.form, {
+		validators: zodClient(registerSchema),
+		async onUpdate({ form }) {
+			if (!form.valid) return;
+
+			isLoading = true;
+			errorMessage = null;
+
+			const { name, email, password } = form.data;
+
+			await authClient.signUp.email(
+				{
+					name,
+					email,
+					password,
+				},
+				{
+					onRequest: () => {
+						isLoading = true;
+					},
+					onSuccess: () => {
+						window.location.href = "/";
+					},
+					onError: (ctx) => {
+						isLoading = false;
+						errorMessage = ctx.error.message || "Failed to create account. Please try again.";
+					},
+				}
+			);
+		},
+	});
+
+	const { form: formData, enhance } = form;
+</script>
+
+<div class="w-full">
+	{#if errorMessage}
+		<Alert.Root variant="destructive" class="mb-4">
+			<AlertCircle class="size-4" />
+			<Alert.Title>Error</Alert.Title>
+			<Alert.Description>{errorMessage}</Alert.Description>
+		</Alert.Root>
+	{/if}
+
+	<form method="POST" use:enhance class="space-y-4">
+		<Form.Field {form} name="name">
+			{#snippet children({ constraints, errors, tainted, value })}
+				<Form.Label>Name</Form.Label>
+				<Form.Control let:attrs>
+					<Input
+						{...attrs}
+						type="text"
+						placeholder="John Doe"
+						bind:value={$formData.name}
+						disabled={isLoading}
+						autocomplete="name"
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			{/snippet}
+		</Form.Field>
+
+		<Form.Field {form} name="email">
+			{#snippet children({ constraints, errors, tainted, value })}
+				<Form.Label>Email</Form.Label>
+				<Form.Control let:attrs>
+					<Input
+						{...attrs}
+						type="email"
+						placeholder="you@example.com"
+						bind:value={$formData.email}
+						disabled={isLoading}
+						autocomplete="email"
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			{/snippet}
+		</Form.Field>
+
+		<Form.Field {form} name="password">
+			{#snippet children({ constraints, errors, tainted, value })}
+				<Form.Label>Password</Form.Label>
+				<Form.Control let:attrs>
+					<PasswordInput
+						{...attrs}
+						bind:value={$formData.password}
+						placeholder="••••••••"
+						disabled={isLoading}
+						autocomplete="new-password"
+					/>
+				</Form.Control>
+				<Form.Description>Password must be at least 8 characters</Form.Description>
+				<Form.FieldErrors />
+			{/snippet}
+		</Form.Field>
+
+		<Form.Field {form} name="confirmPassword">
+			{#snippet children({ constraints, errors, tainted, value })}
+				<Form.Label>Confirm Password</Form.Label>
+				<Form.Control let:attrs>
+					<PasswordInput
+						{...attrs}
+						bind:value={$formData.confirmPassword}
+						placeholder="••••••••"
+						disabled={isLoading}
+						autocomplete="new-password"
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			{/snippet}
+		</Form.Field>
+
+		<Button type="submit" class="w-full" disabled={isLoading}>
+			{#if isLoading}
+				<Loader2 class="size-4 animate-spin" />
+				Creating account...
+			{:else}
+				Create account
+			{/if}
+		</Button>
+
+		<div class="text-center text-sm">
+			Already have an account?
+			<a href="/login" class="text-primary hover:underline" tabindex={isLoading ? -1 : 0}>
+				Sign in
+			</a>
+		</div>
+	</form>
+</div>
