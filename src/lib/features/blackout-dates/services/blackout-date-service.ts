@@ -10,13 +10,13 @@ import type { CreateBlackoutDateInput } from '../schemas';
 import { NotFoundError } from '$lib/api/errors';
 
 /**
- * Get all blackout dates, ordered by start_date
+ * Get all blackout dates, ordered by date
  */
 export async function getBlackoutDates(db: Kysely<DB>): Promise<BlackoutDatesTable[]> {
 	return await db
 		.selectFrom('blackout_dates')
 		.selectAll()
-		.orderBy('start_date', 'asc')
+		.orderBy('date', 'asc')
 		.execute();
 }
 
@@ -41,7 +41,7 @@ export async function getBlackoutDateById(
  * Get blackout dates within a date range (inclusive)
  * @param startDate Optional start date filter (YYYY-MM-DD)
  * @param endDate Optional end date filter (YYYY-MM-DD)
- * @returns Blackout dates that overlap with the specified range
+ * @returns Blackout dates within the specified range
  */
 export async function getBlackoutDatesByRange(
 	db: Kysely<DB>,
@@ -50,17 +50,15 @@ export async function getBlackoutDatesByRange(
 ): Promise<BlackoutDatesTable[]> {
 	let query = db.selectFrom('blackout_dates').selectAll();
 
-	// Filter blackout dates that overlap with the specified range
-	// A blackout overlaps if: blackout.start_date <= range.end_date AND blackout.end_date >= range.start_date
-	if (startDate && endDate) {
-		query = query.where('start_date', '<=', endDate).where('end_date', '>=', startDate);
-	} else if (startDate) {
-		query = query.where('end_date', '>=', startDate);
-	} else if (endDate) {
-		query = query.where('start_date', '<=', endDate);
+	if (startDate) {
+		query = query.where('date', '>=', startDate);
 	}
 
-	return await query.orderBy('start_date', 'asc').execute();
+	if (endDate) {
+		query = query.where('date', '<=', endDate);
+	}
+
+	return await query.orderBy('date', 'asc').execute();
 }
 
 /**
@@ -73,11 +71,9 @@ export async function createBlackoutDate(
 	const timestamp = new Date().toISOString();
 	const newBlackoutDate: Omit<BlackoutDatesTable, 'id'> & { id?: string } = {
 		id: crypto.randomUUID(),
-		start_date: data.start_date,
-		end_date: data.end_date,
-		reason: data.reason,
-		created_at: timestamp,
-		updated_at: timestamp
+		date: data.date,
+		reason: data.reason || null,
+		created_at: timestamp
 	};
 
 	const inserted = await db
@@ -106,14 +102,13 @@ export async function deleteBlackoutDate(db: Kysely<DB>, id: string): Promise<vo
 /**
  * Check if a specific date is blacked out
  * @param date Date string in YYYY-MM-DD format
- * @returns True if the date falls within any blackout period
+ * @returns True if the date is a blackout date
  */
 export async function isDateBlackedOut(db: Kysely<DB>, date: string): Promise<boolean> {
 	const blackoutDate = await db
 		.selectFrom('blackout_dates')
 		.select('id')
-		.where('start_date', '<=', date)
-		.where('end_date', '>=', date)
+		.where('date', '=', date)
 		.executeTakeFirst();
 
 	return !!blackoutDate;
