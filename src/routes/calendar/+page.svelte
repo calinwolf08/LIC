@@ -182,14 +182,62 @@
 	function handleRegenerateCancel() {
 		showRegenerateDialog = false;
 	}
+
+	// Export to Excel
+	let isExporting = $state(false);
+
+	async function handleExport() {
+		isExporting = true;
+
+		try {
+			// Build query params
+			let queryParams = `start_date=${startDate}&end_date=${endDate}`;
+			if (selectedStudent) queryParams += `&student_id=${selectedStudent}`;
+			if (selectedPreceptor) queryParams += `&preceptor_id=${selectedPreceptor}`;
+			if (selectedClerkship) queryParams += `&clerkship_id=${selectedClerkship}`;
+
+			// Fetch Excel file
+			const response = await fetch(`/api/schedules/export?${queryParams}`);
+
+			if (!response.ok) {
+				throw new Error('Export failed');
+			}
+
+			// Get filename from header
+			const contentDisposition = response.headers.get('Content-Disposition');
+			const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+			const filename = filenameMatch?.[1] || 'schedule.xlsx';
+
+			// Download file
+			const blob = await response.blob();
+			const downloadUrl = window.URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = downloadUrl;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(downloadUrl);
+		} catch (error) {
+			console.error('Export error:', error);
+			alert('Failed to export schedule');
+		} finally {
+			isExporting = false;
+		}
+	}
 </script>
 
 <div class="container mx-auto py-8">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-3xl font-bold">Schedule Calendar</h1>
-		<Button variant="destructive" onclick={handleRegenerateClick}>
-			Regenerate Schedule
-		</Button>
+		<div class="flex gap-3">
+			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
+				{isExporting ? 'Exporting...' : 'Export to Excel'}
+			</Button>
+			<Button variant="destructive" onclick={handleRegenerateClick}>
+				Regenerate Schedule
+			</Button>
+		</div>
 	</div>
 
 	<!-- Filters -->

@@ -53,6 +53,18 @@ You'll also need tsx to run TypeScript files directly:
 npm install --save-dev tsx
 ```
 
+## Required for Steps 26-27: Excel Export
+
+Install ExcelJS for generating Excel files:
+
+```bash
+# ExcelJS - Excel file generation library
+npm install exceljs
+
+# TypeScript types for ExcelJS
+npm install --save-dev @types/exceljs
+```
+
 ## Future Commands
 
 When you're ready to test the workflows locally:
