@@ -5,15 +5,16 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { gotoAndWait } from './helpers';
 
 test.describe('Preceptor Management', () => {
 	test('should display preceptors list page', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 		await expect(page.getByRole('heading', { name: /preceptors?/i })).toBeVisible();
 	});
 
 	test('should create a new preceptor', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const addButton = page.getByRole('link', { name: /new preceptor|add preceptor/i });
 
@@ -51,7 +52,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should display preceptor details', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const firstPreceptor = page.locator('a[href*="/preceptors/"]').first();
 
@@ -65,7 +66,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should edit preceptor information', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const editLink = page.getByRole('link', { name: /edit/i }).first();
 
@@ -87,7 +88,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should delete a preceptor', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
 
@@ -100,7 +101,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should filter preceptors by specialty', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const specialtyFilter = page.locator('select[name="specialty"], select[id="specialty-filter"]');
 
@@ -118,7 +119,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should display preceptor availability', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const firstPreceptor = page.locator('a[href*="/preceptors/"]').first();
 
@@ -135,7 +136,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should set preceptor availability', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const firstPreceptor = page.locator('a[href*="/preceptors/"]').first();
 
@@ -158,7 +159,7 @@ test.describe('Preceptor Management', () => {
 	});
 
 	test('should display preceptor capacity indicator', async ({ page }) => {
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		// Look for capacity indicators
 		const capacityBadge = page.locator('[class*="capacity"], [class*="badge"]');
@@ -171,12 +172,12 @@ test.describe('Preceptor Management', () => {
 
 test.describe('Clerkship Management', () => {
 	test('should display clerkships list page', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 		await expect(page.getByRole('heading', { name: /clerkships?/i })).toBeVisible();
 	});
 
 	test('should create a new clerkship', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const addButton = page.getByRole('link', { name: /new clerkship|add clerkship/i });
 
@@ -217,7 +218,7 @@ test.describe('Clerkship Management', () => {
 	});
 
 	test('should display clerkship details', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const firstClerkship = page.locator('a[href*="/clerkships/"]').first();
 
@@ -231,7 +232,7 @@ test.describe('Clerkship Management', () => {
 	});
 
 	test('should edit clerkship information', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const editLink = page.getByRole('link', { name: /edit/i }).first();
 
@@ -253,7 +254,7 @@ test.describe('Clerkship Management', () => {
 	});
 
 	test('should delete a clerkship', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
 
@@ -266,7 +267,7 @@ test.describe('Clerkship Management', () => {
 	});
 
 	test('should filter clerkships by specialty', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const specialtyFilter = page.locator('select[name="specialty"], select[id="specialty-filter"]');
 
@@ -284,7 +285,7 @@ test.describe('Clerkship Management', () => {
 	});
 
 	test('should display clerkship required days', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		// Look for required days display
 		const requiredDaysElement = page.locator('[class*="required"], [class*="days"]');
@@ -295,7 +296,7 @@ test.describe('Clerkship Management', () => {
 	});
 
 	test('should validate required days input', async ({ page }) => {
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const addButton = page.getByRole('link', { name: /new clerkship|add clerkship/i });
 
@@ -327,12 +328,12 @@ test.describe('Clerkship Management', () => {
 test.describe('Specialty Management', () => {
 	test('should display consistent specialties across entities', async ({ page }) => {
 		// Visit preceptors page and collect specialties
-		await page.goto('/preceptors');
+		await gotoAndWait(page, '/preceptors');
 
 		const preceptorSpecialties = await page.locator('[class*="specialty"]').allTextContents();
 
 		// Visit clerkships page and collect specialties
-		await page.goto('/clerkships');
+		await gotoAndWait(page, '/clerkships');
 
 		const clerkshipSpecialties = await page.locator('[class*="specialty"]').allTextContents();
 
@@ -343,13 +344,13 @@ test.describe('Specialty Management', () => {
 	test('should only assign matching specialties', async ({ page }) => {
 		// This test verifies that UI prevents mismatched specialty assignments
 		// Implementation depends on UI workflow
-		await page.goto('/calendar');
+		await gotoAndWait(page, '/calendar');
 	});
 });
 
 test.describe('Blackout Dates Management', () => {
 	test('should manage blackout dates', async ({ page }) => {
-		await page.goto('/calendar');
+		await gotoAndWait(page, '/calendar');
 
 		// Look for blackout dates management
 		const blackoutButton = page.getByRole('button', { name: /blackout/i });
@@ -367,7 +368,7 @@ test.describe('Blackout Dates Management', () => {
 	});
 
 	test('should display blackout dates on calendar', async ({ page }) => {
-		await page.goto('/calendar');
+		await gotoAndWait(page, '/calendar');
 
 		// Look for blackout date indicators
 		const blackoutIndicator = page.locator('[class*="blackout"], [class*="blocked"]');
@@ -383,7 +384,7 @@ test.describe('Navigation and Layout', () => {
 		const pages = ['/', '/students', '/preceptors', '/clerkships', '/calendar'];
 
 		for (const pagePath of pages) {
-			await page.goto(pagePath);
+			await gotoAndWait(page, pagePath);
 
 			// Check for navigation menu
 			const nav = page.locator('nav');
@@ -395,7 +396,7 @@ test.describe('Navigation and Layout', () => {
 	});
 
 	test('should display user menu', async ({ page }) => {
-		await page.goto('/');
+		await gotoAndWait(page, '/');
 
 		// Look for user menu
 		const userMenu = page.locator('[class*="user-menu"], [aria-label*="user"]');
@@ -409,7 +410,7 @@ test.describe('Navigation and Layout', () => {
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
 
-		await page.goto('/');
+		await gotoAndWait(page, '/');
 
 		// Check that page is still functional
 		const heading = page.getByRole('heading', { name: /dashboard/i });

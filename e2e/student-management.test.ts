@@ -5,27 +5,29 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { gotoAndWait } from './helpers';
 
 test.describe('Student Management', () => {
 	test('should display students list page', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 		await expect(page.getByRole('heading', { name: /students/i })).toBeVisible();
 	});
 
 	test('should navigate to new student form', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		// Look for "Add Student" or "New Student" button
 		const addButton = page.getByRole('link', { name: /new student|add student/i });
 
 		if (await addButton.count() > 0) {
 			await addButton.click();
+			await page.waitForLoadState('networkidle');
 			await expect(page).toHaveURL(/\/students\/new/);
 		}
 	});
 
 	test('should create a new student', async ({ page }) => {
-		await page.goto('/students/new');
+		await gotoAndWait(page, '/students/new');
 
 		// Fill in student form (if inputs exist)
 		const nameInput = page.locator('input[name="name"], input[id="name"]');
@@ -56,35 +58,44 @@ test.describe('Student Management', () => {
 
 			// Should redirect to students list or show success message
 			await page.waitForURL(/\/students/, { timeout: 5000 }).catch(() => {});
+			await page.waitForLoadState('networkidle');
 		}
 	});
 
 	test('should display student details', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
-		// Click on first student if exists
-		const firstStudent = page.locator('a[href*="/students/"]').first();
+		// Wait for page to load completely
+		await page.waitForTimeout(500);
 
-		if (await firstStudent.count() > 0) {
-			await firstStudent.click();
+		// Click on first student link if exists (not just any link, but a student name link)
+		const firstStudentLink = page.locator('table a[href*="/students/"], .student-list a[href*="/students/"]').first();
+
+		if (await firstStudentLink.count() > 0) {
+			await firstStudentLink.click();
+			await page.waitForLoadState('networkidle');
 			await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+		} else {
+			// If no students exist, test passes (defensive)
+			console.log('No student links found - skipping detail navigation test');
 		}
 	});
 
 	test('should navigate to edit student form', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		// Find and click edit button/link
 		const editLink = page.getByRole('link', { name: /edit/i }).first();
 
 		if (await editLink.count() > 0) {
 			await editLink.click();
+			await page.waitForLoadState('networkidle');
 			await expect(page).toHaveURL(/\/students\/[a-f0-9-]+\/edit/);
 		}
 	});
 
 	test('should delete a student', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		// Look for delete button
 		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
@@ -101,7 +112,7 @@ test.describe('Student Management', () => {
 	});
 
 	test('should search/filter students', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		// Look for search input
 		const searchInput = page.locator('input[type="search"], input[placeholder*="search" i]');
@@ -115,7 +126,7 @@ test.describe('Student Management', () => {
 	});
 
 	test('should sort students', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		// Look for sortable column headers
 		const nameHeader = page.getByRole('button', { name: /name/i }).or(
@@ -131,7 +142,7 @@ test.describe('Student Management', () => {
 	});
 
 	test('should display student statistics', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		// Check for statistics like total students, cohort breakdown, etc.
 		const statsSection = page.locator('[class*="stat"], [class*="metric"]');
@@ -142,7 +153,7 @@ test.describe('Student Management', () => {
 	});
 
 	test('should handle validation errors', async ({ page }) => {
-		await page.goto('/students/new');
+		await gotoAndWait(page, '/students/new');
 
 		// Try to submit empty form
 		const submitButton = page.getByRole('button', { name: /create|save|submit/i });
@@ -162,23 +173,25 @@ test.describe('Student Management', () => {
 
 test.describe('Student Navigation', () => {
 	test('should navigate from dashboard to students', async ({ page }) => {
-		await page.goto('/');
+		await gotoAndWait(page, '/');
 
 		const studentsLink = page.getByRole('link', { name: /students/i });
 
 		if (await studentsLink.count() > 0) {
 			await studentsLink.click();
+			await page.waitForLoadState('networkidle');
 			await expect(page).toHaveURL(/\/students/);
 		}
 	});
 
 	test('should navigate back to dashboard from students page', async ({ page }) => {
-		await page.goto('/students');
+		await gotoAndWait(page, '/students');
 
 		const dashboardLink = page.getByRole('link', { name: /dashboard|home/i });
 
 		if (await dashboardLink.count() > 0) {
 			await dashboardLink.click();
+			await page.waitForLoadState('networkidle');
 			await expect(page).toHaveURL('/');
 		}
 	});
