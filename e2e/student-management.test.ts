@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 test.describe('Student Management', () => {
 	test('should display students list page', async ({ page }) => {
 		await page.goto('/students');
-		await expect(page.locator('h1')).toContainText(/students/i);
+		await expect(page.getByRole('heading', { name: /students/i })).toBeVisible();
 	});
 
 	test('should navigate to new student form', async ({ page }) => {

@@ -1,0 +1,778 @@
+
+> members@0.0.1 test:e2e
+> playwright test
+
+[WebServer] [33m[plugin vite:resolve] Module "node:dns/promises" has been externalized for browser compatibility, imported by "/home/user/LIC/node_modules/@vinejs/vine/build/chunk-YXNUTVGP.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[WebServer] [33m[plugin vite:resolve] Module "node:dns/promises" has been externalized for browser compatibility, imported by "/home/user/LIC/node_modules/@vinejs/vine/build/chunk-YXNUTVGP.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+
+Running 54 tests using 4 workers
+
+  ✓   3 e2e/preceptor-clerkship-management.test.ts:10:2 › Preceptor Management › should display preceptors list page (532ms)
+  ✓   1 e2e/demo.test.ts:3:1 › home page has expected h1 (701ms)
+  ✘   5 e2e/preceptor-clerkship-management.test.ts:15:2 › Preceptor Management › should create a new preceptor (85ms)
+  ✓   2 e2e/student-management.test.ts:10:2 › Student Management › should display students list page (720ms)
+  ✘   6 e2e/student-management.test.ts:15:2 › Student Management › should navigate to new student form (38ms)
+  ✘   4 e2e/scheduling-workflow.test.ts:10:2 › Complete Scheduling Workflow › should complete full scheduling workflow (2.4s)
+  ✓   8 e2e/preceptor-clerkship-management.test.ts:53:2 › Preceptor Management › should display preceptor details (241ms)
+  ✓   7 e2e/student-management.test.ts:27:2 › Student Management › should create a new student (340ms)
+  ✘   9 e2e/preceptor-clerkship-management.test.ts:67:2 › Preceptor Management › should edit preceptor information (42ms)
+  ✘  10 e2e/student-management.test.ts:62:2 › Student Management › should display student details (39ms)
+  ✓  11 e2e/scheduling-workflow.test.ts:118:2 › Complete Scheduling Workflow › should generate a schedule (230ms)
+  ✘  12 e2e/scheduling-workflow.test.ts:139:2 › Complete Scheduling Workflow › should view student schedule (41ms)
+  ✓  14 e2e/preceptor-clerkship-management.test.ts:89:2 › Preceptor Management › should delete a preceptor (233ms)
+  ✓  13 e2e/student-management.test.ts:74:2 › Student Management › should navigate to edit student form (266ms)
+  ✘  15 e2e/preceptor-clerkship-management.test.ts:102:2 › Preceptor Management › should filter preceptors by specialty (40ms)
+  ✘  16 e2e/student-management.test.ts:86:2 › Student Management › should delete a student (44ms)
+  ✓  17 e2e/scheduling-workflow.test.ts:157:2 › Complete Scheduling Workflow › should view preceptor schedule (248ms)
+  ✘  18 e2e/scheduling-workflow.test.ts:175:2 › Complete Scheduling Workflow › should filter calendar by student (42ms)
+  ✓  19 e2e/preceptor-clerkship-management.test.ts:120:2 › Preceptor Management › should display preceptor availability (261ms)
+  ✘  21 e2e/preceptor-clerkship-management.test.ts:137:2 › Preceptor Management › should set preceptor availability (38ms)
+  ✓  20 e2e/student-management.test.ts:103:2 › Student Management › should search/filter students (277ms)
+  ✘  22 e2e/student-management.test.ts:117:2 › Student Management › should sort students (41ms)
+  ✓  23 e2e/scheduling-workflow.test.ts:195:2 › Complete Scheduling Workflow › should filter calendar by date range (814ms)
+  ✘  26 e2e/scheduling-workflow.test.ts:212:2 › Complete Scheduling Workflow › should edit an assignment (37ms)
+  ✓  24 e2e/preceptor-clerkship-management.test.ts:160:2 › Preceptor Management › should display preceptor capacity indicator (259ms)
+  ✘  27 e2e/preceptor-clerkship-management.test.ts:173:2 › Clerkship Management › should display clerkships list page (38ms)
+  ✓  25 e2e/student-management.test.ts:133:2 › Student Management › should display student statistics (267ms)
+  ✘  28 e2e/student-management.test.ts:144:2 › Student Management › should handle validation errors (41ms)
+  ✓  29 e2e/scheduling-workflow.test.ts:238:2 › Complete Scheduling Workflow › should reassign student to different preceptor (383ms)
+  ✘  32 e2e/scheduling-workflow.test.ts:275:2 › Complete Scheduling Workflow › should export schedule (38ms)
+  ✓  30 e2e/preceptor-clerkship-management.test.ts:178:2 › Clerkship Management › should create a new clerkship (280ms)
+  ✘  33 e2e/preceptor-clerkship-management.test.ts:219:2 › Clerkship Management › should display clerkship details (42ms)
+[WebServer] API Error: TypeError: ExcelJS.Workbook is not a constructor
+[WebServer]     at generateScheduleExcel [90m(file:///home/user/LIC/[39m.svelte-kit/output/server/entries/endpoints/api/schedules/export/_server.ts.js:17:20[90m)[39m
+[WebServer]     at async GET [90m(file:///home/user/LIC/[39m.svelte-kit/output/server/entries/endpoints/api/schedules/export/_server.ts.js:248:20[90m)[39m
+[WebServer]     at async render_endpoint [90m(file:///home/user/LIC/[39m.svelte-kit/output/server/index.js:258:22[90m)[39m
+[WebServer]     at async resolve2 [90m(file:///home/user/LIC/[39m.svelte-kit/output/server/index.js:3611:23[90m)[39m
+[WebServer]     at async fn [90m(file:///home/user/LIC/[39m.svelte-kit/output/server/index.js:3476:16[90m)[39m
+[WebServer]     at async internal_respond [90m(file:///home/user/LIC/[39m.svelte-kit/output/server/index.js:3458:22[90m)[39m
+[WebServer]     at async [90mfile:///home/user/LIC/[39mnode_modules/[4m@sveltejs/kit[24m/src/exports/vite/preview/index.js:199:5
+  ✓  31 e2e/student-management.test.ts:164:2 › Student Navigation › should navigate from dashboard to students (1.8s)
+  ✘  34 e2e/student-management.test.ts:175:2 › Student Navigation › should navigate back to dashboard from students page (44ms)
+  ✓  35 e2e/scheduling-workflow.test.ts:296:2 › Complete Scheduling Workflow › should display schedule summary (270ms)
+  ✓  36 e2e/preceptor-clerkship-management.test.ts:233:2 › Clerkship Management › should edit clerkship information (262ms)
+  ✘  37 e2e/scheduling-workflow.test.ts:317:2 › Complete Scheduling Workflow › should display student progress (41ms)
+  ✘  38 e2e/preceptor-clerkship-management.test.ts:255:2 › Clerkship Management › should delete a clerkship (41ms)
+  ✓  39 e2e/scheduling-workflow.test.ts:337:2 › Schedule Constraints and Validation › should prevent double-booking students (176ms)
+  ✘  41 e2e/scheduling-workflow.test.ts:345:2 › Schedule Constraints and Validation › should respect preceptor capacity limits (35ms)
+  ✓  40 e2e/preceptor-clerkship-management.test.ts:268:2 › Clerkship Management › should filter clerkships by specialty (226ms)
+  ✘  42 e2e/preceptor-clerkship-management.test.ts:286:2 › Clerkship Management › should display clerkship required days (39ms)
+  ✓  43 e2e/scheduling-workflow.test.ts:356:2 › Schedule Constraints and Validation › should handle blackout dates (285ms)
+  ✘  45 e2e/scheduling-workflow.test.ts:369:2 › Calendar Navigation › should navigate between months (42ms)
+  ✓  44 e2e/preceptor-clerkship-management.test.ts:297:2 › Clerkship Management › should validate required days input (231ms)
+  ✘  46 e2e/preceptor-clerkship-management.test.ts:328:2 › Specialty Management › should display consistent specialties across entities (37ms)
+  ✓  47 e2e/scheduling-workflow.test.ts:389:2 › Calendar Navigation › should jump to today (301ms)
+  ✓  48 e2e/preceptor-clerkship-management.test.ts:343:2 › Specialty Management › should only assign matching specialties (194ms)
+  ✘  49 e2e/scheduling-workflow.test.ts:401:2 › Calendar Navigation › should switch between calendar views (39ms)
+  ✘  50 e2e/preceptor-clerkship-management.test.ts:351:2 › Blackout Dates Management › should manage blackout dates (38ms)
+  ✓  51 e2e/preceptor-clerkship-management.test.ts:369:2 › Blackout Dates Management › should display blackout dates on calendar (253ms)
+  ✘  52 e2e/preceptor-clerkship-management.test.ts:382:2 › Navigation and Layout › should have consistent navigation across pages (36ms)
+  ✓  53 e2e/preceptor-clerkship-management.test.ts:397:2 › Navigation and Layout › should display user menu (212ms)
+  ✘  54 e2e/preceptor-clerkship-management.test.ts:408:2 › Navigation and Layout › should be responsive on mobile (37ms)
+
+
+  1) e2e/preceptor-clerkship-management.test.ts:15:2 › Preceptor Management › should create a new preceptor 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-qhbkbW --remote-debugging-pipe --no-startup-window
+    <launched> pid=1587
+    [pid=1587][err] [1116/045559.954816:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1587][err] [1116/045559.955030:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1587][err] [1116/045559.967078:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1587][err] [1116/045559.975195:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1587][err] [1116/045559.975571:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1587][err] [1116/045559.976591:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1587][err] [1116/045559.977110:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1587][err] [1116/045559.983674:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1587][err] [1116/045600.059981:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.060042:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.081754:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.081902:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.083926:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1587][err] [1116/045600.132113:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.132202:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.683736:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1587][err] [1116/045600.683775:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  2) e2e/preceptor-clerkship-management.test.ts:67:2 › Preceptor Management › should edit preceptor information 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-V4AzQw --remote-debugging-pipe --no-startup-window
+    <launched> pid=1749
+    [pid=1749][err] [1116/045602.847813:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1749][err] [1116/045602.856200:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1749][err] [1116/045602.865549:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1749][err] [1116/045602.873314:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1749][err] [1116/045602.873552:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1749][err] [1116/045602.873578:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1749][err] [1116/045602.873993:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1749][err] [1116/045602.879778:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1749][err] [1116/045602.940357:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045602.940468:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045602.945927:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045602.945963:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045602.948909:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1749][err] [1116/045602.973256:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045602.973295:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045603.232989:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1749][err] [1116/045603.233022:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  3) e2e/preceptor-clerkship-management.test.ts:102:2 › Preceptor Management › should filter preceptors by specialty 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-bTQfds --remote-debugging-pipe --no-startup-window
+    <launched> pid=1886
+    [pid=1886][err] [1116/045605.362896:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1886][err] [1116/045605.363132:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1886][err] [1116/045605.372748:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1886][err] [1116/045605.381541:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1886][err] [1116/045605.381732:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1886][err] [1116/045605.381908:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1886][err] [1116/045605.382941:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1886][err] [1116/045605.387789:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1886][err] [1116/045605.444962:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.445001:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.449620:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.449659:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.452501:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1886][err] [1116/045605.475297:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.475355:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.727755:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1886][err] [1116/045605.727859:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  4) e2e/preceptor-clerkship-management.test.ts:137:2 › Preceptor Management › should set preceptor availability 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-la1v0T --remote-debugging-pipe --no-startup-window
+    <launched> pid=2019
+    [pid=2019][err] [1116/045607.857467:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2019][err] [1116/045607.858896:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2019][err] [1116/045607.868338:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2019][err] [1116/045607.878104:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2019][err] [1116/045607.878923:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2019][err] [1116/045607.878963:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2019][err] [1116/045607.880212:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2019][err] [1116/045607.886082:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2019][err] [1116/045607.957258:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045607.957327:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045607.963587:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045607.963650:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045607.967333:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2019][err] [1116/045607.990757:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045607.990788:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045608.270047:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2019][err] [1116/045608.270081:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  5) e2e/preceptor-clerkship-management.test.ts:173:2 › Clerkship Management › should display clerkships list page 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-dt1gLi --remote-debugging-pipe --no-startup-window
+    <launched> pid=2146
+    [pid=2146][err] [1116/045610.425921:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2146][err] [1116/045610.426423:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2146][err] [1116/045610.435119:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2146][err] [1116/045610.443036:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2146][err] [1116/045610.443384:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2146][err] [1116/045610.443511:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2146][err] [1116/045610.443993:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2146][err] [1116/045610.449239:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2146][err] [1116/045610.510782:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.510876:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.516336:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.516396:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.523110:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2146][err] [1116/045610.547093:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.547151:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.825267:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2146][err] [1116/045610.825317:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  6) e2e/preceptor-clerkship-management.test.ts:219:2 › Clerkship Management › should display clerkship details 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-VACfHw --remote-debugging-pipe --no-startup-window
+    <launched> pid=2265
+    [pid=2265][err] [1116/045613.001624:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2265][err] [1116/045613.001629:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2265][err] [1116/045613.010915:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2265][err] [1116/045613.019288:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2265][err] [1116/045613.019634:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2265][err] [1116/045613.020235:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2265][err] [1116/045613.020742:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2265][err] [1116/045613.026661:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2265][err] [1116/045613.103794:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.103863:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.108593:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.108679:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.112371:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2265][err] [1116/045613.143153:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.143185:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.440892:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2265][err] [1116/045613.440940:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  7) e2e/preceptor-clerkship-management.test.ts:255:2 › Clerkship Management › should delete a clerkship 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-W5K1Zs --remote-debugging-pipe --no-startup-window
+    <launched> pid=2375
+    [pid=2375][err] [1116/045615.659012:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2375][err] [1116/045615.661399:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2375][err] [1116/045615.670767:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2375][err] [1116/045615.678797:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2375][err] [1116/045615.679046:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2375][err] [1116/045615.679341:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2375][err] [1116/045615.679933:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2375][err] [1116/045615.685260:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2375][err] [1116/045615.753707:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045615.753768:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045615.759217:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045615.759266:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045615.763998:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2375][err] [1116/045615.790199:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045615.790230:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045616.074733:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2375][err] [1116/045616.074770:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  8) e2e/preceptor-clerkship-management.test.ts:286:2 › Clerkship Management › should display clerkship required days 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-9ZO3iQ --remote-debugging-pipe --no-startup-window
+    <launched> pid=2467
+    [pid=2467][err] [1116/045618.215896:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2467][err] [1116/045618.215881:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2467][err] [1116/045618.224774:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2467][err] [1116/045618.234329:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2467][err] [1116/045618.234524:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2467][err] [1116/045618.234803:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2467][err] [1116/045618.235794:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2467][err] [1116/045618.242966:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2467][err] [1116/045618.298223:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.298335:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.302757:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.302806:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.305908:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2467][err] [1116/045618.328164:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.328184:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.574403:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2467][err] [1116/045618.574445:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  9) e2e/preceptor-clerkship-management.test.ts:328:2 › Specialty Management › should display consistent specialties across entities 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-KRL463 --remote-debugging-pipe --no-startup-window
+    <launched> pid=2574
+    [pid=2574][err] [1116/045620.586991:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2574][err] [1116/045620.587560:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2574][err] [1116/045620.595121:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2574][err] [1116/045620.602050:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2574][err] [1116/045620.602285:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2574][err] [1116/045620.602579:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2574][err] [1116/045620.603200:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2574][err] [1116/045620.608820:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2574][err] [1116/045620.671807:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.671851:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.677166:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.677253:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.680607:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2574][err] [1116/045620.704176:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.704205:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.954966:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2574][err] [1116/045620.955012:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  10) e2e/preceptor-clerkship-management.test.ts:351:2 › Blackout Dates Management › should manage blackout dates 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-FfoeG6 --remote-debugging-pipe --no-startup-window
+    <launched> pid=2648
+    [pid=2648][err] [1116/045623.004307:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2648][err] [1116/045623.004976:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2648][err] [1116/045623.013378:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2648][err] [1116/045623.020886:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2648][err] [1116/045623.021187:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2648][err] [1116/045623.021141:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2648][err] [1116/045623.021988:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2648][err] [1116/045623.026529:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2648][err] [1116/045623.082838:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.082889:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.089591:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.089648:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.094047:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2648][err] [1116/045623.117562:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.117599:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.329842:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2648][err] [1116/045623.329881:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  11) e2e/preceptor-clerkship-management.test.ts:382:2 › Navigation and Layout › should have consistent navigation across pages 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-wUtDo1 --remote-debugging-pipe --no-startup-window
+    <launched> pid=2720
+    [pid=2720][err] [1116/045625.200601:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2720][err] [1116/045625.201496:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2720][err] [1116/045625.208344:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2720][err] [1116/045625.214468:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2720][err] [1116/045625.214825:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2720][err] [1116/045625.214968:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2720][err] [1116/045625.215901:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2720][err] [1116/045625.221030:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2720][err] [1116/045625.269734:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.269787:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.274854:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.274941:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.279879:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2720][err] [1116/045625.299328:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.299369:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.569201:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2720][err] [1116/045625.569237:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  12) e2e/preceptor-clerkship-management.test.ts:408:2 › Navigation and Layout › should be responsive on mobile 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-gWeRZ6 --remote-debugging-pipe --no-startup-window
+    <launched> pid=2764
+    [pid=2764][err] [1116/045627.472396:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2764][err] [1116/045627.473748:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2764][err] [1116/045627.480654:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2764][err] [1116/045627.486703:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2764][err] [1116/045627.487080:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2764][err] [1116/045627.487149:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2764][err] [1116/045627.487960:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2764][err] [1116/045627.492620:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2764][err] [1116/045627.541794:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.541847:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.546682:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.546715:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.549936:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2764][err] [1116/045627.568728:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.568764:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.799597:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2764][err] [1116/045627.799634:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  13) e2e/scheduling-workflow.test.ts:10:2 › Complete Scheduling Workflow › should complete full scheduling workflow 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('heading', { name: /calendar|schedule/i })
+    Expected: visible
+    Error: strict mode violation: getByRole('heading', { name: /calendar|schedule/i }) resolved to 2 elements:
+        1) <h1 class="text-2xl font-bold">LIC Scheduler</h1> aka getByRole('heading', { name: 'LIC Scheduler' })
+        2) <h1 class="text-3xl font-bold">Schedule Calendar</h1> aka getByRole('heading', { name: 'Schedule Calendar' })
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /calendar|schedule/i })[22m
+
+
+      106 |
+      107 | 		// Verify calendar page loads
+    > 108 | 		await expect(page.getByRole('heading', { name: /calendar|schedule/i })).toBeVisible();
+          | 		                                                                        ^
+      109 |
+      110 | 		// Look for calendar component
+      111 | 		const calendar = page.locator('[class*="calendar"], [role="grid"]');
+        at /home/user/LIC/e2e/scheduling-workflow.test.ts:108:75
+
+    Error Context: test-results/scheduling-workflow-Comple-9959f-te-full-scheduling-workflow/error-context.md
+
+  14) e2e/scheduling-workflow.test.ts:139:2 › Complete Scheduling Workflow › should view student schedule 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-uzTPO8 --remote-debugging-pipe --no-startup-window
+    <launched> pid=1835
+    [pid=1835][err] [1116/045604.681574:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1835][err] [1116/045604.684389:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1835][err] [1116/045604.692932:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1835][err] [1116/045604.700187:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1835][err] [1116/045604.700621:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1835][err] [1116/045604.700656:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1835][err] [1116/045604.700937:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1835][err] [1116/045604.706797:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1835][err] [1116/045604.763895:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045604.763949:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045604.767817:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045604.767850:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045604.771359:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1835][err] [1116/045604.793145:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045604.793185:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045605.040000:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1835][err] [1116/045605.040047:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  15) e2e/scheduling-workflow.test.ts:175:2 › Complete Scheduling Workflow › should filter calendar by student 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-nzAlc4 --remote-debugging-pipe --no-startup-window
+    <launched> pid=1971
+    [pid=1971][err] [1116/045607.211210:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1971][err] [1116/045607.211285:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1971][err] [1116/045607.219750:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1971][err] [1116/045607.227391:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1971][err] [1116/045607.227604:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1971][err] [1116/045607.228174:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1971][err] [1116/045607.228133:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1971][err] [1116/045607.234207:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1971][err] [1116/045607.290355:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.290416:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.294924:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.294964:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.298512:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1971][err] [1116/045607.320441:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.320483:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.587921:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1971][err] [1116/045607.587960:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  16) e2e/scheduling-workflow.test.ts:212:2 › Complete Scheduling Workflow › should edit an assignment 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-0XXo0c --remote-debugging-pipe --no-startup-window
+    <launched> pid=2109
+    [pid=2109][err] [1116/045609.775805:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2109][err] [1116/045609.775881:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2109][err] [1116/045609.783432:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2109][err] [1116/045609.792103:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2109][err] [1116/045609.792260:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2109][err] [1116/045609.792654:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2109][err] [1116/045609.793084:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2109][err] [1116/045609.798214:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2109][err] [1116/045609.854491:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045609.854557:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045609.858772:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045609.858812:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045609.861553:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2109][err] [1116/045609.883236:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045609.883276:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045610.713430:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2109][err] [1116/045610.713468:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  17) e2e/scheduling-workflow.test.ts:275:2 › Complete Scheduling Workflow › should export schedule 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-3xHTva --remote-debugging-pipe --no-startup-window
+    <launched> pid=2245
+    [pid=2245][err] [1116/045612.829188:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2245][err] [1116/045612.829213:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2245][err] [1116/045612.837848:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2245][err] [1116/045612.844659:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2245][err] [1116/045612.844959:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2245][err] [1116/045612.845209:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2245][err] [1116/045612.846285:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2245][err] [1116/045612.851421:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2245][err] [1116/045612.911122:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045612.911223:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045612.915813:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045612.915860:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045612.920858:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2245][err] [1116/045612.947636:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045612.947667:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045613.346422:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2245][err] [1116/045613.346453:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  18) e2e/scheduling-workflow.test.ts:317:2 › Complete Scheduling Workflow › should display student progress 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-SzospP --remote-debugging-pipe --no-startup-window
+    <launched> pid=2374
+    [pid=2374][err] [1116/045615.608760:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2374][err] [1116/045615.609353:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2374][err] [1116/045615.619345:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2374][err] [1116/045615.628989:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2374][err] [1116/045615.629232:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2374][err] [1116/045615.629863:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2374][err] [1116/045615.630272:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2374][err] [1116/045615.636931:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2374][err] [1116/045615.706744:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045615.706814:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045615.710220:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045615.710259:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045615.713077:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2374][err] [1116/045615.740569:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045615.740617:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045616.032589:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2374][err] [1116/045616.032631:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  19) e2e/scheduling-workflow.test.ts:345:2 › Schedule Constraints and Validation › should respect preceptor capacity limits 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-JehiBA --remote-debugging-pipe --no-startup-window
+    <launched> pid=2459
+    [pid=2459][err] [1116/045618.086623:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2459][err] [1116/045618.089390:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2459][err] [1116/045618.097500:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2459][err] [1116/045618.106449:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2459][err] [1116/045618.106775:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2459][err] [1116/045618.107450:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2459][err] [1116/045618.108070:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2459][err] [1116/045618.113352:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2459][err] [1116/045618.170405:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.170453:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.176324:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.176401:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.180751:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2459][err] [1116/045618.208464:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.208519:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.402999:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2459][err] [1116/045618.403023:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  20) e2e/scheduling-workflow.test.ts:369:2 › Calendar Navigation › should navigate between months ─
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-5po141 --remote-debugging-pipe --no-startup-window
+    <launched> pid=2549
+    [pid=2549][err] [1116/045620.424982:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2549][err] [1116/045620.425376:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2549][err] [1116/045620.433657:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2549][err] [1116/045620.441476:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2549][err] [1116/045620.441699:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2549][err] [1116/045620.442056:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2549][err] [1116/045620.442659:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2549][err] [1116/045620.447430:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2549][err] [1116/045620.504316:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.504376:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.509680:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.509714:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.514602:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2549][err] [1116/045620.540968:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.541084:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.846130:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2549][err] [1116/045620.846161:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  21) e2e/scheduling-workflow.test.ts:401:2 › Calendar Navigation › should switch between calendar views 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-Aq3F4Y --remote-debugging-pipe --no-startup-window
+    <launched> pid=2640
+    [pid=2640][err] [1116/045622.871723:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2640][err] [1116/045622.874455:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2640][err] [1116/045622.881267:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2640][err] [1116/045622.888847:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2640][err] [1116/045622.889083:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2640][err] [1116/045622.889489:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2640][err] [1116/045622.890178:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2640][err] [1116/045622.895545:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2640][err] [1116/045622.954651:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045622.954735:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045622.961370:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045622.961395:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045622.965831:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2640][err] [1116/045622.990625:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045622.990656:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045623.309833:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2640][err] [1116/045623.309870:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  22) e2e/student-management.test.ts:15:2 › Student Management › should navigate to new student form 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-XtYocb --remote-debugging-pipe --no-startup-window
+    <launched> pid=1586
+    [pid=1586][err] [1116/045559.925446:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1586][err] [1116/045559.927351:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1586][err] [1116/045559.939748:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1586][err] [1116/045559.951480:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1586][err] [1116/045559.951671:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1586][err] [1116/045559.951962:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1586][err] [1116/045559.952773:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1586][err] [1116/045559.958823:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1586][err] [1116/045600.035993:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.036093:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.040715:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.040740:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.043126:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1586][err] [1116/045600.088464:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.088501:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.828343:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1586][err] [1116/045600.828388:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  23) e2e/student-management.test.ts:62:2 › Student Management › should display student details ────
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-chISiW --remote-debugging-pipe --no-startup-window
+    <launched> pid=1747
+    [pid=1747][err] [1116/045602.817076:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1747][err] [1116/045602.817584:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1747][err] [1116/045602.830531:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1747][err] [1116/045602.838350:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1747][err] [1116/045602.838897:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1747][err] [1116/045602.839856:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1747][err] [1116/045602.840656:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1747][err] [1116/045602.846373:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1747][err] [1116/045602.906995:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045602.907102:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045602.911412:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045602.911485:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045602.914849:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1747][err] [1116/045602.936634:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045602.936668:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045603.293110:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1747][err] [1116/045603.293202:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  24) e2e/student-management.test.ts:86:2 › Student Management › should delete a student ───────────
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-fMINPI --remote-debugging-pipe --no-startup-window
+    <launched> pid=1885
+    [pid=1885][err] [1116/045605.347092:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1885][err] [1116/045605.359447:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1885][err] [1116/045605.362888:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1885][err] [1116/045605.368433:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1885][err] [1116/045605.368759:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=1885][err] [1116/045605.369066:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=1885][err] [1116/045605.369586:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=1885][err] [1116/045605.375262:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=1885][err] [1116/045605.435139:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.435200:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.439763:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.439816:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.444079:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=1885][err] [1116/045605.467420:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.467499:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.754535:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=1885][err] [1116/045605.754573:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  25) e2e/student-management.test.ts:117:2 › Student Management › should sort students ─────────────
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-YKmuCl --remote-debugging-pipe --no-startup-window
+    <launched> pid=2027
+    [pid=2027][err] [1116/045607.942914:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2027][err] [1116/045607.943229:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2027][err] [1116/045607.952813:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2027][err] [1116/045607.962193:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2027][err] [1116/045607.962589:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2027][err] [1116/045607.962949:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2027][err] [1116/045607.963587:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2027][err] [1116/045607.970419:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2027][err] [1116/045608.036557:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.036645:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.041048:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.041107:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.044794:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2027][err] [1116/045608.069549:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.069584:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.366982:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2027][err] [1116/045608.367022:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  26) e2e/student-management.test.ts:144:2 › Student Management › should handle validation errors ──
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-6zVtLL --remote-debugging-pipe --no-startup-window
+    <launched> pid=2154
+    [pid=2154][err] [1116/045610.555416:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2154][err] [1116/045610.555940:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2154][err] [1116/045610.565344:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2154][err] [1116/045610.573206:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2154][err] [1116/045610.573513:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2154][err] [1116/045610.573844:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2154][err] [1116/045610.574348:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2154][err] [1116/045610.579848:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2154][err] [1116/045610.638940:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.639034:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.643337:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.643389:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.646923:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2154][err] [1116/045610.670415:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.670484:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.957253:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2154][err] [1116/045610.957309:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  27) e2e/student-management.test.ts:175:2 › Student Navigation › should navigate back to dashboard from students page 
+
+    Error: browserContext.newPage: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> /root/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-extensions --single-process --user-data-dir=/tmp/playwright_chromiumdev_profile-ENMuyx --remote-debugging-pipe --no-startup-window
+    <launched> pid=2283
+    [pid=2283][err] [1116/045613.106628:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2283][err] [1116/045613.107623:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2283][err] [1116/045613.118702:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2283][err] [1116/045613.132046:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2283][err] [1116/045613.132784:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=2283][err] [1116/045613.133050:ERROR:net/base/address_tracker_linux.cc:242] Could not bind NETLINK socket: Permission denied (13)
+    [pid=2283][err] [1116/045613.136176:ERROR:base/files/file_path_watcher_inotify.cc:923] Failed to read /proc/sys/fs/inotify/max_user_watches
+    [pid=2283][err] [1116/045613.141746:WARNING:media/audio/linux/audio_manager_linux.cc:54] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+    [pid=2283][err] [1116/045613.213930:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045613.213982:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045613.219394:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045613.219634:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045613.222750:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+    [pid=2283][err] [1116/045613.246983:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045613.247030:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045615.085873:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+    [pid=2283][err] [1116/045615.085912:WARNING:net/proxy_resolution/proxy_config_service_linux.cc:100] Proxy authentication parameters ignored, see bug 16709
+
+  27 failed
+    e2e/preceptor-clerkship-management.test.ts:15:2 › Preceptor Management › should create a new preceptor 
+    e2e/preceptor-clerkship-management.test.ts:67:2 › Preceptor Management › should edit preceptor information 
+    e2e/preceptor-clerkship-management.test.ts:102:2 › Preceptor Management › should filter preceptors by specialty 
+    e2e/preceptor-clerkship-management.test.ts:137:2 › Preceptor Management › should set preceptor availability 
+    e2e/preceptor-clerkship-management.test.ts:173:2 › Clerkship Management › should display clerkships list page 
+    e2e/preceptor-clerkship-management.test.ts:219:2 › Clerkship Management › should display clerkship details 
+    e2e/preceptor-clerkship-management.test.ts:255:2 › Clerkship Management › should delete a clerkship 
+    e2e/preceptor-clerkship-management.test.ts:286:2 › Clerkship Management › should display clerkship required days 
+    e2e/preceptor-clerkship-management.test.ts:328:2 › Specialty Management › should display consistent specialties across entities 
+    e2e/preceptor-clerkship-management.test.ts:351:2 › Blackout Dates Management › should manage blackout dates 
+    e2e/preceptor-clerkship-management.test.ts:382:2 › Navigation and Layout › should have consistent navigation across pages 
+    e2e/preceptor-clerkship-management.test.ts:408:2 › Navigation and Layout › should be responsive on mobile 
+    e2e/scheduling-workflow.test.ts:10:2 › Complete Scheduling Workflow › should complete full scheduling workflow 
+    e2e/scheduling-workflow.test.ts:139:2 › Complete Scheduling Workflow › should view student schedule 
+    e2e/scheduling-workflow.test.ts:175:2 › Complete Scheduling Workflow › should filter calendar by student 
+    e2e/scheduling-workflow.test.ts:212:2 › Complete Scheduling Workflow › should edit an assignment 
+    e2e/scheduling-workflow.test.ts:275:2 › Complete Scheduling Workflow › should export schedule ──
+    e2e/scheduling-workflow.test.ts:317:2 › Complete Scheduling Workflow › should display student progress 
+    e2e/scheduling-workflow.test.ts:345:2 › Schedule Constraints and Validation › should respect preceptor capacity limits 
+    e2e/scheduling-workflow.test.ts:369:2 › Calendar Navigation › should navigate between months ───
+    e2e/scheduling-workflow.test.ts:401:2 › Calendar Navigation › should switch between calendar views 
+    e2e/student-management.test.ts:15:2 › Student Management › should navigate to new student form ─
+    e2e/student-management.test.ts:62:2 › Student Management › should display student details ──────
+    e2e/student-management.test.ts:86:2 › Student Management › should delete a student ─────────────
+    e2e/student-management.test.ts:117:2 › Student Management › should sort students ───────────────
+    e2e/student-management.test.ts:144:2 › Student Management › should handle validation errors ────
+    e2e/student-management.test.ts:175:2 › Student Navigation › should navigate back to dashboard from students page 
+  27 passed (1.9m)

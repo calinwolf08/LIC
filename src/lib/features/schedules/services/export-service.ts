@@ -36,7 +36,7 @@ export async function generateScheduleExcel(
 	const assignments = await getEnrichedAssignments(db, filters);
 
 	// Create workbook
-	const workbook = new ExcelJS.Workbook();
+	const workbook = new (ExcelJS.default || ExcelJS).Workbook();
 	workbook.creator = 'LIC Scheduling System';
 	workbook.created = new Date();
 

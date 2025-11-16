@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 test.describe('Preceptor Management', () => {
 	test('should display preceptors list page', async ({ page }) => {
 		await page.goto('/preceptors');
-		await expect(page.locator('h1')).toContainText(/preceptors?/i);
+		await expect(page.getByRole('heading', { name: /preceptors?/i })).toBeVisible();
 	});
 
 	test('should create a new preceptor', async ({ page }) => {
@@ -172,7 +172,7 @@ test.describe('Preceptor Management', () => {
 test.describe('Clerkship Management', () => {
 	test('should display clerkships list page', async ({ page }) => {
 		await page.goto('/clerkships');
-		await expect(page.locator('h1')).toContainText(/clerkships?/i);
+		await expect(page.getByRole('heading', { name: /clerkships?/i })).toBeVisible();
 	});
 
 	test('should create a new clerkship', async ({ page }) => {
@@ -412,7 +412,7 @@ test.describe('Navigation and Layout', () => {
 		await page.goto('/');
 
 		// Check that page is still functional
-		const heading = page.locator('h1');
+		const heading = page.getByRole('heading', { name: /dashboard/i });
 		await expect(heading).toBeVisible();
 
 		// Look for mobile menu toggle

@@ -10,7 +10,7 @@ test.describe('Complete Scheduling Workflow', () => {
 	test('should complete full scheduling workflow', async ({ page }) => {
 		// Step 1: Navigate to dashboard
 		await page.goto('/');
-		await expect(page.locator('h1')).toBeVisible();
+		await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
 
 		// Step 2: Create a student
 		await page.goto('/students/new');
@@ -105,7 +105,7 @@ test.describe('Complete Scheduling Workflow', () => {
 		await page.goto('/calendar');
 
 		// Verify calendar page loads
-		await expect(page.locator('h1')).toBeVisible();
+		await expect(page.getByRole('heading', { name: /calendar|schedule/i })).toBeVisible();
 
 		// Look for calendar component
 		const calendar = page.locator('[class*="calendar"], [role="grid"]');
