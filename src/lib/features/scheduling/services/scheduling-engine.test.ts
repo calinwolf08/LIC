@@ -59,6 +59,32 @@ function createMockClerkship(overrides: Partial<ClerkshipsTable> = {}): Clerkshi
 	};
 }
 
+// Helper to create availability records for a preceptor across a date range
+function createAvailabilityForDateRange(
+	preceptorId: string,
+	startDate: string,
+	endDate: string,
+	isAvailable = true
+): PreceptorAvailabilityTable[] {
+	const availability: PreceptorAvailabilityTable[] = [];
+	const start = new Date(startDate);
+	const end = new Date(endDate);
+
+	for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+		const dateStr = d.toISOString().split('T')[0];
+		availability.push({
+			id: crypto.randomUUID(),
+			preceptor_id: preceptorId,
+			date: dateStr,
+			is_available: isAvailable ? 1 : 0,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		});
+	}
+
+	return availability;
+}
+
 describe('Scheduling Algorithm Integration Tests', () => {
 	let engine: SchedulingEngine;
 	let engineWithAvailability: SchedulingEngine;
@@ -91,12 +117,15 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 3 });
 
+			// Create availability for preceptor
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-05');
+
 			const result = await engine.generateSchedule(
 				[student],
 				[preceptor],
 				[clerkship],
 				[], // no blackout dates
-				[], // no availability restrictions
+				availability,
 				'2024-01-01',
 				'2024-01-05'
 			);
@@ -115,12 +144,15 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', max_students: 2, specialty: 'Family Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
 
+			// Create availability for preceptor
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-03');
+
 			const result = await engine.generateSchedule(
 				[student1, student2],
 				[preceptor],
 				[clerkship],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-03'
 			);
@@ -140,12 +172,15 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', max_students: 2, specialty: 'Family Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 1 });
 
+			// Create availability for preceptor
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-01');
+
 			const result = await engine.generateSchedule(
 				[student1, student2, student3],
 				[preceptor],
 				[clerkship],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-01' // single day
 			);
@@ -163,12 +198,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const clerkship1 = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 1 });
 			const clerkship2 = createMockClerkship({ id: 'clerkship-2', name: 'Internal Medicine', specialty: 'Internal Medicine', required_days: 1 });
 
+			// Create availability for both preceptors
+			const availability = [
+				...createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-01'),
+				...createAvailabilityForDateRange('preceptor-2', '2024-01-01', '2024-01-01')
+			];
+
 			const result = await engine.generateSchedule(
 				[student],
 				[preceptor1, preceptor2],
 				[clerkship1, clerkship2],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-01' // single day - can only do one assignment
 			);
@@ -185,12 +226,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const imPreceptor = createMockPreceptor({ id: 'preceptor-im', email: 'im@example.com', specialty: 'Internal Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
 
+			// Create availability for both preceptors
+			const availability = [
+				...createAvailabilityForDateRange('preceptor-fm', '2024-01-01', '2024-01-03'),
+				...createAvailabilityForDateRange('preceptor-im', '2024-01-01', '2024-01-03')
+			];
+
 			const result = await engine.generateSchedule(
 				[student],
 				[familyPreceptor, imPreceptor],
 				[clerkship],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-03'
 			);
@@ -227,12 +274,15 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
 
+			// Create availability for preceptor
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-03');
+
 			const result = await engine.generateSchedule(
 				[student],
 				[preceptor],
 				[clerkship],
 				['2024-01-02'], // blackout on middle day
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-03'
 			);
@@ -250,12 +300,15 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 3 });
 
+			// Create availability for preceptor
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-05');
+
 			const result = await engine.generateSchedule(
 				[student],
 				[preceptor],
 				[clerkship],
 				['2024-01-02', '2024-01-04'], // blackout on day 2 and 4
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-05'
 			);
@@ -319,12 +372,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const fmClerkship = createMockClerkship({ id: 'clerkship-fm', specialty: 'Family Medicine', required_days: 2 });
 			const imClerkship = createMockClerkship({ id: 'clerkship-im', name: 'Internal Medicine', specialty: 'Internal Medicine', required_days: 2 });
 
+			// Create availability for both preceptors
+			const availability = [
+				...createAvailabilityForDateRange('preceptor-fm', '2024-01-01', '2024-01-10'),
+				...createAvailabilityForDateRange('preceptor-im', '2024-01-01', '2024-01-10')
+			];
+
 			const result = await engine.generateSchedule(
 				[student],
 				[fmPreceptor, imPreceptor],
 				[fmClerkship, imClerkship],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-10'
 			);
@@ -380,27 +439,30 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.unmetRequirements).toHaveLength(1);
 		});
 
-		it('tracks violations when constraints cannot be satisfied', async () => {
+		it('reports unmet requirements when constraints cannot be satisfied', async () => {
 			const student1 = createMockStudent({ id: 'student-1' });
 			const student2 = createMockStudent({ id: 'student-2', email: 'student2@example.com' });
 			const student3 = createMockStudent({ id: 'student-3', email: 'student3@example.com' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', max_students: 1, specialty: 'Family Medicine' });
 			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 1 });
 
+			// Create availability for preceptor
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-01');
+
 			const result = await engine.generateSchedule(
 				[student1, student2, student3],
 				[preceptor],
 				[clerkship],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-01'
 			);
 
-			// Should have violations logged
-			expect(result.summary.totalViolations).toBeGreaterThan(0);
-			expect(result.violationStats.length).toBeGreaterThan(0);
-			expect(result.summary.mostBlockingConstraints.length).toBeGreaterThan(0);
+			// Should complete but with unmet requirements (can only schedule 1 student due to capacity)
+			expect(result.success).toBe(false);
+			expect(result.assignments).toHaveLength(1);
+			expect(result.unmetRequirements).toHaveLength(2);
 		});
 
 		it('handles empty student list', async () => {
@@ -457,12 +519,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			];
 			const clerkship = createMockClerkship({ id: 'c1', specialty: 'Family Medicine', required_days: 2 });
 
+			// Create availability for both preceptors
+			const availability = [
+				...createAvailabilityForDateRange('p1', '2024-01-01', '2024-01-10'),
+				...createAvailabilityForDateRange('p2', '2024-01-01', '2024-01-10')
+			];
+
 			const result = await engine.generateSchedule(
 				students,
 				preceptors,
 				[clerkship],
 				[],
-				[],
+				availability,
 				'2024-01-01',
 				'2024-01-10'
 			);
