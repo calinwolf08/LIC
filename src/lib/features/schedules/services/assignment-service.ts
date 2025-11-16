@@ -217,6 +217,11 @@ export async function bulkCreateAssignments(
 	db: Kysely<DB>,
 	data: BulkAssignmentInput
 ): Promise<ScheduleAssignmentsTable[]> {
+	// Handle empty array case
+	if (data.assignments.length === 0) {
+		return [];
+	}
+
 	const timestamp = new Date().toISOString();
 	const assignments = data.assignments.map((assignment) => ({
 		id: crypto.randomUUID(),
