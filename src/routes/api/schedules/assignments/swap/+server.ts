@@ -4,15 +4,14 @@
  * POST /api/schedules/assignments/swap - Swap two assignments
  */
 
-import type { RequestHandler } from './$types';
+import type { RequestHandler} from './$types';
 import { db } from '$lib/db';
 import {
 	successResponse,
 	validationErrorResponse,
-	notFoundResponse,
-	handleApiError
+	notFoundResponse
 } from '$lib/api/responses';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { swapAssignments } from '$lib/features/schedules/services/editing-service';
 import { uuidSchema } from '$lib/validation/common-schemas';
 import { z, ZodError } from 'zod';

@@ -12,10 +12,9 @@ import {
 	successResponse,
 	validationErrorResponse,
 	errorResponse,
-	notFoundResponse,
-	handleApiError
+	notFoundResponse
 } from '$lib/api/responses';
-import { NotFoundError, ConflictError } from '$lib/api/errors';
+import { NotFoundError, ConflictError, handleApiError } from '$lib/api/errors';
 import {
 	getClerkshipById,
 	updateClerkship,

@@ -6,7 +6,8 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { successResponse, handleApiError } from '$lib/api/responses';
+import { successResponse } from '$lib/api/responses';
+import { handleApiError } from '$lib/api/errors';
 import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
 
 /**

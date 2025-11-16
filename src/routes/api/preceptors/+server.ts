@@ -10,10 +10,9 @@ import { db } from '$lib/db';
 import {
 	successResponse,
 	validationErrorResponse,
-	errorResponse,
-	handleApiError
+	errorResponse
 } from '$lib/api/responses';
-import { ConflictError } from '$lib/api/errors';
+import { ConflictError, handleApiError } from '$lib/api/errors';
 import {
 	getPreceptors,
 	getPreceptorsBySpecialty,

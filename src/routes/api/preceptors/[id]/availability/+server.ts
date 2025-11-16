@@ -10,10 +10,9 @@ import { db } from '$lib/db';
 import {
 	successResponse,
 	validationErrorResponse,
-	errorResponse,
-	handleApiError
+	errorResponse
 } from '$lib/api/responses';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, handleApiError } from '$lib/api/errors';
 import {
 	getAvailability,
 	getAvailabilityByDateRange,

@@ -6,7 +6,8 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { errorResponse, handleApiError } from '$lib/api/responses';
+import { errorResponse } from '$lib/api/responses';
+import { handleApiError } from '$lib/api/errors';
 import { generateScheduleExcel } from '$lib/features/schedules/services/export-service';
 import type { CalendarFilters } from '$lib/features/schedules/types';
 import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';

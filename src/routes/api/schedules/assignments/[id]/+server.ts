@@ -11,10 +11,9 @@ import { db } from '$lib/db';
 import {
 	successResponse,
 	validationErrorResponse,
-	notFoundResponse,
-	handleApiError
+	notFoundResponse
 } from '$lib/api/responses';
-import { NotFoundError, ValidationError } from '$lib/api/errors';
+import { NotFoundError, ValidationError, handleApiError } from '$lib/api/errors';
 import {
 	getAssignmentById,
 	updateAssignment,

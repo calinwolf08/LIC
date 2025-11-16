@@ -9,10 +9,9 @@ import { db } from '$lib/db';
 import {
 	successResponse,
 	validationErrorResponse,
-	notFoundResponse,
-	handleApiError
+	notFoundResponse
 } from '$lib/api/responses';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { reassignToPreceptor } from '$lib/features/schedules/services/editing-service';
 import { assignmentIdSchema } from '$lib/features/schedules/schemas';
 import { uuidSchema } from '$lib/validation/common-schemas';

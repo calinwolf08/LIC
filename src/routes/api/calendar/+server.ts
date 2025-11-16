@@ -6,7 +6,8 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { successResponse, validationErrorResponse, handleApiError } from '$lib/api/responses';
+import { successResponse, validationErrorResponse } from '$lib/api/responses';
+import { handleApiError } from '$lib/api/errors';
 import { getCalendarEvents } from '$lib/features/schedules/services/calendar-service';
 import { z, ZodError } from 'zod';
 import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
