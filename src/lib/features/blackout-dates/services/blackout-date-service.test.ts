@@ -35,12 +35,13 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('reason', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 }
 
 function createMockBlackoutDateData(
-	overrides: Partial<Omit<BlackoutDatesTable, 'id' | 'created_at'>> = {}
-): Omit<BlackoutDatesTable, 'id' | 'created_at'> {
+	overrides: Partial<Omit<BlackoutDatesTable, 'id' | 'created_at' | 'updated_at'>> = {}
+): Omit<BlackoutDatesTable, 'id' | 'created_at' | 'updated_at'> {
 	return {
 		date: '2024-12-25',
 		reason: null,
@@ -52,11 +53,13 @@ async function createBlackoutDateDirect(
 	db: Kysely<DB>,
 	data: Partial<BlackoutDatesTable> = {}
 ): Promise<BlackoutDatesTable> {
+	const timestamp = new Date().toISOString();
 	const blackoutDate: BlackoutDatesTable = {
 		id: crypto.randomUUID(),
 		date: '2024-12-25',
 		reason: null,
-		created_at: new Date().toISOString(),
+		created_at: timestamp,
+		updated_at: timestamp,
 		...data
 	};
 
