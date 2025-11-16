@@ -1,9 +1,13 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { CalendarEvent } from '$lib/features/schedules/types';
+	import type { CalendarEvent, EnrichedAssignment } from '$lib/features/schedules/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
+	import EditAssignmentModal from '$lib/features/schedules/components/edit-assignment-modal.svelte';
+	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
+	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
@@ -24,6 +28,12 @@
 	let events = $state<CalendarEvent[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	// Modals
+	let showEditModal = $state(false);
+	let showReassignModal = $state(false);
+	let showRegenerateDialog = $state(false);
+	let selectedAssignment = $state<EnrichedAssignment | null>(null);
 
 	// Load calendar data
 	async function loadCalendar() {
@@ -116,11 +126,70 @@
 		selectedPreceptor = '';
 		selectedClerkship = '';
 	}
+
+	// Edit assignment
+	function handleEditClick(assignment: EnrichedAssignment) {
+		selectedAssignment = assignment;
+		showEditModal = true;
+	}
+
+	function handleEditSave() {
+		showEditModal = false;
+		selectedAssignment = null;
+		loadCalendar();
+	}
+
+	function handleEditCancel() {
+		showEditModal = false;
+		selectedAssignment = null;
+	}
+
+	function handleEditDelete() {
+		showEditModal = false;
+		selectedAssignment = null;
+		loadCalendar();
+	}
+
+	// Reassign
+	function handleReassignClick(assignment: EnrichedAssignment) {
+		selectedAssignment = assignment;
+		showEditModal = false;
+		showReassignModal = true;
+	}
+
+	function handleReassignSave() {
+		showReassignModal = false;
+		selectedAssignment = null;
+		loadCalendar();
+	}
+
+	function handleReassignCancel() {
+		showReassignModal = false;
+		selectedAssignment = null;
+	}
+
+	// Regenerate schedule
+	function handleRegenerateClick() {
+		showRegenerateDialog = true;
+	}
+
+	function handleRegenerateConfirm() {
+		showRegenerateDialog = false;
+		loadCalendar();
+		invalidateAll();
+	}
+
+	function handleRegenerateCancel() {
+		showRegenerateDialog = false;
+	}
 </script>
 
 <div class="container mx-auto py-8">
-	<div class="mb-6">
+	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-3xl font-bold">Schedule Calendar</h1>
+		<Button variant="destructive" onclick={handleRegenerateClick}>
+			Regenerate Schedule
+		</Button>
 	</div>
 
 	<!-- Filters -->
@@ -241,6 +310,15 @@
 											<span>Specialty: {event.assignment.clerkship_specialty}</span>
 										</div>
 									</div>
+									<div>
+										<Button
+											size="sm"
+											variant="outline"
+											onclick={() => handleEditClick(event.assignment)}
+										>
+											Edit
+										</Button>
+									</div>
 								</div>
 							</div>
 						{/each}
@@ -250,3 +328,27 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Modals -->
+<EditAssignmentModal
+	assignment={selectedAssignment}
+	open={showEditModal}
+	onSave={handleEditSave}
+	onCancel={handleEditCancel}
+	onReassign={handleReassignClick}
+	onDelete={handleEditDelete}
+/>
+
+<ReassignModal
+	assignment={selectedAssignment}
+	preceptors={data.preceptors}
+	open={showReassignModal}
+	onSave={handleReassignSave}
+	onCancel={handleReassignCancel}
+/>
+
+<RegenerateDialog
+	open={showRegenerateDialog}
+	onConfirm={handleRegenerateConfirm}
+	onCancel={handleRegenerateCancel}
+/>
