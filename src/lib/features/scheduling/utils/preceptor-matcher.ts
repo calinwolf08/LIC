@@ -54,8 +54,8 @@ export function getAvailablePreceptors(
  * @returns Array of preceptors with matching specialty
  */
 export function getPreceptorsForClerkship(
-	clerkship: Clerkships,
+	clerkship: Selectable<Clerkships>,
 	context: SchedulingContext
-): Preceptors[] {
+): Selectable<Preceptors>[] {
 	return context.preceptors.filter((p) => p.specialty === clerkship.specialty);
 }

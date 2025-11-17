@@ -74,7 +74,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		const filename = `schedule-${new Date().toISOString().split('T')[0]}.xlsx`;
 
 		// Return Excel file with download headers
-		return new Response(buffer.buffer, {
+		return new Response(new Uint8Array(buffer), {
 			status: 200,
 			headers: {
 				'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
