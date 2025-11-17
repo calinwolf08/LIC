@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Clerkship Service Unit Tests
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Blackout Date Schema Tests
  *

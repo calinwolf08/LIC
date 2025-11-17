@@ -5,7 +5,7 @@
  */
 
 import type { Kysely } from 'kysely';
-import type { DB, ScheduleAssignmentsTable } from '$lib/db/types';
+import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { CreateAssignmentInput, UpdateAssignmentInput, BulkAssignmentInput, AssignmentFilters } from '../schemas';
 import { NotFoundError, ConflictError, ValidationError } from '$lib/api/errors';
 import { getStudentById } from '$lib/features/students/services/student-service';
@@ -20,7 +20,7 @@ import { getAvailabilityByDate } from '$lib/features/preceptors/services/availab
 export async function getAssignments(
 	db: Kysely<DB>,
 	filters?: AssignmentFilters
-): Promise<ScheduleAssignmentsTable[]> {
+): Promise<ScheduleAssignments[]> {
 	let query = db.selectFrom('schedule_assignments').selectAll();
 
 	if (filters?.student_id) {
@@ -55,7 +55,7 @@ export async function getAssignments(
 export async function getAssignmentById(
 	db: Kysely<DB>,
 	id: string
-): Promise<ScheduleAssignmentsTable | null> {
+): Promise<ScheduleAssignments | null> {
 	const assignment = await db
 		.selectFrom('schedule_assignments')
 		.selectAll()
@@ -71,7 +71,7 @@ export async function getAssignmentById(
 export async function getAssignmentsByStudent(
 	db: Kysely<DB>,
 	studentId: string
-): Promise<ScheduleAssignmentsTable[]> {
+): Promise<ScheduleAssignments[]> {
 	return await db
 		.selectFrom('schedule_assignments')
 		.selectAll()
@@ -86,7 +86,7 @@ export async function getAssignmentsByStudent(
 export async function getAssignmentsByPreceptor(
 	db: Kysely<DB>,
 	preceptorId: string
-): Promise<ScheduleAssignmentsTable[]> {
+): Promise<ScheduleAssignments[]> {
 	return await db
 		.selectFrom('schedule_assignments')
 		.selectAll()
@@ -102,7 +102,7 @@ export async function getAssignmentsByDateRange(
 	db: Kysely<DB>,
 	startDate: string,
 	endDate: string
-): Promise<ScheduleAssignmentsTable[]> {
+): Promise<ScheduleAssignments[]> {
 	return await db
 		.selectFrom('schedule_assignments')
 		.selectAll()
@@ -119,7 +119,7 @@ export async function getAssignmentsByDateRange(
 export async function createAssignment(
 	db: Kysely<DB>,
 	data: CreateAssignmentInput
-): Promise<ScheduleAssignmentsTable> {
+): Promise<ScheduleAssignments> {
 	// Validate assignment
 	const validation = await validateAssignment(db, data);
 	if (!validation.valid) {
@@ -127,7 +127,7 @@ export async function createAssignment(
 	}
 
 	const timestamp = new Date().toISOString();
-	const newAssignment: Omit<ScheduleAssignmentsTable, 'id'> & { id?: string } = {
+	const newAssignment: Omit<ScheduleAssignments, 'id'> & { id?: string } = {
 		id: crypto.randomUUID(),
 		student_id: data.student_id,
 		preceptor_id: data.preceptor_id,
@@ -156,7 +156,7 @@ export async function updateAssignment(
 	db: Kysely<DB>,
 	id: string,
 	data: UpdateAssignmentInput
-): Promise<ScheduleAssignmentsTable> {
+): Promise<ScheduleAssignments> {
 	// Check if assignment exists
 	const exists = await assignmentExists(db, id);
 	if (!exists) {
@@ -216,7 +216,7 @@ export async function deleteAssignment(db: Kysely<DB>, id: string): Promise<void
 export async function bulkCreateAssignments(
 	db: Kysely<DB>,
 	data: BulkAssignmentInput
-): Promise<ScheduleAssignmentsTable[]> {
+): Promise<ScheduleAssignments[]> {
 	// Handle empty array case
 	if (data.assignments.length === 0) {
 		return [];

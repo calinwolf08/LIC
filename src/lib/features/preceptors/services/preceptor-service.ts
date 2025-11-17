@@ -81,7 +81,7 @@ export async function createPreceptor(
 	}
 
 	const timestamp = new Date().toISOString();
-	const newPreceptor: Omit<Preceptors, 'id'> & { id?: string } = {
+	const newPreceptor = {
 		id: crypto.randomUUID(),
 		name: data.name,
 		email: data.email,

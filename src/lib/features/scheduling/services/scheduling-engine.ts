@@ -2,7 +2,7 @@ import type {
 	Students,
 	Preceptors,
 	Clerkships,
-	PreceptorAvailabilityTable,
+	PreceptorAvailability,
 } from '$lib/db/types';
 import type { Constraint, Assignment, SchedulingContext, ScheduleResult } from '../types';
 import { ViolationTracker } from './violation-tracker';
@@ -54,7 +54,7 @@ export class SchedulingEngine {
 		preceptors: Preceptors[],
 		clerkships: Clerkships[],
 		blackoutDates: string[],
-		preceptorAvailabilityRecords: PreceptorAvailabilityTable[],
+		preceptorAvailabilityRecords: PreceptorAvailability[],
 		startDate: string,
 		endDate: string,
 		bypassedConstraints: Set<string> = new Set()

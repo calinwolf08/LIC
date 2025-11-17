@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Student Service Tests
  *

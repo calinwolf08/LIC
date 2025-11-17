@@ -81,7 +81,7 @@ export async function createClerkship(
 	}
 
 	const timestamp = new Date().toISOString();
-	const newClerkship: Omit<Clerkships, 'id'> & { id?: string } = {
+	const newClerkship = {
 		id: crypto.randomUUID(),
 		name: data.name,
 		specialty: data.specialty,

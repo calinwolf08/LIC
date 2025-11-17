@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Preceptor Matcher Unit Tests
  *

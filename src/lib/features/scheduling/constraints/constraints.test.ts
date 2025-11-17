@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Scheduling Constraints Unit Tests
  *

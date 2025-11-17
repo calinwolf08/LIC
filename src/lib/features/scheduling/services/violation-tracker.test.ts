@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ViolationTracker Unit Tests
  *

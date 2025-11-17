@@ -106,8 +106,8 @@ async function generateStudentScheduleWorksheet(
 	}
 
 	// Apply borders
-	worksheet.eachRow((row, rowNumber) => {
-		row.eachCell((cell) => {
+	worksheet.eachRow((row: any, rowNumber: number) => {
+		row.eachCell((cell: any) => {
 			cell.border = {
 				top: { style: 'thin' },
 				left: { style: 'thin' },
@@ -176,7 +176,7 @@ async function generatePreceptorScheduleWorksheet(
 
 	// Apply borders
 	worksheet.eachRow((row) => {
-		row.eachCell((cell) => {
+		row.eachCell((cell: any) => {
 			cell.border = {
 				top: { style: 'thin' },
 				left: { style: 'thin' },
@@ -241,7 +241,7 @@ async function generateMasterScheduleWorksheet(
 
 	// Apply borders
 	worksheet.eachRow((row) => {
-		row.eachCell((cell) => {
+		row.eachCell((cell: any) => {
 			cell.border = {
 				top: { style: 'thin' },
 				left: { style: 'thin' },

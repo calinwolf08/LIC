@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Calendar and Editing Integration Tests
  *

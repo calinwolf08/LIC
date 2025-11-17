@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Preceptors, PreceptorAvailabilityTable } from '$lib/db/types';
+	import type { Preceptors, PreceptorAvailability } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -33,7 +33,7 @@
 			}
 
 			const result = await response.json();
-			const data: PreceptorAvailabilityTable[] = result.data;
+			const data: PreceptorAvailability[] = result.data;
 
 			// Convert to availability items
 			availabilityItems = data.map((item) => ({

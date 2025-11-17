@@ -5,14 +5,14 @@
  */
 
 import type { Kysely } from 'kysely';
-import type { DB, BlackoutDatesTable } from '$lib/db/types';
+import type { DB, BlackoutDates } from '$lib/db/types';
 import type { CreateBlackoutDateInput } from '../schemas';
 import { NotFoundError } from '$lib/api/errors';
 
 /**
  * Get all blackout dates, ordered by date
  */
-export async function getBlackoutDates(db: Kysely<DB>): Promise<BlackoutDatesTable[]> {
+export async function getBlackoutDates(db: Kysely<DB>): Promise<BlackoutDates[]> {
 	return await db
 		.selectFrom('blackout_dates')
 		.selectAll()
@@ -27,7 +27,7 @@ export async function getBlackoutDates(db: Kysely<DB>): Promise<BlackoutDatesTab
 export async function getBlackoutDateById(
 	db: Kysely<DB>,
 	id: string
-): Promise<BlackoutDatesTable | null> {
+): Promise<BlackoutDates | null> {
 	const blackoutDate = await db
 		.selectFrom('blackout_dates')
 		.selectAll()
@@ -47,7 +47,7 @@ export async function getBlackoutDatesByRange(
 	db: Kysely<DB>,
 	startDate?: string,
 	endDate?: string
-): Promise<BlackoutDatesTable[]> {
+): Promise<BlackoutDates[]> {
 	let query = db.selectFrom('blackout_dates').selectAll();
 
 	if (startDate) {
@@ -67,9 +67,9 @@ export async function getBlackoutDatesByRange(
 export async function createBlackoutDate(
 	db: Kysely<DB>,
 	data: CreateBlackoutDateInput
-): Promise<BlackoutDatesTable> {
+): Promise<BlackoutDates> {
 	const timestamp = new Date().toISOString();
-	const newBlackoutDate: Omit<BlackoutDatesTable, 'id'> & { id?: string } = {
+	const newBlackoutDate = {
 		id: crypto.randomUUID(),
 		date: data.date,
 		reason: data.reason || null,

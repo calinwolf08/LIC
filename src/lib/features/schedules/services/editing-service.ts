@@ -5,7 +5,7 @@
  */
 
 import type { Kysely } from 'kysely';
-import type { DB, ScheduleAssignmentsTable } from '$lib/db/types';
+import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { UpdateAssignmentInput } from '../schemas';
 import { NotFoundError, ValidationError } from '$lib/api/errors';
 import {
@@ -20,7 +20,7 @@ import {
 export interface EditResult {
 	valid: boolean;
 	errors: string[];
-	assignment?: ScheduleAssignmentsTable;
+	assignment?: ScheduleAssignments;
 }
 
 /**
@@ -147,7 +147,7 @@ export async function swapAssignments(
 ): Promise<{
 	valid: boolean;
 	errors: string[];
-	assignments?: ScheduleAssignmentsTable[];
+	assignments?: ScheduleAssignments[];
 }> {
 	// Get both assignments
 	const [assignment1, assignment2] = await Promise.all([

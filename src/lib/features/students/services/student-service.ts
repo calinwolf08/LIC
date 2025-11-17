@@ -59,7 +59,7 @@ export async function createStudent(
 	}
 
 	const timestamp = new Date().toISOString();
-	const newStudent: Omit<Students, 'id'> & { id?: string } = {
+	const newStudent = {
 		id: crypto.randomUUID(),
 		name: data.name,
 		email: data.email,

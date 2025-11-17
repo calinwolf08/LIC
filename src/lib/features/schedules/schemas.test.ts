@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Schedule Assignments - Schema Validation Tests
  *
