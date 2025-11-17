@@ -6,5 +6,8 @@ export const auth = betterAuth({
         enabled: true,
     },
     database: new Database('./sqlite.db'),
+    advanced: {
+        generateSchema: true,
+    },
 });
 
