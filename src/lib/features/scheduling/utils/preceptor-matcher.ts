@@ -1,3 +1,4 @@
+import type { Selectable } from 'kysely';
 import type { Preceptors, Clerkships } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
 
@@ -15,10 +16,10 @@ import type { SchedulingContext } from '../types';
  * @returns Array of available preceptors (may be empty)
  */
 export function getAvailablePreceptors(
-	clerkship: Clerkships,
+	clerkship: Selectable<Clerkships>,
 	date: string,
 	context: SchedulingContext
-): Preceptors[] {
+): Selectable<Preceptors>[] {
 	return context.preceptors.filter((preceptor) => {
 		// 1. Check specialty match
 		if (preceptor.specialty !== clerkship.specialty) {
@@ -26,7 +27,7 @@ export function getAvailablePreceptors(
 		}
 
 		// 2. Check availability on this date
-		const availableDates = context.preceptorAvailability.get(preceptor.id);
+		const availableDates = context.preceptorAvailability.get(preceptor.id!);
 		if (!availableDates?.has(date)) {
 			return false;
 		}
@@ -37,7 +38,7 @@ export function getAvailablePreceptors(
 				.get(date)
 				?.filter((a) => a.preceptorId === preceptor.id) || [];
 
-		if (assignmentsOnDate.length >= preceptor.max_students) {
+		if (assignmentsOnDate.length >= Number(preceptor.max_students)) {
 			return false;
 		}
 

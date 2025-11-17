@@ -1,3 +1,4 @@
+import type { Selectable } from 'kysely';
 import type { Students, Clerkships } from '$lib/db/types';
 import type { SchedulingContext, UnmetRequirement } from '../types';
 
@@ -14,7 +15,7 @@ import type { SchedulingContext, UnmetRequirement } from '../types';
 export function getMostNeededClerkship(
 	studentId: string,
 	context: SchedulingContext
-): Clerkships | null {
+): Selectable<Clerkships> | null {
 	const studentReqs = context.studentRequirements.get(studentId);
 	if (!studentReqs) return null;
 
@@ -43,9 +44,9 @@ export function getMostNeededClerkship(
  */
 export function getStudentsNeedingAssignments(
 	context: SchedulingContext
-): Students[] {
+): Selectable<Students>[] {
 	return context.students.filter((student) => {
-		const requirements = context.studentRequirements.get(student.id);
+		const requirements = context.studentRequirements.get(student.id!);
 		if (!requirements) return false;
 
 		// Check if any requirement has days remaining
@@ -68,7 +69,7 @@ export function checkUnmetRequirements(context: SchedulingContext): UnmetRequire
 	const unmet: UnmetRequirement[] = [];
 
 	for (const student of context.students) {
-		const requirements = context.studentRequirements.get(student.id);
+		const requirements = context.studentRequirements.get(student.id!);
 		if (!requirements) continue;
 
 		for (const [clerkshipId, daysNeeded] of requirements.entries()) {
@@ -76,14 +77,14 @@ export function checkUnmetRequirements(context: SchedulingContext): UnmetRequire
 				const clerkship = context.clerkships.find((c) => c.id === clerkshipId);
 				if (!clerkship) continue;
 
-				const assignedDays = clerkship.required_days - daysNeeded;
+				const assignedDays = Number(clerkship.required_days) - daysNeeded;
 
 				unmet.push({
-					studentId: student.id,
+					studentId: student.id!,
 					studentName: student.name,
-					clerkshipId: clerkship.id,
+					clerkshipId: clerkship.id!,
 					clerkshipName: clerkship.name,
-					requiredDays: clerkship.required_days,
+					requiredDays: Number(clerkship.required_days),
 					assignedDays,
 					remainingDays: daysNeeded,
 				});
@@ -104,17 +105,17 @@ export function checkUnmetRequirements(context: SchedulingContext): UnmetRequire
  * @returns Map of student requirements
  */
 export function initializeStudentRequirements(
-	students: Students[],
-	clerkships: Clerkships[]
+	students: Selectable<Students>[],
+	clerkships: Selectable<Clerkships>[]
 ): Map<string, Map<string, number>> {
 	const requirements = new Map<string, Map<string, number>>();
 
 	for (const student of students) {
 		const studentReqs = new Map<string, number>();
 		for (const clerkship of clerkships) {
-			studentReqs.set(clerkship.id, clerkship.required_days);
+			studentReqs.set(clerkship.id!, Number(clerkship.required_days));
 		}
-		requirements.set(student.id, studentReqs);
+		requirements.set(student.id!, studentReqs);
 	}
 
 	return requirements;

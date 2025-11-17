@@ -1,3 +1,4 @@
+import type { Selectable } from 'kysely';
 import type {
 	Students,
 	Preceptors,
@@ -50,11 +51,11 @@ export class SchedulingEngine {
 	 * @returns Complete schedule result with assignments and violation analysis
 	 */
 	async generateSchedule(
-		students: Students[],
-		preceptors: Preceptors[],
-		clerkships: Clerkships[],
+		students: Selectable<Students>[],
+		preceptors: Selectable<Preceptors>[],
+		clerkships: Selectable<Clerkships>[],
 		blackoutDates: string[],
-		preceptorAvailabilityRecords: PreceptorAvailability[],
+		preceptorAvailabilityRecords: Selectable<PreceptorAvailability>[],
 		startDate: string,
 		endDate: string,
 		bypassedConstraints: Set<string> = new Set()
@@ -83,7 +84,7 @@ export class SchedulingEngine {
 
 			for (const student of studentsNeedingWork) {
 				// Find which clerkship this student needs most
-				const clerkship = getMostNeededClerkship(student.id, context);
+				const clerkship = getMostNeededClerkship(student.id!, context);
 				if (!clerkship) continue; // Student has met all requirements
 
 				// Find available preceptors for this clerkship on this date
@@ -92,9 +93,9 @@ export class SchedulingEngine {
 				// Try to assign to a preceptor
 				for (const preceptor of availablePreceptors) {
 					const assignment: Assignment = {
-						studentId: student.id,
-						preceptorId: preceptor.id,
-						clerkshipId: clerkship.id,
+						studentId: student.id!,
+						preceptorId: preceptor.id!,
+						clerkshipId: clerkship.id!,
 						date,
 					};
 

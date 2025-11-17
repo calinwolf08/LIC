@@ -2,12 +2,13 @@
  * Schedule and Calendar Type Definitions
  */
 
+import type { Selectable } from 'kysely';
 import type { ScheduleAssignments } from '$lib/db/types';
 
 /**
  * Enriched assignment with entity names (from JOIN queries)
  */
-export interface EnrichedAssignment extends ScheduleAssignments {
+export interface EnrichedAssignment extends Selectable<ScheduleAssignments> {
 	student_name: string;
 	student_email: string;
 	preceptor_name: string;
@@ -22,7 +23,7 @@ export interface EnrichedAssignment extends ScheduleAssignments {
  * Calendar event format for calendar components
  */
 export interface CalendarEvent {
-	id: string;
+	id: string | null;
 	title: string;
 	date: string; // YYYY-MM-DD
 	description: string;

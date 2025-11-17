@@ -25,7 +25,7 @@ export class PreceptorCapacityConstraint implements Constraint {
 				.get(assignment.date)
 				?.filter((a) => a.preceptorId === assignment.preceptorId) || [];
 
-		const isValid = preceptorAssignmentsOnDate.length < preceptor.max_students;
+		const isValid = preceptorAssignmentsOnDate.length < Number(preceptor.max_students);
 
 		if (!isValid) {
 			const student = context.students.find((s) => s.id === assignment.studentId);

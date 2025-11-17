@@ -1,3 +1,4 @@
+import type { Selectable } from 'kysely';
 import type {
 	Students,
 	Preceptors,
@@ -22,11 +23,11 @@ import { initializeStudentRequirements } from './requirement-tracker';
  * @returns Fully initialized scheduling context
  */
 export function buildSchedulingContext(
-	students: Students[],
-	preceptors: Preceptors[],
-	clerkships: Clerkships[],
+	students: Selectable<Students>[],
+	preceptors: Selectable<Preceptors>[],
+	clerkships: Selectable<Clerkships>[],
 	blackoutDates: string[],
-	preceptorAvailabilityRecords: PreceptorAvailability[],
+	preceptorAvailabilityRecords: Selectable<PreceptorAvailability>[],
 	startDate: string,
 	endDate: string
 ): SchedulingContext {
@@ -36,7 +37,7 @@ export function buildSchedulingContext(
 	// Build preceptor availability map
 	const preceptorAvailability = new Map<string, Set<string>>();
 	for (const preceptor of preceptors) {
-		preceptorAvailability.set(preceptor.id, new Set());
+		preceptorAvailability.set(preceptor.id!, new Set());
 	}
 
 	for (const record of preceptorAvailabilityRecords) {

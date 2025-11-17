@@ -22,7 +22,7 @@ export const load: PageServerLoad = async () => {
 	}
 
 	// Calculate total required days per student
-	const totalRequiredDays = clerkships.reduce((sum, c) => sum + c.required_days, 0);
+	const totalRequiredDays = clerkships.reduce((sum, c) => sum + Number(c.required_days), 0);
 
 	// Categorize students
 	let fullyScheduled = 0;
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async () => {
 	let unscheduled = 0;
 
 	for (const student of students) {
-		const assignedDays = studentAssignments.get(student.id) || 0;
+		const assignedDays = studentAssignments.get(student.id!) || 0;
 
 		if (assignedDays >= totalRequiredDays) {
 			fullyScheduled++;

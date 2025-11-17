@@ -1,3 +1,4 @@
+import type { Selectable } from 'kysely';
 import type {
 	Students,
 	Preceptors,
@@ -15,17 +16,17 @@ export interface SchedulingContext {
 	/**
 	 * All students to be scheduled
 	 */
-	students: Students[];
+	students: Selectable<Students>[];
 
 	/**
 	 * All available preceptors
 	 */
-	preceptors: Preceptors[];
+	preceptors: Selectable<Preceptors>[];
 
 	/**
 	 * All clerkship types with requirements
 	 */
-	clerkships: Clerkships[];
+	clerkships: Selectable<Clerkships>[];
 
 	/**
 	 * System-wide blackout dates (no scheduling allowed)

@@ -167,7 +167,7 @@ export async function bulkUpdateAvailability(
 		throw new NotFoundError('Preceptor');
 	}
 
-	const results: PreceptorAvailability[] = [];
+	const results: Selectable<PreceptorAvailability>[] = [];
 
 	// Set availability for each date
 	for (const item of data.availability) {

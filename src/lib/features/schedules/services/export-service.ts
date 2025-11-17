@@ -175,7 +175,7 @@ async function generatePreceptorScheduleWorksheet(
 	}
 
 	// Apply borders
-	worksheet.eachRow((row) => {
+	worksheet.eachRow((row: any) => {
 		row.eachCell((cell: any) => {
 			cell.border = {
 				top: { style: 'thin' },
@@ -240,7 +240,7 @@ async function generateMasterScheduleWorksheet(
 	}
 
 	// Apply borders
-	worksheet.eachRow((row) => {
+	worksheet.eachRow((row: any) => {
 		row.eachCell((cell: any) => {
 			cell.border = {
 				top: { style: 'thin' },
