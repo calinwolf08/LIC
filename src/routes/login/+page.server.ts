@@ -5,6 +5,6 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
 	return {
-		form: await superValidate(null, zod(loginSchema)),
+		form: await superValidate({ rememberMe: false }, zod(loginSchema)),
 	};
 };
