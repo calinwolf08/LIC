@@ -1,7 +1,7 @@
 import type {
-	StudentsTable,
-	PreceptorsTable,
-	ClerkshipsTable,
+	Students,
+	Preceptors,
+	Clerkships,
 	PreceptorAvailabilityTable,
 } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
@@ -22,9 +22,9 @@ import { initializeStudentRequirements } from './requirement-tracker';
  * @returns Fully initialized scheduling context
  */
 export function buildSchedulingContext(
-	students: StudentsTable[],
-	preceptors: PreceptorsTable[],
-	clerkships: ClerkshipsTable[],
+	students: Students[],
+	preceptors: Preceptors[],
+	clerkships: Clerkships[],
 	blackoutDates: string[],
 	preceptorAvailabilityRecords: PreceptorAvailabilityTable[],
 	startDate: string,

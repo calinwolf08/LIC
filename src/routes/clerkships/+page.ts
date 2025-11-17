@@ -5,7 +5,7 @@
  */
 
 import type { PageLoad } from './$types';
-import type { ClerkshipsTable } from '$lib/db/types';
+import type { Clerkships } from '$lib/db/types';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
@@ -18,12 +18,12 @@ export const load: PageLoad = async ({ fetch }) => {
 		const result = await response.json();
 
 		return {
-			clerkships: result.data as ClerkshipsTable[]
+			clerkships: result.data as Clerkships[]
 		};
 	} catch (error) {
 		console.error('Error loading clerkships:', error);
 		return {
-			clerkships: [] as ClerkshipsTable[]
+			clerkships: [] as Clerkships[]
 		};
 	}
 };

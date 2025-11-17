@@ -5,7 +5,7 @@
  */
 
 import type { Kysely } from 'kysely';
-import type { DB, PreceptorsTable } from '$lib/db/types';
+import type { DB, Preceptors } from '$lib/db/types';
 import type { CreatePreceptorInput, UpdatePreceptorInput } from '../schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
@@ -13,7 +13,7 @@ import { sql } from 'kysely';
 /**
  * Get all preceptors, ordered by name
  */
-export async function getPreceptors(db: Kysely<DB>): Promise<PreceptorsTable[]> {
+export async function getPreceptors(db: Kysely<DB>): Promise<Preceptors[]> {
 	return await db.selectFrom('preceptors').selectAll().orderBy('name', 'asc').execute();
 }
 
@@ -24,7 +24,7 @@ export async function getPreceptors(db: Kysely<DB>): Promise<PreceptorsTable[]> 
 export async function getPreceptorById(
 	db: Kysely<DB>,
 	id: string
-): Promise<PreceptorsTable | null> {
+): Promise<Preceptors | null> {
 	const preceptor = await db
 		.selectFrom('preceptors')
 		.selectAll()
@@ -40,7 +40,7 @@ export async function getPreceptorById(
 export async function getPreceptorsBySpecialty(
 	db: Kysely<DB>,
 	specialty: string
-): Promise<PreceptorsTable[]> {
+): Promise<Preceptors[]> {
 	return await db
 		.selectFrom('preceptors')
 		.selectAll()
@@ -56,7 +56,7 @@ export async function getPreceptorsBySpecialty(
 export async function getPreceptorByEmail(
 	db: Kysely<DB>,
 	email: string
-): Promise<PreceptorsTable | null> {
+): Promise<Preceptors | null> {
 	const preceptor = await db
 		.selectFrom('preceptors')
 		.selectAll()
@@ -73,7 +73,7 @@ export async function getPreceptorByEmail(
 export async function createPreceptor(
 	db: Kysely<DB>,
 	data: CreatePreceptorInput
-): Promise<PreceptorsTable> {
+): Promise<Preceptors> {
 	// Check if email is already taken
 	const existingPreceptor = await getPreceptorByEmail(db, data.email);
 	if (existingPreceptor) {
@@ -81,7 +81,7 @@ export async function createPreceptor(
 	}
 
 	const timestamp = new Date().toISOString();
-	const newPreceptor: Omit<PreceptorsTable, 'id'> & { id?: string } = {
+	const newPreceptor: Omit<Preceptors, 'id'> & { id?: string } = {
 		id: crypto.randomUUID(),
 		name: data.name,
 		email: data.email,
@@ -109,7 +109,7 @@ export async function updatePreceptor(
 	db: Kysely<DB>,
 	id: string,
 	data: UpdatePreceptorInput
-): Promise<PreceptorsTable> {
+): Promise<Preceptors> {
 	// Check if preceptor exists
 	const exists = await preceptorExists(db, id);
 	if (!exists) {

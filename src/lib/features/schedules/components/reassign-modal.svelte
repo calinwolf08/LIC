@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { EnrichedAssignment } from '../types';
-	import type { PreceptorsTable } from '$lib/db/types';
+	import type { Preceptors } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 
 	interface Props {
 		assignment: EnrichedAssignment | null;
-		preceptors: PreceptorsTable[];
+		preceptors: Preceptors[];
 		open: boolean;
 		onSave?: () => void;
 		onCancel?: () => void;

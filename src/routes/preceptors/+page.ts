@@ -5,7 +5,7 @@
  */
 
 import type { PageLoad } from './$types';
-import type { PreceptorsTable } from '$lib/db/types';
+import type { Preceptors } from '$lib/db/types';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
@@ -18,12 +18,12 @@ export const load: PageLoad = async ({ fetch }) => {
 		const result = await response.json();
 
 		return {
-			preceptors: result.data as PreceptorsTable[]
+			preceptors: result.data as Preceptors[]
 		};
 	} catch (error) {
 		console.error('Error loading preceptors:', error);
 		return {
-			preceptors: [] as PreceptorsTable[]
+			preceptors: [] as Preceptors[]
 		};
 	}
 };

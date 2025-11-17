@@ -5,7 +5,7 @@
  */
 
 import type { Kysely } from 'kysely';
-import type { DB, ClerkshipsTable } from '$lib/db/types';
+import type { DB, Clerkships } from '$lib/db/types';
 import type { CreateClerkshipInput, UpdateClerkshipInput } from '../schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
@@ -13,7 +13,7 @@ import { sql } from 'kysely';
 /**
  * Get all clerkships, ordered by name
  */
-export async function getClerkships(db: Kysely<DB>): Promise<ClerkshipsTable[]> {
+export async function getClerkships(db: Kysely<DB>): Promise<Clerkships[]> {
 	return await db.selectFrom('clerkships').selectAll().orderBy('name', 'asc').execute();
 }
 
@@ -24,7 +24,7 @@ export async function getClerkships(db: Kysely<DB>): Promise<ClerkshipsTable[]> 
 export async function getClerkshipById(
 	db: Kysely<DB>,
 	id: string
-): Promise<ClerkshipsTable | null> {
+): Promise<Clerkships | null> {
 	const clerkship = await db
 		.selectFrom('clerkships')
 		.selectAll()
@@ -40,7 +40,7 @@ export async function getClerkshipById(
 export async function getClerkshipsBySpecialty(
 	db: Kysely<DB>,
 	specialty: string
-): Promise<ClerkshipsTable[]> {
+): Promise<Clerkships[]> {
 	return await db
 		.selectFrom('clerkships')
 		.selectAll()
@@ -56,7 +56,7 @@ export async function getClerkshipsBySpecialty(
 export async function getClerkshipByName(
 	db: Kysely<DB>,
 	name: string
-): Promise<ClerkshipsTable | null> {
+): Promise<Clerkships | null> {
 	const clerkship = await db
 		.selectFrom('clerkships')
 		.selectAll()
@@ -73,7 +73,7 @@ export async function getClerkshipByName(
 export async function createClerkship(
 	db: Kysely<DB>,
 	data: CreateClerkshipInput
-): Promise<ClerkshipsTable> {
+): Promise<Clerkships> {
 	// Check if name is already taken
 	const existingClerkship = await getClerkshipByName(db, data.name);
 	if (existingClerkship) {
@@ -81,7 +81,7 @@ export async function createClerkship(
 	}
 
 	const timestamp = new Date().toISOString();
-	const newClerkship: Omit<ClerkshipsTable, 'id'> & { id?: string } = {
+	const newClerkship: Omit<Clerkships, 'id'> & { id?: string } = {
 		id: crypto.randomUUID(),
 		name: data.name,
 		specialty: data.specialty,
@@ -109,7 +109,7 @@ export async function updateClerkship(
 	db: Kysely<DB>,
 	id: string,
 	data: UpdateClerkshipInput
-): Promise<ClerkshipsTable> {
+): Promise<Clerkships> {
 	// Check if clerkship exists
 	const exists = await clerkshipExists(db, id);
 	if (!exists) {

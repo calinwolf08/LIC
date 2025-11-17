@@ -5,9 +5,9 @@
  */
 
 import type {
-	StudentsTable,
-	PreceptorsTable,
-	ClerkshipsTable,
+	Students,
+	Preceptors,
+	Clerkships,
 	ScheduleAssignmentsTable
 } from '$lib/db/types';
 
@@ -20,8 +20,8 @@ let assignmentCounter = 0;
  * Creates a mock student with random data
  */
 export function createMockStudent(
-	overrides?: Partial<StudentsTable>
-): StudentsTable {
+	overrides?: Partial<Students>
+): Students {
 	studentCounter++;
 	const timestamp = new Date().toISOString();
 
@@ -39,8 +39,8 @@ export function createMockStudent(
  * Creates a mock preceptor with random data
  */
 export function createMockPreceptor(
-	overrides?: Partial<PreceptorsTable>
-): PreceptorsTable {
+	overrides?: Partial<Preceptors>
+): Preceptors {
 	preceptorCounter++;
 	const timestamp = new Date().toISOString();
 
@@ -60,8 +60,8 @@ export function createMockPreceptor(
  * Creates a mock clerkship with random data
  */
 export function createMockClerkship(
-	overrides?: Partial<ClerkshipsTable>
-): ClerkshipsTable {
+	overrides?: Partial<Clerkships>
+): Clerkships {
 	clerkshipCounter++;
 	const timestamp = new Date().toISOString();
 

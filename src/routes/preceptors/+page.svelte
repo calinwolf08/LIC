@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { PreceptorsTable } from '$lib/db/types';
+	import type { Preceptors } from '$lib/db/types';
 	import PreceptorList from '$lib/features/preceptors/components/preceptor-list.svelte';
 	import PreceptorForm from '$lib/features/preceptors/components/preceptor-form.svelte';
 	import AvailabilityManager from '$lib/features/preceptors/components/availability-manager.svelte';
@@ -14,24 +14,24 @@
 	let showForm = $state(false);
 	let showAvailability = $state(false);
 	let showDeleteDialog = $state(false);
-	let selectedPreceptor = $state<PreceptorsTable | null>(null);
+	let selectedPreceptor = $state<Preceptors | null>(null);
 
 	function handleAdd() {
 		selectedPreceptor = null;
 		showForm = true;
 	}
 
-	function handleEdit(preceptor: PreceptorsTable) {
+	function handleEdit(preceptor: Preceptors) {
 		selectedPreceptor = preceptor;
 		showForm = true;
 	}
 
-	function handleManageAvailability(preceptor: PreceptorsTable) {
+	function handleManageAvailability(preceptor: Preceptors) {
 		selectedPreceptor = preceptor;
 		showAvailability = true;
 	}
 
-	function handleDelete(preceptor: PreceptorsTable) {
+	function handleDelete(preceptor: Preceptors) {
 		selectedPreceptor = preceptor;
 		showDeleteDialog = true;
 	}
@@ -58,7 +58,7 @@
 		selectedPreceptor = null;
 	}
 
-	async function handleDeleteConfirm(preceptor: PreceptorsTable) {
+	async function handleDeleteConfirm(preceptor: Preceptors) {
 		const response = await fetch(`/api/preceptors/${preceptor.id}`, {
 			method: 'DELETE'
 		});

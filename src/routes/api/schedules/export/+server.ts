@@ -84,7 +84,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return errorResponse(error.errors[0].message, 400);
+			return errorResponse(error.issues[0].message, 400);
 		}
 
 		return handleApiError(error);

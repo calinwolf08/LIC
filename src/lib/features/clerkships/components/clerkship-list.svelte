@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { ClerkshipsTable } from '$lib/db/types';
+	import type { Clerkships } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
-		clerkships: ClerkshipsTable[];
+		clerkships: Clerkships[];
 		loading?: boolean;
-		onEdit?: (clerkship: ClerkshipsTable) => void;
-		onDelete?: (clerkship: ClerkshipsTable) => void;
+		onEdit?: (clerkship: Clerkships) => void;
+		onDelete?: (clerkship: Clerkships) => void;
 	}
 
 	let { clerkships, loading = false, onEdit, onDelete }: Props = $props();

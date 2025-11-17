@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { StudentsTable } from '$lib/db/types';
+	import type { Students } from '$lib/db/types';
 	import StudentList from '$lib/features/students/components/student-list.svelte';
 	import DeleteStudentDialog from '$lib/features/students/components/delete-student-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -10,18 +10,18 @@
 	let { data }: { data: PageData } = $props();
 
 	let showDeleteDialog = $state(false);
-	let studentToDelete = $state<StudentsTable | null>(null);
+	let studentToDelete = $state<Students | null>(null);
 
-	function handleEdit(student: StudentsTable) {
+	function handleEdit(student: Students) {
 		goto(`/students/${student.id}/edit`);
 	}
 
-	function handleDelete(student: StudentsTable) {
+	function handleDelete(student: Students) {
 		studentToDelete = student;
 		showDeleteDialog = true;
 	}
 
-	async function handleDeleteConfirm(student: StudentsTable) {
+	async function handleDeleteConfirm(student: Students) {
 		const response = await fetch(`/api/students/${student.id}`, {
 			method: 'DELETE'
 		});

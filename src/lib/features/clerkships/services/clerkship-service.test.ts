@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
-import type { DB, ClerkshipsTable } from '$lib/db/types';
+import type { DB, Clerkships } from '$lib/db/types';
 import {
 	getClerkships,
 	getClerkshipById,
@@ -56,8 +56,8 @@ async function initializeSchema(db: Kysely<DB>) {
 }
 
 function createMockClerkshipData(
-	overrides: Partial<Omit<ClerkshipsTable, 'id' | 'created_at' | 'updated_at'>> = {}
-): Omit<ClerkshipsTable, 'id' | 'created_at' | 'updated_at'> {
+	overrides: Partial<Omit<Clerkships, 'id' | 'created_at' | 'updated_at'>> = {}
+): Omit<Clerkships, 'id' | 'created_at' | 'updated_at'> {
 	return {
 		name: 'Family Medicine Clerkship',
 		specialty: 'Family Medicine',
@@ -69,10 +69,10 @@ function createMockClerkshipData(
 
 async function createClerkshipDirect(
 	db: Kysely<DB>,
-	data: Partial<ClerkshipsTable> = {}
-): Promise<ClerkshipsTable> {
+	data: Partial<Clerkships> = {}
+): Promise<Clerkships> {
 	const timestamp = new Date().toISOString();
-	const clerkship: ClerkshipsTable = {
+	const clerkship: Clerkships = {
 		id: crypto.randomUUID(),
 		name: 'Family Medicine Clerkship',
 		specialty: 'Family Medicine',

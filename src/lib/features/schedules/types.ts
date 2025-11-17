@@ -2,12 +2,12 @@
  * Schedule and Calendar Type Definitions
  */
 
-import type { ScheduleAssignmentsTable } from '$lib/db/types';
+import type { ScheduleAssignments } from '$lib/db/types';
 
 /**
  * Enriched assignment with entity names (from JOIN queries)
  */
-export interface EnrichedAssignment extends ScheduleAssignmentsTable {
+export interface EnrichedAssignment extends ScheduleAssignments {
 	student_name: string;
 	student_email: string;
 	preceptor_name: string;

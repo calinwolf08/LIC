@@ -1,14 +1,14 @@
 <script lang="ts">
-	import type { PreceptorsTable } from '$lib/db/types';
+	import type { Preceptors } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
-		preceptors: PreceptorsTable[];
+		preceptors: Preceptors[];
 		loading?: boolean;
-		onEdit?: (preceptor: PreceptorsTable) => void;
-		onDelete?: (preceptor: PreceptorsTable) => void;
-		onManageAvailability?: (preceptor: PreceptorsTable) => void;
+		onEdit?: (preceptor: Preceptors) => void;
+		onDelete?: (preceptor: Preceptors) => void;
+		onManageAvailability?: (preceptor: Preceptors) => void;
 	}
 
 	let { preceptors, loading = false, onEdit, onDelete, onManageAvailability }: Props = $props();

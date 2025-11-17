@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PreceptorsTable, PreceptorAvailabilityTable } from '$lib/db/types';
+	import type { Preceptors, PreceptorAvailabilityTable } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -7,7 +7,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 
 	interface Props {
-		preceptor: PreceptorsTable;
+		preceptor: Preceptors;
 		onSuccess?: () => void;
 		onCancel?: () => void;
 	}

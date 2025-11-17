@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { StudentsTable } from '$lib/db/types';
+	import type { Students } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
-		students: StudentsTable[];
+		students: Students[];
 		loading?: boolean;
-		onEdit?: (student: StudentsTable) => void;
-		onDelete?: (student: StudentsTable) => void;
+		onEdit?: (student: Students) => void;
+		onDelete?: (student: Students) => void;
 	}
 
 	let { students, loading = false, onEdit, onDelete }: Props = $props();

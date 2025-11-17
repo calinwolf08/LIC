@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PreceptorsTable } from '$lib/db/types';
+	import type { Preceptors } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -8,7 +8,7 @@
 	import { ZodError } from 'zod';
 
 	interface Props {
-		preceptor?: PreceptorsTable;
+		preceptor?: Preceptors;
 		onSuccess?: () => void;
 		onCancel?: () => void;
 	}
@@ -70,7 +70,7 @@
 		} catch (error) {
 			if (error instanceof ZodError) {
 				const fieldErrors: Record<string, string> = {};
-				for (const issue of error.errors) {
+				for (const issue of error.issues) {
 					const field = issue.path[0]?.toString();
 					if (field) {
 						fieldErrors[field] = issue.message;

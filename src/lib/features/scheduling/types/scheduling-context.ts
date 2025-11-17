@@ -1,7 +1,7 @@
 import type {
-	StudentsTable,
-	PreceptorsTable,
-	ClerkshipsTable,
+	Students,
+	Preceptors,
+	Clerkships,
 } from '$lib/db/types';
 import type { Assignment } from './assignment';
 
@@ -15,17 +15,17 @@ export interface SchedulingContext {
 	/**
 	 * All students to be scheduled
 	 */
-	students: StudentsTable[];
+	students: Students[];
 
 	/**
 	 * All available preceptors
 	 */
-	preceptors: PreceptorsTable[];
+	preceptors: Preceptors[];
 
 	/**
 	 * All clerkship types with requirements
 	 */
-	clerkships: ClerkshipsTable[];
+	clerkships: Clerkships[];
 
 	/**
 	 * System-wide blackout dates (no scheduling allowed)

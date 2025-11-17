@@ -1,4 +1,4 @@
-import type { StudentsTable, ClerkshipsTable } from '$lib/db/types';
+import type { Students, Clerkships } from '$lib/db/types';
 import type { SchedulingContext, UnmetRequirement } from '../types';
 
 /**
@@ -14,7 +14,7 @@ import type { SchedulingContext, UnmetRequirement } from '../types';
 export function getMostNeededClerkship(
 	studentId: string,
 	context: SchedulingContext
-): ClerkshipsTable | null {
+): Clerkships | null {
 	const studentReqs = context.studentRequirements.get(studentId);
 	if (!studentReqs) return null;
 
@@ -43,7 +43,7 @@ export function getMostNeededClerkship(
  */
 export function getStudentsNeedingAssignments(
 	context: SchedulingContext
-): StudentsTable[] {
+): Students[] {
 	return context.students.filter((student) => {
 		const requirements = context.studentRequirements.get(student.id);
 		if (!requirements) return false;
@@ -104,8 +104,8 @@ export function checkUnmetRequirements(context: SchedulingContext): UnmetRequire
  * @returns Map of student requirements
  */
 export function initializeStudentRequirements(
-	students: StudentsTable[],
-	clerkships: ClerkshipsTable[]
+	students: Students[],
+	clerkships: Clerkships[]
 ): Map<string, Map<string, number>> {
 	const requirements = new Map<string, Map<string, number>>();
 

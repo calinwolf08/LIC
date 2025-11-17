@@ -7,15 +7,15 @@
 import { describe, it, expect } from 'vitest';
 import { buildSchedulingContext } from './context-builder';
 import type {
-	StudentsTable,
-	PreceptorsTable,
-	ClerkshipsTable,
+	Students,
+	Preceptors,
+	Clerkships,
 	PreceptorAvailabilityTable
 } from '$lib/db/types';
 
 describe('buildSchedulingContext()', () => {
 	it('builds context with all required fields', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -25,7 +25,7 @@ describe('buildSchedulingContext()', () => {
 			}
 		];
 
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -37,7 +37,7 @@ describe('buildSchedulingContext()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -96,7 +96,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('initializes empty availability sets for all preceptors', () => {
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -136,7 +136,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('populates preceptor availability from records', () => {
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -184,7 +184,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('only includes available dates (is_available = 1)', () => {
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -232,7 +232,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('handles availability for multiple preceptors', () => {
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -289,7 +289,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('ignores availability records for unknown preceptors', () => {
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -328,7 +328,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('initializes student requirements correctly', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -345,7 +345,7 @@ describe('buildSchedulingContext()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -405,7 +405,7 @@ describe('buildSchedulingContext()', () => {
 	});
 
 	it('handles complex scenario with all data', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -422,7 +422,7 @@ describe('buildSchedulingContext()', () => {
 			}
 		];
 
-		const preceptors: PreceptorsTable[] = [
+		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
@@ -443,7 +443,7 @@ describe('buildSchedulingContext()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',

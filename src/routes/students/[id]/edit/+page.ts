@@ -5,7 +5,7 @@
  */
 
 import type { PageLoad } from './$types';
-import type { StudentsTable } from '$lib/db/types';
+import type { Students } from '$lib/db/types';
 import { error } from '@sveltejs/kit';
 
 export const load: PageLoad = async ({ params, fetch }) => {
@@ -22,7 +22,7 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		const result = await response.json();
 
 		return {
-			student: result.data as StudentsTable
+			student: result.data as Students
 		};
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) {

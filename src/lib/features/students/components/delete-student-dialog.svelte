@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { StudentsTable } from '$lib/db/types';
+	import type { Students } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
 		open: boolean;
-		student: StudentsTable | null;
-		onConfirm: (student: StudentsTable) => Promise<void>;
+		student: Students | null;
+		onConfirm: (student: Students) => Promise<void>;
 		onCancel: () => void;
 	}
 

@@ -1,7 +1,7 @@
 import type {
-	StudentsTable,
-	PreceptorsTable,
-	ClerkshipsTable,
+	Students,
+	Preceptors,
+	Clerkships,
 	PreceptorAvailabilityTable,
 } from '$lib/db/types';
 import type { Constraint, Assignment, SchedulingContext, ScheduleResult } from '../types';
@@ -50,9 +50,9 @@ export class SchedulingEngine {
 	 * @returns Complete schedule result with assignments and violation analysis
 	 */
 	async generateSchedule(
-		students: StudentsTable[],
-		preceptors: PreceptorsTable[],
-		clerkships: ClerkshipsTable[],
+		students: Students[],
+		preceptors: Preceptors[],
+		clerkships: Clerkships[],
 		blackoutDates: string[],
 		preceptorAvailabilityRecords: PreceptorAvailabilityTable[],
 		startDate: string,

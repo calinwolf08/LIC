@@ -14,14 +14,14 @@ import {
 	PreceptorAvailabilityConstraint
 } from '../constraints';
 import type {
-	StudentsTable,
-	PreceptorsTable,
-	ClerkshipsTable,
+	Students,
+	Preceptors,
+	Clerkships,
 	PreceptorAvailabilityTable
 } from '$lib/db/types';
 
 // Helper to create mock student
-function createMockStudent(overrides: Partial<StudentsTable> = {}): StudentsTable {
+function createMockStudent(overrides: Partial<Students> = {}): Students {
 	return {
 		id: crypto.randomUUID(),
 		name: 'Test Student',
@@ -33,7 +33,7 @@ function createMockStudent(overrides: Partial<StudentsTable> = {}): StudentsTabl
 }
 
 // Helper to create mock preceptor
-function createMockPreceptor(overrides: Partial<PreceptorsTable> = {}): PreceptorsTable {
+function createMockPreceptor(overrides: Partial<Preceptors> = {}): Preceptors {
 	return {
 		id: crypto.randomUUID(),
 		name: 'Dr. Test',
@@ -47,7 +47,7 @@ function createMockPreceptor(overrides: Partial<PreceptorsTable> = {}): Precepto
 }
 
 // Helper to create mock clerkship
-function createMockClerkship(overrides: Partial<ClerkshipsTable> = {}): ClerkshipsTable {
+function createMockClerkship(overrides: Partial<Clerkships> = {}): Clerkships {
 	return {
 		id: crypto.randomUUID(),
 		name: 'Family Medicine Clerkship',

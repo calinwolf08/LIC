@@ -12,7 +12,7 @@ import { BlackoutDateConstraint } from './blackout-date.constraint';
 import { PreceptorAvailabilityConstraint } from './preceptor-availability.constraint';
 import { ViolationTracker } from '../services/violation-tracker';
 import type { Assignment, SchedulingContext } from '../types';
-import type { StudentsTable, PreceptorsTable, ClerkshipsTable } from '$lib/db/types';
+import type { Students, Preceptors, Clerkships } from '$lib/db/types';
 
 describe('NoDoubleBookingConstraint', () => {
 	let constraint: NoDoubleBookingConstraint;
@@ -23,7 +23,7 @@ describe('NoDoubleBookingConstraint', () => {
 		constraint = new NoDoubleBookingConstraint();
 		tracker = new ViolationTracker();
 
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -31,7 +31,7 @@ describe('NoDoubleBookingConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const preceptor1: PreceptorsTable = {
+		const preceptor1: Preceptors = {
 			id: 'preceptor-1',
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
@@ -41,7 +41,7 @@ describe('NoDoubleBookingConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const preceptor2: PreceptorsTable = {
+		const preceptor2: Preceptors = {
 			id: 'preceptor-2',
 			name: 'Dr. Jones',
 			email: 'jones@example.com',
@@ -51,7 +51,7 @@ describe('NoDoubleBookingConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -195,7 +195,7 @@ describe('PreceptorCapacityConstraint', () => {
 		constraint = new PreceptorCapacityConstraint();
 		tracker = new ViolationTracker();
 
-		const student1: StudentsTable = {
+		const student1: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -203,7 +203,7 @@ describe('PreceptorCapacityConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const student2: StudentsTable = {
+		const student2: Students = {
 			id: 'student-2',
 			name: 'Jane Smith',
 			email: 'jane@example.com',
@@ -211,7 +211,7 @@ describe('PreceptorCapacityConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const preceptor: PreceptorsTable = {
+		const preceptor: Preceptors = {
 			id: 'preceptor-1',
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
@@ -221,7 +221,7 @@ describe('PreceptorCapacityConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -411,7 +411,7 @@ describe('SpecialtyMatchConstraint', () => {
 		constraint = new SpecialtyMatchConstraint();
 		tracker = new ViolationTracker();
 
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -419,7 +419,7 @@ describe('SpecialtyMatchConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const familyMedicinePreceptor: PreceptorsTable = {
+		const familyMedicinePreceptor: Preceptors = {
 			id: 'preceptor-1',
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
@@ -429,7 +429,7 @@ describe('SpecialtyMatchConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const internalMedicinePreceptor: PreceptorsTable = {
+		const internalMedicinePreceptor: Preceptors = {
 			id: 'preceptor-2',
 			name: 'Dr. Jones',
 			email: 'jones@example.com',
@@ -439,7 +439,7 @@ describe('SpecialtyMatchConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const familyMedicineClerkship: ClerkshipsTable = {
+		const familyMedicineClerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -448,7 +448,7 @@ describe('SpecialtyMatchConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const internalMedicineClerkship: ClerkshipsTable = {
+		const internalMedicineClerkship: Clerkships = {
 			id: 'clerkship-2',
 			name: 'IM Clerkship',
 			specialty: 'Internal Medicine',
@@ -586,7 +586,7 @@ describe('SpecialtyMatchConstraint', () => {
 		expect(result1).toBe(true);
 
 		// Add another Family Medicine preceptor
-		const anotherFMPreceptor: PreceptorsTable = {
+		const anotherFMPreceptor: Preceptors = {
 			id: 'preceptor-3',
 			name: 'Dr. Brown',
 			email: 'brown@example.com',
@@ -619,7 +619,7 @@ describe('BlackoutDateConstraint', () => {
 		constraint = new BlackoutDateConstraint();
 		tracker = new ViolationTracker();
 
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -627,7 +627,7 @@ describe('BlackoutDateConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const preceptor: PreceptorsTable = {
+		const preceptor: Preceptors = {
 			id: 'preceptor-1',
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
@@ -637,7 +637,7 @@ describe('BlackoutDateConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -772,7 +772,7 @@ describe('PreceptorAvailabilityConstraint', () => {
 		constraint = new PreceptorAvailabilityConstraint();
 		tracker = new ViolationTracker();
 
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -780,7 +780,7 @@ describe('PreceptorAvailabilityConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const preceptor: PreceptorsTable = {
+		const preceptor: Preceptors = {
 			id: 'preceptor-1',
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
@@ -790,7 +790,7 @@ describe('PreceptorAvailabilityConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -933,7 +933,7 @@ describe('PreceptorAvailabilityConstraint', () => {
 	});
 
 	it('allows different preceptors with different availability', () => {
-		const preceptor2: PreceptorsTable = {
+		const preceptor2: Preceptors = {
 			id: 'preceptor-2',
 			name: 'Dr. Jones',
 			email: 'jones@example.com',

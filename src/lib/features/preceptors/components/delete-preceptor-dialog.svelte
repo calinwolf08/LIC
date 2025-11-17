@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { PreceptorsTable } from '$lib/db/types';
+	import type { Preceptors } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
 		open: boolean;
-		preceptor: PreceptorsTable | null;
-		onConfirm: (preceptor: PreceptorsTable) => Promise<void>;
+		preceptor: Preceptors | null;
+		onConfirm: (preceptor: Preceptors) => Promise<void>;
 		onCancel: () => void;
 	}
 

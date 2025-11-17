@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
-import type { DB, PreceptorAvailabilityTable, PreceptorsTable } from '$lib/db/types';
+import type { DB, PreceptorAvailabilityTable, Preceptors } from '$lib/db/types';
 import {
 	getAvailability,
 	getAvailabilityById,
@@ -65,10 +65,10 @@ async function initializeSchema(db: Kysely<DB>) {
 
 async function createPreceptorDirect(
 	db: Kysely<DB>,
-	data: Partial<PreceptorsTable> = {}
-): Promise<PreceptorsTable> {
+	data: Partial<Preceptors> = {}
+): Promise<Preceptors> {
 	const timestamp = new Date().toISOString();
-	const preceptor: PreceptorsTable = {
+	const preceptor: Preceptors = {
 		id: crypto.randomUUID(),
 		name: 'Dr. Test',
 		email: 'test@example.com',
@@ -106,7 +106,7 @@ async function createAvailabilityDirect(
 
 describe('Availability Service', () => {
 	let db: Kysely<DB>;
-	let preceptor: PreceptorsTable;
+	let preceptor: Preceptors;
 
 	beforeEach(async () => {
 		db = createTestDb();

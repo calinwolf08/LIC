@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { ClerkshipsTable } from '$lib/db/types';
+	import type { Clerkships } from '$lib/db/types';
 	import ClerkshipList from '$lib/features/clerkships/components/clerkship-list.svelte';
 	import ClerkshipForm from '$lib/features/clerkships/components/clerkship-form.svelte';
 	import DeleteClerkshipDialog from '$lib/features/clerkships/components/delete-clerkship-dialog.svelte';
@@ -12,19 +12,19 @@
 
 	let showForm = $state(false);
 	let showDeleteDialog = $state(false);
-	let selectedClerkship = $state<ClerkshipsTable | null>(null);
+	let selectedClerkship = $state<Clerkships | null>(null);
 
 	function handleAdd() {
 		selectedClerkship = null;
 		showForm = true;
 	}
 
-	function handleEdit(clerkship: ClerkshipsTable) {
+	function handleEdit(clerkship: Clerkships) {
 		selectedClerkship = clerkship;
 		showForm = true;
 	}
 
-	function handleDelete(clerkship: ClerkshipsTable) {
+	function handleDelete(clerkship: Clerkships) {
 		selectedClerkship = clerkship;
 		showDeleteDialog = true;
 	}
@@ -40,7 +40,7 @@
 		selectedClerkship = null;
 	}
 
-	async function handleDeleteConfirm(clerkship: ClerkshipsTable) {
+	async function handleDeleteConfirm(clerkship: Clerkships) {
 		const response = await fetch(`/api/clerkships/${clerkship.id}`, {
 			method: 'DELETE'
 		});

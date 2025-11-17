@@ -7,11 +7,11 @@
 import { describe, it, expect } from 'vitest';
 import { getAvailablePreceptors, getPreceptorsForClerkship } from './preceptor-matcher';
 import type { SchedulingContext, Assignment } from '../types';
-import type { StudentsTable, PreceptorsTable, ClerkshipsTable } from '$lib/db/types';
+import type { Students, Preceptors, Clerkships } from '$lib/db/types';
 
 function createMockContext(
-	preceptors: PreceptorsTable[] = [],
-	clerkships: ClerkshipsTable[] = [],
+	preceptors: Preceptors[] = [],
+	clerkships: Clerkships[] = [],
 	assignments: Assignment[] = []
 ): SchedulingContext {
 	const assignmentsByDate = new Map<string, Assignment[]>();
@@ -52,7 +52,7 @@ function createMockContext(
 	};
 }
 
-function createMockPreceptor(overrides: Partial<PreceptorsTable> = {}): PreceptorsTable {
+function createMockPreceptor(overrides: Partial<Preceptors> = {}): Preceptors {
 	return {
 		id: crypto.randomUUID(),
 		name: 'Dr. Test',
@@ -65,7 +65,7 @@ function createMockPreceptor(overrides: Partial<PreceptorsTable> = {}): Precepto
 	};
 }
 
-function createMockClerkship(overrides: Partial<ClerkshipsTable> = {}): ClerkshipsTable {
+function createMockClerkship(overrides: Partial<Clerkships> = {}): Clerkships {
 	return {
 		id: crypto.randomUUID(),
 		name: 'Test Clerkship',

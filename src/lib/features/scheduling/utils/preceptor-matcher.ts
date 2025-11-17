@@ -1,4 +1,4 @@
-import type { PreceptorsTable, ClerkshipsTable } from '$lib/db/types';
+import type { Preceptors, Clerkships } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
 
 /**
@@ -15,10 +15,10 @@ import type { SchedulingContext } from '../types';
  * @returns Array of available preceptors (may be empty)
  */
 export function getAvailablePreceptors(
-	clerkship: ClerkshipsTable,
+	clerkship: Clerkships,
 	date: string,
 	context: SchedulingContext
-): PreceptorsTable[] {
+): Preceptors[] {
 	return context.preceptors.filter((preceptor) => {
 		// 1. Check specialty match
 		if (preceptor.specialty !== clerkship.specialty) {
@@ -53,8 +53,8 @@ export function getAvailablePreceptors(
  * @returns Array of preceptors with matching specialty
  */
 export function getPreceptorsForClerkship(
-	clerkship: ClerkshipsTable,
+	clerkship: Clerkships,
 	context: SchedulingContext
-): PreceptorsTable[] {
+): Preceptors[] {
 	return context.preceptors.filter((p) => p.specialty === clerkship.specialty);
 }

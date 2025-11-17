@@ -6,13 +6,13 @@
 
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
-import type { DB, StudentsTable, PreceptorsTable, ClerkshipsTable } from '$lib/db/types';
+import type { DB, Students, Preceptors, Clerkships } from '$lib/db/types';
 import { migrateToLatest } from '$lib/db';
 
 export type SeedData = {
-	students: StudentsTable[];
-	preceptors: PreceptorsTable[];
-	clerkships: ClerkshipsTable[];
+	students: Students[];
+	preceptors: Preceptors[];
+	clerkships: Clerkships[];
 };
 
 /**

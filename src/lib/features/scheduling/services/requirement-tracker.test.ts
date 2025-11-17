@@ -12,11 +12,11 @@ import {
 	initializeStudentRequirements
 } from './requirement-tracker';
 import type { SchedulingContext } from '../types';
-import type { StudentsTable, PreceptorsTable, ClerkshipsTable } from '$lib/db/types';
+import type { Students, Preceptors, Clerkships } from '$lib/db/types';
 
 describe('initializeStudentRequirements()', () => {
 	it('creates requirements map for single student and clerkship', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -26,7 +26,7 @@ describe('initializeStudentRequirements()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -48,7 +48,7 @@ describe('initializeStudentRequirements()', () => {
 	});
 
 	it('creates requirements for multiple students', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -65,7 +65,7 @@ describe('initializeStudentRequirements()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -86,7 +86,7 @@ describe('initializeStudentRequirements()', () => {
 	});
 
 	it('creates requirements for multiple clerkships', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -96,7 +96,7 @@ describe('initializeStudentRequirements()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -124,8 +124,8 @@ describe('initializeStudentRequirements()', () => {
 	});
 
 	it('handles empty students array', () => {
-		const students: StudentsTable[] = [];
-		const clerkships: ClerkshipsTable[] = [
+		const students: Students[] = [];
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -142,7 +142,7 @@ describe('initializeStudentRequirements()', () => {
 	});
 
 	it('handles empty clerkships array', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -151,7 +151,7 @@ describe('initializeStudentRequirements()', () => {
 				updated_at: new Date().toISOString()
 			}
 		];
-		const clerkships: ClerkshipsTable[] = [];
+		const clerkships: Clerkships[] = [];
 
 		const requirements = initializeStudentRequirements(students, clerkships);
 
@@ -161,7 +161,7 @@ describe('initializeStudentRequirements()', () => {
 	});
 
 	it('respects different required_days for different clerkships', () => {
-		const students: StudentsTable[] = [
+		const students: Students[] = [
 			{
 				id: 'student-1',
 				name: 'John Doe',
@@ -171,7 +171,7 @@ describe('initializeStudentRequirements()', () => {
 			}
 		];
 
-		const clerkships: ClerkshipsTable[] = [
+		const clerkships: Clerkships[] = [
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
@@ -210,7 +210,7 @@ describe('initializeStudentRequirements()', () => {
 describe('getMostNeededClerkship()', () => {
 	function createContext(
 		studentRequirements: Map<string, Map<string, number>>,
-		clerkships: ClerkshipsTable[]
+		clerkships: Clerkships[]
 	): SchedulingContext {
 		return {
 			students: [],
@@ -227,7 +227,7 @@ describe('getMostNeededClerkship()', () => {
 	}
 
 	it('returns clerkship with most days needed', () => {
-		const clerkship1: ClerkshipsTable = {
+		const clerkship1: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -236,7 +236,7 @@ describe('getMostNeededClerkship()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship2: ClerkshipsTable = {
+		const clerkship2: Clerkships = {
 			id: 'clerkship-2',
 			name: 'IM Clerkship',
 			specialty: 'Internal Medicine',
@@ -262,7 +262,7 @@ describe('getMostNeededClerkship()', () => {
 	});
 
 	it('returns null when all requirements are met', () => {
-		const clerkship1: ClerkshipsTable = {
+		const clerkship1: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -289,7 +289,7 @@ describe('getMostNeededClerkship()', () => {
 	});
 
 	it('returns first clerkship when tied', () => {
-		const clerkship1: ClerkshipsTable = {
+		const clerkship1: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -298,7 +298,7 @@ describe('getMostNeededClerkship()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship2: ClerkshipsTable = {
+		const clerkship2: Clerkships = {
 			id: 'clerkship-2',
 			name: 'IM Clerkship',
 			specialty: 'Internal Medicine',
@@ -325,7 +325,7 @@ describe('getMostNeededClerkship()', () => {
 	});
 
 	it('handles single clerkship with days needed', () => {
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -345,7 +345,7 @@ describe('getMostNeededClerkship()', () => {
 	});
 
 	it('ignores clerkships with zero days needed', () => {
-		const clerkship1: ClerkshipsTable = {
+		const clerkship1: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -354,7 +354,7 @@ describe('getMostNeededClerkship()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship2: ClerkshipsTable = {
+		const clerkship2: Clerkships = {
 			id: 'clerkship-2',
 			name: 'IM Clerkship',
 			specialty: 'Internal Medicine',
@@ -382,7 +382,7 @@ describe('getMostNeededClerkship()', () => {
 
 describe('getStudentsNeedingAssignments()', () => {
 	it('returns students with unmet requirements', () => {
-		const student1: StudentsTable = {
+		const student1: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -390,7 +390,7 @@ describe('getStudentsNeedingAssignments()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const student2: StudentsTable = {
+		const student2: Students = {
 			id: 'student-2',
 			name: 'Jane Smith',
 			email: 'jane@example.com',
@@ -422,7 +422,7 @@ describe('getStudentsNeedingAssignments()', () => {
 	});
 
 	it('excludes students with all requirements met', () => {
-		const student1: StudentsTable = {
+		const student1: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -430,7 +430,7 @@ describe('getStudentsNeedingAssignments()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const student2: StudentsTable = {
+		const student2: Students = {
 			id: 'student-2',
 			name: 'Jane Smith',
 			email: 'jane@example.com',
@@ -461,7 +461,7 @@ describe('getStudentsNeedingAssignments()', () => {
 	});
 
 	it('returns empty array when all students are fully scheduled', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -490,7 +490,7 @@ describe('getStudentsNeedingAssignments()', () => {
 	});
 
 	it('handles students with multiple clerkships', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -526,7 +526,7 @@ describe('getStudentsNeedingAssignments()', () => {
 	});
 
 	it('excludes students without requirements', () => {
-		const student1: StudentsTable = {
+		const student1: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -534,7 +534,7 @@ describe('getStudentsNeedingAssignments()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const student2: StudentsTable = {
+		const student2: Students = {
 			id: 'student-2',
 			name: 'Jane Smith',
 			email: 'jane@example.com',
@@ -567,7 +567,7 @@ describe('getStudentsNeedingAssignments()', () => {
 
 describe('checkUnmetRequirements()', () => {
 	it('returns empty array when all requirements met', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -575,7 +575,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -605,7 +605,7 @@ describe('checkUnmetRequirements()', () => {
 	});
 
 	it('returns unmet requirement with correct details', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -613,7 +613,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -652,7 +652,7 @@ describe('checkUnmetRequirements()', () => {
 	});
 
 	it('returns multiple unmet requirements for different students', () => {
-		const student1: StudentsTable = {
+		const student1: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -660,7 +660,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const student2: StudentsTable = {
+		const student2: Students = {
 			id: 'student-2',
 			name: 'Jane Smith',
 			email: 'jane@example.com',
@@ -668,7 +668,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -701,7 +701,7 @@ describe('checkUnmetRequirements()', () => {
 	});
 
 	it('returns multiple unmet requirements for same student', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -709,7 +709,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship1: ClerkshipsTable = {
+		const clerkship1: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -718,7 +718,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship2: ClerkshipsTable = {
+		const clerkship2: Clerkships = {
 			id: 'clerkship-2',
 			name: 'IM Clerkship',
 			specialty: 'Internal Medicine',
@@ -760,7 +760,7 @@ describe('checkUnmetRequirements()', () => {
 	});
 
 	it('only includes unmet requirements, not met ones', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -768,7 +768,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship1: ClerkshipsTable = {
+		const clerkship1: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',
@@ -777,7 +777,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship2: ClerkshipsTable = {
+		const clerkship2: Clerkships = {
 			id: 'clerkship-2',
 			name: 'IM Clerkship',
 			specialty: 'Internal Medicine',
@@ -814,7 +814,7 @@ describe('checkUnmetRequirements()', () => {
 	});
 
 	it('handles students with no requirements map', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -841,7 +841,7 @@ describe('checkUnmetRequirements()', () => {
 	});
 
 	it('calculates assigned days correctly', () => {
-		const student: StudentsTable = {
+		const student: Students = {
 			id: 'student-1',
 			name: 'John Doe',
 			email: 'john@example.com',
@@ -849,7 +849,7 @@ describe('checkUnmetRequirements()', () => {
 			updated_at: new Date().toISOString()
 		};
 
-		const clerkship: ClerkshipsTable = {
+		const clerkship: Clerkships = {
 			id: 'clerkship-1',
 			name: 'FM Clerkship',
 			specialty: 'Family Medicine',

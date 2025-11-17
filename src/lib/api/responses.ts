@@ -24,11 +24,11 @@ export type ApiErrorResponse = {
  * Creates a success response with data
  */
 export function successResponse<T>(data: T, status = 200): Response {
-	return json<ApiSuccessResponse<T>>(
+	return json(
 		{
 			success: true,
 			data
-		},
+		} satisfies ApiSuccessResponse<T>,
 		{ status }
 	);
 }
@@ -37,14 +37,14 @@ export function successResponse<T>(data: T, status = 200): Response {
  * Creates an error response
  */
 export function errorResponse(message: string, status = 400, details?: unknown): Response {
-	return json<ApiErrorResponse>(
+	return json(
 		{
 			success: false,
 			error: {
 				message,
-				...(details && { details })
+				...(details ? { details } : {})
 			}
-		},
+		} satisfies ApiErrorResponse,
 		{ status }
 	);
 }
@@ -53,7 +53,7 @@ export function errorResponse(message: string, status = 400, details?: unknown):
  * Formats Zod validation errors into a user-friendly response
  */
 export function validationErrorResponse(errors: ZodError): Response {
-	const fieldErrors = errors.errors.map((err) => ({
+	const fieldErrors = errors.issues.map((err) => ({
 		field: err.path.join('.'),
 		message: err.message
 	}));
