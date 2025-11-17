@@ -1,91 +1,19 @@
 <script lang="ts">
-	import { superForm } from "sveltekit-superforms";
-	import { zodClient } from "sveltekit-superforms/adapters";
-	import { loginSchema } from "$lib/schemas/auth";
+	import LoginForm from "$lib/features/auth/login/components/login-form.svelte";
 	import * as Card from "$lib/components/ui/card";
-	import * as Form from "$lib/components/ui/form";
-	import { Input } from "$lib/components/ui/input";
-	import { Button } from "$lib/components/ui/button";
-	import { Checkbox } from "$lib/components/ui/checkbox";
-	import * as Alert from "$lib/components/ui/alert";
 	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
-
-	const form = superForm(data.form, {
-		validators: zodClient(loginSchema),
-	});
-
-	const { form: formData, enhance, errors, message, submitting } = form;
 </script>
 
-<div class="flex min-h-screen items-center justify-center p-4">
+<div class="flex min-h-screen items-center justify-center bg-muted/40 p-4">
 	<Card.Root class="w-full max-w-md">
 		<Card.Header>
-			<Card.Title class="text-2xl">Login</Card.Title>
-			<Card.Description>Enter your credentials to access your account</Card.Description>
+			<Card.Title class="text-2xl">Welcome back</Card.Title>
+			<Card.Description>Sign in to your account to continue</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			{#if message}
-				<Alert.Root variant="destructive" class="mb-4">
-					<Alert.Title>Error</Alert.Title>
-					<Alert.Description>{message}</Alert.Description>
-				</Alert.Root>
-			{/if}
-
-			<form method="POST" use:enhance>
-				<Form.Field {form} name="email">
-					{#snippet children({ constraints })}
-						<Form.Label>Email</Form.Label>
-						<Form.Control let:attrs>
-							<Input
-								{...attrs}
-								type="email"
-								placeholder="you@example.com"
-								bind:value={$formData.email}
-								{...constraints}
-							/>
-						</Form.Control>
-						<Form.FieldErrors />
-					{/snippet}
-				</Form.Field>
-
-				<Form.Field {form} name="password">
-					{#snippet children({ constraints })}
-						<Form.Label>Password</Form.Label>
-						<Form.Control let:attrs>
-							<Input
-								{...attrs}
-								type="password"
-								placeholder="••••••••"
-								bind:value={$formData.password}
-								{...constraints}
-							/>
-						</Form.Control>
-						<Form.FieldErrors />
-					{/snippet}
-				</Form.Field>
-
-				<Form.Field {form} name="rememberMe" class="flex items-center space-x-2 space-y-0">
-					{#snippet children()}
-						<Form.Control let:attrs>
-							<Checkbox {...attrs} bind:checked={$formData.rememberMe} />
-						</Form.Control>
-						<Form.Label class="text-sm font-normal">Remember me</Form.Label>
-					{/snippet}
-				</Form.Field>
-
-				<Button type="submit" class="mt-4 w-full" disabled={$submitting}>
-					{$submitting ? "Signing in..." : "Sign in"}
-				</Button>
-			</form>
-
-			<div class="mt-4 text-center text-sm">
-				Don't have an account?
-				<a href="/register" class="text-primary underline-offset-4 hover:underline">
-					Register
-				</a>
-			</div>
+			<LoginForm {data} />
 		</Card.Content>
 	</Card.Root>
 </div>

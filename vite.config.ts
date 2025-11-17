@@ -7,6 +7,19 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 	test: {
 		expect: { requireAssertions: true },
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'html', 'lcov'],
+			exclude: [
+				'**/*.config.*',
+				'**/node_modules/**',
+				'**/*.test.ts',
+				'**/*.spec.ts',
+				'**/types/**',
+				'**/.svelte-kit/**',
+				'**/build/**',
+			],
+		},
 		projects: [
 			{
 				extends: './vite.config.ts',
@@ -16,7 +29,8 @@ export default defineConfig({
 					browser: {
 						enabled: true,
 						provider: 'playwright',
-						instances: [{ browser: 'chromium' }]
+						instances: [{ browser: 'chromium' }],
+						headless: true
 					},
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**'],

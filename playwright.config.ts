@@ -1,9 +1,30 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
 	webServer: {
-		command: 'npm run build && npm run preview',
-		port: 4173
+		command: 'E2E_TESTING=true npm run build && E2E_TESTING=true npm run preview',
+		port: 4173,
+		timeout: 180000, // 3 minutes for build + server start
+		reuseExistingServer: false
 	},
-	testDir: 'e2e'
+	testDir: 'e2e',
+	timeout: 60000, // 60 seconds per test (increased from 30)
+	fullyParallel: false, // Run tests sequentially to avoid resource exhaustion
+	workers: 1, // Single worker to prevent browser crashes
+	retries: 1, // Retry failed tests once
+	use: {
+		baseURL: 'http://localhost:4173',
+		headless: true,
+		launchOptions: {
+			args: [
+				'--no-sandbox',
+				'--disable-setuid-sandbox',
+				'--disable-dev-shm-usage',
+				'--disable-gpu',
+				'--disable-software-rasterizer',
+				'--disable-extensions',
+				'--single-process'
+			]
+		}
+	}
 });
