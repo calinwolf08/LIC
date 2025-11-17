@@ -12,7 +12,7 @@ import {
 	getAssignmentById,
 	updateAssignment as updateAssignmentBase,
 	validateAssignment
-} from './assignment-service';
+} from './assignment-service.js';
 
 /**
  * Result type for editing operations
