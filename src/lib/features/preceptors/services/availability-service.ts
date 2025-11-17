@@ -4,7 +4,7 @@
  * Business logic and database operations for preceptor availability
  */
 
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import type { DB, PreceptorAvailability } from '$lib/db/types';
 import type { CreateAvailabilityInput, UpdateAvailabilityInput, DateRangeInput, BulkAvailabilityInput } from '../availability-schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
@@ -16,7 +16,7 @@ import { preceptorExists } from './preceptor-service';
 export async function getAvailability(
 	db: Kysely<DB>,
 	preceptorId: string
-): Promise<PreceptorAvailability[]> {
+): Promise<Selectable<PreceptorAvailability>[]> {
 	return await db
 		.selectFrom('preceptor_availability')
 		.selectAll()
@@ -31,7 +31,7 @@ export async function getAvailability(
 export async function getAvailabilityById(
 	db: Kysely<DB>,
 	id: string
-): Promise<PreceptorAvailability | null> {
+): Promise<Selectable<PreceptorAvailability> | null> {
 	const availability = await db
 		.selectFrom('preceptor_availability')
 		.selectAll()
@@ -48,7 +48,7 @@ export async function getAvailabilityByDateRange(
 	db: Kysely<DB>,
 	preceptorId: string,
 	dateRange: DateRangeInput
-): Promise<PreceptorAvailability[]> {
+): Promise<Selectable<PreceptorAvailability>[]> {
 	return await db
 		.selectFrom('preceptor_availability')
 		.selectAll()
@@ -66,7 +66,7 @@ export async function getAvailabilityByDate(
 	db: Kysely<DB>,
 	preceptorId: string,
 	date: string
-): Promise<PreceptorAvailability | null> {
+): Promise<Selectable<PreceptorAvailability> | null> {
 	const availability = await db
 		.selectFrom('preceptor_availability')
 		.selectAll()
@@ -86,7 +86,7 @@ export async function setAvailability(
 	preceptorId: string,
 	date: string,
 	isAvailable: boolean
-): Promise<PreceptorAvailability> {
+): Promise<Selectable<PreceptorAvailability>> {
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, preceptorId);
 	if (!exists) {
@@ -160,7 +160,7 @@ export async function deleteAvailability(db: Kysely<DB>, id: string): Promise<vo
 export async function bulkUpdateAvailability(
 	db: Kysely<DB>,
 	data: BulkAvailabilityInput
-): Promise<PreceptorAvailability[]> {
+): Promise<Selectable<PreceptorAvailability>[]> {
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, data.preceptor_id);
 	if (!exists) {

@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { createStudentSchema } from '../schemas';
+	import { createStudentSchema } from '../schemas.js';
 	import { ZodError } from 'zod';
 
 	interface Props {

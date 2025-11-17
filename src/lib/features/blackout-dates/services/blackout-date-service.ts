@@ -4,15 +4,15 @@
  * Business logic and database operations for blackout dates
  */
 
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import type { DB, BlackoutDates } from '$lib/db/types';
-import type { CreateBlackoutDateInput } from '../schemas';
+import type { CreateBlackoutDateInput } from '../schemas.js';
 import { NotFoundError } from '$lib/api/errors';
 
 /**
  * Get all blackout dates, ordered by date
  */
-export async function getBlackoutDates(db: Kysely<DB>): Promise<BlackoutDates[]> {
+export async function getBlackoutDates(db: Kysely<DB>): Promise<Selectable<BlackoutDates>[]> {
 	return await db
 		.selectFrom('blackout_dates')
 		.selectAll()
@@ -27,7 +27,7 @@ export async function getBlackoutDates(db: Kysely<DB>): Promise<BlackoutDates[]>
 export async function getBlackoutDateById(
 	db: Kysely<DB>,
 	id: string
-): Promise<BlackoutDates | null> {
+): Promise<Selectable<BlackoutDates> | null> {
 	const blackoutDate = await db
 		.selectFrom('blackout_dates')
 		.selectAll()
@@ -47,7 +47,7 @@ export async function getBlackoutDatesByRange(
 	db: Kysely<DB>,
 	startDate?: string,
 	endDate?: string
-): Promise<BlackoutDates[]> {
+): Promise<Selectable<BlackoutDates>[]> {
 	let query = db.selectFrom('blackout_dates').selectAll();
 
 	if (startDate) {
@@ -67,7 +67,7 @@ export async function getBlackoutDatesByRange(
 export async function createBlackoutDate(
 	db: Kysely<DB>,
 	data: CreateBlackoutDateInput
-): Promise<BlackoutDates> {
+): Promise<Selectable<BlackoutDates>> {
 	const timestamp = new Date().toISOString();
 	const newBlackoutDate = {
 		id: crypto.randomUUID(),

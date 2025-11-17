@@ -4,16 +4,16 @@
  * Business logic and database operations for students
  */
 
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import type { DB, Students } from '$lib/db/types';
-import type { CreateStudentInput, UpdateStudentInput } from '../schemas';
+import type { CreateStudentInput, UpdateStudentInput } from '../schemas.js';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
 
 /**
  * Get all students, ordered by name
  */
-export async function getStudents(db: Kysely<DB>): Promise<Students[]> {
+export async function getStudents(db: Kysely<DB>): Promise<Selectable<Students>[]> {
 	return await db.selectFrom('students').selectAll().orderBy('name', 'asc').execute();
 }
 
@@ -21,7 +21,7 @@ export async function getStudents(db: Kysely<DB>): Promise<Students[]> {
  * Get a single student by ID
  * @returns Student or null if not found
  */
-export async function getStudentById(db: Kysely<DB>, id: string): Promise<Students | null> {
+export async function getStudentById(db: Kysely<DB>, id: string): Promise<Selectable<Students> | null> {
 	const student = await db.selectFrom('students').selectAll().where('id', '=', id).executeTakeFirst();
 
 	return student || null;
@@ -34,7 +34,7 @@ export async function getStudentById(db: Kysely<DB>, id: string): Promise<Studen
 export async function getStudentByEmail(
 	db: Kysely<DB>,
 	email: string
-): Promise<Students | null> {
+): Promise<Selectable<Students> | null> {
 	const student = await db
 		.selectFrom('students')
 		.selectAll()
@@ -51,7 +51,7 @@ export async function getStudentByEmail(
 export async function createStudent(
 	db: Kysely<DB>,
 	data: CreateStudentInput
-): Promise<Students> {
+): Promise<Selectable<Students>> {
 	// Check if email is already taken
 	const existingStudent = await getStudentByEmail(db, data.email);
 	if (existingStudent) {
@@ -85,7 +85,7 @@ export async function updateStudent(
 	db: Kysely<DB>,
 	id: string,
 	data: UpdateStudentInput
-): Promise<Students> {
+): Promise<Selectable<Students>> {
 	// Check if student exists
 	const exists = await studentExists(db, id);
 	if (!exists) {

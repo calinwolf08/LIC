@@ -4,16 +4,16 @@
  * Business logic and database operations for clerkships
  */
 
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import type { DB, Clerkships } from '$lib/db/types';
-import type { CreateClerkshipInput, UpdateClerkshipInput } from '../schemas';
+import type { CreateClerkshipInput, UpdateClerkshipInput } from '../schemas.js';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
 
 /**
  * Get all clerkships, ordered by name
  */
-export async function getClerkships(db: Kysely<DB>): Promise<Clerkships[]> {
+export async function getClerkships(db: Kysely<DB>): Promise<Selectable<Clerkships>[]> {
 	return await db.selectFrom('clerkships').selectAll().orderBy('name', 'asc').execute();
 }
 
@@ -24,7 +24,7 @@ export async function getClerkships(db: Kysely<DB>): Promise<Clerkships[]> {
 export async function getClerkshipById(
 	db: Kysely<DB>,
 	id: string
-): Promise<Clerkships | null> {
+): Promise<Selectable<Clerkships> | null> {
 	const clerkship = await db
 		.selectFrom('clerkships')
 		.selectAll()
@@ -40,7 +40,7 @@ export async function getClerkshipById(
 export async function getClerkshipsBySpecialty(
 	db: Kysely<DB>,
 	specialty: string
-): Promise<Clerkships[]> {
+): Promise<Selectable<Clerkships>[]> {
 	return await db
 		.selectFrom('clerkships')
 		.selectAll()
@@ -56,7 +56,7 @@ export async function getClerkshipsBySpecialty(
 export async function getClerkshipByName(
 	db: Kysely<DB>,
 	name: string
-): Promise<Clerkships | null> {
+): Promise<Selectable<Clerkships> | null> {
 	const clerkship = await db
 		.selectFrom('clerkships')
 		.selectAll()
@@ -73,7 +73,7 @@ export async function getClerkshipByName(
 export async function createClerkship(
 	db: Kysely<DB>,
 	data: CreateClerkshipInput
-): Promise<Clerkships> {
+): Promise<Selectable<Clerkships>> {
 	// Check if name is already taken
 	const existingClerkship = await getClerkshipByName(db, data.name);
 	if (existingClerkship) {
@@ -109,7 +109,7 @@ export async function updateClerkship(
 	db: Kysely<DB>,
 	id: string,
 	data: UpdateClerkshipInput
-): Promise<Clerkships> {
+): Promise<Selectable<Clerkships>> {
 	// Check if clerkship exists
 	const exists = await clerkshipExists(db, id);
 	if (!exists) {
