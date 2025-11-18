@@ -5,9 +5,6 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
-	optimizeDeps: {
-		exclude: ['sveltekit-superforms']
-	},
 	test: {
 		expect: { requireAssertions: true },
 		coverage: {

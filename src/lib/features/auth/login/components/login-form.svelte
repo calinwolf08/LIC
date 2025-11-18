@@ -1,58 +1,60 @@
 <script lang="ts">
-	import { superForm } from "sveltekit-superforms";
-	import { zodClient } from "sveltekit-superforms/adapters";
 	import { loginSchema } from "../utils";
 	import { authClient } from "$lib/auth-client";
-	import * as Form from "$lib/components/ui/form";
+	import { FormField } from "$lib/components/forms";
+	import { useForm } from "$lib/components/forms";
 	import { Input } from "$lib/components/ui/input";
 	import { Button } from "$lib/components/ui/button";
 	import { Checkbox } from "$lib/components/ui/checkbox";
+	import { Label } from "$lib/components/ui/label";
 	import * as Alert from "$lib/components/ui/alert";
 	import PasswordInput from "$lib/features/auth/components/password-input.svelte";
 	import { AlertCircle, Loader2 } from "lucide-svelte";
 
 	interface Props {
-		data: any;
+		serverErrors?: Record<string, string[]>;
 	}
 
-	let { data }: Props = $props();
+	let { serverErrors }: Props = $props();
 
 	let errorMessage = $state<string | null>(null);
-	let isLoading = $state(false);
 
-	const form = superForm(data.form, {
-		validators: zodClient(loginSchema),
-		async onUpdate({ form }) {
-			if (!form.valid) return;
-
-			isLoading = true;
+	const formManager = useForm({
+		initialValues: {
+			email: '',
+			password: '',
+			rememberMe: false
+		},
+		validationSchema: loginSchema,
+		validateOnBlur: true,
+		validateOnChange: false,
+		async onSubmit(values) {
 			errorMessage = null;
-
-			const { email, password, rememberMe } = form.data;
 
 			await authClient.signIn.email(
 				{
-					email,
-					password,
-					rememberMe,
+					email: values.email,
+					password: values.password,
+					rememberMe: values.rememberMe,
 				},
 				{
-					onRequest: () => {
-						isLoading = true;
-					},
 					onSuccess: () => {
 						window.location.href = "/";
 					},
 					onError: (ctx) => {
-						isLoading = false;
 						errorMessage = ctx.error.message || "Failed to sign in. Please try again.";
 					},
 				}
 			);
-		},
+		}
 	});
 
-	const { form: formData, enhance } = form;
+	// Merge server errors with client errors
+	const getFieldErrors = (fieldName: keyof typeof formManager.values) => {
+		const clientErrors = formManager.fields[fieldName]?.errors || [];
+		const serverFieldErrors = serverErrors?.[fieldName] || [];
+		return [...clientErrors, ...serverFieldErrors];
+	};
 </script>
 
 <div class="w-full">
@@ -64,67 +66,68 @@
 		</Alert.Root>
 	{/if}
 
-	<form method="POST" use:enhance class="space-y-4">
-		<Form.Field {form} name="email">
-			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label>Email</Form.Label>
-						<Input
-							{...props}
-							type="email"
-							placeholder="you@example.com"
-							bind:value={$formData.email}
-							disabled={isLoading}
-							autocomplete="email"
-						/>
-					{/snippet}
-				</Form.Control>
-				<Form.FieldErrors />
-			{/snippet}
-		</Form.Field>
+	<form method="POST" onsubmit={formManager.handleSubmit} class="space-y-4">
+		<FormField
+			label="Email"
+			name="email"
+			error={getFieldErrors('email')}
+			required
+		>
+			<Input
+				id="email"
+				type="email"
+				placeholder="you@example.com"
+				disabled={formManager.isSubmitting}
+				autocomplete="email"
+				aria-invalid={getFieldErrors('email').length > 0}
+				bind:value={formManager.values.email}
+				onblur={() => formManager.handleBlur('email')}
+			/>
+		</FormField>
 
-		<Form.Field {form} name="password">
-			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label>Password</Form.Label>
-						<PasswordInput
-							{...props}
-							bind:value={$formData.password}
-							placeholder="••••••••"
-							disabled={isLoading}
-							autocomplete="current-password"
-						/>
-					{/snippet}
-				</Form.Control>
-				<Form.FieldErrors />
-			{/snippet}
-		</Form.Field>
+		<FormField
+			label="Password"
+			name="password"
+			error={getFieldErrors('password')}
+			required
+		>
+			<PasswordInput
+				id="password"
+				placeholder="••••••••"
+				disabled={formManager.isSubmitting}
+				autocomplete="current-password"
+				aria-invalid={getFieldErrors('password').length > 0}
+				bind:value={formManager.values.password}
+				onblur={() => formManager.handleBlur('password')}
+			/>
+		</FormField>
 
 		<div class="flex items-center justify-between">
-			<Form.Field {form} name="rememberMe" class="flex-row items-center space-x-2 space-y-0">
-				{#snippet children({ constraints, errors, tainted, value })}
-					<Form.Control>
-						{#snippet children({ props })}
-							<Checkbox {...props} bind:checked={$formData.rememberMe} disabled={isLoading} />
-							<Form.Label class="text-sm font-normal">Remember me</Form.Label>
-						{/snippet}
-					</Form.Control>
-				{/snippet}
-			</Form.Field>
+			<div class="flex items-center space-x-2">
+				<Checkbox
+					id="rememberMe"
+					disabled={formManager.isSubmitting}
+					bind:checked={formManager.values.rememberMe}
+				/>
+				<Label
+					for="rememberMe"
+					class="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+				>
+					Remember me
+				</Label>
+			</div>
 
 			<a
 				href="/forgot-password"
 				class="text-sm text-primary hover:underline"
-				tabindex={isLoading ? -1 : 0}
+				tabindex={formManager.isSubmitting ? -1 : 0}
 			>
 				Forgot password?
 			</a>
 		</div>
 
-		<Button type="submit" class="w-full" disabled={isLoading}>
-			{#if isLoading}
+		<Button type="submit" class="w-full" disabled={formManager.isSubmitting}>
+			{#if formManager.isSubmitting}
 				<Loader2 class="size-4 animate-spin" />
 				Signing in...
 			{:else}
@@ -134,7 +137,7 @@
 
 		<div class="text-center text-sm">
 			Don't have an account?
-			<a href="/register" class="text-primary hover:underline" tabindex={isLoading ? -1 : 0}>
+			<a href="/register" class="text-primary hover:underline" tabindex={formManager.isSubmitting ? -1 : 0}>
 				Sign up
 			</a>
 		</div>
