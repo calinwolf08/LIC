@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { superForm } from "sveltekit-superforms";
-	import { zodClient } from "sveltekit-superforms/adapters";
+	import { zod4Client } from "sveltekit-superforms/adapters";
 	import { loginSchema } from "../utils";
 	import { authClient } from "$lib/auth-client";
 	import * as Form from "$lib/components/ui/form";
@@ -21,7 +21,7 @@
 	let isLoading = $state(false);
 
 	const form = superForm(data.form, {
-		validators: zodClient(loginSchema),
+		validators: zod4Client(loginSchema),
 		async onUpdate({ form }) {
 			if (!form.valid) return;
 
