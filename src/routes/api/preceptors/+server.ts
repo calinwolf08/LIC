@@ -17,8 +17,8 @@ import {
 	getPreceptors,
 	getPreceptorsBySpecialty,
 	createPreceptor
-} from '$lib/features/preceptors/services/preceptor-service';
-import { createPreceptorSchema } from '$lib/features/preceptors/schemas';
+} from '$lib/features/preceptors/services/preceptor-service.js';
+import { createPreceptorSchema } from '$lib/features/preceptors/schemas.js';
 import { ZodError } from 'zod';
 
 /**

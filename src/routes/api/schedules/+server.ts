@@ -8,7 +8,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
-import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
+import { clearAllAssignments } from '$lib/features/schedules/services/editing-service.js';
 
 /**
  * DELETE /api/schedules

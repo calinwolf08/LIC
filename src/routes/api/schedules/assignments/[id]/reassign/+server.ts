@@ -12,8 +12,8 @@ import {
 	notFoundResponse
 } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
-import { reassignToPreceptor } from '$lib/features/schedules/services/editing-service';
-import { assignmentIdSchema } from '$lib/features/schedules/schemas';
+import { reassignToPreceptor } from '$lib/features/schedules/services/editing-service.js';
+import { assignmentIdSchema } from '$lib/features/schedules/schemas.js';
 import { uuidSchema } from '$lib/validation/common-schemas';
 import { z, ZodError } from 'zod';
 

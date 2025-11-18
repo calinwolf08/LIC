@@ -8,7 +8,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
-import { generateScheduleExcel } from '$lib/features/schedules/services/export-service';
+import { generateScheduleExcel } from '$lib/features/schedules/services/export-service.js';
 import type { CalendarFilters } from '$lib/features/schedules/types';
 import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
 import { z, ZodError } from 'zod';

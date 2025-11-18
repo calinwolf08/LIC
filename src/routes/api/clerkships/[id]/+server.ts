@@ -19,8 +19,8 @@ import {
 	getClerkshipById,
 	updateClerkship,
 	deleteClerkship
-} from '$lib/features/clerkships/services/clerkship-service';
-import { updateClerkshipSchema, clerkshipIdSchema } from '$lib/features/clerkships/schemas';
+} from '$lib/features/clerkships/services/clerkship-service.js';
+import { updateClerkshipSchema, clerkshipIdSchema } from '$lib/features/clerkships/schemas.js';
 import { ZodError } from 'zod';
 
 /**

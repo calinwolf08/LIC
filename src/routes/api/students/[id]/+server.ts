@@ -19,8 +19,8 @@ import {
 	getStudentById,
 	updateStudent,
 	deleteStudent
-} from '$lib/features/students/services/student-service';
-import { updateStudentSchema, studentIdSchema } from '$lib/features/students/schemas';
+} from '$lib/features/students/services/student-service.js';
+import { updateStudentSchema, studentIdSchema } from '$lib/features/students/schemas.js';
 import { ZodError } from 'zod';
 
 /**

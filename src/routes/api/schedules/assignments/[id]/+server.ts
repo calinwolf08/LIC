@@ -18,8 +18,8 @@ import {
 	getAssignmentById,
 	updateAssignment,
 	deleteAssignment
-} from '$lib/features/schedules/services/assignment-service';
-import { assignmentIdSchema, updateAssignmentSchema } from '$lib/features/schedules/schemas';
+} from '$lib/features/schedules/services/assignment-service.js';
+import { assignmentIdSchema, updateAssignmentSchema } from '$lib/features/schedules/schemas.js';
 import { ZodError } from 'zod';
 
 /**

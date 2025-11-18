@@ -19,8 +19,8 @@ import {
 	getPreceptorById,
 	updatePreceptor,
 	deletePreceptor
-} from '$lib/features/preceptors/services/preceptor-service';
-import { updatePreceptorSchema, preceptorIdSchema } from '$lib/features/preceptors/schemas';
+} from '$lib/features/preceptors/services/preceptor-service.js';
+import { updatePreceptorSchema, preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
 import { ZodError } from 'zod';
 
 /**

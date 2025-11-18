@@ -17,9 +17,9 @@ import {
 	getAvailability,
 	getAvailabilityByDateRange,
 	bulkUpdateAvailability
-} from '$lib/features/preceptors/services/availability-service';
+} from '$lib/features/preceptors/services/availability-service.js';
 import { bulkAvailabilitySchema, dateRangeSchema } from '$lib/features/preceptors/availability-schemas';
-import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
+import { preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
 import { ZodError } from 'zod';
 
 /**

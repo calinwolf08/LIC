@@ -12,7 +12,7 @@ import {
 	notFoundResponse
 } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
-import { swapAssignments } from '$lib/features/schedules/services/editing-service';
+import { swapAssignments } from '$lib/features/schedules/services/editing-service.js';
 import { uuidSchema } from '$lib/validation/common-schemas';
 import { z, ZodError } from 'zod';
 

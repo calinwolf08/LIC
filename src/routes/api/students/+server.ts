@@ -13,8 +13,8 @@ import {
 	errorResponse
 } from '$lib/api/responses';
 import { ConflictError, handleApiError } from '$lib/api/errors';
-import { getStudents, createStudent } from '$lib/features/students/services/student-service';
-import { createStudentSchema } from '$lib/features/students/schemas';
+import { getStudents, createStudent } from '$lib/features/students/services/student-service.js';
+import { createStudentSchema } from '$lib/features/students/schemas.js';
 import { ZodError } from 'zod';
 
 /**

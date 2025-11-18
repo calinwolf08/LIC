@@ -17,8 +17,8 @@ import {
 	getClerkships,
 	getClerkshipsBySpecialty,
 	createClerkship
-} from '$lib/features/clerkships/services/clerkship-service';
-import { createClerkshipSchema } from '$lib/features/clerkships/schemas';
+} from '$lib/features/clerkships/services/clerkship-service.js';
+import { createClerkshipSchema } from '$lib/features/clerkships/schemas.js';
 import { ZodError } from 'zod';
 
 /**
