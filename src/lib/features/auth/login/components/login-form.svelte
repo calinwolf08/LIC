@@ -67,16 +67,18 @@
 	<form method="POST" use:enhance class="space-y-4">
 		<Form.Field {form} name="email">
 			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Label>Email</Form.Label>
-				<Form.Control let:attrs>
-					<Input
-						{...attrs}
-						type="email"
-						placeholder="you@example.com"
-						bind:value={$formData.email}
-						disabled={isLoading}
-						autocomplete="email"
-					/>
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>Email</Form.Label>
+						<Input
+							{...props}
+							type="email"
+							placeholder="you@example.com"
+							bind:value={$formData.email}
+							disabled={isLoading}
+							autocomplete="email"
+						/>
+					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
 			{/snippet}
@@ -84,15 +86,17 @@
 
 		<Form.Field {form} name="password">
 			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Label>Password</Form.Label>
-				<Form.Control let:attrs>
-					<PasswordInput
-						{...attrs}
-						bind:value={$formData.password}
-						placeholder="••••••••"
-						disabled={isLoading}
-						autocomplete="current-password"
-					/>
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>Password</Form.Label>
+						<PasswordInput
+							{...props}
+							bind:value={$formData.password}
+							placeholder="••••••••"
+							disabled={isLoading}
+							autocomplete="current-password"
+						/>
+					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
 			{/snippet}
@@ -101,10 +105,12 @@
 		<div class="flex items-center justify-between">
 			<Form.Field {form} name="rememberMe" class="flex-row items-center space-x-2 space-y-0">
 				{#snippet children({ constraints, errors, tainted, value })}
-					<Form.Control let:attrs>
-						<Checkbox {...attrs} bind:checked={$formData.rememberMe} disabled={isLoading} />
+					<Form.Control>
+						{#snippet children({ props })}
+							<Checkbox {...props} bind:checked={$formData.rememberMe} disabled={isLoading} />
+							<Form.Label class="text-sm font-normal">Remember me</Form.Label>
+						{/snippet}
 					</Form.Control>
-					<Form.Label class="text-sm font-normal">Remember me</Form.Label>
 				{/snippet}
 			</Form.Field>
 

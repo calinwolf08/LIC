@@ -66,16 +66,18 @@
 	<form method="POST" use:enhance class="space-y-4">
 		<Form.Field {form} name="name">
 			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Label>Name</Form.Label>
-				<Form.Control let:attrs>
-					<Input
-						{...attrs}
-						type="text"
-						placeholder="John Doe"
-						bind:value={$formData.name}
-						disabled={isLoading}
-						autocomplete="name"
-					/>
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>Name</Form.Label>
+						<Input
+							{...props}
+							type="text"
+							placeholder="John Doe"
+							bind:value={$formData.name}
+							disabled={isLoading}
+							autocomplete="name"
+						/>
+					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
 			{/snippet}
@@ -83,16 +85,18 @@
 
 		<Form.Field {form} name="email">
 			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Label>Email</Form.Label>
-				<Form.Control let:attrs>
-					<Input
-						{...attrs}
-						type="email"
-						placeholder="you@example.com"
-						bind:value={$formData.email}
-						disabled={isLoading}
-						autocomplete="email"
-					/>
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>Email</Form.Label>
+						<Input
+							{...props}
+							type="email"
+							placeholder="you@example.com"
+							bind:value={$formData.email}
+							disabled={isLoading}
+							autocomplete="email"
+						/>
+					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
 			{/snippet}
@@ -100,15 +104,17 @@
 
 		<Form.Field {form} name="password">
 			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Label>Password</Form.Label>
-				<Form.Control let:attrs>
-					<PasswordInput
-						{...attrs}
-						bind:value={$formData.password}
-						placeholder="••••••••"
-						disabled={isLoading}
-						autocomplete="new-password"
-					/>
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>Password</Form.Label>
+						<PasswordInput
+							{...props}
+							bind:value={$formData.password}
+							placeholder="••••••••"
+							disabled={isLoading}
+							autocomplete="new-password"
+						/>
+					{/snippet}
 				</Form.Control>
 				<Form.Description>Password must be at least 8 characters</Form.Description>
 				<Form.FieldErrors />
@@ -117,15 +123,17 @@
 
 		<Form.Field {form} name="confirmPassword">
 			{#snippet children({ constraints, errors, tainted, value })}
-				<Form.Label>Confirm Password</Form.Label>
-				<Form.Control let:attrs>
-					<PasswordInput
-						{...attrs}
-						bind:value={$formData.confirmPassword}
-						placeholder="••••••••"
-						disabled={isLoading}
-						autocomplete="new-password"
-					/>
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>Confirm Password</Form.Label>
+						<PasswordInput
+							{...props}
+							bind:value={$formData.confirmPassword}
+							placeholder="••••••••"
+							disabled={isLoading}
+							autocomplete="new-password"
+						/>
+					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
 			{/snippet}
