@@ -9,11 +9,75 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
 
+export interface Account {
+  accessToken: string | null;
+  accessTokenExpiresAt: string | null;
+  accountId: string;
+  createdAt: string;
+  id: string;
+  idToken: string | null;
+  password: string | null;
+  providerId: string;
+  refreshToken: string | null;
+  refreshTokenExpiresAt: string | null;
+  scope: string | null;
+  updatedAt: string;
+  userId: string;
+}
+
 export interface BlackoutDates {
   created_at: Generated<string>;
   date: string;
   id: string | null;
   reason: string | null;
+}
+
+export interface ClerkshipConfigurations {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  updated_at: Generated<string>;
+}
+
+export interface ClerkshipElectives {
+  created_at: Generated<string>;
+  id: string | null;
+  minimum_days: number;
+  name: string;
+  requirement_id: string;
+  specialty: string | null;
+  updated_at: Generated<string>;
+}
+
+export interface ClerkshipRequirementOverrides {
+  created_at: Generated<string>;
+  field_name: string;
+  id: string | null;
+  is_overridden: Generated<number>;
+  requirement_id: string;
+}
+
+export interface ClerkshipRequirements {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  override_allow_fallbacks: number | null;
+  override_allow_partial_blocks: number | null;
+  override_allow_teams: number | null;
+  override_assignment_strategy: string | null;
+  override_block_size_days: number | null;
+  override_fallback_allow_cross_system: number | null;
+  override_fallback_requires_approval: number | null;
+  override_health_system_rule: string | null;
+  override_max_blocks_per_year: number | null;
+  override_max_students_per_block: number | null;
+  override_max_students_per_day: number | null;
+  override_max_students_per_year: number | null;
+  override_mode: Generated<string>;
+  override_prefer_continuous_blocks: number | null;
+  required_days: number;
+  requirement_type: string;
+  updated_at: Generated<string>;
 }
 
 export interface Clerkships {
@@ -26,6 +90,73 @@ export interface Clerkships {
   updated_at: Generated<string>;
 }
 
+export interface GlobalElectiveDefaults {
+  allow_fallbacks: Generated<number>;
+  allow_teams: Generated<number>;
+  assignment_strategy: string;
+  created_at: Generated<string>;
+  default_max_students_per_day: Generated<number>;
+  default_max_students_per_year: Generated<number>;
+  fallback_allow_cross_system: Generated<number>;
+  fallback_requires_approval: Generated<number>;
+  health_system_rule: string;
+  id: string | null;
+  school_id: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface GlobalInpatientDefaults {
+  allow_fallbacks: Generated<number>;
+  allow_partial_blocks: number | null;
+  allow_teams: Generated<number>;
+  assignment_strategy: string;
+  block_size_days: number | null;
+  created_at: Generated<string>;
+  default_max_blocks_per_year: number | null;
+  default_max_students_per_block: number | null;
+  default_max_students_per_day: Generated<number>;
+  default_max_students_per_year: Generated<number>;
+  fallback_allow_cross_system: Generated<number>;
+  fallback_requires_approval: Generated<number>;
+  health_system_rule: string;
+  id: string | null;
+  prefer_continuous_blocks: number | null;
+  school_id: Generated<string>;
+  team_require_same_health_system: number | null;
+  team_require_same_specialty: number | null;
+  team_size_max: number | null;
+  team_size_min: number | null;
+  updated_at: Generated<string>;
+}
+
+export interface GlobalOutpatientDefaults {
+  allow_fallbacks: Generated<number>;
+  allow_teams: Generated<number>;
+  assignment_strategy: string;
+  created_at: Generated<string>;
+  default_max_students_per_day: Generated<number>;
+  default_max_students_per_year: Generated<number>;
+  fallback_allow_cross_system: Generated<number>;
+  fallback_requires_approval: Generated<number>;
+  health_system_rule: string;
+  id: string | null;
+  school_id: Generated<string>;
+  team_require_same_health_system: number | null;
+  team_require_same_specialty: number | null;
+  team_size_max: number | null;
+  team_size_min: number | null;
+  updated_at: Generated<string>;
+}
+
+export interface HealthSystems {
+  created_at: Generated<string>;
+  description: string | null;
+  id: string | null;
+  location: string | null;
+  name: string;
+  updated_at: Generated<string>;
+}
+
 export interface PreceptorAvailability {
   created_at: Generated<string>;
   date: string;
@@ -35,13 +166,61 @@ export interface PreceptorAvailability {
   updated_at: Generated<string>;
 }
 
+export interface PreceptorCapacityRules {
+  clerkship_id: string | null;
+  created_at: Generated<string>;
+  id: string | null;
+  max_blocks_per_year: number | null;
+  max_students_per_block: number | null;
+  max_students_per_day: number;
+  max_students_per_year: number;
+  preceptor_id: string;
+  requirement_type: string | null;
+  updated_at: Generated<string>;
+}
+
+export interface PreceptorFallbacks {
+  allow_different_health_system: Generated<number>;
+  clerkship_id: string | null;
+  created_at: Generated<string>;
+  fallback_preceptor_id: string;
+  id: string | null;
+  primary_preceptor_id: string;
+  priority: Generated<number>;
+  requires_approval: Generated<number>;
+  updated_at: Generated<string>;
+}
+
 export interface Preceptors {
   created_at: Generated<string>;
   email: string;
+  health_system_id: string | null;
   id: string | null;
   max_students: Generated<number>;
   name: string;
+  site_id: string | null;
   specialty: string;
+  updated_at: Generated<string>;
+}
+
+export interface PreceptorTeamMembers {
+  created_at: Generated<string>;
+  id: string | null;
+  preceptor_id: string;
+  priority: Generated<number>;
+  role: string | null;
+  team_id: string;
+}
+
+export interface PreceptorTeams {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  name: string | null;
+  require_same_health_system: Generated<number>;
+  require_same_site: Generated<number>;
+  require_same_specialty: Generated<number>;
+  requires_admin_approval: Generated<number>;
   updated_at: Generated<string>;
 }
 
@@ -56,6 +235,26 @@ export interface ScheduleAssignments {
   updated_at: Generated<string>;
 }
 
+export interface Session {
+  createdAt: string;
+  expiresAt: string;
+  id: string;
+  ipAddress: string | null;
+  token: string;
+  updatedAt: string;
+  userAgent: string | null;
+  userId: string;
+}
+
+export interface Sites {
+  address: string | null;
+  created_at: Generated<string>;
+  health_system_id: string;
+  id: string | null;
+  name: string;
+  updated_at: Generated<string>;
+}
+
 export interface Students {
   created_at: Generated<string>;
   email: string;
@@ -64,11 +263,47 @@ export interface Students {
   updated_at: Generated<string>;
 }
 
+export interface User {
+  createdAt: string;
+  email: string;
+  emailVerified: number;
+  id: string;
+  image: string | null;
+  name: string;
+  updatedAt: string;
+}
+
+export interface Verification {
+  createdAt: string;
+  expiresAt: string;
+  id: string;
+  identifier: string;
+  updatedAt: string;
+  value: string;
+}
+
 export interface DB {
+  account: Account;
   blackout_dates: BlackoutDates;
+  clerkship_configurations: ClerkshipConfigurations;
+  clerkship_electives: ClerkshipElectives;
+  clerkship_requirement_overrides: ClerkshipRequirementOverrides;
+  clerkship_requirements: ClerkshipRequirements;
   clerkships: Clerkships;
+  global_elective_defaults: GlobalElectiveDefaults;
+  global_inpatient_defaults: GlobalInpatientDefaults;
+  global_outpatient_defaults: GlobalOutpatientDefaults;
+  health_systems: HealthSystems;
   preceptor_availability: PreceptorAvailability;
+  preceptor_capacity_rules: PreceptorCapacityRules;
+  preceptor_fallbacks: PreceptorFallbacks;
+  preceptor_team_members: PreceptorTeamMembers;
+  preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
   schedule_assignments: ScheduleAssignments;
+  session: Session;
+  sites: Sites;
   students: Students;
+  user: User;
+  verification: Verification;
 }
