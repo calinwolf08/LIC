@@ -153,9 +153,9 @@ export async function createTestRequirement(
 			requirement_type: options.requirementType,
 			required_days: options.requiredDays,
 			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_all' : undefined,
-			override_assignment_strategy: options.assignmentStrategy || undefined,
-			override_health_system_rule: options.healthSystemRule || undefined,
-			override_block_size_days: options.blockSizeDays || undefined,
+			override_assignment_strategy: options.assignmentStrategy,
+			override_health_system_rule: options.healthSystemRule,
+			override_block_size_days: options.blockSizeDays,
 					})
 		.execute();
 
@@ -182,9 +182,9 @@ export async function createCapacityRule(
 			id,
 			preceptor_id: preceptorId,
 			max_students_per_day: options.maxStudentsPerDay,
-			max_students_per_year: options.maxStudentsPerYear || undefined,
-			clerkship_id: options.clerkshipId || undefined,
-			requirement_type: options.requirementType || undefined,
+			max_students_per_year: options.maxStudentsPerYear ?? 20,
+			clerkship_id: options.clerkshipId,
+			requirement_type: options.requirementType,
 					})
 		.execute();
 
