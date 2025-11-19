@@ -228,7 +228,6 @@ export async function createTestTeam(
 				preceptor_id: memberIds[i],
 				priority: i + 1,
 				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString(),
 			})
 			.execute();
 	}
@@ -267,7 +266,8 @@ export async function createFallbackChain(
 }
 
 /**
- * Creates blackout dates for a preceptor
+ * Creates blackout dates
+ * Note: BlackoutDates schema only has single dates, not ranges or preceptor_id
  */
 export async function createBlackoutDates(
 	db: Kysely<DB>,
@@ -276,22 +276,26 @@ export async function createBlackoutDates(
 ) {
 	const blackoutIds: string[] = [];
 
+	// Note: Current schema doesn't support preceptor-specific blackouts or date ranges
+	// This creates single-date blackout entries for each day in the range
 	for (const range of dateRanges) {
-		const id = nanoid();
-		await db
-			.insertInto('blackout_dates')
-			.values({
-				id,
-				preceptor_id: preceptorId,
-				start_date: range.start,
-				end_date: range.end,
-				reason: range.reason || 'Test blackout',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString(),
-			})
-			.execute();
+		const currentDate = new Date(range.start);
+		const endDate = new Date(range.end);
 
-		blackoutIds.push(id);
+		while (currentDate <= endDate) {
+			const id = nanoid();
+			await db
+				.insertInto('blackout_dates')
+				.values({
+					id,
+					date: currentDate.toISOString().split('T')[0],
+					reason: range.reason || 'Test blackout',
+				})
+				.execute();
+
+			blackoutIds.push(id);
+			currentDate.setDate(currentDate.getDate() + 1);
+		}
 	}
 
 	return blackoutIds;
@@ -305,7 +309,7 @@ export async function getStudentAssignments(db: Kysely<DB>, studentId: string) {
 		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
-		.orderBy('start_date', 'asc')
+		.orderBy('date', 'asc')
 		.execute();
 }
 
@@ -317,7 +321,7 @@ export async function getClerkshipAssignments(db: Kysely<DB>, clerkshipId: strin
 		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('clerkship_id', '=', clerkshipId)
-		.orderBy('start_date', 'asc')
+		.orderBy('date', 'asc')
 		.execute();
 }
 
@@ -343,12 +347,15 @@ export async function countAssignmentsByDateRange(
 	startDate: Date,
 	endDate: Date
 ) {
+	const startDateStr = startDate.toISOString().split('T')[0];
+	const endDateStr = endDate.toISOString().split('T')[0];
+
 	const result = await db
 		.selectFrom('schedule_assignments')
 		.select(({ fn }) => [fn.count<number>('id').as('count')])
 		.where('preceptor_id', '=', preceptorId)
-		.where('start_date', '<=', endDate)
-		.where('end_date', '>=', startDate)
+		.where('date', '>=', startDateStr)
+		.where('date', '<=', endDateStr)
 		.executeTakeFirst();
 
 	return result?.count || 0;
@@ -359,7 +366,7 @@ export async function countAssignmentsByDateRange(
  */
 export async function clearAllTestData(db: Kysely<DB>) {
 	// Delete in reverse dependency order
-	await db.deleteFrom('assignments').execute();
+	await db.deleteFrom('schedule_assignments').execute();
 	await db.deleteFrom('preceptor_team_members').execute();
 	await db.deleteFrom('preceptor_teams').execute();
 	await db.deleteFrom('preceptor_fallbacks').execute();
