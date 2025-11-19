@@ -12,10 +12,10 @@
 
 	let showForm = $state(false);
 	let showDeleteDialog = $state(false);
-	let selectedClerkship = $state<Clerkships | null>(null);
+	let selectedClerkship = $state<Clerkships | undefined>(undefined);
 
 	function handleAdd() {
-		selectedClerkship = null;
+		selectedClerkship = undefined;
 		showForm = true;
 	}
 
@@ -31,13 +31,13 @@
 
 	async function handleFormSuccess() {
 		showForm = false;
-		selectedClerkship = null;
+		selectedClerkship = undefined;
 		await invalidateAll();
 	}
 
 	function handleFormCancel() {
 		showForm = false;
-		selectedClerkship = null;
+		selectedClerkship = undefined;
 	}
 
 	async function handleDeleteConfirm(clerkship: Clerkships) {
@@ -51,13 +51,13 @@
 		}
 
 		showDeleteDialog = false;
-		selectedClerkship = null;
+		selectedClerkship = undefined;
 		await invalidateAll();
 	}
 
 	function handleDeleteCancel() {
 		showDeleteDialog = false;
-		selectedClerkship = null;
+		selectedClerkship = undefined;
 	}
 </script>
 

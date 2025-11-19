@@ -5,7 +5,7 @@
 
 	interface Props {
 		open: boolean;
-		preceptor: Preceptors | null;
+		preceptor: Preceptors | null | undefined;
 		onConfirm: (preceptor: Preceptors) => Promise<void>;
 		onCancel: () => void;
 	}

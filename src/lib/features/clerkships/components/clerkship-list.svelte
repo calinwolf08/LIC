@@ -18,9 +18,10 @@
 	let sortedClerkships = $derived(() => {
 		if (!sortColumn) return clerkships;
 
+		const column = sortColumn; // Capture non-null value
 		return [...clerkships].sort((a, b) => {
-			const aVal = a[sortColumn];
-			const bVal = b[sortColumn];
+			const aVal = a[column];
+			const bVal = b[column];
 
 			if (aVal === bVal) return 0;
 
@@ -122,7 +123,7 @@
 								{truncate(clerkship.description)}
 							</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
-								{formatDate(clerkship.created_at)}
+								{formatDate(clerkship.created_at as unknown as string)}
 							</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">

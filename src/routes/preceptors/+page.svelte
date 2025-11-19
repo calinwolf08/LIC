@@ -14,10 +14,10 @@
 	let showForm = $state(false);
 	let showAvailability = $state(false);
 	let showDeleteDialog = $state(false);
-	let selectedPreceptor = $state<Preceptors | null>(null);
+	let selectedPreceptor = $state<Preceptors | undefined>(undefined);
 
 	function handleAdd() {
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 		showForm = true;
 	}
 
@@ -38,24 +38,24 @@
 
 	async function handleFormSuccess() {
 		showForm = false;
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 		await invalidateAll();
 	}
 
 	function handleFormCancel() {
 		showForm = false;
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 	}
 
 	async function handleAvailabilitySuccess() {
 		showAvailability = false;
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 		await invalidateAll();
 	}
 
 	function handleAvailabilityCancel() {
 		showAvailability = false;
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 	}
 
 	async function handleDeleteConfirm(preceptor: Preceptors) {
@@ -69,13 +69,13 @@
 		}
 
 		showDeleteDialog = false;
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 		await invalidateAll();
 	}
 
 	function handleDeleteCancel() {
 		showDeleteDialog = false;
-		selectedPreceptor = null;
+		selectedPreceptor = undefined;
 	}
 </script>
 

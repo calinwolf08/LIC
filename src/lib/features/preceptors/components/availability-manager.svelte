@@ -38,7 +38,7 @@
 			// Convert to availability items
 			availabilityItems = data.map((item) => ({
 				date: item.date,
-				is_available: item.is_available === 1
+				is_available: (item.is_available as unknown as number) === 1
 			}));
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load availability';

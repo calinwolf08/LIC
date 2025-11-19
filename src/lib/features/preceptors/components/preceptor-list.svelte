@@ -19,9 +19,10 @@
 	let sortedPreceptors = $derived(() => {
 		if (!sortColumn) return preceptors;
 
+		const column = sortColumn; // Capture non-null value
 		return [...preceptors].sort((a, b) => {
-			const aVal = a[sortColumn];
-			const bVal = b[sortColumn];
+			const aVal = a[column];
+			const bVal = b[column];
 
 			if (aVal === bVal) return 0;
 
@@ -115,7 +116,7 @@
 							<td class="px-4 py-3 text-sm">{preceptor.specialty}</td>
 							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
-								{formatDate(preceptor.created_at)}
+								{formatDate(preceptor.created_at as unknown as string)}
 							</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">

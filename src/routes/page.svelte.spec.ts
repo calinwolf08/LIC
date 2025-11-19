@@ -6,6 +6,7 @@ import Page from './+page.svelte';
 describe('/+page.svelte', () => {
 	it('should render h1', async () => {
 		const mockData = {
+			user: undefined,
 			stats: {
 				total_students: 10,
 				total_preceptors: 5,

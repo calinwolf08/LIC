@@ -389,7 +389,7 @@
 
 <ReassignModal
 	assignment={selectedAssignment}
-	preceptors={data.preceptors}
+	preceptors={data.preceptors as any}
 	open={showReassignModal}
 	onSave={handleReassignSave}
 	onCancel={handleReassignCancel}

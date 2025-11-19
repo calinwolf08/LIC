@@ -6,6 +6,8 @@
 
 	let {
 		value = $bindable(""),
+		type: _type,
+		files: _files,
 		...restProps
 	}: HTMLInputAttributes & { value?: string } = $props();
 

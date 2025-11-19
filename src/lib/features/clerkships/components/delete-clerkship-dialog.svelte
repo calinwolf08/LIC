@@ -5,7 +5,7 @@
 
 	interface Props {
 		open: boolean;
-		clerkship: Clerkships | null;
+		clerkship: Clerkships | null | undefined;
 		onConfirm: (clerkship: Clerkships) => Promise<void>;
 		onCancel: () => void;
 	}

@@ -18,9 +18,10 @@
 	let sortedStudents = $derived(() => {
 		if (!sortColumn) return students;
 
+		const column = sortColumn; // Capture non-null value
 		return [...students].sort((a, b) => {
-			const aVal = a[sortColumn];
-			const bVal = b[sortColumn];
+			const aVal = a[column];
+			const bVal = b[column];
 
 			if (aVal === bVal) return 0;
 
@@ -98,7 +99,7 @@
 							<td class="px-4 py-3 text-sm">{student.name}</td>
 							<td class="px-4 py-3 text-sm">{student.email}</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
-								{formatDate(student.created_at)}
+								{formatDate(student.created_at as unknown as string)}
 							</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
