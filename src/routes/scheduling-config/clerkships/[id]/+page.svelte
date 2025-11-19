@@ -79,7 +79,8 @@
 		showAddTeamModal = true;
 	}
 
-	function formatStrategy(strategy: string): string {
+	function formatStrategy(strategy: string | undefined): string {
+		if (!strategy) return 'Not configured';
 		return strategy
 			.split('_')
 			.map(word => word.charAt(0).toUpperCase() + word.slice(1))

@@ -12,6 +12,8 @@ import { ServiceErrors } from './service-errors';
 import { RequirementService } from './requirements.service';
 import { ElectiveService } from './electives.service';
 import { TeamService } from './teams.service';
+import { GlobalDefaultsService } from './global-defaults.service';
+import type { ClerkshipRequirement } from '../types';
 
 /**
  * Configuration Service
@@ -23,11 +25,13 @@ export class ConfigurationService {
   private requirementService: RequirementService;
   private electiveService: ElectiveService;
   private teamService: TeamService;
+  private globalDefaultsService: GlobalDefaultsService;
 
   constructor(private db: Kysely<DB>) {
     this.requirementService = new RequirementService(db);
     this.electiveService = new ElectiveService(db);
     this.teamService = new TeamService(db);
+    this.globalDefaultsService = new GlobalDefaultsService(db);
   }
 
   /**
@@ -67,9 +71,12 @@ export class ConfigurationService {
           }
         }
 
+        // Resolve configuration by merging global defaults with overrides
+        const resolvedConfig = await this.resolveConfiguration(requirement);
+
         requirements.push({
           requirement,
-          resolvedConfig: {} as any, // Would need to implement config resolution
+          resolvedConfig,
           electives: electives.length > 0 ? electives : undefined,
         });
       }
@@ -96,6 +103,116 @@ export class ConfigurationService {
         ServiceErrors.databaseError('Failed to fetch complete configuration', error)
       );
     }
+  }
+
+  /**
+   * Resolve configuration for a requirement
+   *
+   * Merges global defaults with requirement-specific overrides based on override_mode
+   */
+  private async resolveConfiguration(requirement: ClerkshipRequirement): Promise<any> {
+    // Fetch appropriate global defaults based on requirement type
+    let globalDefaults: any = null;
+
+    if (requirement.requirementType === 'outpatient') {
+      const result = await this.globalDefaultsService.getOutpatientDefaults();
+      if (result.success && result.data) {
+        globalDefaults = result.data;
+      }
+    } else if (requirement.requirementType === 'inpatient') {
+      const result = await this.globalDefaultsService.getInpatientDefaults();
+      if (result.success && result.data) {
+        globalDefaults = result.data;
+      }
+    } else if (requirement.requirementType === 'elective') {
+      const result = await this.globalDefaultsService.getElectiveDefaults();
+      if (result.success && result.data) {
+        globalDefaults = result.data;
+      }
+    }
+
+    // If no global defaults found, return empty config
+    if (!globalDefaults) {
+      return {
+        assignmentStrategy: 'continuous_single',
+        healthSystemRule: 'no_preference',
+        maxStudentsPerDay: 1,
+        maxStudentsPerYear: 3,
+        allowTeams: false,
+        allowFallbacks: true
+      };
+    }
+
+    // Start with global defaults
+    const resolved: any = {
+      assignmentStrategy: globalDefaults.assignmentStrategy,
+      healthSystemRule: globalDefaults.healthSystemRule,
+      maxStudentsPerDay: globalDefaults.defaultMaxStudentsPerDay,
+      maxStudentsPerYear: globalDefaults.defaultMaxStudentsPerYear,
+      allowTeams: globalDefaults.allowTeams,
+      allowFallbacks: globalDefaults.allowFallbacks,
+      fallbackRequiresApproval: globalDefaults.fallbackRequiresApproval,
+      fallbackAllowCrossSystem: globalDefaults.fallbackAllowCrossSystem
+    };
+
+    // Add inpatient-specific fields if applicable
+    if (requirement.requirementType === 'inpatient' && globalDefaults.blockSizeDays) {
+      resolved.blockSizeDays = globalDefaults.blockSizeDays;
+      resolved.allowPartialBlocks = globalDefaults.allowPartialBlocks;
+      resolved.preferContinuousBlocks = globalDefaults.preferContinuousBlocks;
+      resolved.maxStudentsPerBlock = globalDefaults.defaultMaxStudentsPerBlock;
+      resolved.maxBlocksPerYear = globalDefaults.defaultMaxBlocksPerYear;
+    }
+
+    // If override_mode is 'inherit', return global defaults as-is
+    if (requirement.overrideMode === 'inherit') {
+      return resolved;
+    }
+
+    // Apply overrides based on override_mode
+    if (requirement.overrideMode === 'override_fields' || requirement.overrideMode === 'override_section') {
+      if (requirement.overrideAssignmentStrategy) {
+        resolved.assignmentStrategy = requirement.overrideAssignmentStrategy;
+      }
+      if (requirement.overrideHealthSystemRule) {
+        resolved.healthSystemRule = requirement.overrideHealthSystemRule;
+      }
+      if (requirement.overrideMaxStudentsPerDay !== null && requirement.overrideMaxStudentsPerDay !== undefined) {
+        resolved.maxStudentsPerDay = requirement.overrideMaxStudentsPerDay;
+      }
+      if (requirement.overrideMaxStudentsPerYear !== null && requirement.overrideMaxStudentsPerYear !== undefined) {
+        resolved.maxStudentsPerYear = requirement.overrideMaxStudentsPerYear;
+      }
+      if (requirement.overrideMaxStudentsPerBlock !== null && requirement.overrideMaxStudentsPerBlock !== undefined) {
+        resolved.maxStudentsPerBlock = requirement.overrideMaxStudentsPerBlock;
+      }
+      if (requirement.overrideMaxBlocksPerYear !== null && requirement.overrideMaxBlocksPerYear !== undefined) {
+        resolved.maxBlocksPerYear = requirement.overrideMaxBlocksPerYear;
+      }
+      if (requirement.overrideBlockSizeDays !== null && requirement.overrideBlockSizeDays !== undefined) {
+        resolved.blockSizeDays = requirement.overrideBlockSizeDays;
+      }
+      if (requirement.overrideAllowPartialBlocks !== null && requirement.overrideAllowPartialBlocks !== undefined) {
+        resolved.allowPartialBlocks = requirement.overrideAllowPartialBlocks;
+      }
+      if (requirement.overridePreferContinuousBlocks !== null && requirement.overridePreferContinuousBlocks !== undefined) {
+        resolved.preferContinuousBlocks = requirement.overridePreferContinuousBlocks;
+      }
+      if (requirement.overrideAllowTeams !== null && requirement.overrideAllowTeams !== undefined) {
+        resolved.allowTeams = requirement.overrideAllowTeams;
+      }
+      if (requirement.overrideAllowFallbacks !== null && requirement.overrideAllowFallbacks !== undefined) {
+        resolved.allowFallbacks = requirement.overrideAllowFallbacks;
+      }
+      if (requirement.overrideFallbackRequiresApproval !== null && requirement.overrideFallbackRequiresApproval !== undefined) {
+        resolved.fallbackRequiresApproval = requirement.overrideFallbackRequiresApproval;
+      }
+      if (requirement.overrideFallbackAllowCrossSystem !== null && requirement.overrideFallbackAllowCrossSystem !== undefined) {
+        resolved.fallbackAllowCrossSystem = requirement.overrideFallbackAllowCrossSystem;
+      }
+    }
+
+    return resolved;
   }
 
   /**
