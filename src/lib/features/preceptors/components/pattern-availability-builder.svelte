@@ -19,8 +19,9 @@
 
 	let { preceptor, onSuccess, onCancel }: Props = $props();
 
-	// State
-	let patterns = $state<Pattern[]>([]);
+	// Local state for patterns (not yet saved to database)
+	let localPatterns = $state<Pattern[]>([]);
+	let nextTempId = $state(1);
 	let generationResult = $state<PatternGenerationResult | null>(null);
 	let isLoading = $state(true);
 	let isSaving = $state(false);
@@ -28,8 +29,9 @@
 	let error = $state<string | null>(null);
 	let showPatternForm = $state(false);
 	let editingPattern = $state<Pattern | null>(null);
+	let editingIndex = $state<number | null>(null);
 
-	// Load patterns on mount
+	// Load existing patterns from database
 	$effect(() => {
 		loadPatterns();
 	});
@@ -45,11 +47,11 @@
 			}
 
 			const result = await response.json();
-			patterns = result.data;
+			localPatterns = result.data;
 
 			// Auto-generate preview if patterns exist
-			if (patterns.length > 0) {
-				await generatePreview();
+			if (localPatterns.length > 0) {
+				await generatePreviewLocal();
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load patterns';
@@ -58,8 +60,9 @@
 		}
 	}
 
-	async function generatePreview() {
-		if (patterns.length === 0) {
+	// Generate preview from local patterns (client-side)
+	async function generatePreviewLocal() {
+		if (localPatterns.length === 0) {
 			generationResult = null;
 			return;
 		}
@@ -68,16 +71,37 @@
 		error = null;
 
 		try {
-			const response = await fetch(`/api/preceptors/${preceptor.id}/patterns/generate`, {
-				method: 'POST'
-			});
+			// Import the pattern generator functions
+			const { applyPatternsBySpecificity } = await import('../services/pattern-generators');
 
-			if (!response.ok) {
-				throw new Error('Failed to generate preview');
-			}
+			// Convert Pattern[] to CreatePattern[]
+			const createPatterns: CreatePattern[] = localPatterns
+				.filter(p => p.enabled)
+				.map(p => ({
+					preceptor_id: p.preceptor_id,
+					pattern_type: p.pattern_type as any,
+					is_available: p.is_available === 1,
+					specificity: p.specificity,
+					date_range_start: p.date_range_start,
+					date_range_end: p.date_range_end,
+					config: p.config,
+					reason: p.reason || undefined,
+					enabled: p.enabled === 1
+				}));
 
-			const result = await response.json();
-			generationResult = result.data;
+			// Generate dates locally
+			const generatedDates = applyPatternsBySpecificity(createPatterns);
+
+			// Calculate stats
+			const availableDates = generatedDates.filter(d => d.is_available).length;
+			const unavailableDates = generatedDates.filter(d => !d.is_available).length;
+
+			generationResult = {
+				generated_dates: generatedDates.length,
+				available_dates: availableDates,
+				unavailable_dates: unavailableDates,
+				preview: generatedDates
+			};
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate preview';
 			generationResult = null;
@@ -86,123 +110,99 @@
 		}
 	}
 
-	async function handleAddPattern(pattern: CreatePattern) {
+	// Add pattern to local state only
+	function handleAddPattern(pattern: CreatePattern) {
 		error = null;
 
-		try {
-			const response = await fetch(`/api/preceptors/${preceptor.id}/patterns`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(pattern)
-			});
+		// Create a temporary ID for the pattern
+		const tempId = `temp-${nextTempId}`;
+		nextTempId++;
 
-			if (!response.ok) {
-				const result = await response.json();
-				throw new Error(result.error?.message || 'Failed to create pattern');
-			}
+		const newPattern: Pattern = {
+			id: tempId,
+			preceptor_id: pattern.preceptor_id,
+			pattern_type: pattern.pattern_type,
+			is_available: pattern.is_available ? 1 : 0,
+			specificity: pattern.specificity,
+			date_range_start: pattern.date_range_start,
+			date_range_end: pattern.date_range_end,
+			config: pattern.config,
+			reason: pattern.reason || null,
+			enabled: pattern.enabled ? 1 : 0,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
 
-			showPatternForm = false;
-			await loadPatterns();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create pattern';
-		}
+		localPatterns = [...localPatterns, newPattern];
+		showPatternForm = false;
+		generatePreviewLocal();
 	}
 
-	async function handleUpdatePattern(pattern: CreatePattern) {
-		if (!editingPattern?.id) return;
+	// Update pattern in local state only
+	function handleUpdatePattern(pattern: CreatePattern) {
+		if (editingIndex === null) return;
 
 		error = null;
 
-		try {
-			const response = await fetch(
-				`/api/preceptors/${preceptor.id}/patterns/${editingPattern.id}`,
-				{
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(pattern)
-				}
-			);
+		const updated: Pattern = {
+			...localPatterns[editingIndex],
+			pattern_type: pattern.pattern_type,
+			is_available: pattern.is_available ? 1 : 0,
+			specificity: pattern.specificity,
+			date_range_start: pattern.date_range_start,
+			date_range_end: pattern.date_range_end,
+			config: pattern.config,
+			reason: pattern.reason || null,
+			enabled: pattern.enabled ? 1 : 0,
+			updated_at: new Date().toISOString()
+		};
 
-			if (!response.ok) {
-				const result = await response.json();
-				throw new Error(result.error?.message || 'Failed to update pattern');
-			}
+		localPatterns = [
+			...localPatterns.slice(0, editingIndex),
+			updated,
+			...localPatterns.slice(editingIndex + 1)
+		];
 
-			editingPattern = null;
-			await loadPatterns();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update pattern';
-		}
+		editingPattern = null;
+		editingIndex = null;
+		generatePreviewLocal();
 	}
 
-	async function handleDeletePattern(patternId: string) {
+	// Delete pattern from local state only
+	function handleDeletePattern(patternId: string) {
 		if (!confirm('Are you sure you want to delete this pattern?')) {
 			return;
 		}
 
 		error = null;
-
-		try {
-			const response = await fetch(`/api/preceptors/${preceptor.id}/patterns/${patternId}`, {
-				method: 'DELETE'
-			});
-
-			if (!response.ok) {
-				const result = await response.json();
-				throw new Error(result.error?.message || 'Failed to delete pattern');
-			}
-
-			await loadPatterns();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete pattern';
-		}
+		localPatterns = localPatterns.filter(p => p.id !== patternId);
+		generatePreviewLocal();
 	}
 
-	async function handleToggleEnabled(patternId: string, enabled: boolean) {
+	// Toggle enabled in local state only
+	function handleToggleEnabled(patternId: string, enabled: boolean) {
 		error = null;
 
-		try {
-			const response = await fetch(`/api/preceptors/${preceptor.id}/patterns/${patternId}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ enabled })
-			});
+		localPatterns = localPatterns.map(p =>
+			p.id === patternId
+				? { ...p, enabled: enabled ? 1 : 0, updated_at: new Date().toISOString() }
+				: p
+		);
 
-			if (!response.ok) {
-				const result = await response.json();
-				throw new Error(result.error?.message || 'Failed to update pattern');
-			}
-
-			await loadPatterns();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update pattern';
-		}
+		generatePreviewLocal();
 	}
 
 	function handleEdit(pattern: Pattern) {
-		// Convert Pattern to CreatePattern format
-		const createPattern: CreatePattern = {
-			preceptor_id: pattern.preceptor_id,
-			pattern_type: pattern.pattern_type as any,
-			is_available: pattern.is_available === 1,
-			specificity: pattern.specificity,
-			date_range_start: pattern.date_range_start,
-			date_range_end: pattern.date_range_end,
-			config: pattern.config,
-			reason: pattern.reason || undefined,
-			enabled: pattern.enabled === 1
-		};
+		// Find the index
+		const index = localPatterns.findIndex(p => p.id === pattern.id);
+		if (index === -1) return;
 
 		editingPattern = pattern;
+		editingIndex = index;
 		showPatternForm = false; // Hide add form
 	}
 
+	// Save all patterns and generate availability dates
 	async function handleSaveAll() {
 		if (!generationResult || generationResult.generated_dates === 0) {
 			error = 'No patterns to save. Add patterns first.';
@@ -217,7 +217,78 @@
 		error = null;
 
 		try {
-			const response = await fetch(`/api/preceptors/${preceptor.id}/patterns/save`, {
+			// Step 1: Delete all existing patterns
+			const existingResponse = await fetch(`/api/preceptors/${preceptor.id}/patterns`);
+			if (existingResponse.ok) {
+				const existingData = await existingResponse.json();
+				const existingPatterns = existingData.data || [];
+
+				for (const existing of existingPatterns) {
+					await fetch(`/api/preceptors/${preceptor.id}/patterns/${existing.id}`, {
+						method: 'DELETE'
+					});
+				}
+			}
+
+			// Step 2: Create all local patterns (skip temp ones, create new)
+			for (const pattern of localPatterns) {
+				// Skip temporary patterns, create new ones
+				if (pattern.id?.startsWith('temp-')) {
+					const createData: CreatePattern = {
+						preceptor_id: pattern.preceptor_id,
+						pattern_type: pattern.pattern_type as any,
+						is_available: pattern.is_available === 1,
+						specificity: pattern.specificity,
+						date_range_start: pattern.date_range_start,
+						date_range_end: pattern.date_range_end,
+						config: pattern.config,
+						reason: pattern.reason || undefined,
+						enabled: pattern.enabled === 1
+					};
+
+					const response = await fetch(`/api/preceptors/${preceptor.id}/patterns`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(createData)
+					});
+
+					if (!response.ok) {
+						const result = await response.json();
+						throw new Error(result.error?.message || 'Failed to save pattern');
+					}
+				} else {
+					// For existing patterns, also recreate them
+					const createData: CreatePattern = {
+						preceptor_id: pattern.preceptor_id,
+						pattern_type: pattern.pattern_type as any,
+						is_available: pattern.is_available === 1,
+						specificity: pattern.specificity,
+						date_range_start: pattern.date_range_start,
+						date_range_end: pattern.date_range_end,
+						config: pattern.config,
+						reason: pattern.reason || undefined,
+						enabled: pattern.enabled === 1
+					};
+
+					const response = await fetch(`/api/preceptors/${preceptor.id}/patterns`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(createData)
+					});
+
+					if (!response.ok) {
+						const result = await response.json();
+						throw new Error(result.error?.message || 'Failed to save pattern');
+					}
+				}
+			}
+
+			// Step 3: Generate and save availability dates
+			const saveResponse = await fetch(`/api/preceptors/${preceptor.id}/patterns/save`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -227,9 +298,9 @@
 				})
 			});
 
-			if (!response.ok) {
-				const result = await response.json();
-				throw new Error(result.error?.message || 'Failed to save patterns');
+			if (!saveResponse.ok) {
+				const result = await saveResponse.json();
+				throw new Error(result.error?.message || 'Failed to save availability dates');
 			}
 
 			onSuccess?.();
@@ -242,19 +313,22 @@
 
 	// Get date range from patterns for calendar preview
 	let dateRange = $derived(() => {
-		if (patterns.length === 0) {
+		if (localPatterns.length === 0) {
 			const today = new Date().toISOString().split('T')[0];
 			return { start: today, end: today };
 		}
 
-		const startDates = patterns.map(p => p.date_range_start);
-		const endDates = patterns.map(p => p.date_range_end);
+		const startDates = localPatterns.map(p => p.date_range_start);
+		const endDates = localPatterns.map(p => p.date_range_end);
 
 		return {
 			start: startDates.sort()[0],
 			end: endDates.sort().reverse()[0]
 		};
 	});
+
+	// Track if there are unsaved changes
+	let hasUnsavedChanges = $derived(localPatterns.some(p => p.id?.startsWith('temp-')));
 </script>
 
 <div class="space-y-6">
@@ -262,6 +336,9 @@
 		<h3 class="text-lg font-semibold">Availability Patterns for {preceptor.name}</h3>
 		<p class="text-sm text-muted-foreground mt-1">
 			Create patterns to define year-long availability schedules
+			{#if hasUnsavedChanges}
+				<span class="text-orange-600 dark:text-orange-400">• Unsaved changes</span>
+			{/if}
 		</p>
 	</div>
 
@@ -285,6 +362,7 @@
 				onCancel={() => {
 					showPatternForm = false;
 					editingPattern = null;
+					editingIndex = null;
 				}}
 			/>
 		{:else}
@@ -294,19 +372,19 @@
 		{/if}
 
 		<!-- Existing Patterns -->
-		{#if patterns.length > 0}
+		{#if localPatterns.length > 0}
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
-					<h4 class="text-sm font-semibold">Active Patterns ({patterns.length})</h4>
+					<h4 class="text-sm font-semibold">Patterns ({localPatterns.length})</h4>
 					{#if !isGenerating}
-						<Button size="sm" variant="outline" onclick={generatePreview}>
+						<Button size="sm" variant="outline" onclick={generatePreviewLocal}>
 							Refresh Preview
 						</Button>
 					{/if}
 				</div>
 
 				<PatternList
-					{patterns}
+					patterns={localPatterns}
 					onEdit={handleEdit}
 					onDelete={handleDeletePattern}
 					onToggleEnabled={handleToggleEnabled}
@@ -340,13 +418,13 @@
 					/>
 				{/if}
 			</div>
-		{:else if patterns.length > 0}
+		{:else if localPatterns.length > 0}
 			<Card class="p-6">
 				<div class="text-center">
 					<p class="text-sm text-muted-foreground mb-4">
 						Click "Refresh Preview" to see generated availability
 					</p>
-					<Button size="sm" onclick={generatePreview} disabled={isGenerating}>
+					<Button size="sm" onclick={generatePreviewLocal} disabled={isGenerating}>
 						{isGenerating ? 'Generating...' : 'Generate Preview'}
 					</Button>
 				</div>
