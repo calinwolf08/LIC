@@ -3,7 +3,7 @@
 	import type { Preceptors } from '$lib/db/types';
 	import PreceptorList from '$lib/features/preceptors/components/preceptor-list.svelte';
 	import PreceptorForm from '$lib/features/preceptors/components/preceptor-form.svelte';
-	import AvailabilityManager from '$lib/features/preceptors/components/availability-manager.svelte';
+	import EnhancedAvailabilityManager from '$lib/features/preceptors/components/enhanced-availability-manager.svelte';
 	import DeletePreceptorDialog from '$lib/features/preceptors/components/delete-preceptor-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
@@ -112,8 +112,8 @@
 		onclick={handleAvailabilityCancel}
 		role="presentation"
 	></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-3xl -translate-x-1/2 -translate-y-1/2">
-		<AvailabilityManager
+	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto">
+		<EnhancedAvailabilityManager
 			preceptor={selectedPreceptor}
 			onSuccess={handleAvailabilitySuccess}
 			onCancel={handleAvailabilityCancel}
