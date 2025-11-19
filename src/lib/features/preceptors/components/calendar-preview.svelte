@@ -23,11 +23,25 @@
 		return map;
 	});
 
+	// Helper function to parse YYYY-MM-DD strings without timezone issues
+	function parseLocalDate(dateStr: string): Date {
+		const [year, month, day] = dateStr.split('-').map(Number);
+		return new Date(year, month - 1, day);
+	}
+
+	// Helper function to format date as YYYY-MM-DD
+	function formatLocalDate(year: number, month: number, day: number): string {
+		const yearStr = year.toString();
+		const monthStr = (month + 1).toString().padStart(2, '0');
+		const dayStr = day.toString().padStart(2, '0');
+		return `${yearStr}-${monthStr}-${dayStr}`;
+	}
+
 	// Get months to display
 	let monthsToDisplay = $derived(() => {
 		const months: Array<{ year: number; month: number }> = [];
-		const start = new Date(startDate);
-		const end = new Date(endDate);
+		const start = parseLocalDate(startDate);
+		const end = parseLocalDate(endDate);
 
 		const current = new Date(start);
 		current.setDate(1); // First day of month
@@ -58,8 +72,7 @@
 
 		// Add current month days
 		for (let day = 1; day <= lastDay.getDate(); day++) {
-			const date = new Date(year, month, day);
-			const dateStr = date.toISOString().split('T')[0];
+			const dateStr = formatLocalDate(year, month, day);
 			days.push({ date: dateStr, inMonth: true });
 		}
 
@@ -88,8 +101,8 @@
 
 	// Calculate statistics
 	let stats = $derived(() => {
-		const start = new Date(startDate);
-		const end = new Date(endDate);
+		const start = parseLocalDate(startDate);
+		const end = parseLocalDate(endDate);
 		const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
 		const availableDates = generatedDates.filter(d => d.is_available).length;
@@ -157,7 +170,7 @@
 									disabled={!onDateClick}
 									title={day.date}
 								>
-									{new Date(day.date).getDate()}
+									{parseLocalDate(day.date).getDate()}
 								</button>
 							{:else}
 								<div class="aspect-square"></div>
