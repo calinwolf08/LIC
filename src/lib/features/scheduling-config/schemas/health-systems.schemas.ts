@@ -25,9 +25,17 @@ export const healthSystemSchema = healthSystemInputSchema.extend({
 });
 
 /**
- * Site Input Schema
+ * Site Input Schema (for API - healthSystemId provided separately)
  */
 export const siteInputSchema = z.object({
+  name: z.string().min(1, 'Site name is required'),
+  address: z.string().optional(),
+});
+
+/**
+ * Site Validation Schema (includes healthSystemId)
+ */
+export const siteValidationSchema = z.object({
   healthSystemId: z.string().min(1, 'Health system ID is required'),
   name: z.string().min(1, 'Site name is required'),
   address: z.string().optional(),
@@ -36,7 +44,7 @@ export const siteInputSchema = z.object({
 /**
  * Site Schema (full database record)
  */
-export const siteSchema = siteInputSchema.extend({
+export const siteSchema = siteValidationSchema.extend({
   id: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),

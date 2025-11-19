@@ -108,8 +108,8 @@ export class FallbackService {
           fallback_preceptor_id: input.fallbackPreceptorId,
           clerkship_id: input.clerkshipId || null,
           priority: input.priority,
-          requires_approval: input.requiresApproval ?? false,
-          allow_different_health_system: input.allowDifferentHealthSystem ?? false,
+          requires_approval: input.requiresApproval ? 1 : 0,
+          allow_different_health_system: input.allowDifferentHealthSystem ? 1 : 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

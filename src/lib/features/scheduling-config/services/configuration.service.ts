@@ -46,7 +46,7 @@ export class ConfigurationService {
         .where('id', '=', clerkshipId)
         .executeTakeFirst();
 
-      if (!clerkship) {
+      if (!clerkship || !clerkship.id) {
         return Result.success(null);
       }
 

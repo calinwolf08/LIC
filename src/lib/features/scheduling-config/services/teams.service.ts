@@ -71,10 +71,10 @@ export class TeamService {
             id: nanoid(),
             clerkship_id: clerkshipId,
             name: input.name || null,
-            require_same_health_system: input.requireSameHealthSystem ?? false,
-            require_same_site: input.requireSameSite ?? false,
-            require_same_specialty: input.requireSameSpecialty ?? false,
-            requires_admin_approval: input.requiresAdminApproval ?? false,
+            require_same_health_system: input.requireSameHealthSystem ? 1 : 0,
+            require_same_site: input.requireSameSite ? 1 : 0,
+            require_same_specialty: input.requireSameSpecialty ? 1 : 0,
+            requires_admin_approval: input.requiresAdminApproval ? 1 : 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -90,7 +90,7 @@ export class TeamService {
               id: nanoid(),
               team_id: team.id,
               preceptor_id: memberInput.preceptorId,
-              role: memberInput.role || null,
+              role: memberInput.role ?? null,
               priority: memberInput.priority,
               created_at: new Date().toISOString(),
             })

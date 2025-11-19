@@ -101,7 +101,6 @@ export class ElectiveService {
           name: input.name,
           minimum_days: input.minimumDays,
           specialty: input.specialty || null,
-          available_preceptor_ids: JSON.stringify(input.availablePreceptorIds),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -248,7 +247,7 @@ export class ElectiveService {
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
-        .select('available_preceptor_ids')
+        .select('specialty')
         .where('id', '=', electiveId)
         .executeTakeFirst();
 
@@ -256,12 +255,11 @@ export class ElectiveService {
         return Result.failure(ServiceErrors.notFound('Elective', electiveId));
       }
 
-      const preceptorIds = JSON.parse(elective.available_preceptor_ids as string);
-
+      // Return preceptors matching the elective's specialty
       const preceptors = await this.db
         .selectFrom('preceptors')
         .selectAll()
-        .where('id', 'in', preceptorIds)
+        .where('specialty', '=', elective.specialty || '')
         .execute();
 
       return Result.success(preceptors);

@@ -13,6 +13,7 @@ import {
   type HealthSystemInput,
   type SiteInput,
 } from '../schemas';
+import { siteValidationSchema } from '../schemas/health-systems.schemas';
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
 import { nanoid } from 'nanoid';
@@ -193,7 +194,7 @@ export class HealthSystemService {
    */
   async createSite(healthSystemId: string, input: SiteInput): ServiceResult<Site> {
     // Validate input
-    const validation = siteInputSchema.safeParse({
+    const validation = siteValidationSchema.safeParse({
       ...input,
       healthSystemId,
     });
