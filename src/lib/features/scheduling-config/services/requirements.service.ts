@@ -37,14 +37,11 @@ export class RequirementService {
     }
 
     try {
-      // Note: This would need clerkshipId in the input
-      // For now, we'll assume it's part of a larger transaction
-
       const requirement = await this.db
         .insertInto('clerkship_requirements')
         .values({
           id: nanoid(),
-          clerkship_id: (input as any).clerkshipId, // Would need to add this to schema
+          clerkship_id: input.clerkshipId,
           requirement_type: input.requirementType,
           required_days: input.requiredDays,
           override_mode: input.overrideMode,

@@ -1,21 +1,82 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
 	let activeTab = $state<'overview' | 'requirements' | 'teams' | 'capacity'>('overview');
+	let showAddRequirementModal = $state(false);
+	let showAddTeamModal = $state(false);
+
+	// Form state for new requirement
+	let newRequirement = $state({
+		requirementType: 'outpatient' as 'outpatient' | 'inpatient' | 'elective',
+		requiredDays: 20,
+		overrideMode: 'inherit' as 'inherit' | 'override_fields' | 'override_section',
+		overrideAssignmentStrategy: undefined as 'continuous_single' | 'continuous_team' | 'block_based' | 'daily_rotation' | undefined,
+		overrideHealthSystemRule: undefined as 'enforce_same_system' | 'prefer_same_system' | 'no_preference' | undefined
+	});
+
+	let isSubmitting = $state(false);
+	let error = $state<string | null>(null);
 
 	async function handleAddRequirement() {
-		// Add requirement logic
-		console.log('Add requirement');
+		showAddRequirementModal = true;
+	}
+
+	async function handleSubmitRequirement() {
+		isSubmitting = true;
+		error = null;
+
+		try {
+			const response = await fetch('/api/scheduling-config/requirements', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					clerkshipId: data.configuration.clerkshipId,
+					...newRequirement
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok) {
+				error = result.error?.message || 'Failed to create requirement';
+				return;
+			}
+
+			// Reset form and close modal
+			showAddRequirementModal = false;
+			newRequirement = {
+				requirementType: 'outpatient',
+				requiredDays: 20,
+				overrideMode: 'inherit',
+				overrideAssignmentStrategy: undefined,
+				overrideHealthSystemRule: undefined
+			};
+
+			// Refresh data
+			await invalidateAll();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to create requirement';
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
+	function handleCancelRequirement() {
+		showAddRequirementModal = false;
+		error = null;
 	}
 
 	async function handleAddTeam() {
 		// Add team logic
 		console.log('Add team');
+		showAddTeamModal = true;
 	}
 
 	function formatStrategy(strategy: string): string {
@@ -290,3 +351,110 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Add Requirement Modal -->
+{#if showAddRequirementModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+		<div class="w-full max-w-2xl rounded-lg bg-background p-6 shadow-lg">
+			<h2 class="mb-4 text-2xl font-bold">Add Requirement</h2>
+
+			{#if error}
+				<div class="mb-4 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+					{error}
+				</div>
+			{/if}
+
+			<form onsubmit={(e) => { e.preventDefault(); handleSubmitRequirement(); }} class="space-y-4">
+				<!-- Requirement Type -->
+				<div>
+					<Label for="requirementType">Requirement Type</Label>
+					<select
+						id="requirementType"
+						bind:value={newRequirement.requirementType}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						required
+					>
+						<option value="outpatient">Outpatient</option>
+						<option value="inpatient">Inpatient</option>
+						<option value="elective">Elective</option>
+					</select>
+				</div>
+
+				<!-- Required Days -->
+				<div>
+					<Label for="requiredDays">Required Days</Label>
+					<Input
+						id="requiredDays"
+						type="number"
+						bind:value={newRequirement.requiredDays}
+						min="1"
+						required
+					/>
+				</div>
+
+				<!-- Override Mode -->
+				<div>
+					<Label for="overrideMode">Override Mode</Label>
+					<select
+						id="overrideMode"
+						bind:value={newRequirement.overrideMode}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						required
+					>
+						<option value="inherit">Inherit from Clerkship</option>
+						<option value="override_fields">Override Specific Fields</option>
+						<option value="override_section">Override All Settings</option>
+					</select>
+				</div>
+
+				{#if newRequirement.overrideMode !== 'inherit'}
+					<!-- Assignment Strategy -->
+					<div>
+						<Label for="assignmentStrategy">Assignment Strategy</Label>
+						<select
+							id="assignmentStrategy"
+							bind:value={newRequirement.overrideAssignmentStrategy}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value={undefined}>-- Use Default --</option>
+							<option value="continuous_single">Continuous Single</option>
+							<option value="continuous_team">Continuous Team</option>
+							<option value="block_based">Block Based</option>
+							<option value="daily_rotation">Daily Rotation</option>
+						</select>
+					</div>
+
+					<!-- Health System Rule -->
+					<div>
+						<Label for="healthSystemRule">Health System Rule</Label>
+						<select
+							id="healthSystemRule"
+							bind:value={newRequirement.overrideHealthSystemRule}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value={undefined}>-- Use Default --</option>
+							<option value="enforce_same_system">Enforce Same System</option>
+							<option value="prefer_same_system">Prefer Same System</option>
+							<option value="no_preference">No Preference</option>
+						</select>
+					</div>
+				{/if}
+
+				<!-- Action Buttons -->
+				<div class="flex justify-end gap-2 pt-4">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={handleCancelRequirement}
+						disabled={isSubmitting}
+					>
+						Cancel
+					</Button>
+					<Button type="submit" disabled={isSubmitting}>
+						{isSubmitting ? 'Creating...' : 'Create Requirement'}
+					</Button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}

@@ -8,7 +8,8 @@
 		{ href: '/students', label: 'Students', icon: '👨‍🎓' },
 		{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
 		{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
-		{ href: '/calendar', label: 'Calendar', icon: '📅' }
+		{ href: '/calendar', label: 'Calendar', icon: '📅' },
+		{ href: '/scheduling-config', label: 'Scheduling Config', icon: '⚙️' }
 	];
 
 	function isActive(href: string): boolean {

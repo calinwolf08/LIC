@@ -12,6 +12,7 @@ import { z } from 'zod';
  * Validates requirement configuration with override mode and override values.
  */
 export const requirementInputSchema = z.object({
+  clerkshipId: z.string().min(1, 'Clerkship ID is required'),
   requirementType: z.enum(['outpatient', 'inpatient', 'elective'], {
     errorMap: () => ({ message: 'Invalid requirement type' }),
   }),
