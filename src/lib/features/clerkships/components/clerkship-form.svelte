@@ -18,7 +18,8 @@
 	let formData = $state({
 		name: clerkship?.name || '',
 		specialty: clerkship?.specialty || '',
-		required_days: clerkship?.required_days || 1,
+		inpatient_days: clerkship?.inpatient_days || 0,
+		outpatient_days: clerkship?.outpatient_days || 0,
 		description: clerkship?.description || ''
 	});
 
@@ -111,7 +112,7 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="specialty">Specialty</Label>
+				<Label for="specialty">Specialty (optional)</Label>
 				<Input
 					id="specialty"
 					type="text"
@@ -125,20 +126,43 @@
 				{/if}
 			</div>
 
-			<div class="space-y-2">
-				<Label for="required_days">Required Days</Label>
-				<Input
-					id="required_days"
-					type="number"
-					bind:value={formData.required_days}
-					min="1"
-					disabled={isSubmitting}
-					class={errors.required_days ? 'border-destructive' : ''}
-				/>
-				{#if errors.required_days}
-					<p class="text-sm text-destructive">{errors.required_days}</p>
-				{/if}
+			<div class="grid grid-cols-2 gap-4">
+				<div class="space-y-2">
+					<Label for="inpatient_days">Inpatient Days</Label>
+					<Input
+						id="inpatient_days"
+						type="number"
+						bind:value={formData.inpatient_days}
+						min="0"
+						disabled={isSubmitting}
+						class={errors.inpatient_days ? 'border-destructive' : ''}
+					/>
+					{#if errors.inpatient_days}
+						<p class="text-sm text-destructive">{errors.inpatient_days}</p>
+					{/if}
+				</div>
+
+				<div class="space-y-2">
+					<Label for="outpatient_days">Outpatient Days</Label>
+					<Input
+						id="outpatient_days"
+						type="number"
+						bind:value={formData.outpatient_days}
+						min="0"
+						disabled={isSubmitting}
+						class={errors.outpatient_days ? 'border-destructive' : ''}
+					/>
+					{#if errors.outpatient_days}
+						<p class="text-sm text-destructive">{errors.outpatient_days}</p>
+					{/if}
+				</div>
 			</div>
+
+			{#if formData.inpatient_days > 0 || formData.outpatient_days > 0}
+				<p class="text-sm text-muted-foreground">
+					Total: {formData.inpatient_days + formData.outpatient_days} days
+				</p>
+			{/if}
 
 			<div class="space-y-2">
 				<Label for="description">Description (optional)</Label>

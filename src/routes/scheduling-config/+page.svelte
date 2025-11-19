@@ -2,10 +2,11 @@
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
+	import GlobalDefaultsForm from '$lib/features/scheduling-config/components/global-defaults-form.svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	let activeTab = $state<'clerkships' | 'health-systems' | 'execute'>('clerkships');
+	let activeTab = $state<'clerkships' | 'global-defaults' | 'health-systems' | 'execute'>('clerkships');
 
 	function handleClerkshipConfigure(clerkshipId: string) {
 		goto(`/scheduling-config/clerkships/${clerkshipId}`);
@@ -36,6 +37,16 @@
 				}`}
 			>
 				Clerkship Configurations
+			</button>
+			<button
+				onclick={() => (activeTab = 'global-defaults')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'global-defaults'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Global Defaults
 			</button>
 			<button
 				onclick={() => (activeTab = 'health-systems')}
@@ -97,6 +108,8 @@
 				</div>
 			{/if}
 		</div>
+	{:else if activeTab === 'global-defaults'}
+		<GlobalDefaultsForm />
 	{:else if activeTab === 'health-systems'}
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">

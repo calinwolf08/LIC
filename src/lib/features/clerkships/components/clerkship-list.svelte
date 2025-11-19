@@ -117,8 +117,29 @@
 					{#each sortedClerkships() as clerkship}
 						<tr class="border-b transition-colors hover:bg-muted/50">
 							<td class="px-4 py-3 text-sm font-medium">{clerkship.name}</td>
-							<td class="px-4 py-3 text-sm">{clerkship.specialty}</td>
-							<td class="px-4 py-3 text-sm">{clerkship.required_days}</td>
+							<td class="px-4 py-3 text-sm">
+								{#if clerkship.specialty}
+									{clerkship.specialty}
+								{:else}
+									<span class="text-muted-foreground italic">Not specified</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-sm">
+								{clerkship.required_days}
+								{#if clerkship.inpatient_days || clerkship.outpatient_days}
+									<div class="text-xs text-muted-foreground mt-1">
+										{#if clerkship.inpatient_days}
+											{clerkship.inpatient_days} inpatient
+										{/if}
+										{#if clerkship.inpatient_days && clerkship.outpatient_days}
+											·
+										{/if}
+										{#if clerkship.outpatient_days}
+											{clerkship.outpatient_days} outpatient
+										{/if}
+									</div>
+								{/if}
+							</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
 								{truncate(clerkship.description)}
 							</td>
