@@ -52,3 +52,19 @@ export interface ClerkshipRequirementOverride {
   isOverridden: boolean;
   createdAt: Date;
 }
+
+/**
+ * Clerkship Elective
+ *
+ * Defines an elective option within an elective requirement.
+ */
+export interface ClerkshipElective {
+  id: string;
+  requirementId: string; // Links to requirement where type = 'elective'
+  name: string;
+  minimumDays: number;
+  specialty?: string;
+  availablePreceptorIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}

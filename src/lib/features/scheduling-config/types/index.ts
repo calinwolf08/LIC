@@ -31,6 +31,7 @@ export type {
 export type {
   ClerkshipRequirement,
   ClerkshipRequirementOverride,
+  ClerkshipElective,
 } from './requirements';
 
 // Resolved Configuration
@@ -70,3 +71,13 @@ export {
   HealthSystemRuleLabels,
   OverrideModeLabels,
 } from './utilities';
+
+// Aggregates
+export type {
+  CompleteClerkshipConfiguration,
+  GlobalDefaultsSummary,
+  RequirementConfigurationSummary,
+  ClerkshipConfigurationOverview,
+  ConfigurationChangePreview,
+  SchoolConfigurationStatistics,
+} from './aggregates';
