@@ -166,6 +166,21 @@ export interface PreceptorAvailability {
   updated_at: Generated<string>;
 }
 
+export interface PreceptorAvailabilityPatterns {
+  config: string | null;
+  created_at: Generated<string>;
+  date_range_end: string;
+  date_range_start: string;
+  enabled: Generated<number>;
+  id: string | null;
+  is_available: Generated<number>;
+  pattern_type: string;
+  preceptor_id: string;
+  reason: string | null;
+  specificity: number;
+  updated_at: Generated<string>;
+}
+
 export interface PreceptorCapacityRules {
   clerkship_id: string | null;
   created_at: Generated<string>;
@@ -235,6 +250,16 @@ export interface ScheduleAssignments {
   updated_at: Generated<string>;
 }
 
+export interface SchedulingPeriods {
+  created_at: Generated<string>;
+  end_date: string;
+  id: string | null;
+  is_active: Generated<number>;
+  name: string;
+  start_date: string;
+  updated_at: Generated<string>;
+}
+
 export interface Session {
   createdAt: string;
   expiresAt: string;
@@ -295,12 +320,14 @@ export interface DB {
   global_outpatient_defaults: GlobalOutpatientDefaults;
   health_systems: HealthSystems;
   preceptor_availability: PreceptorAvailability;
+  preceptor_availability_patterns: PreceptorAvailabilityPatterns;
   preceptor_capacity_rules: PreceptorCapacityRules;
   preceptor_fallbacks: PreceptorFallbacks;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
   schedule_assignments: ScheduleAssignments;
+  scheduling_periods: SchedulingPeriods;
   session: Session;
   sites: Sites;
   students: Students;
