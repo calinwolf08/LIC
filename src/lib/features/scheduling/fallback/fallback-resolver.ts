@@ -182,13 +182,15 @@ export class FallbackResolver {
 
     const fallbacks = await query.orderBy('priority', 'asc').execute();
 
-    return fallbacks.map(f => ({
-      id: f.id,
-      fallbackPreceptorId: f.fallback_preceptor_id,
-      priority: f.priority,
-      requiresApproval: Boolean(f.requires_approval),
-      allowDifferentHealthSystem: Boolean(f.allow_different_health_system),
-    }));
+    return fallbacks
+      .filter(f => f.id !== null)
+      .map(f => ({
+        id: f.id as string,
+        fallbackPreceptorId: f.fallback_preceptor_id,
+        priority: f.priority,
+        requiresApproval: Boolean(f.requires_approval),
+        allowDifferentHealthSystem: Boolean(f.allow_different_health_system),
+      }));
   }
 
   /**

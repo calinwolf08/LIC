@@ -34,6 +34,14 @@ export class DailyRotationStrategy extends BaseStrategy {
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
     const { student, clerkship, config, availableDates, availablePreceptors } = context;
 
+    // Validate required IDs
+    if (!student.id) {
+      return { success: false, assignments: [], error: 'Student must have a valid ID' };
+    }
+    if (!clerkship.id) {
+      return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
+    }
+
     const totalDays = clerkship.required_days;
 
     // Check if we have enough dates
@@ -50,7 +58,7 @@ export class DailyRotationStrategy extends BaseStrategy {
       ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
       : availablePreceptors;
 
-    const assignments = [];
+    const assignments: import('./base-strategy').ProposedAssignment[] = [];
     let previousPreceptor: typeof candidates[0] | null = null;
     const requiredDates = availableDates.slice(0, totalDays);
 

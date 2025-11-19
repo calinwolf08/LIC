@@ -34,6 +34,14 @@ export class BlockBasedStrategy extends BaseStrategy {
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
     const { student, clerkship, config, availableDates, availablePreceptors } = context;
 
+    // Validate required IDs
+    if (!student.id) {
+      return { success: false, assignments: [], error: 'Student must have a valid ID' };
+    }
+    if (!clerkship.id) {
+      return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
+    }
+
     const blockSize = config.blockSizeDays!;
     const totalDays = clerkship.required_days;
 

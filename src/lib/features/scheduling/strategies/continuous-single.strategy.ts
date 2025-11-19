@@ -36,6 +36,14 @@ export class ContinuousSingleStrategy extends BaseStrategy {
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
     const { student, clerkship, config, availableDates, availablePreceptors } = context;
 
+    // Validate required IDs
+    if (!student.id) {
+      return { success: false, assignments: [], error: 'Student must have a valid ID' };
+    }
+    if (!clerkship.id) {
+      return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
+    }
+
     // Need enough dates
     if (availableDates.length < clerkship.required_days) {
       return {
@@ -90,7 +98,7 @@ export class ContinuousSingleStrategy extends BaseStrategy {
 
     // Generate assignments
     const assignments = requiredDates.map(date =>
-      this.createAssignment(student.id, selectedPreceptor.id, clerkship.id, date, {
+      this.createAssignment(student.id!, selectedPreceptor.id, clerkship.id!, date, {
         requirementType: config.requirementType,
       })
     );

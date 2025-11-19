@@ -32,6 +32,10 @@ export class StrategyContextBuilder {
       requirementType?: 'outpatient' | 'inpatient' | 'elective';
     } = {}
   ): Promise<StrategyContext> {
+    if (!clerkship.id) {
+      throw new Error('Clerkship must have a valid ID');
+    }
+
     // Build available dates
     const availableDates = await this.buildAvailableDates(
       clerkship,
@@ -154,6 +158,9 @@ export class StrategyContextBuilder {
         .where('requirement_type', 'is', null)
         .executeTakeFirst();
 
+      // Skip preceptors without valid IDs
+      if (!preceptor.id) continue;
+
       result.push({
         id: preceptor.id,
         name: preceptor.name,
@@ -183,6 +190,9 @@ export class StrategyContextBuilder {
     const result: StrategyContext['teams'] = [];
 
     for (const team of teams) {
+      // Skip teams without valid IDs
+      if (!team.id) continue;
+
       const members = await this.db
         .selectFrom('preceptor_team_members')
         .selectAll()
@@ -234,12 +244,18 @@ export class StrategyContextBuilder {
     const sites = await this.db.selectFrom('sites').selectAll().execute();
 
     return {
-      healthSystems: new Map(healthSystems.map(hs => [hs.id, { id: hs.id, name: hs.name }])),
+      healthSystems: new Map(
+        healthSystems
+          .filter(hs => hs.id !== null)
+          .map(hs => [hs.id as string, { id: hs.id as string, name: hs.name }])
+      ),
       sites: new Map(
-        sites.map(s => [
-          s.id,
-          { id: s.id, healthSystemId: s.health_system_id, name: s.name },
-        ])
+        sites
+          .filter(s => s.id !== null)
+          .map(s => [
+            s.id as string,
+            { id: s.id as string, healthSystemId: s.health_system_id, name: s.name },
+          ])
       ),
     };
   }

@@ -126,6 +126,12 @@ export class ConfigurableSchedulingEngine {
       maxRetries: number;
     }
   ): Promise<void> {
+    // Validate required IDs
+    if (!student.id || !clerkship.id) {
+      console.error('[Engine] Student or clerkship missing valid ID');
+      return;
+    }
+
     try {
       // Build strategy context
       const config: any = {
@@ -337,7 +343,8 @@ export class ConfigurableSchedulingEngine {
           preceptor_id: assignment.preceptorId,
           clerkship_id: assignment.clerkshipId,
           date: assignment.date,
-          block_number: assignment.blockNumber || null,
+          // TODO: block_number field doesn't exist in schema, skipping
+          // block_number: assignment.blockNumber || null,
           created_at: new Date().toISOString(),
         })
         .execute();
