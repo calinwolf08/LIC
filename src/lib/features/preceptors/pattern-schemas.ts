@@ -120,13 +120,7 @@ export const createWeeklyPatternSchema = z.object({
 	pattern_type: z.literal('weekly'),
 	specificity: z.literal(1).default(1),
 	config: weeklyConfigSchema
-}).refine(
-	(data) => data.date_range_start <= data.date_range_end,
-	{
-		message: 'date_range_start must be before or equal to date_range_end',
-		path: ['date_range_end']
-	}
-);
+});
 
 /**
  * Schema for creating a monthly pattern
@@ -136,13 +130,7 @@ export const createMonthlyPatternSchema = z.object({
 	pattern_type: z.literal('monthly'),
 	specificity: z.literal(1).default(1),
 	config: monthlyConfigSchema
-}).refine(
-	(data) => data.date_range_start <= data.date_range_end,
-	{
-		message: 'date_range_start must be before or equal to date_range_end',
-		path: ['date_range_end']
-	}
-);
+});
 
 /**
  * Schema for creating a block pattern
@@ -152,13 +140,7 @@ export const createBlockPatternSchema = z.object({
 	pattern_type: z.literal('block'),
 	specificity: z.literal(2).default(2),
 	config: blockConfigSchema
-}).refine(
-	(data) => data.date_range_start <= data.date_range_end,
-	{
-		message: 'date_range_start must be before or equal to date_range_end',
-		path: ['date_range_end']
-	}
-);
+});
 
 /**
  * Schema for creating an individual override pattern
@@ -168,23 +150,32 @@ export const createIndividualPatternSchema = z.object({
 	pattern_type: z.literal('individual'),
 	specificity: z.literal(3).default(3),
 	config: z.null().default(null)
-}).refine(
-	(data) => data.date_range_start === data.date_range_end,
-	{
-		message: 'Individual patterns must have same start and end date',
-		path: ['date_range_end']
-	}
-);
+});
 
 /**
  * Union schema for creating any pattern type
  */
-export const createPatternSchema = z.discriminatedUnion('pattern_type', [
-	createWeeklyPatternSchema,
-	createMonthlyPatternSchema,
-	createBlockPatternSchema,
-	createIndividualPatternSchema
-]);
+export const createPatternSchema = z
+	.discriminatedUnion('pattern_type', [
+		createWeeklyPatternSchema,
+		createMonthlyPatternSchema,
+		createBlockPatternSchema,
+		createIndividualPatternSchema
+	])
+	.refine(
+		(data) => {
+			// Individual patterns must have same start and end date
+			if (data.pattern_type === 'individual') {
+				return data.date_range_start === data.date_range_end;
+			}
+			// All other patterns: start must be <= end
+			return data.date_range_start <= data.date_range_end;
+		},
+		{
+			message: 'Invalid date range for pattern type',
+			path: ['date_range_end']
+		}
+	);
 
 /**
  * Schema for updating a pattern (all fields optional except what cannot be changed)
