@@ -4,19 +4,19 @@
  * Comprehensive tests for HealthSystemService CRUD operations and business rules.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { HealthSystemService } from './health-systems.service';
 import { ServiceErrorCode } from './service-errors';
-import { createTestDatabase, cleanupTestDatabase } from '$lib/db/test-utils';
+import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
 import type { Kysely } from 'kysely';
-import type { Database } from '$lib/db/types';
+import type { DB } from '$lib/db/types';
 
 describe('HealthSystemService', () => {
-  let db: Kysely<Database>;
+  let db: Kysely<DB>;
   let service: HealthSystemService;
 
   beforeEach(async () => {
-    db = await createTestDatabase();
+    db = await createTestDatabaseWithMigrations();
     service = new HealthSystemService(db);
   });
 
