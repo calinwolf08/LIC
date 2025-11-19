@@ -119,8 +119,8 @@ export async function createTestHealthSystem(
 				id: siteId,
 				health_system_id: healthSystemId,
 				name: `${name} - Site ${i + 1}`,
-				created_at: new Date(),
-				updated_at: new Date(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			})
 			.execute();
 
@@ -152,10 +152,10 @@ export async function createTestRequirement(
 			clerkship_id: clerkshipId,
 			requirement_type: options.requirementType,
 			required_days: options.requiredDays,
-			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_all' : null,
-			override_assignment_strategy: options.assignmentStrategy || null,
-			override_health_system_rule: options.healthSystemRule || null,
-			override_block_size_days: options.blockSizeDays || null,
+			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_all' : undefined,
+			override_assignment_strategy: options.assignmentStrategy || undefined,
+			override_health_system_rule: options.healthSystemRule || undefined,
+			override_block_size_days: options.blockSizeDays || undefined,
 					})
 		.execute();
 
@@ -182,9 +182,9 @@ export async function createCapacityRule(
 			id,
 			preceptor_id: preceptorId,
 			max_students_per_day: options.maxStudentsPerDay,
-			max_students_per_year: options.maxStudentsPerYear || null,
-			clerkship_id: options.clerkshipId || null,
-			requirement_type: options.requirementType || null,
+			max_students_per_year: options.maxStudentsPerYear || undefined,
+			clerkship_id: options.clerkshipId || undefined,
+			requirement_type: options.requirementType || undefined,
 					})
 		.execute();
 
@@ -212,11 +212,9 @@ export async function createTestTeam(
 			id: teamId,
 			clerkship_id: clerkshipId,
 			name,
-			require_same_health_system: options?.requireSameHealthSystem || false,
-			require_same_site: options?.requireSameSite || false,
-			require_same_specialty: options?.requireSameSpecialty || false,
-			require_admin_approval: false,
-			admin_approved: true,
+			require_same_health_system: options?.requireSameHealthSystem ? 1 : 0,
+			require_same_site: options?.requireSameSite ? 1 : 0,
+			require_same_specialty: options?.requireSameSpecialty ? 1 : 0,
 					})
 		.execute();
 
@@ -229,8 +227,8 @@ export async function createTestTeam(
 				team_id: teamId,
 				preceptor_id: memberIds[i],
 				priority: i + 1,
-				created_at: new Date(),
-				updated_at: new Date(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			})
 			.execute();
 	}
@@ -257,8 +255,8 @@ export async function createFallbackChain(
 				primary_preceptor_id: primaryPreceptorId,
 				fallback_preceptor_id: fallbackPreceptorIds[i],
 				priority: i + 1,
-				created_at: new Date(),
-				updated_at: new Date(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			})
 			.execute();
 
@@ -288,8 +286,8 @@ export async function createBlackoutDates(
 				start_date: range.start,
 				end_date: range.end,
 				reason: range.reason || 'Test blackout',
-				created_at: new Date(),
-				updated_at: new Date(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			})
 			.execute();
 
@@ -304,7 +302,7 @@ export async function createBlackoutDates(
  */
 export async function getStudentAssignments(db: Kysely<DB>, studentId: string) {
 	return await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.orderBy('start_date', 'asc')
@@ -316,7 +314,7 @@ export async function getStudentAssignments(db: Kysely<DB>, studentId: string) {
  */
 export async function getClerkshipAssignments(db: Kysely<DB>, clerkshipId: string) {
 	return await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('clerkship_id', '=', clerkshipId)
 		.orderBy('start_date', 'asc')
@@ -328,7 +326,7 @@ export async function getClerkshipAssignments(db: Kysely<DB>, clerkshipId: strin
  */
 export async function countAssignmentsByPreceptor(db: Kysely<DB>, preceptorId: string) {
 	const result = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.select(({ fn }) => [fn.count<number>('id').as('count')])
 		.where('preceptor_id', '=', preceptorId)
 		.executeTakeFirst();
@@ -346,7 +344,7 @@ export async function countAssignmentsByDateRange(
 	endDate: Date
 ) {
 	const result = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.select(({ fn }) => [fn.count<number>('id').as('count')])
 		.where('preceptor_id', '=', preceptorId)
 		.where('start_date', '<=', endDate)
