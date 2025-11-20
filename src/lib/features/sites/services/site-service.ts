@@ -1,7 +1,9 @@
-import { db } from '$lib/db';
-import { ConflictError, NotFoundError } from '$lib/errors';
+import { db as defaultDb } from '$lib/db';
+import { ConflictError, NotFoundError } from '$lib/api/errors';
 import type { CreateSiteInput, UpdateSiteInput } from '../schemas';
 import { nanoid } from 'nanoid';
+import type { Kysely } from 'kysely';
+import type { DB } from '$lib/db/types';
 
 /**
  * Site Service
@@ -9,11 +11,17 @@ import { nanoid } from 'nanoid';
  * Business logic for managing clinical sites
  */
 export class SiteService {
+	private db: Kysely<DB>;
+
+	constructor(db?: Kysely<DB>) {
+		this.db = db || defaultDb;
+	}
+
 	/**
 	 * Get all sites
 	 */
 	async getAllSites() {
-		return await db
+		return await this.db
 			.selectFrom('sites')
 			.selectAll()
 			.orderBy('name', 'asc')
@@ -24,7 +32,7 @@ export class SiteService {
 	 * Get sites by health system
 	 */
 	async getSitesByHealthSystem(healthSystemId: string) {
-		return await db
+		return await this.db
 			.selectFrom('sites')
 			.selectAll()
 			.where('health_system_id', '=', healthSystemId)
@@ -36,7 +44,7 @@ export class SiteService {
 	 * Get a single site by ID
 	 */
 	async getSiteById(id: string) {
-		const site = await db
+		const site = await this.db
 			.selectFrom('sites')
 			.selectAll()
 			.where('id', '=', id)
@@ -53,11 +61,13 @@ export class SiteService {
 	 * Get a site by name (case-insensitive)
 	 */
 	async getSiteByName(name: string) {
-		return await db
+		const site = await this.db
 			.selectFrom('sites')
 			.selectAll()
-			.where(db.fn('lower', ['name']), '=', name.toLowerCase())
+			.where(this.db.fn('lower', ['name']), '=', name.toLowerCase())
 			.executeTakeFirst();
+
+		return site || null;
 	}
 
 	/**
@@ -71,7 +81,7 @@ export class SiteService {
 		}
 
 		// Verify health system exists
-		const healthSystem = await db
+		const healthSystem = await this.db
 			.selectFrom('health_systems')
 			.select('id')
 			.where('id', '=', input.health_system_id)
@@ -84,7 +94,7 @@ export class SiteService {
 		const id = nanoid();
 		const now = new Date().toISOString();
 
-		const site = await db
+		const site = await this.db
 			.insertInto('sites')
 			.values({
 				id,
@@ -117,7 +127,7 @@ export class SiteService {
 
 		// If updating health system, verify it exists
 		if (input.health_system_id) {
-			const healthSystem = await db
+			const healthSystem = await this.db
 				.selectFrom('health_systems')
 				.select('id')
 				.where('id', '=', input.health_system_id)
@@ -130,7 +140,7 @@ export class SiteService {
 
 		const now = new Date().toISOString();
 
-		const site = await db
+		const site = await this.db
 			.updateTable('sites')
 			.set({
 				...input,
@@ -158,7 +168,7 @@ export class SiteService {
 			);
 		}
 
-		await db.deleteFrom('sites').where('id', '=', id).execute();
+		await this.db.deleteFrom('sites').where('id', '=', id).execute();
 	}
 
 	/**
@@ -166,7 +176,7 @@ export class SiteService {
 	 */
 	async canDeleteSite(id: string): Promise<boolean> {
 		// Check clerkship associations
-		const clerkshipSites = await db
+		const clerkshipSites = await this.db
 			.selectFrom('clerkship_sites')
 			.select('clerkship_id')
 			.where('site_id', '=', id)
@@ -176,7 +186,7 @@ export class SiteService {
 		if (clerkshipSites.length > 0) return false;
 
 		// Check preceptor associations
-		const preceptorSites = await db
+		const preceptorSites = await this.db
 			.selectFrom('preceptor_site_clerkships')
 			.select('preceptor_id')
 			.where('site_id', '=', id)
@@ -186,7 +196,7 @@ export class SiteService {
 		if (preceptorSites.length > 0) return false;
 
 		// Check site electives
-		const siteElectives = await db
+		const siteElectives = await this.db
 			.selectFrom('site_electives')
 			.select('site_id')
 			.where('site_id', '=', id)
@@ -202,7 +212,7 @@ export class SiteService {
 	 * Check if a site exists
 	 */
 	async siteExists(id: string): Promise<boolean> {
-		const site = await db
+		const site = await this.db
 			.selectFrom('sites')
 			.select('id')
 			.where('id', '=', id)
@@ -215,10 +225,10 @@ export class SiteService {
 	 * Check if a site name is taken
 	 */
 	async isNameTaken(name: string, excludeId?: string): Promise<boolean> {
-		let query = db
+		let query = this.db
 			.selectFrom('sites')
 			.select('id')
-			.where(db.fn('lower', ['name']), '=', name.toLowerCase());
+			.where(this.db.fn('lower', ['name']), '=', name.toLowerCase());
 
 		if (excludeId) {
 			query = query.where('id', '!=', excludeId);
@@ -232,7 +242,7 @@ export class SiteService {
 	 * Get clerkships offered at a site
 	 */
 	async getClerkshipsBySite(siteId: string) {
-		return await db
+		return await this.db
 			.selectFrom('clerkship_sites')
 			.innerJoin('clerkships', 'clerkships.id', 'clerkship_sites.clerkship_id')
 			.selectAll('clerkships')
@@ -246,7 +256,7 @@ export class SiteService {
 	 */
 	async addClerkshipToSite(siteId: string, clerkshipId: string) {
 		// Check if association already exists
-		const existing = await db
+		const existing = await this.db
 			.selectFrom('clerkship_sites')
 			.selectAll()
 			.where('site_id', '=', siteId)
@@ -259,7 +269,7 @@ export class SiteService {
 
 		const now = new Date().toISOString();
 
-		return await db
+		return await this.db
 			.insertInto('clerkship_sites')
 			.values({
 				site_id: siteId,
@@ -274,7 +284,7 @@ export class SiteService {
 	 * Remove a clerkship-site association
 	 */
 	async removeClerkshipFromSite(siteId: string, clerkshipId: string) {
-		await db
+		await this.db
 			.deleteFrom('clerkship_sites')
 			.where('site_id', '=', siteId)
 			.where('clerkship_id', '=', clerkshipId)
@@ -285,7 +295,7 @@ export class SiteService {
 	 * Get sites offering a specific clerkship
 	 */
 	async getSitesByClerkship(clerkshipId: string) {
-		return await db
+		return await this.db
 			.selectFrom('clerkship_sites')
 			.innerJoin('sites', 'sites.id', 'clerkship_sites.site_id')
 			.selectAll('sites')
