@@ -30,10 +30,6 @@ export interface OptionalContextData {
 		site_id: string;
 		clerkship_id: string;
 	}>;
-	siteElectives?: Array<{
-		site_id: string;
-		elective_requirement_id: string;
-	}>;
 	preceptorElectives?: Array<{
 		preceptor_id: string;
 		elective_requirement_id: string;
