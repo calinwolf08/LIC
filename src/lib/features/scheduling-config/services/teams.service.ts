@@ -36,7 +36,7 @@ export class TeamService {
   /**
    * Create a new team
    */
-  async createTeam(clerkshipId: string, input: PreceptorTeamInput): ServiceResult<TeamWithMembers> {
+  async createTeam(clerkshipId: string, input: PreceptorTeamInput): Promise<ServiceResult<TeamWithMembers>> {
     // Validate input
     const validation = preceptorTeamInputSchema.safeParse(input);
     if (!validation.success) {
@@ -113,7 +113,7 @@ export class TeamService {
   /**
    * Get team by ID with members
    */
-  async getTeam(teamId: string): ServiceResult<TeamWithMembers | null> {
+  async getTeam(teamId: string): Promise<ServiceResult<TeamWithMembers | null>> {
     try {
       const team = await this.db
         .selectFrom('preceptor_teams')
@@ -144,7 +144,7 @@ export class TeamService {
   /**
    * Get all teams for a clerkship
    */
-  async getTeamsByClerkship(clerkshipId: string): ServiceResult<TeamWithMembers[]> {
+  async getTeamsByClerkship(clerkshipId: string): Promise<ServiceResult<TeamWithMembers[]>> {
     try {
       const teams = await this.db
         .selectFrom('preceptor_teams')
@@ -176,7 +176,7 @@ export class TeamService {
   /**
    * Update team
    */
-  async updateTeam(teamId: string, input: Partial<PreceptorTeamInput>): ServiceResult<TeamWithMembers> {
+  async updateTeam(teamId: string, input: Partial<PreceptorTeamInput>): Promise<ServiceResult<TeamWithMembers>> {
     try {
       // Check if exists
       const existing = await this.db
@@ -247,7 +247,7 @@ export class TeamService {
    *
    * Business rule: Cannot delete if currently assigned to students
    */
-  async deleteTeam(teamId: string): ServiceResult<boolean> {
+  async deleteTeam(teamId: string): Promise<ServiceResult<boolean>> {
     try {
       // Check for assignments (would need assignments table)
       // For now, just delete
@@ -359,7 +359,7 @@ export class TeamService {
   /**
    * Remove member from team
    */
-  async removeTeamMember(teamId: string, preceptorId: string): ServiceResult<boolean> {
+  async removeTeamMember(teamId: string, preceptorId: string): Promise<ServiceResult<boolean>> {
     try {
       // Check team has at least 3 members (will have 2 after removal)
       const memberCount = await this.db
@@ -395,7 +395,7 @@ export class TeamService {
   /**
    * Validate team formation rules
    */
-  async validateTeamRules(input: PreceptorTeamInput): ServiceResult<boolean> {
+  async validateTeamRules(input: PreceptorTeamInput): Promise<ServiceResult<boolean>> {
     try {
       // Get all preceptors in team
       const preceptorIds = input.members.map(m => m.preceptorId);
