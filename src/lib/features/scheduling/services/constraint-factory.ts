@@ -22,18 +22,20 @@ import { StudentOnboardingConstraint } from '../constraints/student-onboarding.c
 import { PreceptorClerkshipAssociationConstraint } from '../constraints/preceptor-clerkship-association.constraint';
 
 interface ClerkshipRequirement {
-	id: string;
+	id: string | null;
 	clerkship_id: string;
-	requirement_type: 'inpatient' | 'outpatient' | 'elective';
+	requirement_type: string;
 	required_days: number;
 	allow_cross_system: number;
-	override_mode: 'inherit' | 'override_fields' | 'override_section';
-	override_assignment_strategy?: string | null;
-	override_health_system_rule?: string | null;
-	override_block_length_days?: number | null;
-	override_allow_split_assignments?: number | null;
-	override_preceptor_continuity_preference?: string | null;
-	override_team_continuity_preference?: string | null;
+	override_mode: string;
+	override_assignment_strategy: string | null;
+	override_health_system_rule: string | null;
+	override_block_length_days: number | null;
+	override_allow_split_assignments: number | null;
+	override_preceptor_continuity_preference: string | null;
+	override_team_continuity_preference: string | null;
+	created_at: string;
+	updated_at: string;
 }
 
 interface GlobalDefaults {
@@ -46,9 +48,9 @@ interface GlobalDefaults {
 }
 
 interface ResolvedConfiguration {
-	requirementId: string;
+	requirementId: string | null;
 	clerkshipId: string;
-	requirementType: 'inpatient' | 'outpatient' | 'elective';
+	requirementType: string;
 	requiredDays: number;
 	allowCrossSystem: boolean;
 	assignmentStrategy: string;
@@ -95,6 +97,11 @@ export class ConstraintFactory {
 
 		// 4. Build requirement-specific constraints
 		for (const requirement of requirements) {
+			// Skip requirements without IDs (shouldn't happen in practice)
+			if (!requirement.id) {
+				continue;
+			}
+
 			// Resolve configuration by merging global defaults with requirement overrides
 			const config = this.resolveConfiguration(
 				requirement,
@@ -106,7 +113,7 @@ export class ConstraintFactory {
 			// Instantiate constraints based on resolved configuration
 
 			// Health system continuity constraint
-			if (config.healthSystemRule === 'enforce_same_system') {
+			if (config.healthSystemRule === 'enforce_same_system' && config.requirementId) {
 				constraints.push(
 					new HealthSystemContinuityConstraint(
 						config.requirementId,
@@ -117,19 +124,22 @@ export class ConstraintFactory {
 			}
 
 			// Student onboarding constraint (if context has onboarding data)
-			if (context.studentOnboarding) {
+			if (context.studentOnboarding && config.requirementId) {
 				constraints.push(
 					new StudentOnboardingConstraint(config.requirementId, config.clerkshipId)
 				);
 			}
 
 			// Preceptor association constraint (if context has association data)
-			if (context.preceptorClerkshipAssociations || context.preceptorElectiveAssociations) {
+			if (
+				(context.preceptorClerkshipAssociations || context.preceptorElectiveAssociations) &&
+				config.requirementId
+			) {
 				constraints.push(
 					new PreceptorClerkshipAssociationConstraint(
 						config.requirementId,
 						config.clerkshipId,
-						config.requirementType
+						config.requirementType as 'inpatient' | 'outpatient' | 'elective'
 					)
 				);
 			}

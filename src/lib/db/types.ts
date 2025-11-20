@@ -58,35 +58,30 @@ export interface ClerkshipRequirementOverrides {
 }
 
 export interface ClerkshipRequirements {
+  allow_cross_system: Generated<number>;
   clerkship_id: string;
   created_at: Generated<string>;
   id: string | null;
-  override_allow_fallbacks: number | null;
-  override_allow_partial_blocks: number | null;
-  override_allow_teams: number | null;
+  override_allow_split_assignments: number | null;
   override_assignment_strategy: string | null;
-  override_block_size_days: number | null;
-  override_fallback_allow_cross_system: number | null;
-  override_fallback_requires_approval: number | null;
+  override_block_length_days: number | null;
   override_health_system_rule: string | null;
-  override_max_blocks_per_year: number | null;
-  override_max_students_per_block: number | null;
-  override_max_students_per_day: number | null;
-  override_max_students_per_year: number | null;
   override_mode: Generated<string>;
-  override_prefer_continuous_blocks: number | null;
+  override_preceptor_continuity_preference: string | null;
+  override_team_continuity_preference: string | null;
   required_days: number;
   requirement_type: string;
   updated_at: Generated<string>;
 }
 
 export interface Clerkships {
+  clerkship_type: string;
   created_at: Generated<string>;
   description: string | null;
   id: string | null;
   name: string;
   required_days: number;
-  specialty: string;
+  specialty: string | null;
   updated_at: Generated<string>;
 }
 
@@ -194,6 +189,18 @@ export interface PreceptorCapacityRules {
   updated_at: Generated<string>;
 }
 
+export interface PreceptorClerkships {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  preceptor_id: string;
+}
+
+export interface PreceptorElectives {
+  created_at: Generated<string>;
+  elective_requirement_id: string;
+  preceptor_id: string;
+}
+
 export interface PreceptorFallbacks {
   allow_different_health_system: Generated<number>;
   clerkship_id: string | null;
@@ -209,7 +216,7 @@ export interface PreceptorFallbacks {
 export interface Preceptors {
   created_at: Generated<string>;
   email: string;
-  health_system_id: string | null;
+  health_system_id: string;
   id: string | null;
   max_students: Generated<number>;
   name: string;
@@ -280,9 +287,29 @@ export interface Sites {
   updated_at: Generated<string>;
 }
 
+export interface StudentHealthSystemOnboarding {
+  completed_date: string | null;
+  created_at: Generated<string>;
+  health_system_id: string;
+  id: string | null;
+  is_completed: Generated<number>;
+  notes: string | null;
+  student_id: string;
+  updated_at: Generated<string>;
+}
+
 export interface Students {
   created_at: Generated<string>;
   email: string;
+  id: string | null;
+  name: string;
+  updated_at: Generated<string>;
+}
+
+export interface Teams {
+  created_at: Generated<string>;
+  description: string | null;
+  health_system_id: string;
   id: string | null;
   name: string;
   updated_at: Generated<string>;
@@ -322,6 +349,8 @@ export interface DB {
   preceptor_availability: PreceptorAvailability;
   preceptor_availability_patterns: PreceptorAvailabilityPatterns;
   preceptor_capacity_rules: PreceptorCapacityRules;
+  preceptor_clerkships: PreceptorClerkships;
+  preceptor_electives: PreceptorElectives;
   preceptor_fallbacks: PreceptorFallbacks;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
@@ -330,7 +359,9 @@ export interface DB {
   scheduling_periods: SchedulingPeriods;
   session: Session;
   sites: Sites;
+  student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;
+  teams: Teams;
   user: User;
   verification: Verification;
 }
