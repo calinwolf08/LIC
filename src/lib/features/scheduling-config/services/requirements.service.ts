@@ -27,7 +27,7 @@ export class RequirementService {
   /**
    * Create a new requirement
    */
-  async createRequirement(input: RequirementInput): ServiceResult<ClerkshipRequirement> {
+  async createRequirement(input: RequirementInput): Promise<ServiceResult<ClerkshipRequirement>> {
     // Validate input
     const validation = requirementInputSchema.safeParse(input);
     if (!validation.success) {
@@ -47,17 +47,6 @@ export class RequirementService {
           override_mode: input.overrideMode,
           override_assignment_strategy: input.overrideAssignmentStrategy || null,
           override_health_system_rule: input.overrideHealthSystemRule || null,
-          override_max_students_per_day: input.overrideMaxStudentsPerDay || null,
-          override_max_students_per_year: input.overrideMaxStudentsPerYear || null,
-          override_max_students_per_block: input.overrideMaxStudentsPerBlock || null,
-          override_max_blocks_per_year: input.overrideMaxBlocksPerYear || null,
-          override_block_size_days: input.overrideBlockSizeDays || null,
-          override_allow_partial_blocks: input.overrideAllowPartialBlocks != null ? (input.overrideAllowPartialBlocks ? 1 : 0) : null,
-          override_prefer_continuous_blocks: input.overridePreferContinuousBlocks != null ? (input.overridePreferContinuousBlocks ? 1 : 0) : null,
-          override_allow_teams: input.overrideAllowTeams != null ? (input.overrideAllowTeams ? 1 : 0) : null,
-          override_allow_fallbacks: input.overrideAllowFallbacks != null ? (input.overrideAllowFallbacks ? 1 : 0) : null,
-          override_fallback_requires_approval: input.overrideFallbackRequiresApproval != null ? (input.overrideFallbackRequiresApproval ? 1 : 0) : null,
-          override_fallback_allow_cross_system: input.overrideFallbackAllowCrossSystem != null ? (input.overrideFallbackAllowCrossSystem ? 1 : 0) : null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -73,7 +62,7 @@ export class RequirementService {
   /**
    * Get requirement by ID
    */
-  async getRequirement(id: string): ServiceResult<ClerkshipRequirement | null> {
+  async getRequirement(id: string): Promise<ServiceResult<ClerkshipRequirement | null>> {
     try {
       const requirement = await this.db
         .selectFrom('clerkship_requirements')
@@ -94,7 +83,7 @@ export class RequirementService {
   /**
    * Get all requirements for a clerkship
    */
-  async getRequirementsByClerkship(clerkshipId: string): ServiceResult<ClerkshipRequirement[]> {
+  async getRequirementsByClerkship(clerkshipId: string): Promise<ServiceResult<ClerkshipRequirement[]>> {
     try {
       const requirements = await this.db
         .selectFrom('clerkship_requirements')
@@ -114,7 +103,7 @@ export class RequirementService {
   async updateRequirement(
     id: string,
     input: Partial<RequirementInput>
-  ): ServiceResult<ClerkshipRequirement> {
+  ): Promise<ServiceResult<ClerkshipRequirement>> {
     try {
       // Check if exists
       const existing = await this.db
@@ -134,17 +123,6 @@ export class RequirementService {
         overrideMode: input.overrideMode ?? existing.override_mode,
         overrideAssignmentStrategy: input.overrideAssignmentStrategy ?? existing.override_assignment_strategy,
         overrideHealthSystemRule: input.overrideHealthSystemRule ?? existing.override_health_system_rule,
-        overrideMaxStudentsPerDay: input.overrideMaxStudentsPerDay ?? existing.override_max_students_per_day,
-        overrideMaxStudentsPerYear: input.overrideMaxStudentsPerYear ?? existing.override_max_students_per_year,
-        overrideMaxStudentsPerBlock: input.overrideMaxStudentsPerBlock ?? existing.override_max_students_per_block,
-        overrideMaxBlocksPerYear: input.overrideMaxBlocksPerYear ?? existing.override_max_blocks_per_year,
-        overrideBlockSizeDays: input.overrideBlockSizeDays ?? existing.override_block_size_days,
-        overrideAllowPartialBlocks: input.overrideAllowPartialBlocks ?? existing.override_allow_partial_blocks,
-        overridePreferContinuousBlocks: input.overridePreferContinuousBlocks ?? existing.override_prefer_continuous_blocks,
-        overrideAllowTeams: input.overrideAllowTeams ?? existing.override_allow_teams,
-        overrideAllowFallbacks: input.overrideAllowFallbacks ?? existing.override_allow_fallbacks,
-        overrideFallbackRequiresApproval: input.overrideFallbackRequiresApproval ?? existing.override_fallback_requires_approval,
-        overrideFallbackAllowCrossSystem: input.overrideFallbackAllowCrossSystem ?? existing.override_fallback_allow_cross_system,
       };
 
       // Validate merged requirement
