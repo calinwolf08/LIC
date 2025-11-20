@@ -30,7 +30,7 @@ export class HealthSystemService {
   /**
    * Create a new health system
    */
-  async createHealthSystem(input: HealthSystemInput): ServiceResult<HealthSystem> {
+  async createHealthSystem(input: HealthSystemInput): Promise<ServiceResult<HealthSystem>> {
     // Validate input
     const validation = healthSystemInputSchema.safeParse(input);
     if (!validation.success) {
@@ -62,7 +62,7 @@ export class HealthSystemService {
   /**
    * Get health system by ID
    */
-  async getHealthSystem(id: string): ServiceResult<HealthSystem | null> {
+  async getHealthSystem(id: string): Promise<ServiceResult<HealthSystem | null>> {
     try {
       const healthSystem = await this.db
         .selectFrom('health_systems')
@@ -83,7 +83,7 @@ export class HealthSystemService {
   /**
    * List all health systems
    */
-  async listHealthSystems(): ServiceResult<HealthSystem[]> {
+  async listHealthSystems(): Promise<ServiceResult<HealthSystem[]>> {
     try {
       const healthSystems = await this.db
         .selectFrom('health_systems')
@@ -100,7 +100,7 @@ export class HealthSystemService {
   /**
    * Update health system
    */
-  async updateHealthSystem(id: string, input: HealthSystemInput): ServiceResult<HealthSystem> {
+  async updateHealthSystem(id: string, input: HealthSystemInput): Promise<ServiceResult<HealthSystem>> {
     // Validate input
     const validation = healthSystemInputSchema.safeParse(input);
     if (!validation.success) {
@@ -144,7 +144,7 @@ export class HealthSystemService {
    *
    * Business rule: Cannot delete if sites or preceptors assigned
    */
-  async deleteHealthSystem(id: string): ServiceResult<boolean> {
+  async deleteHealthSystem(id: string): Promise<ServiceResult<boolean>> {
     try {
       // Check for dependent sites
       const siteCount = await this.db
@@ -192,7 +192,7 @@ export class HealthSystemService {
   /**
    * Create a new site within a health system
    */
-  async createSite(healthSystemId: string, input: SiteInput): ServiceResult<Site> {
+  async createSite(healthSystemId: string, input: SiteInput): Promise<ServiceResult<Site>> {
     // Validate input
     const validation = siteValidationSchema.safeParse({
       ...input,
@@ -236,7 +236,7 @@ export class HealthSystemService {
   /**
    * Get site by ID
    */
-  async getSite(id: string): ServiceResult<Site | null> {
+  async getSite(id: string): Promise<ServiceResult<Site | null>> {
     try {
       const site = await this.db.selectFrom('sites').selectAll().where('id', '=', id).executeTakeFirst();
 
@@ -253,7 +253,7 @@ export class HealthSystemService {
   /**
    * Get all sites for a health system
    */
-  async getSitesBySystem(healthSystemId: string): ServiceResult<Site[]> {
+  async getSitesBySystem(healthSystemId: string): Promise<ServiceResult<Site[]>> {
     try {
       const sites = await this.db
         .selectFrom('sites')
@@ -271,7 +271,7 @@ export class HealthSystemService {
   /**
    * Update site
    */
-  async updateSite(id: string, input: Partial<SiteInput>): ServiceResult<Site> {
+  async updateSite(id: string, input: Partial<SiteInput>): Promise<ServiceResult<Site>> {
     try {
       // Check if exists
       const existing = await this.db.selectFrom('sites').select('id').where('id', '=', id).executeTakeFirst();
@@ -309,7 +309,7 @@ export class HealthSystemService {
    *
    * Business rule: Cannot delete if preceptors assigned
    */
-  async deleteSite(id: string): ServiceResult<boolean> {
+  async deleteSite(id: string): Promise<ServiceResult<boolean>> {
     try {
       // Check for dependent preceptors
       const preceptorCount = await this.db
