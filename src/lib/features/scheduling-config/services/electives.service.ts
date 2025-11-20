@@ -29,7 +29,7 @@ export class ElectiveService {
   async createElective(
     requirementId: string,
     input: ClerkshipElectiveInput
-  ): ServiceResult<ClerkshipElective> {
+  ): Promise<ServiceResult<ClerkshipElective>> {
     // Validate input
     const validation = clerkshipElectiveInputSchema.safeParse(input);
     if (!validation.success) {
@@ -116,7 +116,7 @@ export class ElectiveService {
   /**
    * Get elective by ID
    */
-  async getElective(id: string): ServiceResult<ClerkshipElective | null> {
+  async getElective(id: string): Promise<ServiceResult<ClerkshipElective | null>> {
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
@@ -137,7 +137,7 @@ export class ElectiveService {
   /**
    * Get all electives for a requirement
    */
-  async getElectivesByRequirement(requirementId: string): ServiceResult<ClerkshipElective[]> {
+  async getElectivesByRequirement(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
     try {
       const electives = await this.db
         .selectFrom('clerkship_electives')
@@ -157,7 +157,7 @@ export class ElectiveService {
   async updateElective(
     id: string,
     input: Partial<ClerkshipElectiveInput>
-  ): ServiceResult<ClerkshipElective> {
+  ): Promise<ServiceResult<ClerkshipElective>> {
     try {
       // Check if exists
       const existing = await this.db
@@ -223,7 +223,7 @@ export class ElectiveService {
   /**
    * Delete elective
    */
-  async deleteElective(id: string): ServiceResult<boolean> {
+  async deleteElective(id: string): Promise<ServiceResult<boolean>> {
     try {
       // TODO: Check for current student assignments
       // For now, just delete
@@ -243,7 +243,7 @@ export class ElectiveService {
   /**
    * Get available preceptors for an elective
    */
-  async getAvailablePreceptors(electiveId: string): ServiceResult<any[]> {
+  async getAvailablePreceptors(electiveId: string): Promise<ServiceResult<any[]>> {
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
