@@ -69,6 +69,8 @@ export interface ClerkshipRequirements {
   override_mode: Generated<string>;
   override_preceptor_continuity_preference: string | null;
   override_team_continuity_preference: string | null;
+  require_same_preceptor_team: Generated<number>;
+  require_same_site: Generated<number>;
   required_days: number;
   requirement_type: string;
   updated_at: Generated<string>;
@@ -83,6 +85,12 @@ export interface Clerkships {
   required_days: number;
   specialty: string | null;
   updated_at: Generated<string>;
+}
+
+export interface ClerkshipSites {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  site_id: string;
 }
 
 export interface GlobalElectiveDefaults {
@@ -189,18 +197,6 @@ export interface PreceptorCapacityRules {
   updated_at: Generated<string>;
 }
 
-export interface PreceptorClerkships {
-  clerkship_id: string;
-  created_at: Generated<string>;
-  preceptor_id: string;
-}
-
-export interface PreceptorElectives {
-  created_at: Generated<string>;
-  elective_requirement_id: string;
-  preceptor_id: string;
-}
-
 export interface PreceptorFallbacks {
   allow_different_health_system: Generated<number>;
   clerkship_id: string | null;
@@ -223,6 +219,13 @@ export interface Preceptors {
   site_id: string | null;
   specialty: string;
   updated_at: Generated<string>;
+}
+
+export interface PreceptorSiteClerkships {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  preceptor_id: string;
+  site_id: string;
 }
 
 export interface PreceptorTeamMembers {
@@ -276,6 +279,49 @@ export interface Session {
   updatedAt: string;
   userAgent: string | null;
   userId: string;
+}
+
+export interface SiteAvailability {
+  created_at: Generated<string>;
+  date: string;
+  id: string | null;
+  is_available: Generated<number>;
+  site_id: string;
+  updated_at: Generated<string>;
+}
+
+export interface SiteAvailabilityPatterns {
+  config: string | null;
+  created_at: Generated<string>;
+  date_range_end: string | null;
+  date_range_start: string | null;
+  enabled: Generated<number>;
+  id: string | null;
+  is_available: Generated<number>;
+  pattern_type: string;
+  reason: string | null;
+  site_id: string;
+  specificity: Generated<number>;
+  updated_at: Generated<string>;
+}
+
+export interface SiteCapacityRules {
+  clerkship_id: string | null;
+  created_at: Generated<string>;
+  id: string | null;
+  max_blocks_per_year: number | null;
+  max_students_per_block: number | null;
+  max_students_per_day: number;
+  max_students_per_year: number;
+  requirement_type: string | null;
+  site_id: string;
+  updated_at: Generated<string>;
+}
+
+export interface SiteElectives {
+  created_at: Generated<string>;
+  elective_requirement_id: string;
+  site_id: string;
 }
 
 export interface Sites {
@@ -341,6 +387,7 @@ export interface DB {
   clerkship_electives: ClerkshipElectives;
   clerkship_requirement_overrides: ClerkshipRequirementOverrides;
   clerkship_requirements: ClerkshipRequirements;
+  clerkship_sites: ClerkshipSites;
   clerkships: Clerkships;
   global_elective_defaults: GlobalElectiveDefaults;
   global_inpatient_defaults: GlobalInpatientDefaults;
@@ -349,15 +396,18 @@ export interface DB {
   preceptor_availability: PreceptorAvailability;
   preceptor_availability_patterns: PreceptorAvailabilityPatterns;
   preceptor_capacity_rules: PreceptorCapacityRules;
-  preceptor_clerkships: PreceptorClerkships;
-  preceptor_electives: PreceptorElectives;
   preceptor_fallbacks: PreceptorFallbacks;
+  preceptor_site_clerkships: PreceptorSiteClerkships;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
   schedule_assignments: ScheduleAssignments;
   scheduling_periods: SchedulingPeriods;
   session: Session;
+  site_availability: SiteAvailability;
+  site_availability_patterns: SiteAvailabilityPatterns;
+  site_capacity_rules: SiteCapacityRules;
+  site_electives: SiteElectives;
   sites: Sites;
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;

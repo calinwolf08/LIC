@@ -21,12 +21,21 @@ import { HealthSystemContinuityConstraint } from '../constraints/health-system-c
 import { StudentOnboardingConstraint } from '../constraints/student-onboarding.constraint';
 import { PreceptorClerkshipAssociationConstraint } from '../constraints/preceptor-clerkship-association.constraint';
 
+// Import site-based constraints
+import { SiteContinuityConstraint } from '../constraints/site-continuity.constraint';
+import { SiteAvailabilityConstraint } from '../constraints/site-availability.constraint';
+import { SiteCapacityConstraint } from '../constraints/site-capacity.constraint';
+import { ValidSiteForClerkshipConstraint } from '../constraints/valid-site-for-clerkship.constraint';
+import { SamePreceptorTeamConstraint } from '../constraints/same-preceptor-team.constraint';
+
 interface ClerkshipRequirement {
 	id: string | null;
 	clerkship_id: string;
 	requirement_type: string;
 	required_days: number;
 	allow_cross_system: number;
+	require_same_site: number;
+	require_same_preceptor_team: number;
 	override_mode: string;
 	override_assignment_strategy: string | null;
 	override_health_system_rule: string | null;
@@ -85,6 +94,19 @@ export class ConstraintFactory {
 		constraints.push(new NoDoubleBookingConstraint());
 		constraints.push(new SpecialtyMatchConstraint());
 
+		// 1b. Add site-based constraints (context-dependent)
+		if (context.siteAvailability) {
+			constraints.push(new SiteAvailabilityConstraint());
+		}
+
+		if (context.siteCapacityRules) {
+			constraints.push(new SiteCapacityConstraint());
+		}
+
+		if (context.clerkshipSites || context.preceptorClerkshipAssociations) {
+			constraints.push(new ValidSiteForClerkshipConstraint());
+		}
+
 		// 2. Load requirements for the given clerkships
 		const requirements = await this.loadRequirements(clerkshipIds);
 
@@ -140,6 +162,28 @@ export class ConstraintFactory {
 						config.requirementId,
 						config.clerkshipId,
 						config.requirementType as 'inpatient' | 'outpatient' | 'elective'
+					)
+				);
+			}
+
+			// Site continuity constraint
+			if (requirement.require_same_site === 1 && config.requirementId) {
+				constraints.push(
+					new SiteContinuityConstraint(
+						config.requirementId,
+						config.clerkshipId,
+						true
+					)
+				);
+			}
+
+			// Same preceptor team constraint
+			if (requirement.require_same_preceptor_team === 1 && config.requirementId) {
+				constraints.push(
+					new SamePreceptorTeamConstraint(
+						config.requirementId,
+						config.clerkshipId,
+						true
 					)
 				);
 			}

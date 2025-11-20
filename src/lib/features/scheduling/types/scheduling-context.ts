@@ -4,7 +4,9 @@ import type {
 	Preceptors,
 	Clerkships,
 	HealthSystems,
-	Teams
+	Teams,
+	Sites,
+	SiteCapacityRules
 } from '$lib/db/types';
 import type { Assignment } from './assignment';
 
@@ -41,6 +43,11 @@ export interface SchedulingContext {
 	teams?: Selectable<Teams>[];
 
 	/**
+	 * All sites (optional, for site-based constraints)
+	 */
+	sites?: Selectable<Sites>[];
+
+	/**
 	 * System-wide blackout dates (no scheduling allowed)
 	 * Set of ISO date strings (YYYY-MM-DD)
 	 */
@@ -74,6 +81,20 @@ export interface SchedulingContext {
 	preceptorAvailability: Map<string, Set<string>>;
 
 	/**
+	 * Site availability lookup (optional)
+	 * Map: siteId -> Map(date -> isAvailable)
+	 * Used by SiteAvailabilityConstraint
+	 */
+	siteAvailability?: Map<string, Map<string, boolean>>;
+
+	/**
+	 * Site capacity rules lookup (optional)
+	 * Map: siteId -> array of capacity rules
+	 * Used by SiteCapacityConstraint
+	 */
+	siteCapacityRules?: Map<string, Selectable<SiteCapacityRules>[]>;
+
+	/**
 	 * Student requirements remaining
 	 * Map: studentId -> Map(clerkshipId -> days still needed)
 	 */
@@ -87,18 +108,40 @@ export interface SchedulingContext {
 	studentOnboarding?: Map<string, Set<string>>;
 
 	/**
-	 * Preceptor-clerkship associations (optional)
-	 * Map: preceptorId -> Set of clerkship IDs they can teach
-	 * Used by PreceptorClerkshipAssociationConstraint
+	 * Preceptor-clerkship associations (optional, three-way)
+	 * Map: preceptorId -> Map(siteId -> Set of clerkship IDs they can teach at that site)
+	 * Used by ValidSiteForClerkshipConstraint and PreceptorClerkshipAssociationConstraint
 	 */
-	preceptorClerkshipAssociations?: Map<string, Set<string>>;
+	preceptorClerkshipAssociations?: Map<string, Map<string, Set<string>>>;
 
 	/**
-	 * Preceptor-elective associations (optional)
+	 * Preceptor-elective associations (optional, DEPRECATED)
 	 * Map: preceptorId -> Set of elective requirement IDs they can teach
-	 * Used by PreceptorClerkshipAssociationConstraint for electives
+	 * NOTE: This is deprecated in favor of siteElectiveAssociations
+	 * Used by PreceptorClerkshipAssociationConstraint for electives (backward compatibility)
 	 */
 	preceptorElectiveAssociations?: Map<string, Set<string>>;
+
+	/**
+	 * Clerkship-site associations (optional)
+	 * Map: clerkshipId -> Set of site IDs where clerkship is offered
+	 * Used by ValidSiteForClerkshipConstraint
+	 */
+	clerkshipSites?: Map<string, Set<string>>;
+
+	/**
+	 * Site-elective associations (optional)
+	 * Map: siteId -> Set of elective requirement IDs offered at that site
+	 * Used by ValidSiteForClerkshipConstraint for electives
+	 */
+	siteElectiveAssociations?: Map<string, Set<string>>;
+
+	/**
+	 * Preceptor-team membership (optional)
+	 * Map: preceptorId -> Set of team IDs the preceptor belongs to
+	 * Used by SamePreceptorTeamConstraint
+	 */
+	preceptorTeams?: Map<string, Set<string>>;
 
 	// ===== Tracking Current State (updated during scheduling) =====
 

@@ -5,7 +5,10 @@ import type {
 	Clerkships,
 	PreceptorAvailability,
 	HealthSystems,
-	Teams
+	Teams,
+	Sites,
+	SiteAvailability,
+	SiteCapacityRules
 } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
 import { initializeStudentRequirements } from './requirement-tracker';
@@ -16,6 +19,7 @@ import { initializeStudentRequirements } from './requirement-tracker';
 export interface OptionalContextData {
 	healthSystems?: Selectable<HealthSystems>[];
 	teams?: Selectable<Teams>[];
+	sites?: Selectable<Sites>[];
 	studentOnboarding?: Array<{
 		student_id: string;
 		health_system_id: string;
@@ -23,11 +27,26 @@ export interface OptionalContextData {
 	}>;
 	preceptorClerkships?: Array<{
 		preceptor_id: string;
+		site_id: string;
 		clerkship_id: string;
 	}>;
 	preceptorElectives?: Array<{
 		preceptor_id: string;
 		elective_requirement_id: string;
+	}>;
+	clerkshipSites?: Array<{
+		clerkship_id: string;
+		site_id: string;
+	}>;
+	siteElectives?: Array<{
+		site_id: string;
+		elective_requirement_id: string;
+	}>;
+	siteAvailability?: Selectable<SiteAvailability>[];
+	siteCapacityRules?: Selectable<SiteCapacityRules>[];
+	preceptorTeamMembers?: Array<{
+		preceptor_id: string;
+		team_id: string;
 	}>;
 }
 
@@ -110,6 +129,11 @@ export function buildSchedulingContext(
 			context.teams = optionalData.teams;
 		}
 
+		// Add sites
+		if (optionalData.sites) {
+			context.sites = optionalData.sites;
+		}
+
 		// Build student onboarding map
 		if (optionalData.studentOnboarding) {
 			const studentOnboarding = new Map<string, Set<string>>();
@@ -124,19 +148,23 @@ export function buildSchedulingContext(
 			context.studentOnboarding = studentOnboarding;
 		}
 
-		// Build preceptor-clerkship associations map
+		// Build preceptor-clerkship associations map (three-way: preceptor -> site -> clerkships)
 		if (optionalData.preceptorClerkships) {
-			const preceptorClerkshipAssociations = new Map<string, Set<string>>();
+			const preceptorClerkshipAssociations = new Map<string, Map<string, Set<string>>>();
 			for (const record of optionalData.preceptorClerkships) {
 				if (!preceptorClerkshipAssociations.has(record.preceptor_id)) {
-					preceptorClerkshipAssociations.set(record.preceptor_id, new Set());
+					preceptorClerkshipAssociations.set(record.preceptor_id, new Map());
 				}
-				preceptorClerkshipAssociations.get(record.preceptor_id)!.add(record.clerkship_id);
+				const preceptorMap = preceptorClerkshipAssociations.get(record.preceptor_id)!;
+				if (!preceptorMap.has(record.site_id)) {
+					preceptorMap.set(record.site_id, new Set());
+				}
+				preceptorMap.get(record.site_id)!.add(record.clerkship_id);
 			}
 			context.preceptorClerkshipAssociations = preceptorClerkshipAssociations;
 		}
 
-		// Build preceptor-elective associations map
+		// Build preceptor-elective associations map (DEPRECATED - kept for backward compatibility)
 		if (optionalData.preceptorElectives) {
 			const preceptorElectiveAssociations = new Map<string, Set<string>>();
 			for (const record of optionalData.preceptorElectives) {
@@ -148,6 +176,70 @@ export function buildSchedulingContext(
 					.add(record.elective_requirement_id);
 			}
 			context.preceptorElectiveAssociations = preceptorElectiveAssociations;
+		}
+
+		// Build clerkship-site associations map
+		if (optionalData.clerkshipSites) {
+			const clerkshipSites = new Map<string, Set<string>>();
+			for (const record of optionalData.clerkshipSites) {
+				if (!clerkshipSites.has(record.clerkship_id)) {
+					clerkshipSites.set(record.clerkship_id, new Set());
+				}
+				clerkshipSites.get(record.clerkship_id)!.add(record.site_id);
+			}
+			context.clerkshipSites = clerkshipSites;
+		}
+
+		// Build site-elective associations map
+		if (optionalData.siteElectives) {
+			const siteElectiveAssociations = new Map<string, Set<string>>();
+			for (const record of optionalData.siteElectives) {
+				if (!siteElectiveAssociations.has(record.site_id)) {
+					siteElectiveAssociations.set(record.site_id, new Set());
+				}
+				siteElectiveAssociations.get(record.site_id)!.add(record.elective_requirement_id);
+			}
+			context.siteElectiveAssociations = siteElectiveAssociations;
+		}
+
+		// Build site availability map
+		if (optionalData.siteAvailability) {
+			const siteAvailability = new Map<string, Map<string, boolean>>();
+			for (const site of optionalData.sites || []) {
+				siteAvailability.set(site.id!, new Map());
+			}
+
+			for (const record of optionalData.siteAvailability) {
+				const siteMap = siteAvailability.get(record.site_id);
+				if (siteMap) {
+					siteMap.set(record.date, record.is_available === 1);
+				}
+			}
+			context.siteAvailability = siteAvailability;
+		}
+
+		// Build site capacity rules map
+		if (optionalData.siteCapacityRules) {
+			const siteCapacityRules = new Map<string, Selectable<SiteCapacityRules>[]>();
+			for (const rule of optionalData.siteCapacityRules) {
+				if (!siteCapacityRules.has(rule.site_id)) {
+					siteCapacityRules.set(rule.site_id, []);
+				}
+				siteCapacityRules.get(rule.site_id)!.push(rule);
+			}
+			context.siteCapacityRules = siteCapacityRules;
+		}
+
+		// Build preceptor-team membership map
+		if (optionalData.preceptorTeamMembers) {
+			const preceptorTeams = new Map<string, Set<string>>();
+			for (const record of optionalData.preceptorTeamMembers) {
+				if (!preceptorTeams.has(record.preceptor_id)) {
+					preceptorTeams.set(record.preceptor_id, new Set());
+				}
+				preceptorTeams.get(record.preceptor_id)!.add(record.team_id);
+			}
+			context.preceptorTeams = preceptorTeams;
 		}
 	}
 
