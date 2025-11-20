@@ -526,4 +526,292 @@ describe('buildSchedulingContext()', () => {
 		expect(context.studentRequirements.size).toBe(0);
 		expect(context.assignments).toEqual([]);
 	});
+
+	describe('Optional context data', () => {
+		it('builds student onboarding map from optional data', () => {
+			const optionalData = {
+				studentOnboarding: [
+					{
+						student_id: 'student-1',
+						health_system_id: 'hs-1',
+						is_completed: 1
+					},
+					{
+						student_id: 'student-1',
+						health_system_id: 'hs-2',
+						is_completed: 1
+					},
+					{
+						student_id: 'student-2',
+						health_system_id: 'hs-1',
+						is_completed: 0
+					}
+				]
+			};
+
+			const context = buildSchedulingContext(
+				[],
+				[],
+				[],
+				[],
+				[],
+				'2024-01-01',
+				'2024-12-31',
+				optionalData
+			);
+
+			expect(context.studentOnboarding).toBeInstanceOf(Map);
+			expect(context.studentOnboarding?.size).toBe(1); // Only student-1 has completed onboarding
+
+			const student1Systems = context.studentOnboarding?.get('student-1');
+			expect(student1Systems).toBeInstanceOf(Set);
+			expect(student1Systems?.size).toBe(2);
+			expect(student1Systems?.has('hs-1')).toBe(true);
+			expect(student1Systems?.has('hs-2')).toBe(true);
+
+			// student-2 should not be in the map (is_completed = 0)
+			expect(context.studentOnboarding?.has('student-2')).toBe(false);
+		});
+
+		it('builds preceptor clerkship associations map from optional data', () => {
+			const optionalData = {
+				preceptorClerkships: [
+					{
+						preceptor_id: 'preceptor-1',
+						clerkship_id: 'clerkship-1'
+					},
+					{
+						preceptor_id: 'preceptor-1',
+						clerkship_id: 'clerkship-2'
+					},
+					{
+						preceptor_id: 'preceptor-2',
+						clerkship_id: 'clerkship-1'
+					}
+				]
+			};
+
+			const context = buildSchedulingContext(
+				[],
+				[],
+				[],
+				[],
+				[],
+				'2024-01-01',
+				'2024-12-31',
+				optionalData
+			);
+
+			expect(context.preceptorClerkshipAssociations).toBeInstanceOf(Map);
+			expect(context.preceptorClerkshipAssociations?.size).toBe(2);
+
+			const preceptor1Clerkships = context.preceptorClerkshipAssociations?.get('preceptor-1');
+			expect(preceptor1Clerkships).toBeInstanceOf(Set);
+			expect(preceptor1Clerkships?.size).toBe(2);
+			expect(preceptor1Clerkships?.has('clerkship-1')).toBe(true);
+			expect(preceptor1Clerkships?.has('clerkship-2')).toBe(true);
+
+			const preceptor2Clerkships = context.preceptorClerkshipAssociations?.get('preceptor-2');
+			expect(preceptor2Clerkships?.size).toBe(1);
+			expect(preceptor2Clerkships?.has('clerkship-1')).toBe(true);
+		});
+
+		it('builds preceptor elective associations map from optional data', () => {
+			const optionalData = {
+				preceptorElectives: [
+					{
+						preceptor_id: 'preceptor-1',
+						elective_requirement_id: 'req-1'
+					},
+					{
+						preceptor_id: 'preceptor-1',
+						elective_requirement_id: 'req-2'
+					},
+					{
+						preceptor_id: 'preceptor-2',
+						elective_requirement_id: 'req-1'
+					}
+				]
+			};
+
+			const context = buildSchedulingContext(
+				[],
+				[],
+				[],
+				[],
+				[],
+				'2024-01-01',
+				'2024-12-31',
+				optionalData
+			);
+
+			expect(context.preceptorElectiveAssociations).toBeInstanceOf(Map);
+			expect(context.preceptorElectiveAssociations?.size).toBe(2);
+
+			const preceptor1Electives = context.preceptorElectiveAssociations?.get('preceptor-1');
+			expect(preceptor1Electives).toBeInstanceOf(Set);
+			expect(preceptor1Electives?.size).toBe(2);
+			expect(preceptor1Electives?.has('req-1')).toBe(true);
+			expect(preceptor1Electives?.has('req-2')).toBe(true);
+
+			const preceptor2Electives = context.preceptorElectiveAssociations?.get('preceptor-2');
+			expect(preceptor2Electives?.size).toBe(1);
+			expect(preceptor2Electives?.has('req-1')).toBe(true);
+		});
+
+		it('includes health systems in context when provided', () => {
+			const optionalData = {
+				healthSystems: [
+					{
+						id: 'hs-1',
+						name: 'City Hospital',
+						description: null,
+						location: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					},
+					{
+						id: 'hs-2',
+						name: 'County Medical Center',
+						description: null,
+						location: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					}
+				]
+			};
+
+			const context = buildSchedulingContext(
+				[],
+				[],
+				[],
+				[],
+				[],
+				'2024-01-01',
+				'2024-12-31',
+				optionalData
+			);
+
+			expect(context.healthSystems).toBeDefined();
+			expect(context.healthSystems).toHaveLength(2);
+			expect(context.healthSystems?.[0].name).toBe('City Hospital');
+			expect(context.healthSystems?.[1].name).toBe('County Medical Center');
+		});
+
+		it('includes teams in context when provided', () => {
+			const optionalData = {
+				teams: [
+					{
+						id: 'team-1',
+						name: 'Family Medicine Team A',
+						health_system_id: 'hs-1',
+						description: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					},
+					{
+						id: 'team-2',
+						name: 'Internal Medicine Team B',
+						health_system_id: 'hs-2',
+						description: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					}
+				]
+			};
+
+			const context = buildSchedulingContext(
+				[],
+				[],
+				[],
+				[],
+				[],
+				'2024-01-01',
+				'2024-12-31',
+				optionalData
+			);
+
+			expect(context.teams).toBeDefined();
+			expect(context.teams).toHaveLength(2);
+			expect(context.teams?.[0].name).toBe('Family Medicine Team A');
+			expect(context.teams?.[1].name).toBe('Internal Medicine Team B');
+		});
+
+		it('handles all optional data together', () => {
+			const optionalData = {
+				healthSystems: [
+					{
+						id: 'hs-1',
+						name: 'City Hospital',
+						description: null,
+						location: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					}
+				],
+				teams: [
+					{
+						id: 'team-1',
+						name: 'Team A',
+						health_system_id: 'hs-1',
+						description: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					}
+				],
+				studentOnboarding: [
+					{
+						student_id: 'student-1',
+						health_system_id: 'hs-1',
+						is_completed: 1
+					}
+				],
+				preceptorClerkships: [
+					{
+						preceptor_id: 'preceptor-1',
+						clerkship_id: 'clerkship-1'
+					}
+				],
+				preceptorElectives: [
+					{
+						preceptor_id: 'preceptor-1',
+						elective_requirement_id: 'req-1'
+					}
+				]
+			};
+
+			const context = buildSchedulingContext(
+				[],
+				[],
+				[],
+				[],
+				[],
+				'2024-01-01',
+				'2024-12-31',
+				optionalData
+			);
+
+			expect(context.healthSystems).toBeDefined();
+			expect(context.teams).toBeDefined();
+			expect(context.studentOnboarding).toBeDefined();
+			expect(context.preceptorClerkshipAssociations).toBeDefined();
+			expect(context.preceptorElectiveAssociations).toBeDefined();
+
+			expect(context.healthSystems).toHaveLength(1);
+			expect(context.teams).toHaveLength(1);
+			expect(context.studentOnboarding?.size).toBe(1);
+			expect(context.preceptorClerkshipAssociations?.size).toBe(1);
+			expect(context.preceptorElectiveAssociations?.size).toBe(1);
+		});
+
+		it('does not include optional data when not provided', () => {
+			const context = buildSchedulingContext([], [], [], [], [], '2024-01-01', '2024-12-31');
+
+			expect(context.healthSystems).toBeUndefined();
+			expect(context.teams).toBeUndefined();
+			expect(context.studentOnboarding).toBeUndefined();
+			expect(context.preceptorClerkshipAssociations).toBeUndefined();
+			expect(context.preceptorElectiveAssociations).toBeUndefined();
+		});
+	});
 });

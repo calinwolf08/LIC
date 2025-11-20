@@ -11,6 +11,9 @@ import { PreceptorCapacityConstraint } from './preceptor-capacity.constraint';
 import { SpecialtyMatchConstraint } from './specialty-match.constraint';
 import { BlackoutDateConstraint } from './blackout-date.constraint';
 import { PreceptorAvailabilityConstraint } from './preceptor-availability.constraint';
+import { HealthSystemContinuityConstraint } from './health-system-continuity.constraint';
+import { StudentOnboardingConstraint } from './student-onboarding.constraint';
+import { PreceptorClerkshipAssociationConstraint } from './preceptor-clerkship-association.constraint';
 import { ViolationTracker } from '../services/violation-tracker';
 import type { Assignment, SchedulingContext } from '../types';
 import type { Students, Preceptors, Clerkships } from '$lib/db/types';
@@ -966,6 +969,730 @@ describe('PreceptorAvailabilityConstraint', () => {
 
 		expect(result1).toBe(true);
 		expect(result2).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+});
+
+describe('HealthSystemContinuityConstraint', () => {
+	let constraint: HealthSystemContinuityConstraint;
+	let tracker: ViolationTracker;
+	let context: SchedulingContext;
+
+	beforeEach(() => {
+		tracker = new ViolationTracker();
+
+		const student: Students = {
+			id: 'student-1',
+			name: 'John Doe',
+			email: 'john@example.com',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const preceptor1: Preceptors = {
+			id: 'preceptor-1',
+			name: 'Dr. Smith',
+			email: 'smith@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: 'hs-1',
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const preceptor2: Preceptors = {
+			id: 'preceptor-2',
+			name: 'Dr. Jones',
+			email: 'jones@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: 'hs-2',
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const clerkship: Clerkships = {
+			id: 'clerkship-1',
+			name: 'FM Clerkship',
+			clerkship_type: 'outpatient',
+			specialty: 'Family Medicine',
+			required_days: 5,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		context = {
+			students: [student],
+			preceptors: [preceptor1, preceptor2],
+			clerkships: [clerkship],
+			assignments: [],
+			assignmentsByDate: new Map(),
+			assignmentsByStudent: new Map(),
+			assignmentsByPreceptor: new Map(),
+			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 5]])]]),
+			blackoutDates: new Set(),
+			preceptorAvailability: new Map(),
+			healthSystems: [
+				{
+					id: 'hs-1',
+					name: 'City Hospital',
+					description: null,
+					location: null,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				},
+				{
+					id: 'hs-2',
+					name: 'County Medical Center',
+					description: null,
+					location: null,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				}
+			],
+			startDate: '2024-01-01',
+			endDate: '2024-12-31'
+		};
+	});
+
+	it('has correct properties', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+		expect(constraint.name).toBe('HealthSystemContinuity');
+		expect(constraint.priority).toBe(3);
+		expect(constraint.bypassable).toBe(false);
+	});
+
+	it('allows first assignment for a clerkship', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('allows subsequent assignments within the same health system', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+
+		// First assignment
+		const assignment1: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		context.assignments.push(assignment1);
+		context.assignmentsByStudent.set('student-1', [assignment1]);
+
+		// Second assignment to same health system
+		const assignment2: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-16'
+		};
+
+		const result = constraint.validate(assignment2, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('blocks assignment to different health system when cross-system not allowed', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+
+		// First assignment to hs-1
+		const assignment1: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		context.assignments.push(assignment1);
+		context.assignmentsByStudent.set('student-1', [assignment1]);
+
+		// Try to assign to hs-2
+		const assignment2: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-16'
+		};
+
+		const result = constraint.validate(assignment2, context, tracker);
+		expect(result).toBe(false);
+		expect(tracker.getTotalViolations()).toBe(1);
+	});
+
+	it('allows assignment to different health system when cross-system is allowed', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', true);
+
+		// First assignment to hs-1
+		const assignment1: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		context.assignments.push(assignment1);
+		context.assignmentsByStudent.set('student-1', [assignment1]);
+
+		// Try to assign to hs-2
+		const assignment2: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-16'
+		};
+
+		const result = constraint.validate(assignment2, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('only applies to the specified clerkship', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-2',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('allows assignment when preceptor has no health system', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+
+		const preceptor3: Preceptors = {
+			id: 'preceptor-3',
+			name: 'Dr. Brown',
+			email: 'brown@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: null,
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		context.preceptors.push(preceptor3);
+
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-3',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('generates correct violation message with health system names', () => {
+		constraint = new HealthSystemContinuityConstraint('req-1', 'clerkship-1', false);
+
+		// First assignment
+		const assignment1: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		context.assignments.push(assignment1);
+		context.assignmentsByStudent.set('student-1', [assignment1]);
+
+		// Second assignment to different health system
+		const assignment2: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-16'
+		};
+
+		constraint.validate(assignment2, context, tracker);
+
+		const violations = tracker.exportViolations();
+		expect(violations).toHaveLength(1);
+		expect(violations[0]).toBeDefined();
+		expect(violations[0].message).toBeDefined();
+		expect(violations[0].message).toContain('City Hospital');
+		expect(violations[0].message).toContain('County Medical Center');
+		expect(violations[0].message).toContain('John Doe');
+		expect(violations[0].message).toContain('FM Clerkship');
+	});
+});
+
+describe('StudentOnboardingConstraint', () => {
+	let constraint: StudentOnboardingConstraint;
+	let tracker: ViolationTracker;
+	let context: SchedulingContext;
+
+	beforeEach(() => {
+		constraint = new StudentOnboardingConstraint('req-1', 'clerkship-1');
+		tracker = new ViolationTracker();
+
+		const student: Students = {
+			id: 'student-1',
+			name: 'John Doe',
+			email: 'john@example.com',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const preceptor1: Preceptors = {
+			id: 'preceptor-1',
+			name: 'Dr. Smith',
+			email: 'smith@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: 'hs-1',
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const preceptor2: Preceptors = {
+			id: 'preceptor-2',
+			name: 'Dr. Jones',
+			email: 'jones@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: 'hs-2',
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const clerkship: Clerkships = {
+			id: 'clerkship-1',
+			name: 'FM Clerkship',
+			clerkship_type: 'outpatient',
+			specialty: 'Family Medicine',
+			required_days: 5,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		context = {
+			students: [student],
+			preceptors: [preceptor1, preceptor2],
+			clerkships: [clerkship],
+			assignments: [],
+			assignmentsByDate: new Map(),
+			assignmentsByStudent: new Map(),
+			assignmentsByPreceptor: new Map(),
+			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 5]])]]),
+			blackoutDates: new Set(),
+			preceptorAvailability: new Map(),
+			healthSystems: [
+				{
+					id: 'hs-1',
+					name: 'City Hospital',
+					description: null,
+					location: null,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				},
+				{
+					id: 'hs-2',
+					name: 'County Medical Center',
+					description: null,
+					location: null,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				}
+			],
+			studentOnboarding: new Map([['student-1', new Set(['hs-1'])]]),
+			startDate: '2024-01-01',
+			endDate: '2024-12-31'
+		};
+	});
+
+	it('has correct properties', () => {
+		expect(constraint.name).toBe('StudentOnboarding');
+		expect(constraint.priority).toBe(2);
+		expect(constraint.bypassable).toBe(false);
+	});
+
+	it('allows assignment when student has completed onboarding', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('blocks assignment when student has not completed onboarding', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(false);
+		expect(tracker.getTotalViolations()).toBe(1);
+	});
+
+	it('allows assignment when student has onboarded to multiple systems', () => {
+		context.studentOnboarding = new Map([['student-1', new Set(['hs-1', 'hs-2'])]]);
+
+		const assignment1: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const assignment2: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-16'
+		};
+
+		const result1 = constraint.validate(assignment1, context, tracker);
+		const result2 = constraint.validate(assignment2, context, tracker);
+
+		expect(result1).toBe(true);
+		expect(result2).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('skips check when context has no onboarding data', () => {
+		delete context.studentOnboarding;
+
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('only applies to the specified clerkship', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-2',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('allows assignment when preceptor has no health system', () => {
+		const preceptor3: Preceptors = {
+			id: 'preceptor-3',
+			name: 'Dr. Brown',
+			email: 'brown@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: null,
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		context.preceptors.push(preceptor3);
+
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-3',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraint.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('generates correct violation message', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		constraint.validate(assignment, context, tracker);
+
+		const violations = tracker.exportViolations();
+		expect(violations).toHaveLength(1);
+		expect(violations[0]).toBeDefined();
+		expect(violations[0].message).toBeDefined();
+		expect(violations[0].message).toContain('John Doe');
+		expect(violations[0].message).toContain('County Medical Center');
+		expect(violations[0].message).toContain('Dr. Jones');
+		expect(violations[0].message).toContain('FM Clerkship');
+		expect(violations[0].message).toContain('not completed onboarding');
+	});
+});
+
+describe('PreceptorClerkshipAssociationConstraint', () => {
+	let constraintInpatient: PreceptorClerkshipAssociationConstraint;
+	let constraintElective: PreceptorClerkshipAssociationConstraint;
+	let tracker: ViolationTracker;
+	let context: SchedulingContext;
+
+	beforeEach(() => {
+		constraintInpatient = new PreceptorClerkshipAssociationConstraint(
+			'req-1',
+			'clerkship-1',
+			'inpatient'
+		);
+		constraintElective = new PreceptorClerkshipAssociationConstraint(
+			'req-2',
+			'clerkship-2',
+			'elective'
+		);
+		tracker = new ViolationTracker();
+
+		const student: Students = {
+			id: 'student-1',
+			name: 'John Doe',
+			email: 'john@example.com',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const preceptor1: Preceptors = {
+			id: 'preceptor-1',
+			name: 'Dr. Smith',
+			email: 'smith@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: 'hs-1',
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const preceptor2: Preceptors = {
+			id: 'preceptor-2',
+			name: 'Dr. Jones',
+			email: 'jones@example.com',
+			specialty: 'Family Medicine',
+			health_system_id: 'hs-1',
+			max_students: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const clerkship1: Clerkships = {
+			id: 'clerkship-1',
+			name: 'FM Inpatient',
+			clerkship_type: 'inpatient',
+			specialty: 'Family Medicine',
+			required_days: 5,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		const clerkship2: Clerkships = {
+			id: 'clerkship-2',
+			name: 'ER Elective',
+			clerkship_type: 'outpatient',
+			specialty: 'Emergency Medicine',
+			required_days: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		context = {
+			students: [student],
+			preceptors: [preceptor1, preceptor2],
+			clerkships: [clerkship1, clerkship2],
+			assignments: [],
+			assignmentsByDate: new Map(),
+			assignmentsByStudent: new Map(),
+			assignmentsByPreceptor: new Map(),
+			studentRequirements: new Map([
+				['student-1', new Map([['clerkship-1', 5], ['clerkship-2', 3]])]
+			]),
+			blackoutDates: new Set(),
+			preceptorAvailability: new Map(),
+			preceptorClerkshipAssociations: new Map([['preceptor-1', new Set(['clerkship-1'])]]),
+			preceptorElectiveAssociations: new Map([['preceptor-1', new Set(['req-2'])]]),
+			startDate: '2024-01-01',
+			endDate: '2024-12-31'
+		};
+	});
+
+	it('has correct properties', () => {
+		expect(constraintInpatient.name).toBe('PreceptorClerkshipAssociation');
+		expect(constraintInpatient.priority).toBe(2);
+		expect(constraintInpatient.bypassable).toBe(false);
+	});
+
+	it('allows assignment when preceptor is associated with clerkship', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraintInpatient.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('blocks assignment when preceptor is not associated with clerkship', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraintInpatient.validate(assignment, context, tracker);
+		expect(result).toBe(false);
+		expect(tracker.getTotalViolations()).toBe(1);
+	});
+
+	it('allows assignment when preceptor is associated with elective (elective type)', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-2',
+			date: '2024-01-15'
+		};
+
+		const result = constraintElective.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('blocks assignment when preceptor is not associated with elective', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-2',
+			date: '2024-01-15'
+		};
+
+		const result = constraintElective.validate(assignment, context, tracker);
+		expect(result).toBe(false);
+		expect(tracker.getTotalViolations()).toBe(1);
+	});
+
+	it('allows assignment when no association data is available', () => {
+		delete context.preceptorClerkshipAssociations;
+
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const result = constraintInpatient.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('only applies to the specified clerkship', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-3',
+			date: '2024-01-15'
+		};
+
+		const result = constraintInpatient.validate(assignment, context, tracker);
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
+	});
+
+	it('generates correct violation message for clerkships', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		constraintInpatient.validate(assignment, context, tracker);
+
+		const violations = tracker.exportViolations();
+		expect(violations).toHaveLength(1);
+		expect(violations[0]).toBeDefined();
+		expect(violations[0].message).toBeDefined();
+		expect(violations[0].message).toContain('Dr. Jones');
+		expect(violations[0].message).toContain('not associated');
+		expect(violations[0].message).toContain('clerkship');
+		expect(violations[0].message).toContain('FM Inpatient');
+	});
+
+	it('generates correct violation message for electives', () => {
+		const assignment: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-2',
+			date: '2024-01-15'
+		};
+
+		constraintElective.validate(assignment, context, tracker);
+
+		const violations = tracker.exportViolations();
+		expect(violations).toHaveLength(1);
+		expect(violations[0]).toBeDefined();
+		expect(violations[0].message).toBeDefined();
+		expect(violations[0].message).toContain('Dr. Jones');
+		expect(violations[0].message).toContain('not associated');
+		expect(violations[0].message).toContain('elective');
+		expect(violations[0].message).toContain('ER Elective');
+	});
+
+	it('allows multiple preceptors with different associations', () => {
+		context.preceptorClerkshipAssociations = new Map([
+			['preceptor-1', new Set(['clerkship-1'])],
+			['preceptor-2', new Set(['clerkship-2'])]
+		]);
+
+		const assignment1: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-1',
+			clerkshipId: 'clerkship-1',
+			date: '2024-01-15'
+		};
+
+		const assignment2: Assignment = {
+			studentId: 'student-1',
+			preceptorId: 'preceptor-2',
+			clerkshipId: 'clerkship-2',
+			date: '2024-01-16'
+		};
+
+		const result1 = constraintInpatient.validate(assignment1, context, tracker);
+		const result2 = constraintInpatient.validate(assignment2, context, tracker);
+
+		expect(result1).toBe(true);
+		expect(result2).toBe(true); // Different clerkship, so not checked by this constraint
 		expect(tracker.getTotalViolations()).toBe(0);
 	});
 });
