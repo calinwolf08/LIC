@@ -286,22 +286,22 @@ export class ConfigurableSchedulingEngine {
    * Load students from database
    */
   private async loadStudents(studentIds: string[]): Promise<Student[]> {
-    return await this.db
+    return (await this.db
       .selectFrom('students')
       .selectAll()
       .where('id', 'in', studentIds)
-      .execute();
+      .execute()) as Student[];
   }
 
   /**
    * Load clerkships from database
    */
   private async loadClerkships(clerkshipIds: string[]): Promise<Clerkship[]> {
-    return await this.db
+    return (await this.db
       .selectFrom('clerkships')
       .selectAll()
       .where('id', 'in', clerkshipIds)
-      .execute();
+      .execute()) as Clerkship[];
   }
 
   /**
