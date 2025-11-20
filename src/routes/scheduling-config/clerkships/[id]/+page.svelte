@@ -16,6 +16,7 @@
 	let newRequirement = $state({
 		requirementType: 'outpatient' as 'outpatient' | 'inpatient' | 'elective',
 		requiredDays: 20,
+		allowCrossSystem: false,
 		overrideMode: 'inherit' as 'inherit' | 'override_fields' | 'override_section',
 		overrideAssignmentStrategy: undefined as 'continuous_single' | 'continuous_team' | 'block_based' | 'daily_rotation' | undefined,
 		overrideHealthSystemRule: undefined as 'enforce_same_system' | 'prefer_same_system' | 'no_preference' | undefined
@@ -54,6 +55,7 @@
 			newRequirement = {
 				requirementType: 'outpatient',
 				requiredDays: 20,
+				allowCrossSystem: false,
 				overrideMode: 'inherit',
 				overrideAssignmentStrategy: undefined,
 				overrideHealthSystemRule: undefined
@@ -234,6 +236,16 @@
 										<dt class="text-muted-foreground">Override Mode</dt>
 										<dd class="font-medium">{req.requirement.override_mode}</dd>
 									</div>
+									<div>
+										<dt class="text-muted-foreground">Allow Cross-System</dt>
+										<dd class="font-medium">
+											{#if req.requirement.allow_cross_system === 1}
+												<span class="text-green-600">✓ Enabled</span>
+											{:else}
+												<span class="text-muted-foreground">✗ Disabled</span>
+											{/if}
+										</dd>
+									</div>
 								</dl>
 							</div>
 
@@ -391,6 +403,22 @@
 						min="1"
 						required
 					/>
+				</div>
+
+				<!-- Allow Cross-System -->
+				<div class="flex items-center gap-2">
+					<input
+						type="checkbox"
+						id="allowCrossSystem"
+						bind:checked={newRequirement.allowCrossSystem}
+						class="h-4 w-4 rounded border-gray-300"
+					/>
+					<Label for="allowCrossSystem" class="cursor-pointer">
+						Allow Cross-System Assignments
+						<span class="block text-xs font-normal text-muted-foreground">
+							Students can be assigned across different health systems for this requirement
+						</span>
+					</Label>
 				</div>
 
 				<!-- Override Mode -->
