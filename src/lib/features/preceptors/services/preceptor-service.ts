@@ -86,7 +86,9 @@ export async function createPreceptor(
 		name: data.name,
 		email: data.email,
 		specialty: data.specialty,
+		health_system_id: data.health_system_id,
 		max_students: data.max_students ?? 1,
+		site_id: null,
 		created_at: timestamp,
 		updated_at: timestamp
 	};

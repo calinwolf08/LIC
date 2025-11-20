@@ -21,6 +21,7 @@ export const createPreceptorSchema = z.object({
 	name: nameSchema,
 	email: emailSchema,
 	specialty: specialtySchema,
+	health_system_id: uuidSchema,
 	max_students: positiveIntSchema.default(1)
 });
 
@@ -32,6 +33,7 @@ export const updatePreceptorSchema = z
 		name: nameSchema.optional(),
 		email: emailSchema.optional(),
 		specialty: specialtySchema.optional(),
+		health_system_id: uuidSchema.optional(),
 		max_students: positiveIntSchema.optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {

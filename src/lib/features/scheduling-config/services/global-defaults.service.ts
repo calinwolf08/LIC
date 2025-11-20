@@ -84,7 +84,7 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!updated) {
-				return Result.failure(ServiceErrors.notFound('Outpatient defaults not found'));
+				return Result.failure(ServiceErrors.notFound('Outpatient defaults', schoolId));
 			}
 
 			return Result.success(this.mapOutpatientFromDb(updated));
@@ -155,7 +155,7 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!updated) {
-				return Result.failure(ServiceErrors.notFound('Inpatient defaults not found'));
+				return Result.failure(ServiceErrors.notFound('Inpatient defaults', schoolId));
 			}
 
 			return Result.success(this.mapInpatientFromDb(updated));
@@ -217,7 +217,7 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!updated) {
-				return Result.failure(ServiceErrors.notFound('Elective defaults not found'));
+				return Result.failure(ServiceErrors.notFound('Elective defaults', schoolId));
 			}
 
 			return Result.success(this.mapElectiveFromDb(updated));

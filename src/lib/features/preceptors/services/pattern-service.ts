@@ -216,7 +216,7 @@ function dbPatternToCreatePattern(
 		preceptor_id: dbPattern.preceptor_id,
 		pattern_type: dbPattern.pattern_type as any,
 		is_available: dbPattern.is_available === 1,
-		specificity: dbPattern.specificity,
+		specificity: dbPattern.specificity as 1 | 2 | 3,
 		date_range_start: dbPattern.date_range_start,
 		date_range_end: dbPattern.date_range_end,
 		config,
