@@ -183,7 +183,7 @@ export class RequirementService {
   /**
    * Delete requirement
    */
-  async deleteRequirement(id: string): ServiceResult<boolean> {
+  async deleteRequirement(id: string): Promise<ServiceResult<boolean>> {
     try {
       // Check for dependent electives
       const electiveCount = await this.db
@@ -217,11 +217,11 @@ export class RequirementService {
    *
    * Business rule: Total required days must equal clerkship.required_days
    */
-  async validateRequirementSplit(clerkshipId: string): ServiceResult<{
+  async validateRequirementSplit(clerkshipId: string): Promise<ServiceResult<{
     valid: boolean;
     totalRequiredDays: number;
     clerkshipTotalDays: number;
-  }> {
+  }>> {
     try {
       // Get clerkship total days
       const clerkship = await this.db
