@@ -27,7 +27,7 @@ export class FallbackService {
   /**
    * Create a new fallback
    */
-  async createFallback(input: PreceptorFallbackInput): ServiceResult<PreceptorFallback> {
+  async createFallback(input: PreceptorFallbackInput): Promise<ServiceResult<PreceptorFallback>> {
     // Validate input
     const validation = preceptorFallbackInputSchema.safeParse(input);
     if (!validation.success) {
@@ -125,7 +125,7 @@ export class FallbackService {
   /**
    * Get fallback by ID
    */
-  async getFallback(id: string): ServiceResult<PreceptorFallback | null> {
+  async getFallback(id: string): Promise<ServiceResult<PreceptorFallback | null>> {
     try {
       const fallback = await this.db
         .selectFrom('preceptor_fallbacks')
@@ -149,7 +149,7 @@ export class FallbackService {
   async getFallbackChain(
     primaryPreceptorId: string,
     clerkshipId?: string
-  ): ServiceResult<PreceptorFallback[]> {
+  ): Promise<ServiceResult<PreceptorFallback[]>> {
     try {
       let query = this.db
         .selectFrom('preceptor_fallbacks')
@@ -176,7 +176,7 @@ export class FallbackService {
   async updateFallback(
     id: string,
     input: Partial<PreceptorFallbackInput>
-  ): ServiceResult<PreceptorFallback> {
+  ): Promise<ServiceResult<PreceptorFallback>> {
     try {
       // Check if exists
       const existing = await this.db
@@ -240,7 +240,7 @@ export class FallbackService {
   /**
    * Delete fallback
    */
-  async deleteFallback(id: string): ServiceResult<boolean> {
+  async deleteFallback(id: string): Promise<ServiceResult<boolean>> {
     try {
       const result = await this.db.deleteFrom('preceptor_fallbacks').where('id', '=', id).execute();
 
@@ -260,7 +260,7 @@ export class FallbackService {
   async validateFallbackChain(
     primaryPreceptorId: string,
     clerkshipId?: string
-  ): ServiceResult<boolean> {
+  ): Promise<ServiceResult<boolean>> {
     const chainResult = await this.getFallbackChain(primaryPreceptorId, clerkshipId);
     if (!chainResult.success) {
       return Result.failure(chainResult.error);
@@ -305,7 +305,7 @@ export class FallbackService {
     primaryPreceptorId: string,
     fallbackPreceptorId: string,
     clerkshipId?: string
-  ): ServiceResult<boolean> {
+  ): Promise<ServiceResult<boolean>> {
     // Check if fallback preceptor eventually points back to primary
     const visited = new Set<string>();
     let currentId = fallbackPreceptorId;
