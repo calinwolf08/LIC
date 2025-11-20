@@ -18,22 +18,26 @@
 	interface Props {
 		clerkshipId: string;
 		clerkshipName: string;
+		clerkshipType: 'inpatient' | 'outpatient' | 'elective';
 	}
 
-	let { clerkshipId, clerkshipName }: Props = $props();
+	let { clerkshipId, clerkshipName, clerkshipType }: Props = $props();
 
-	let requirements = $state<Requirement[]>([]);
+	let requirement = $state<Requirement | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
-	async function loadRequirements() {
+	async function loadRequirement() {
 		loading = true;
 		error = null;
 		try {
 			const response = await fetch(`/api/clerkships/${clerkshipId}/requirements`);
-			if (!response.ok) throw new Error('Failed to load requirements');
+			if (!response.ok) throw new Error('Failed to load requirement');
 			const result = await response.json();
-			requirements = result.data || [];
+			const requirements = result.data || [];
+
+			// Should only be one requirement per clerkship matching its type
+			requirement = requirements.find((r: Requirement) => r.requirement_type === clerkshipType) || null;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Unknown error';
 		} finally {
@@ -41,7 +45,8 @@
 		}
 	}
 
-	async function toggleCrossSystem(requirement: Requirement) {
+	async function toggleCrossSystem() {
+		if (!requirement) return;
 		try {
 			const response = await fetch(`/api/requirements/${requirement.id}`, {
 				method: 'PATCH',
@@ -53,14 +58,14 @@
 
 			if (!response.ok) throw new Error('Failed to update requirement');
 
-			// Reload requirements
-			await loadRequirements();
+			await loadRequirement();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update';
 		}
 	}
 
-	async function toggleSameSite(requirement: Requirement) {
+	async function toggleSameSite() {
+		if (!requirement) return;
 		try {
 			const response = await fetch(`/api/requirements/${requirement.id}`, {
 				method: 'PATCH',
@@ -72,13 +77,14 @@
 
 			if (!response.ok) throw new Error('Failed to update requirement');
 
-			await loadRequirements();
+			await loadRequirement();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update';
 		}
 	}
 
-	async function toggleSamePreceptorTeam(requirement: Requirement) {
+	async function toggleSamePreceptorTeam() {
+		if (!requirement) return;
 		try {
 			const response = await fetch(`/api/requirements/${requirement.id}`, {
 				method: 'PATCH',
@@ -90,30 +96,9 @@
 
 			if (!response.ok) throw new Error('Failed to update requirement');
 
-			await loadRequirements();
+			await loadRequirement();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update';
-		}
-	}
-
-	async function addRequirement(type: 'inpatient' | 'outpatient' | 'elective') {
-		try {
-			const response = await fetch(`/api/clerkships/${clerkshipId}/requirements`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					requirement_type: type,
-					required_days: 1,
-					allow_cross_system: 0,
-					override_mode: 'inherit'
-				})
-			});
-
-			if (!response.ok) throw new Error('Failed to add requirement');
-
-			await loadRequirements();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to add requirement';
 		}
 	}
 
@@ -121,38 +106,18 @@
 		return type.charAt(0).toUpperCase() + type.slice(1);
 	}
 
-	function formatMode(mode: string): string {
-		return mode
-			.split('_')
-			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-			.join(' ');
-	}
-
 	// Load on mount
 	$effect(() => {
-		loadRequirements();
+		loadRequirement();
 	});
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div>
-			<h2 class="text-2xl font-bold">Requirements for {clerkshipName}</h2>
-			<p class="text-sm text-muted-foreground mt-1">
-				Manage clerkship requirements and cross-system permissions
-			</p>
-		</div>
-		<div class="flex gap-2">
-			<Button size="sm" variant="outline" onclick={() => addRequirement('inpatient')}>
-				+ Inpatient
-			</Button>
-			<Button size="sm" variant="outline" onclick={() => addRequirement('outpatient')}>
-				+ Outpatient
-			</Button>
-			<Button size="sm" variant="outline" onclick={() => addRequirement('elective')}>
-				+ Elective
-			</Button>
-		</div>
+	<div>
+		<h2 class="text-2xl font-bold">{clerkshipName} Requirements</h2>
+		<p class="text-sm text-muted-foreground mt-1">
+			Configure continuity and scheduling constraints for this {formatType(clerkshipType)} clerkship
+		</p>
 	</div>
 
 	{#if error}
@@ -163,127 +128,145 @@
 
 	{#if loading}
 		<Card class="p-8 text-center">
-			<p class="text-muted-foreground">Loading requirements...</p>
+			<p class="text-muted-foreground">Loading requirement...</p>
 		</Card>
-	{:else if requirements.length === 0}
+	{:else if !requirement}
 		<Card class="p-8 text-center">
-			<p class="text-muted-foreground">No requirements configured for this clerkship.</p>
+			<p class="text-muted-foreground">No requirement configured for this clerkship.</p>
 			<p class="mt-2 text-sm text-muted-foreground">
-				Add requirements using the buttons above.
+				The requirement should be automatically created with the clerkship.
 			</p>
 		</Card>
 	{:else}
-		<div class="grid gap-4">
-			{#each requirements as requirement}
-				<Card class="p-6">
-					<div class="flex items-start justify-between">
-						<div class="space-y-4 flex-1">
-							<div class="flex items-center gap-3">
-								<Badge
-									variant={requirement.requirement_type === 'inpatient'
-										? 'default'
-										: requirement.requirement_type === 'outpatient'
-											? 'secondary'
-											: 'outline'}
+		<Card class="p-6">
+			<div class="space-y-6">
+				<!-- Header Info -->
+				<div class="flex items-center justify-between border-b pb-4">
+					<div class="flex items-center gap-3">
+						<Badge
+							variant={requirement.requirement_type === 'inpatient'
+								? 'default'
+								: requirement.requirement_type === 'outpatient'
+									? 'secondary'
+									: 'outline'}
+						>
+							{formatType(requirement.requirement_type)}
+						</Badge>
+						<span class="text-sm text-muted-foreground">
+							{requirement.required_days} days required
+						</span>
+					</div>
+					<Button size="sm" variant="outline" href={`/scheduling-config/requirements/${requirement.id}`}>
+						Advanced Settings
+					</Button>
+				</div>
+
+				<!-- Continuity Constraints -->
+				<div>
+					<h3 class="text-lg font-semibold mb-4">Continuity Constraints</h3>
+					<div class="space-y-4">
+						<!-- Allow Cross-System -->
+						<div class="flex items-start gap-4 p-4 rounded-lg border">
+							<div class="flex items-center gap-2 min-w-[280px]">
+								<input
+									type="checkbox"
+									id="cross-system"
+									checked={requirement.allow_cross_system === 1}
+									onchange={() => toggleCrossSystem()}
+									class="h-4 w-4 rounded border-gray-300"
+								/>
+								<label
+									for="cross-system"
+									class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 								>
-									{formatType(requirement.requirement_type)}
-								</Badge>
-								<span class="text-sm text-muted-foreground">
-									{requirement.required_days} days required
-								</span>
-								<Badge variant="outline">{formatMode(requirement.override_mode)}</Badge>
+									Allow Cross-System Assignments
+								</label>
 							</div>
-
-							<div class="space-y-3">
-								<div class="flex items-center gap-4">
-									<div class="flex items-center gap-2">
-										<input
-											type="checkbox"
-											id={`cross-system-${requirement.id}`}
-											checked={requirement.allow_cross_system === 1}
-											onchange={() => toggleCrossSystem(requirement)}
-											class="h-4 w-4 rounded border-gray-300"
-										/>
-										<label
-											for={`cross-system-${requirement.id}`}
-											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-										>
-											Allow Cross-System Assignments
-										</label>
-									</div>
-									{#if requirement.allow_cross_system === 1}
-										<span class="text-xs text-muted-foreground">
-											Students can be assigned across different health systems
-										</span>
-									{:else}
-										<span class="text-xs text-muted-foreground">
-											Students must stay within same health system
-										</span>
-									{/if}
-								</div>
-
-								<div class="flex items-center gap-4">
-									<div class="flex items-center gap-2">
-										<input
-											type="checkbox"
-											id={`same-site-${requirement.id}`}
-											checked={requirement.require_same_site === 1}
-											onchange={() => toggleSameSite(requirement)}
-											class="h-4 w-4 rounded border-gray-300"
-										/>
-										<label
-											for={`same-site-${requirement.id}`}
-											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-										>
-											Require Same Site
-										</label>
-									</div>
-									{#if requirement.require_same_site === 1}
-										<span class="text-xs text-muted-foreground">
-											Students must complete entire requirement at the same site
-										</span>
-									{:else}
-										<span class="text-xs text-muted-foreground">
-											Students can rotate between different sites
-										</span>
-									{/if}
-								</div>
-
-								<div class="flex items-center gap-4">
-									<div class="flex items-center gap-2">
-										<input
-											type="checkbox"
-											id={`same-team-${requirement.id}`}
-											checked={requirement.require_same_preceptor_team === 1}
-											onchange={() => toggleSamePreceptorTeam(requirement)}
-											class="h-4 w-4 rounded border-gray-300"
-										/>
-										<label
-											for={`same-team-${requirement.id}`}
-											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-										>
-											Require Same Preceptor Team
-										</label>
-									</div>
-									{#if requirement.require_same_preceptor_team === 1}
-										<span class="text-xs text-muted-foreground">
-											Students must work with preceptors from the same team
-										</span>
-									{:else}
-										<span class="text-xs text-muted-foreground">
-											Students can work with preceptors from different teams
-										</span>
-									{/if}
-								</div>
+							<div class="flex-1">
+								{#if requirement.allow_cross_system === 1}
+									<p class="text-sm text-muted-foreground">
+										✓ Students can rotate between different health systems for this clerkship
+									</p>
+								{:else}
+									<p class="text-sm text-muted-foreground">
+										✗ Students must stay within the same health system throughout this clerkship
+									</p>
+								{/if}
 							</div>
 						</div>
 
-						<Button size="sm" variant="outline" href={`/scheduling-config/requirements/${requirement.id}`}>
-							Configure
-						</Button>
+						<!-- Require Same Site -->
+						<div class="flex items-start gap-4 p-4 rounded-lg border">
+							<div class="flex items-center gap-2 min-w-[280px]">
+								<input
+									type="checkbox"
+									id="same-site"
+									checked={requirement.require_same_site === 1}
+									onchange={() => toggleSameSite()}
+									class="h-4 w-4 rounded border-gray-300"
+								/>
+								<label
+									for="same-site"
+									class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+								>
+									Require Same Site
+								</label>
+							</div>
+							<div class="flex-1">
+								{#if requirement.require_same_site === 1}
+									<p class="text-sm text-muted-foreground">
+										✓ Students must complete all {requirement.required_days} days at the same site
+									</p>
+								{:else}
+									<p class="text-sm text-muted-foreground">
+										✗ Students can rotate between different sites during this clerkship
+									</p>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Require Same Preceptor Team -->
+						<div class="flex items-start gap-4 p-4 rounded-lg border">
+							<div class="flex items-center gap-2 min-w-[280px]">
+								<input
+									type="checkbox"
+									id="same-team"
+									checked={requirement.require_same_preceptor_team === 1}
+									onchange={() => toggleSamePreceptorTeam()}
+									class="h-4 w-4 rounded border-gray-300"
+								/>
+								<label
+									for="same-team"
+									class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+								>
+									Require Same Preceptor Team
+								</label>
+							</div>
+							<div class="flex-1">
+								{#if requirement.require_same_preceptor_team === 1}
+									<p class="text-sm text-muted-foreground">
+										✓ Students must work with preceptors from the same team throughout this clerkship
+									</p>
+								{:else}
+									<p class="text-sm text-muted-foreground">
+										✗ Students can work with preceptors from different teams during this clerkship
+									</p>
+								{/if}
+							</div>
+						</div>
 					</div>
-				</Card>
-			{/each}
-		</div>
+				</div>
+
+				<!-- Helpful Tips -->
+				<div class="bg-muted/50 rounded-lg p-4">
+					<h4 class="text-sm font-semibold mb-2">💡 Configuration Tips</h4>
+					<ul class="text-sm text-muted-foreground space-y-1">
+						<li>• <strong>Same Site</strong>: Enable for continuity-focused rotations where students benefit from staying at one location</li>
+						<li>• <strong>Same Team</strong>: Enable for team-based learning models where consistent supervision is important</li>
+						<li>• <strong>Cross-System</strong>: Disable to ensure students complete requirements within their assigned health system</li>
+					</ul>
+				</div>
+			</div>
+		</Card>
 	{/if}
 </div>
