@@ -290,7 +290,7 @@ export class ConfigurableSchedulingEngine {
       .selectFrom('students')
       .selectAll()
       .where('id', 'in', studentIds)
-      .execute()) as Student[];
+      .execute()) as unknown as Student[];
   }
 
   /**
@@ -301,7 +301,7 @@ export class ConfigurableSchedulingEngine {
       .selectFrom('clerkships')
       .selectAll()
       .where('id', 'in', clerkshipIds)
-      .execute()) as Clerkship[];
+      .execute()) as unknown as Clerkship[];
   }
 
   /**
