@@ -41,7 +41,7 @@ export class ConfigurationService {
    */
   async getCompleteConfiguration(
     clerkshipId: string
-  ): ServiceResult<CompleteClerkshipConfiguration | null> {
+  ): Promise<ServiceResult<CompleteClerkshipConfiguration | null>> {
     try {
       // Get clerkship
       const clerkship = await this.db
@@ -222,7 +222,7 @@ export class ConfigurationService {
    */
   async validateConfiguration(
     clerkshipId: string
-  ): ServiceResult<{ valid: boolean; errors: string[] }> {
+  ): Promise<ServiceResult<{ valid: boolean; errors: string[] }>> {
     const errors: string[] = [];
 
     try {
@@ -290,7 +290,7 @@ export class ConfigurationService {
   async cloneConfiguration(
     sourceClerkshipId: string,
     targetClerkshipId: string
-  ): ServiceResult<boolean> {
+  ): Promise<ServiceResult<boolean>> {
     try {
       // Verify both clerkships exist
       const sourceClerkship = await this.db
@@ -385,7 +385,7 @@ export class ConfigurationService {
   /**
    * Delete entire configuration for a clerkship
    */
-  async deleteConfiguration(clerkshipId: string): ServiceResult<boolean> {
+  async deleteConfiguration(clerkshipId: string): Promise<ServiceResult<boolean>> {
     try {
       // Check for active assignments (would need assignments table)
       // For now, just delete
