@@ -9,8 +9,11 @@ import {
 	PreceptorCapacityConstraint,
 	PreceptorAvailabilityConstraint,
 	BlackoutDateConstraint,
-	SpecialtyMatchConstraint,
+	SpecialtyMatchConstraint
 } from '$lib/features/scheduling';
+import { ConstraintFactory } from '$lib/features/scheduling/services/constraint-factory';
+import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
+import type { OptionalContextData } from '$lib/features/scheduling/services/context-builder';
 import { ZodError } from 'zod';
 
 /**
@@ -48,39 +51,83 @@ export const POST: RequestHandler = async ({ request }) => {
 		const validatedData = generateScheduleSchema.parse(body);
 
 		// Fetch all required data from database
-		const [students, preceptors, clerkships, blackoutDates, availabilityRecords] =
-			await Promise.all([
-				// Get all students
-				db.selectFrom('students').selectAll().execute(),
+		const [
+			students,
+			preceptors,
+			clerkships,
+			blackoutDates,
+			availabilityRecords,
+			healthSystems,
+			teams,
+			studentOnboarding,
+			preceptorClerkships,
+			preceptorElectives
+		] = await Promise.all([
+			// Required data
+			db.selectFrom('students').selectAll().execute(),
+			db.selectFrom('preceptors').selectAll().execute(),
+			db.selectFrom('clerkships').selectAll().execute(),
+			db
+				.selectFrom('blackout_dates')
+				.select('date')
+				.execute()
+				.then((rows) => rows.map((r) => r.date)),
+			db.selectFrom('preceptor_availability').selectAll().execute(),
 
-				// Get all preceptors
-				db.selectFrom('preceptors').selectAll().execute(),
-
-				// Get all clerkships
-				db.selectFrom('clerkships').selectAll().execute(),
-
-				// Get all blackout dates
-				db
-					.selectFrom('blackout_dates')
-					.select('date')
-					.execute()
-					.then((rows) => rows.map((r) => r.date)),
-
-				// Get all preceptor availability
-				db
-					.selectFrom('preceptor_availability')
-					.selectAll()
-					.execute(),
-			]);
-
-		// Create scheduling engine with all constraints
-		const engine = new SchedulingEngine([
-			new NoDoubleBookingConstraint(),
-			new PreceptorCapacityConstraint(),
-			new PreceptorAvailabilityConstraint(),
-			new BlackoutDateConstraint(),
-			new SpecialtyMatchConstraint(),
+			// Optional data for enhanced constraints
+			db.selectFrom('health_systems').selectAll().execute(),
+			db.selectFrom('teams').selectAll().execute(),
+			db
+				.selectFrom('student_health_system_onboarding')
+				.select(['student_id', 'health_system_id', 'is_completed'])
+				.execute(),
+			db
+				.selectFrom('preceptor_clerkships')
+				.select(['preceptor_id', 'clerkship_id'])
+				.execute(),
+			db
+				.selectFrom('preceptor_electives')
+				.select(['preceptor_id', 'elective_requirement_id'])
+				.execute()
 		]);
+
+		// Build optional context data
+		const optionalData: OptionalContextData = {
+			healthSystems,
+			teams,
+			studentOnboarding,
+			preceptorClerkships,
+			preceptorElectives
+		};
+
+		// Build scheduling context with optional data
+		const context = buildSchedulingContext(
+			students,
+			preceptors,
+			clerkships,
+			blackoutDates,
+			availabilityRecords,
+			validatedData.startDate,
+			validatedData.endDate,
+			optionalData
+		);
+
+		// Get clerkship IDs for constraint factory
+		const clerkshipIds = clerkships.map((c) => c.id!);
+
+		// Build constraints using factory
+		const constraintFactory = new ConstraintFactory(db);
+		const factoryConstraints = await constraintFactory.buildConstraints(clerkshipIds, context);
+
+		// Add legacy constraints that aren't yet in the factory
+		const allConstraints = [
+			...factoryConstraints,
+			new PreceptorCapacityConstraint(),
+			new PreceptorAvailabilityConstraint()
+		];
+
+		// Create scheduling engine with constraints
+		const engine = new SchedulingEngine(allConstraints);
 
 		// Generate schedule
 		const result = await engine.generateSchedule(

@@ -4,9 +4,32 @@ import type {
 	Preceptors,
 	Clerkships,
 	PreceptorAvailability,
+	HealthSystems,
+	Teams
 } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
 import { initializeStudentRequirements } from './requirement-tracker';
+
+/**
+ * Optional data for building enhanced scheduling context
+ */
+export interface OptionalContextData {
+	healthSystems?: Selectable<HealthSystems>[];
+	teams?: Selectable<Teams>[];
+	studentOnboarding?: Array<{
+		student_id: string;
+		health_system_id: string;
+		is_completed: number;
+	}>;
+	preceptorClerkships?: Array<{
+		preceptor_id: string;
+		clerkship_id: string;
+	}>;
+	preceptorElectives?: Array<{
+		preceptor_id: string;
+		elective_requirement_id: string;
+	}>;
+}
 
 /**
  * Build the scheduling context from database data
@@ -20,6 +43,7 @@ import { initializeStudentRequirements } from './requirement-tracker';
  * @param preceptorAvailabilityRecords - Availability records from database
  * @param startDate - Academic year start
  * @param endDate - Academic year end
+ * @param optionalData - Optional data for enhanced constraints (health systems, teams, onboarding, associations)
  * @returns Fully initialized scheduling context
  */
 export function buildSchedulingContext(
@@ -29,7 +53,8 @@ export function buildSchedulingContext(
 	blackoutDates: string[],
 	preceptorAvailabilityRecords: Selectable<PreceptorAvailability>[],
 	startDate: string,
-	endDate: string
+	endDate: string,
+	optionalData?: OptionalContextData
 ): SchedulingContext {
 	// Convert blackout dates array to Set for O(1) lookup
 	const blackoutDatesSet = new Set(blackoutDates);
@@ -57,7 +82,8 @@ export function buildSchedulingContext(
 	const assignmentsByStudent = new Map<string, any[]>();
 	const assignmentsByPreceptor = new Map<string, any[]>();
 
-	return {
+	// Build context with base data
+	const context: SchedulingContext = {
 		students,
 		preceptors,
 		clerkships,
@@ -69,6 +95,61 @@ export function buildSchedulingContext(
 		studentRequirements,
 		assignmentsByDate,
 		assignmentsByStudent,
-		assignmentsByPreceptor,
+		assignmentsByPreceptor
 	};
+
+	// Add optional data if provided
+	if (optionalData) {
+		// Add health systems
+		if (optionalData.healthSystems) {
+			context.healthSystems = optionalData.healthSystems;
+		}
+
+		// Add teams
+		if (optionalData.teams) {
+			context.teams = optionalData.teams;
+		}
+
+		// Build student onboarding map
+		if (optionalData.studentOnboarding) {
+			const studentOnboarding = new Map<string, Set<string>>();
+			for (const record of optionalData.studentOnboarding) {
+				if (record.is_completed === 1) {
+					if (!studentOnboarding.has(record.student_id)) {
+						studentOnboarding.set(record.student_id, new Set());
+					}
+					studentOnboarding.get(record.student_id)!.add(record.health_system_id);
+				}
+			}
+			context.studentOnboarding = studentOnboarding;
+		}
+
+		// Build preceptor-clerkship associations map
+		if (optionalData.preceptorClerkships) {
+			const preceptorClerkshipAssociations = new Map<string, Set<string>>();
+			for (const record of optionalData.preceptorClerkships) {
+				if (!preceptorClerkshipAssociations.has(record.preceptor_id)) {
+					preceptorClerkshipAssociations.set(record.preceptor_id, new Set());
+				}
+				preceptorClerkshipAssociations.get(record.preceptor_id)!.add(record.clerkship_id);
+			}
+			context.preceptorClerkshipAssociations = preceptorClerkshipAssociations;
+		}
+
+		// Build preceptor-elective associations map
+		if (optionalData.preceptorElectives) {
+			const preceptorElectiveAssociations = new Map<string, Set<string>>();
+			for (const record of optionalData.preceptorElectives) {
+				if (!preceptorElectiveAssociations.has(record.preceptor_id)) {
+					preceptorElectiveAssociations.set(record.preceptor_id, new Set());
+				}
+				preceptorElectiveAssociations
+					.get(record.preceptor_id)!
+					.add(record.elective_requirement_id);
+			}
+			context.preceptorElectiveAssociations = preceptorElectiveAssociations;
+		}
+	}
+
+	return context;
 }
