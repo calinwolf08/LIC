@@ -10,6 +10,8 @@
 		requirement_type: 'inpatient' | 'outpatient' | 'elective';
 		required_days: number;
 		allow_cross_system: number;
+		require_same_site: number;
+		require_same_preceptor_team: number;
 		override_mode: 'inherit' | 'override_fields' | 'override_section';
 	}
 
@@ -52,6 +54,42 @@
 			if (!response.ok) throw new Error('Failed to update requirement');
 
 			// Reload requirements
+			await loadRequirements();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to update';
+		}
+	}
+
+	async function toggleSameSite(requirement: Requirement) {
+		try {
+			const response = await fetch(`/api/requirements/${requirement.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					require_same_site: requirement.require_same_site === 1 ? 0 : 1
+				})
+			});
+
+			if (!response.ok) throw new Error('Failed to update requirement');
+
+			await loadRequirements();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to update';
+		}
+	}
+
+	async function toggleSamePreceptorTeam(requirement: Requirement) {
+		try {
+			const response = await fetch(`/api/requirements/${requirement.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					require_same_preceptor_team: requirement.require_same_preceptor_team === 1 ? 0 : 1
+				})
+			});
+
+			if (!response.ok) throw new Error('Failed to update requirement');
+
 			await loadRequirements();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update';
@@ -156,31 +194,87 @@
 								<Badge variant="outline">{formatMode(requirement.override_mode)}</Badge>
 							</div>
 
-							<div class="flex items-center gap-4">
-								<div class="flex items-center gap-2">
-									<input
-										type="checkbox"
-										id={`cross-system-${requirement.id}`}
-										checked={requirement.allow_cross_system === 1}
-										onchange={() => toggleCrossSystem(requirement)}
-										class="h-4 w-4 rounded border-gray-300"
-									/>
-									<label
-										for={`cross-system-${requirement.id}`}
-										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-									>
-										Allow Cross-System Assignments
-									</label>
+							<div class="space-y-3">
+								<div class="flex items-center gap-4">
+									<div class="flex items-center gap-2">
+										<input
+											type="checkbox"
+											id={`cross-system-${requirement.id}`}
+											checked={requirement.allow_cross_system === 1}
+											onchange={() => toggleCrossSystem(requirement)}
+											class="h-4 w-4 rounded border-gray-300"
+										/>
+										<label
+											for={`cross-system-${requirement.id}`}
+											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+										>
+											Allow Cross-System Assignments
+										</label>
+									</div>
+									{#if requirement.allow_cross_system === 1}
+										<span class="text-xs text-muted-foreground">
+											Students can be assigned across different health systems
+										</span>
+									{:else}
+										<span class="text-xs text-muted-foreground">
+											Students must stay within same health system
+										</span>
+									{/if}
 								</div>
-								{#if requirement.allow_cross_system === 1}
-									<span class="text-xs text-muted-foreground">
-										Students can be assigned across different health systems
-									</span>
-								{:else}
-									<span class="text-xs text-muted-foreground">
-										Students must stay within same health system
-									</span>
-								{/if}
+
+								<div class="flex items-center gap-4">
+									<div class="flex items-center gap-2">
+										<input
+											type="checkbox"
+											id={`same-site-${requirement.id}`}
+											checked={requirement.require_same_site === 1}
+											onchange={() => toggleSameSite(requirement)}
+											class="h-4 w-4 rounded border-gray-300"
+										/>
+										<label
+											for={`same-site-${requirement.id}`}
+											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+										>
+											Require Same Site
+										</label>
+									</div>
+									{#if requirement.require_same_site === 1}
+										<span class="text-xs text-muted-foreground">
+											Students must complete entire requirement at the same site
+										</span>
+									{:else}
+										<span class="text-xs text-muted-foreground">
+											Students can rotate between different sites
+										</span>
+									{/if}
+								</div>
+
+								<div class="flex items-center gap-4">
+									<div class="flex items-center gap-2">
+										<input
+											type="checkbox"
+											id={`same-team-${requirement.id}`}
+											checked={requirement.require_same_preceptor_team === 1}
+											onchange={() => toggleSamePreceptorTeam(requirement)}
+											class="h-4 w-4 rounded border-gray-300"
+										/>
+										<label
+											for={`same-team-${requirement.id}`}
+											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+										>
+											Require Same Preceptor Team
+										</label>
+									</div>
+									{#if requirement.require_same_preceptor_team === 1}
+										<span class="text-xs text-muted-foreground">
+											Students must work with preceptors from the same team
+										</span>
+									{:else}
+										<span class="text-xs text-muted-foreground">
+											Students can work with preceptors from different teams
+										</span>
+									{/if}
+								</div>
 							</div>
 						</div>
 
