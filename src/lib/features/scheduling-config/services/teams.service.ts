@@ -458,6 +458,7 @@ export class TeamService {
       requireSameSite: Boolean(row.require_same_site),
       requireSameSpecialty: Boolean(row.require_same_specialty),
       requiresAdminApproval: Boolean(row.requires_admin_approval),
+      members: [], // Will be populated by caller
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };
