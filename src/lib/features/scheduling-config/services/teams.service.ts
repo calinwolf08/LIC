@@ -88,7 +88,7 @@ export class TeamService {
             .insertInto('preceptor_team_members')
             .values({
               id: nanoid(),
-              team_id: team.id,
+              team_id: team.id!,
               preceptor_id: memberInput.preceptorId,
               role: memberInput.role ?? null,
               priority: memberInput.priority,
@@ -279,7 +279,7 @@ export class TeamService {
   async addTeamMember(
     teamId: string,
     memberInput: PreceptorTeamMemberInput
-  ): ServiceResult<PreceptorTeamMember> {
+  ): Promise<ServiceResult<PreceptorTeamMember>> {
     // Validate input
     const validation = preceptorTeamMemberInputSchema.safeParse(memberInput);
     if (!validation.success) {
@@ -412,7 +412,8 @@ export class TeamService {
       // Check same health system if required
       if (input.requireSameHealthSystem) {
         const healthSystems = new Set(preceptors.map(p => p.health_system_id));
-        if (healthSystems.size > 1 || healthSystems.has(null)) {
+        const hasNull = preceptors.some(p => p.health_system_id === null);
+        if (healthSystems.size > 1 || hasNull) {
           return Result.failure(
             ServiceErrors.conflict('All team members must be in the same health system')
           );
