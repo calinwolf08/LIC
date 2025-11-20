@@ -27,7 +27,7 @@ export class CapacityRuleService {
   /**
    * Create a new capacity rule
    */
-  async createCapacityRule(input: PreceptorCapacityRuleInput): ServiceResult<PreceptorCapacityRule> {
+  async createCapacityRule(input: PreceptorCapacityRuleInput): Promise<ServiceResult<PreceptorCapacityRule>> {
     // Validate input
     const validation = preceptorCapacityRuleInputSchema.safeParse(input);
     if (!validation.success) {
@@ -87,7 +87,7 @@ export class CapacityRuleService {
   /**
    * Get capacity rule by ID
    */
-  async getCapacityRule(id: string): ServiceResult<PreceptorCapacityRule | null> {
+  async getCapacityRule(id: string): Promise<ServiceResult<PreceptorCapacityRule | null>> {
     try {
       const rule = await this.db
         .selectFrom('preceptor_capacity_rules')
@@ -108,7 +108,7 @@ export class CapacityRuleService {
   /**
    * Get all capacity rules for a preceptor
    */
-  async getCapacityRulesByPreceptor(preceptorId: string): ServiceResult<PreceptorCapacityRule[]> {
+  async getCapacityRulesByPreceptor(preceptorId: string): Promise<ServiceResult<PreceptorCapacityRule[]>> {
     try {
       const rules = await this.db
         .selectFrom('preceptor_capacity_rules')
@@ -135,7 +135,7 @@ export class CapacityRuleService {
     preceptorId: string,
     clerkshipId?: string,
     requirementType?: 'outpatient' | 'inpatient' | 'elective'
-  ): ServiceResult<PreceptorCapacityRule | null> {
+  ): Promise<ServiceResult<PreceptorCapacityRule | null>> {
     try {
       // Try most specific first
       if (clerkshipId && requirementType) {
@@ -207,7 +207,7 @@ export class CapacityRuleService {
   async updateCapacityRule(
     id: string,
     input: Partial<PreceptorCapacityRuleInput>
-  ): ServiceResult<PreceptorCapacityRule> {
+  ): Promise<ServiceResult<PreceptorCapacityRule>> {
     try {
       // Check if exists
       const existing = await this.db
@@ -272,7 +272,7 @@ export class CapacityRuleService {
   /**
    * Delete capacity rule
    */
-  async deleteCapacityRule(id: string): ServiceResult<boolean> {
+  async deleteCapacityRule(id: string): Promise<ServiceResult<boolean>> {
     try {
       const result = await this.db.deleteFrom('preceptor_capacity_rules').where('id', '=', id).execute();
 
@@ -295,7 +295,7 @@ export class CapacityRuleService {
     preceptorId: string,
     clerkshipId?: string,
     requirementType?: 'outpatient' | 'inpatient' | 'elective'
-  ): ServiceResult<{ hasCapacity: boolean; rule: PreceptorCapacityRule | null }> {
+  ): Promise<ServiceResult<{ hasCapacity: boolean; rule: PreceptorCapacityRule | null }>> {
     const ruleResult = await this.getEffectiveCapacityRule(preceptorId, clerkshipId, requirementType);
 
     if (!ruleResult.success) {
