@@ -61,7 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			teams,
 			studentOnboarding,
 			preceptorClerkships,
-			preceptorElectives
+			siteElectives
 		] = await Promise.all([
 			// Required data
 			db.selectFrom('students').selectAll().execute(),
@@ -97,7 +97,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			teams,
 			studentOnboarding,
 			preceptorClerkships,
-			preceptorElectives
+			siteElectives
 		};
 
 		// Build scheduling context with optional data
