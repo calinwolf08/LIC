@@ -3,6 +3,8 @@ import type {
 	Students,
 	Preceptors,
 	Clerkships,
+	HealthSystems,
+	Teams
 } from '$lib/db/types';
 import type { Assignment } from './assignment';
 
@@ -27,6 +29,16 @@ export interface SchedulingContext {
 	 * All clerkship types with requirements
 	 */
 	clerkships: Selectable<Clerkships>[];
+
+	/**
+	 * All health systems (optional, for health system continuity constraints)
+	 */
+	healthSystems?: Selectable<HealthSystems>[];
+
+	/**
+	 * All teams (optional, for team assignment constraints)
+	 */
+	teams?: Selectable<Teams>[];
 
 	/**
 	 * System-wide blackout dates (no scheduling allowed)
@@ -66,6 +78,27 @@ export interface SchedulingContext {
 	 * Map: studentId -> Map(clerkshipId -> days still needed)
 	 */
 	studentRequirements: Map<string, Map<string, number>>;
+
+	/**
+	 * Student health system onboarding completion (optional)
+	 * Map: studentId -> Set of health system IDs where onboarding is complete
+	 * Used by StudentOnboardingConstraint to enforce onboarding requirements
+	 */
+	studentOnboarding?: Map<string, Set<string>>;
+
+	/**
+	 * Preceptor-clerkship associations (optional)
+	 * Map: preceptorId -> Set of clerkship IDs they can teach
+	 * Used by PreceptorClerkshipAssociationConstraint
+	 */
+	preceptorClerkshipAssociations?: Map<string, Set<string>>;
+
+	/**
+	 * Preceptor-elective associations (optional)
+	 * Map: preceptorId -> Set of elective requirement IDs they can teach
+	 * Used by PreceptorClerkshipAssociationConstraint for electives
+	 */
+	preceptorElectiveAssociations?: Map<string, Set<string>>;
 
 	// ===== Tracking Current State (updated during scheduling) =====
 
