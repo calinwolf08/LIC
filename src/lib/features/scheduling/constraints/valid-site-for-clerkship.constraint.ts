@@ -53,8 +53,9 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		}
 
 		const siteElectives = context.siteElectiveAssociations.get(preceptor.site_id);
-		const isValid =
-			siteElectives && Array.from(siteElectives).some((req) => req === assignment.clerkshipId);
+		const isValid = !!(
+			siteElectives && Array.from(siteElectives).some((req) => req === assignment.clerkshipId)
+		);
 
 		if (!isValid) {
 			const student = context.students.find((s) => s.id === assignment.studentId);
@@ -91,7 +92,7 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 			// Fallback to checking if site is valid for clerkship
 			if (context.clerkshipSites) {
 				const clerkshipSites = context.clerkshipSites.get(assignment.clerkshipId);
-				const isValid = clerkshipSites && clerkshipSites.has(preceptor.site_id);
+				const isValid = !!(clerkshipSites && clerkshipSites.has(preceptor.site_id));
 
 				if (!isValid) {
 					this.recordViolation(assignment, context, preceptor, violationTracker);
@@ -113,7 +114,7 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		}
 
 		const siteClerkships = preceptorAssociations.get(preceptor.site_id);
-		const isValid = siteClerkships && siteClerkships.has(assignment.clerkshipId);
+		const isValid = !!(siteClerkships && siteClerkships.has(assignment.clerkshipId));
 
 		if (!isValid) {
 			this.recordViolation(assignment, context, preceptor, violationTracker);
