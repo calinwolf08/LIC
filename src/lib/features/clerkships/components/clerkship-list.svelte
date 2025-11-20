@@ -82,6 +82,7 @@
 							{/if}
 						</div>
 					</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Type</th>
 					<th
 						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
 						onclick={() => handleSort('required_days')}
@@ -103,13 +104,13 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="7" class="px-4 py-8 text-center text-muted-foreground">
 							Loading...
 						</td>
 					</tr>
 				{:else if sortedClerkships().length === 0}
 					<tr>
-						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="7" class="px-4 py-8 text-center text-muted-foreground">
 							No clerkships found
 						</td>
 					</tr>
@@ -125,20 +126,17 @@
 								{/if}
 							</td>
 							<td class="px-4 py-3 text-sm">
+								<span
+									class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium {clerkship.clerkship_type ===
+									'inpatient'
+										? 'bg-blue-100 text-blue-700'
+										: 'bg-green-100 text-green-700'}"
+								>
+									{clerkship.clerkship_type === 'inpatient' ? 'Inpatient' : 'Outpatient'}
+								</span>
+							</td>
+							<td class="px-4 py-3 text-sm">
 								{clerkship.required_days}
-								{#if clerkship.inpatient_days || clerkship.outpatient_days}
-									<div class="text-xs text-muted-foreground mt-1">
-										{#if clerkship.inpatient_days}
-											{clerkship.inpatient_days} inpatient
-										{/if}
-										{#if clerkship.inpatient_days && clerkship.outpatient_days}
-											·
-										{/if}
-										{#if clerkship.outpatient_days}
-											{clerkship.outpatient_days} outpatient
-										{/if}
-									</div>
-								{/if}
 							</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
 								{truncate(clerkship.description)}

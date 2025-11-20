@@ -81,11 +81,6 @@ export async function createClerkship(
 		throw new ConflictError('Clerkship name already exists');
 	}
 
-	// Calculate total required days from inpatient + outpatient
-	const inpatientDays = data.inpatient_days ?? 0;
-	const outpatientDays = data.outpatient_days ?? 0;
-	const totalDays = inpatientDays + outpatientDays;
-
 	const timestamp = new Date().toISOString();
 	const clerkshipId = crypto.randomUUID();
 
@@ -93,9 +88,8 @@ export async function createClerkship(
 		id: clerkshipId,
 		name: data.name,
 		specialty: data.specialty || null,
-		inpatient_days: inpatientDays > 0 ? inpatientDays : null,
-		outpatient_days: outpatientDays > 0 ? outpatientDays : null,
-		required_days: totalDays,
+		clerkship_type: data.clerkship_type,
+		required_days: data.required_days,
 		description: data.description || null,
 		created_at: timestamp,
 		updated_at: timestamp
@@ -120,51 +114,6 @@ export async function createClerkship(
 				updated_at: timestamp
 			})
 			.execute();
-
-		// 3. Fetch global defaults for auto-creating requirements
-		const [outpatientDefaults, inpatientDefaults] = await Promise.all([
-			trx
-				.selectFrom('global_outpatient_defaults')
-				.selectAll()
-				.where('school_id', '=', 'default')
-				.executeTakeFirst(),
-			trx
-				.selectFrom('global_inpatient_defaults')
-				.selectAll()
-				.where('school_id', '=', 'default')
-				.executeTakeFirst()
-		]);
-
-		// 4. Create clerkship_requirements based on inpatient/outpatient days
-		if (inpatientDays > 0 && inpatientDefaults) {
-			await trx
-				.insertInto('clerkship_requirements')
-				.values({
-					id: nanoid(),
-					clerkship_id: clerkshipId,
-					requirement_type: 'inpatient',
-					required_days: inpatientDays,
-					override_mode: 'inherit', // Inherit from global defaults
-					created_at: timestamp,
-					updated_at: timestamp
-				})
-				.execute();
-		}
-
-		if (outpatientDays > 0 && outpatientDefaults) {
-			await trx
-				.insertInto('clerkship_requirements')
-				.values({
-					id: nanoid(),
-					clerkship_id: clerkshipId,
-					requirement_type: 'outpatient',
-					required_days: outpatientDays,
-					override_mode: 'inherit', // Inherit from global defaults
-					created_at: timestamp,
-					updated_at: timestamp
-				})
-				.execute();
-		}
 
 		return inserted;
 	});
@@ -194,18 +143,10 @@ export async function updateClerkship(
 		}
 	}
 
-	// Recalculate required_days if inpatient_days or outpatient_days changed
-	let updatedData: any = { ...data };
-	if (data.inpatient_days !== undefined || data.outpatient_days !== undefined) {
-		const newInpatient = data.inpatient_days ?? existing.inpatient_days ?? 0;
-		const newOutpatient = data.outpatient_days ?? existing.outpatient_days ?? 0;
-		updatedData.required_days = newInpatient + newOutpatient;
-	}
-
 	const updated = await db
 		.updateTable('clerkships')
 		.set({
-			...updatedData,
+			...data,
 			updated_at: new Date().toISOString()
 		})
 		.where('id', '=', id)

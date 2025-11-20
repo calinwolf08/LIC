@@ -18,8 +18,8 @@
 	let formData = $state({
 		name: clerkship?.name || '',
 		specialty: clerkship?.specialty || '',
-		inpatient_days: clerkship?.inpatient_days || 0,
-		outpatient_days: clerkship?.outpatient_days || 0,
+		clerkship_type: (clerkship?.clerkship_type as 'inpatient' | 'outpatient') || 'inpatient',
+		required_days: clerkship?.required_days || 0,
 		description: clerkship?.description || ''
 	});
 
@@ -126,43 +126,51 @@
 				{/if}
 			</div>
 
-			<div class="grid grid-cols-2 gap-4">
-				<div class="space-y-2">
-					<Label for="inpatient_days">Inpatient Days</Label>
-					<Input
-						id="inpatient_days"
-						type="number"
-						bind:value={formData.inpatient_days}
-						min="0"
-						disabled={isSubmitting}
-						class={errors.inpatient_days ? 'border-destructive' : ''}
-					/>
-					{#if errors.inpatient_days}
-						<p class="text-sm text-destructive">{errors.inpatient_days}</p>
-					{/if}
+			<div class="space-y-2">
+				<Label>Clerkship Type</Label>
+				<div class="flex gap-6">
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="radio"
+							name="clerkship_type"
+							value="inpatient"
+							bind:group={formData.clerkship_type}
+							disabled={isSubmitting}
+							class="h-4 w-4"
+						/>
+						<span>Inpatient</span>
+					</label>
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="radio"
+							name="clerkship_type"
+							value="outpatient"
+							bind:group={formData.clerkship_type}
+							disabled={isSubmitting}
+							class="h-4 w-4"
+						/>
+						<span>Outpatient</span>
+					</label>
 				</div>
-
-				<div class="space-y-2">
-					<Label for="outpatient_days">Outpatient Days</Label>
-					<Input
-						id="outpatient_days"
-						type="number"
-						bind:value={formData.outpatient_days}
-						min="0"
-						disabled={isSubmitting}
-						class={errors.outpatient_days ? 'border-destructive' : ''}
-					/>
-					{#if errors.outpatient_days}
-						<p class="text-sm text-destructive">{errors.outpatient_days}</p>
-					{/if}
-				</div>
+				{#if errors.clerkship_type}
+					<p class="text-sm text-destructive">{errors.clerkship_type}</p>
+				{/if}
 			</div>
 
-			{#if formData.inpatient_days > 0 || formData.outpatient_days > 0}
-				<p class="text-sm text-muted-foreground">
-					Total: {formData.inpatient_days + formData.outpatient_days} days
-				</p>
-			{/if}
+			<div class="space-y-2">
+				<Label for="required_days">Required Days</Label>
+				<Input
+					id="required_days"
+					type="number"
+					bind:value={formData.required_days}
+					min="1"
+					disabled={isSubmitting}
+					class={errors.required_days ? 'border-destructive' : ''}
+				/>
+				{#if errors.required_days}
+					<p class="text-sm text-destructive">{errors.required_days}</p>
+				{/if}
+			</div>
 
 			<div class="space-y-2">
 				<Label for="description">Description (optional)</Label>
