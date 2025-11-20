@@ -217,8 +217,9 @@ export class TeamValidator {
       .execute();
 
     const healthSystems = new Set(preceptors.map(p => p.health_system_id));
+    const hasNull = preceptors.some(p => p.health_system_id === null);
 
-    if (healthSystems.size > 1 || healthSystems.has(null)) {
+    if (healthSystems.size > 1 || hasNull) {
       errors.push({
         field: 'healthSystem',
         message: 'All team members must belong to the same health system',
