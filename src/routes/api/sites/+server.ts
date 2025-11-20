@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { siteService } from '$lib/features/sites/services/site-service';
 import { createSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
-import { ConflictError, NotFoundError } from '$lib/errors';
+import { ConflictError, NotFoundError } from '$lib/api/errors';
 import type { RequestHandler } from './$types';
 
 /**
