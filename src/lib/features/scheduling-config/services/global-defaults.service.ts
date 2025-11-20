@@ -34,7 +34,7 @@ export class GlobalDefaultsService {
 	 * Get global outpatient defaults for a school
 	 * @param schoolId - School ID (defaults to 'default')
 	 */
-	async getOutpatientDefaults(schoolId: string = 'default'): ServiceResult<GlobalOutpatientDefaults | null> {
+	async getOutpatientDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalOutpatientDefaults | null>> {
 		try {
 			const record = await this.db
 				.selectFrom('global_outpatient_defaults')
@@ -60,7 +60,7 @@ export class GlobalDefaultsService {
 	async updateOutpatientDefaults(
 		schoolId: string = 'default',
 		input: GlobalOutpatientDefaultsInput
-	): ServiceResult<GlobalOutpatientDefaults> {
+	): Promise<ServiceResult<GlobalOutpatientDefaults>> {
 		try {
 			const updated = await this.db
 				.updateTable('global_outpatient_defaults')
@@ -100,7 +100,7 @@ export class GlobalDefaultsService {
 	/**
 	 * Get global inpatient defaults for a school
 	 */
-	async getInpatientDefaults(schoolId: string = 'default'): ServiceResult<GlobalInpatientDefaults | null> {
+	async getInpatientDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalInpatientDefaults | null>> {
 		try {
 			const record = await this.db
 				.selectFrom('global_inpatient_defaults')
@@ -126,7 +126,7 @@ export class GlobalDefaultsService {
 	async updateInpatientDefaults(
 		schoolId: string = 'default',
 		input: GlobalInpatientDefaultsInput
-	): ServiceResult<GlobalInpatientDefaults> {
+	): Promise<ServiceResult<GlobalInpatientDefaults>> {
 		try {
 			const updated = await this.db
 				.updateTable('global_inpatient_defaults')
@@ -171,7 +171,7 @@ export class GlobalDefaultsService {
 	/**
 	 * Get global elective defaults for a school
 	 */
-	async getElectiveDefaults(schoolId: string = 'default'): ServiceResult<GlobalElectiveDefaults | null> {
+	async getElectiveDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalElectiveDefaults | null>> {
 		try {
 			const record = await this.db
 				.selectFrom('global_elective_defaults')
@@ -197,7 +197,7 @@ export class GlobalDefaultsService {
 	async updateElectiveDefaults(
 		schoolId: string = 'default',
 		input: GlobalElectiveDefaultsInput
-	): ServiceResult<GlobalElectiveDefaults> {
+	): Promise<ServiceResult<GlobalElectiveDefaults>> {
 		try {
 			const updated = await this.db
 				.updateTable('global_elective_defaults')
