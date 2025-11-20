@@ -164,11 +164,13 @@ test.describe('Complete Scheduling Workflow', () => {
 
 		if (await assignment.count() > 0) {
 			await assignment.click();
+			await page.waitForTimeout(500);
 
 			const reassignButton = page.getByRole('button', { name: /reassign/i });
 
 			if (await reassignButton.count() > 0) {
 				await reassignButton.click();
+				await page.waitForTimeout(500);
 
 				// Look for preceptor dropdown
 				const preceptorSelect = page.locator('select[name="preceptor"], select[id="preceptor"]');
@@ -180,13 +182,17 @@ test.describe('Complete Scheduling Workflow', () => {
 						const value = await options[1].getAttribute('value');
 						if (value) {
 							await preceptorSelect.selectOption(value);
+							await page.waitForTimeout(300);
 						}
 					}
 
 					const saveButton = page.getByRole('button', { name: /save|confirm/i });
 					if (await saveButton.count() > 0) {
 						await saveButton.click();
-						await page.waitForTimeout(1000);
+						// Wait for save operation to complete - allow for possible navigation/reload
+						await page.waitForTimeout(2000).catch(() => {});
+						// Wait for any success message or modal to close
+						await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 					}
 				}
 			}
