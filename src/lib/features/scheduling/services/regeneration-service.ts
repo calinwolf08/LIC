@@ -421,8 +421,8 @@ export async function analyzeRegenerationImpact(
 	}
 
 	// Build student progress array
-	for (const [studentId, clerkshipsMap] of progressMap) {
-		for (const [clerkshipId, completedDays] of clerkshipsMap) {
+	for (const [studentId, clerkshipsMap] of Array.from(progressMap.entries())) {
+		for (const [clerkshipId, completedDays] of Array.from(clerkshipsMap.entries())) {
 			const totalRequired =
 				context.clerkships.find((c) => c.id === clerkshipId)?.required_days || 0;
 			studentProgress.push({
