@@ -163,14 +163,20 @@ function createMockClerkship(overrides: any = {}) {
 
 /**
  * Helper to create mock assignment
+ * Default date is 7 days in the future to avoid date protection issues
  */
 function createMockAssignment(overrides: any = {}) {
+	// Default to a future date (7 days from now)
+	const futureDate = new Date();
+	futureDate.setDate(futureDate.getDate() + 7);
+	const defaultDate = futureDate.toISOString().split('T')[0];
+
 	return {
 		id: crypto.randomUUID(),
 		student_id: crypto.randomUUID(),
 		preceptor_id: crypto.randomUUID(),
 		clerkship_id: crypto.randomUUID(),
-		date: '2024-01-15',
+		date: defaultDate,
 		status: 'scheduled',
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
