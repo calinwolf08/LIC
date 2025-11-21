@@ -695,17 +695,25 @@ describe('Assignment Service', () => {
 			await db.insertInto('preceptors').values(preceptor).execute();
 			await db.insertInto('clerkships').values(clerkship).execute();
 
+			// Use future dates
+			const futureDate1 = new Date();
+			futureDate1.setDate(futureDate1.getDate() + 10);
+			const futureDate2 = new Date();
+			futureDate2.setDate(futureDate2.getDate() + 11);
+
 			const assignment = createMockAssignment({
 				student_id: student.id,
 				preceptor_id: preceptor.id,
 				clerkship_id: clerkship.id,
-				date: '2024-01-15'
+				date: futureDate1.toISOString().split('T')[0]
 			});
 			await db.insertInto('schedule_assignments').values(assignment).execute();
 
-			const result = await updateAssignment(db, assignment.id, { date: '2024-01-16' });
+			const result = await updateAssignment(db, assignment.id, {
+				date: futureDate2.toISOString().split('T')[0]
+			});
 
-			expect(result.date).toBe('2024-01-16');
+			expect(result.date).toBe(futureDate2.toISOString().split('T')[0]);
 		});
 
 		it('throws NotFoundError when assignment does not exist', async () => {
@@ -754,11 +762,16 @@ describe('Assignment Service', () => {
 			await db.insertInto('preceptors').values(preceptor).execute();
 			await db.insertInto('clerkships').values(clerkship).execute();
 
+			// Use future date
+			const futureDate = new Date();
+			futureDate.setDate(futureDate.getDate() + 10);
+			const dateString = futureDate.toISOString().split('T')[0];
+
 			const assignment = createMockAssignment({
 				student_id: student.id,
 				preceptor_id: preceptor.id,
 				clerkship_id: clerkship.id,
-				date: '2024-01-15',
+				date: dateString,
 				status: 'scheduled'
 			});
 
@@ -766,12 +779,12 @@ describe('Assignment Service', () => {
 
 			// Update status while keeping same date - should succeed
 			const result = await updateAssignment(db, assignment.id, {
-				date: '2024-01-15',
+				date: dateString,
 				status: 'completed'
 			});
 
 			expect(result.status).toBe('completed');
-			expect(result.date).toBe('2024-01-15');
+			expect(result.date).toBe(dateString);
 		});
 	});
 
