@@ -15,8 +15,15 @@ import { ConstraintFactory } from '$lib/features/scheduling/services/constraint-
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
 import type { OptionalContextData } from '$lib/features/scheduling/services/context-builder';
 import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
-import { prepareRegenerationContext } from '$lib/features/scheduling/services/regeneration-service';
+import {
+	prepareRegenerationContext,
+	analyzeRegenerationImpact
+} from '$lib/features/scheduling/services/regeneration-service';
 import type { RegenerationStrategy } from '$lib/features/scheduling/services/regeneration-service';
+import {
+	logRegenerationEvent,
+	createRegenerationAuditLog
+} from '$lib/features/scheduling/services/audit-service';
 import { ZodError } from 'zod';
 
 /**
@@ -71,8 +78,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Get regeneration strategy
 		const strategy: RegenerationStrategy = validatedData.strategy || 'full-reoptimize';
 
-		// Clear future assignments (preserving past assignments before regenerateFromDate)
-		const deletedCount = await clearAllAssignments(db, regenerateFromDate);
+		// Check if this is a preview (dry-run) request
+		const isPreview = validatedData.preview || false;
 
 		// Fetch all required data from database
 		const [
@@ -136,6 +143,62 @@ export const POST: RequestHandler = async ({ request }) => {
 			optionalData
 		);
 
+		// If preview mode, analyze impact and return without making changes
+		if (isPreview) {
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				regenerateFromDate,
+				validatedData.endDate,
+				strategy
+			);
+
+			return successResponse({
+				preview: true,
+				impact: {
+					summary: impact.summary,
+					pastAssignments: {
+						count: impact.pastAssignmentsCount,
+						assignments: impact.pastAssignments.map((a) => ({
+							id: a.id,
+							studentId: a.student_id,
+							preceptorId: a.preceptor_id,
+							clerkshipId: a.clerkship_id,
+							date: a.date,
+							status: a.status
+						}))
+					},
+					futureAssignments: {
+						toDeleteCount: impact.deletedCount,
+						preservableCount: impact.preservedCount,
+						affectedCount: impact.affectedCount,
+						replaceableCount: impact.replaceableAssignments.filter((r) => r.replacementPreceptorId)
+							.length
+					},
+					studentProgress: impact.studentProgress,
+					affectedAssignments: impact.affectedAssignments.map((a) => ({
+						id: a.id,
+						studentId: a.student_id,
+						preceptorId: a.preceptor_id,
+						clerkshipId: a.clerkship_id,
+						date: a.date
+					})),
+					replaceableAssignments: impact.replaceableAssignments
+						.filter((r) => r.replacementPreceptorId)
+						.map((r) => ({
+							originalAssignmentId: r.original.id,
+							originalPreceptorId: r.original.preceptor_id,
+							replacementPreceptorId: r.replacementPreceptorId,
+							studentId: r.original.student_id,
+							date: r.original.date
+						}))
+				}
+			});
+		}
+
+		// Clear future assignments (preserving past assignments before regenerateFromDate)
+		const deletedCount = await clearAllAssignments(db, regenerateFromDate);
+
 		// Prepare context for regeneration (credit past assignments, apply strategy)
 		const regenerationResult = await prepareRegenerationContext(
 			db,
@@ -176,6 +239,26 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Return result (exclude violationTracker from response as it's not serializable)
 		const { violationTracker, ...serializable } = result;
+
+		// Log successful regeneration to audit trail
+		await logRegenerationEvent(
+			db,
+			createRegenerationAuditLog(
+				strategy,
+				regenerateFromDate,
+				validatedData.endDate,
+				regenerationResult.creditResult.totalPastAssignments,
+				deletedCount,
+				regenerationResult.preservedAssignments,
+				regenerationResult.affectedAssignments,
+				result.assignments.length,
+				true,
+				{
+					reason: 'api_request',
+					notes: `Generated ${result.assignments.length} assignments using ${strategy} strategy`
+				}
+			)
+		);
 
 		return successResponse(
 			{

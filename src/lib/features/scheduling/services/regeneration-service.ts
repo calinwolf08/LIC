@@ -344,3 +344,147 @@ export async function prepareRegenerationContext(
 		affectedAssignments
 	};
 }
+
+/**
+ * Result of impact analysis for regeneration preview
+ */
+export interface RegenerationImpact {
+	// Past assignments
+	pastAssignments: Selectable<ScheduleAssignments>[];
+	pastAssignmentsCount: number;
+
+	// Future assignments to be deleted
+	futureAssignmentsToDelete: Selectable<ScheduleAssignments>[];
+	deletedCount: number;
+
+	// Future assignments that can be preserved (minimal-change only)
+	preservableAssignments: Selectable<ScheduleAssignments>[];
+	preservedCount: number;
+
+	// Future assignments affected by unavailability (minimal-change only)
+	affectedAssignments: Selectable<ScheduleAssignments>[];
+	affectedCount: number;
+
+	// Assignments that can find replacements
+	replaceableAssignments: Array<{
+		original: Selectable<ScheduleAssignments>;
+		replacementPreceptorId: string | null;
+	}>;
+
+	// Students with past progress
+	studentProgress: Array<{
+		studentId: string;
+		clerkshipId: string;
+		completedDays: number;
+		remainingDays: number;
+	}>;
+
+	// Summary
+	summary: {
+		strategy: RegenerationStrategy;
+		regenerateFromDate: string;
+		totalAssignmentsImpacted: number;
+		willPreservePast: boolean;
+		willPreserveFuture: boolean;
+	};
+}
+
+/**
+ * Analyze the impact of schedule regeneration without making changes
+ * This is used for preview/dry-run mode
+ */
+export async function analyzeRegenerationImpact(
+	db: Kysely<DB>,
+	context: SchedulingContext,
+	regenerateFromDate: string,
+	endDate: string,
+	strategy: RegenerationStrategy
+): Promise<RegenerationImpact> {
+	// Get all existing assignments
+	const assignments = await getAssignmentsByDateRange(db, context.startDate, endDate);
+
+	// Separate past and future assignments
+	const pastAssignments = assignments.filter((a) => a.date < regenerateFromDate);
+	const futureAssignments = assignments.filter((a) => a.date >= regenerateFromDate);
+
+	// Calculate student progress from past assignments
+	const studentProgress: RegenerationImpact['studentProgress'] = [];
+	const progressMap = new Map<string, Map<string, number>>();
+
+	for (const assignment of pastAssignments) {
+		if (!progressMap.has(assignment.student_id)) {
+			progressMap.set(assignment.student_id, new Map());
+		}
+		const studentMap = progressMap.get(assignment.student_id)!;
+		const currentCount = studentMap.get(assignment.clerkship_id) || 0;
+		studentMap.set(assignment.clerkship_id, currentCount + 1);
+	}
+
+	// Build student progress array
+	for (const [studentId, clerkshipsMap] of progressMap) {
+		for (const [clerkshipId, completedDays] of clerkshipsMap) {
+			const totalRequired =
+				context.clerkships.find((c) => c.id === clerkshipId)?.required_days || 0;
+			studentProgress.push({
+				studentId,
+				clerkshipId,
+				completedDays,
+				remainingDays: Math.max(0, totalRequired - completedDays)
+			});
+		}
+	}
+
+	let preservableAssignments: Selectable<ScheduleAssignments>[] = [];
+	let affectedAssignments: Selectable<ScheduleAssignments>[] = [];
+	let replaceableAssignments: RegenerationImpact['replaceableAssignments'] = [];
+
+	// Strategy-specific analysis
+	if (strategy === 'minimal-change') {
+		const affected = await identifyAffectedAssignments(
+			db,
+			context,
+			regenerateFromDate,
+			endDate
+		);
+
+		preservableAssignments = affected.preservableAssignments;
+		affectedAssignments = affected.affectedAssignments;
+
+		// Check which affected assignments can find replacements
+		for (const assignment of affected.affectedAssignments) {
+			const replacementId = findReplacementPreceptor(
+				assignment,
+				context,
+				affected.unavailablePreceptorIds
+			);
+			replaceableAssignments.push({
+				original: assignment,
+				replacementPreceptorId: replacementId
+			});
+		}
+	}
+
+	// Calculate totals
+	const totalImpacted =
+		futureAssignments.length - (strategy === 'minimal-change' ? preservableAssignments.length : 0);
+
+	return {
+		pastAssignments,
+		pastAssignmentsCount: pastAssignments.length,
+		futureAssignmentsToDelete: futureAssignments,
+		deletedCount: futureAssignments.length,
+		preservableAssignments,
+		preservedCount: preservableAssignments.length,
+		affectedAssignments,
+		affectedCount: affectedAssignments.length,
+		replaceableAssignments,
+		studentProgress,
+		summary: {
+			strategy,
+			regenerateFromDate,
+			totalAssignmentsImpacted: totalImpacted,
+			willPreservePast: true,
+			willPreserveFuture: strategy === 'minimal-change' && preservableAssignments.length > 0
+		}
+	};
+}

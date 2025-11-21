@@ -30,6 +30,12 @@ export const generateScheduleSchema = z
 		strategy: z.enum(['full-reoptimize', 'minimal-change']).optional().default('full-reoptimize'),
 
 		/**
+		 * Optional: Preview mode (dry-run) - analyze impact without making changes
+		 * When true, returns impact analysis but doesn't save to database
+		 */
+		preview: z.boolean().optional().default(false),
+
+		/**
 		 * Optional: Constraint names to bypass (future feature)
 		 */
 		bypassedConstraints: z.array(z.string()).optional().default([])
