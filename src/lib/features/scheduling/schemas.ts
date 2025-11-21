@@ -23,6 +23,13 @@ export const generateScheduleSchema = z
 		regenerateFromDate: dateStringSchema.optional(),
 
 		/**
+		 * Optional: Regeneration strategy
+		 * - 'full-reoptimize' (default): Clear all future assignments and regenerate from scratch
+		 * - 'minimal-change': Preserve valid future assignments, only change what's necessary
+		 */
+		strategy: z.enum(['full-reoptimize', 'minimal-change']).optional().default('full-reoptimize'),
+
+		/**
 		 * Optional: Constraint names to bypass (future feature)
 		 */
 		bypassedConstraints: z.array(z.string()).optional().default([])

@@ -15,6 +15,8 @@ import { ConstraintFactory } from '$lib/features/scheduling/services/constraint-
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
 import type { OptionalContextData } from '$lib/features/scheduling/services/context-builder';
 import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
+import { prepareRegenerationContext } from '$lib/features/scheduling/services/regeneration-service';
+import type { RegenerationStrategy } from '$lib/features/scheduling/services/regeneration-service';
 import { ZodError } from 'zod';
 
 /**
@@ -27,6 +29,7 @@ import { ZodError } from 'zod';
  *   startDate: string (YYYY-MM-DD)
  *   endDate: string (YYYY-MM-DD)
  *   regenerateFromDate?: string (YYYY-MM-DD) - Optional: Only regenerate from this date forward
+ *   strategy?: 'full-reoptimize' | 'minimal-change' - Optional: Regeneration strategy (default: full-reoptimize)
  *   bypassedConstraints?: string[] (optional)
  * }
  *
@@ -44,7 +47,11 @@ import { ZodError } from 'zod';
  *       mostBlockingConstraints: string[]
  *     },
  *     regeneratedFrom?: string,
- *     preservedPastAssignments: boolean
+ *     strategy: string,
+ *     preservedPastAssignments: boolean,
+ *     preservedFutureAssignments: number,
+ *     deletedFutureAssignments: number,
+ *     totalPastAssignments: number
  *   }
  * }
  */
@@ -60,6 +67,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			today.setHours(0, 0, 0, 0);
 			return today.toISOString().split('T')[0];
 		})();
+
+		// Get regeneration strategy
+		const strategy: RegenerationStrategy = validatedData.strategy || 'full-reoptimize';
 
 		// Clear future assignments (preserving past assignments before regenerateFromDate)
 		const deletedCount = await clearAllAssignments(db, regenerateFromDate);
@@ -126,6 +136,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			optionalData
 		);
 
+		// Prepare context for regeneration (credit past assignments, apply strategy)
+		const regenerationResult = await prepareRegenerationContext(
+			db,
+			context,
+			regenerateFromDate,
+			validatedData.endDate,
+			strategy
+		);
+
 		// Get clerkship IDs for constraint factory
 		const clerkshipIds = clerkships.map((c) => c.id!);
 
@@ -162,8 +181,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			{
 				...serializable,
 				regeneratedFrom: regenerateFromDate,
+				strategy,
 				preservedPastAssignments: true,
-				deletedFutureAssignments: deletedCount
+				preservedFutureAssignments: regenerationResult.preservedAssignments,
+				deletedFutureAssignments: deletedCount,
+				totalPastAssignments: regenerationResult.creditResult.totalPastAssignments
 			},
 			200
 		);
