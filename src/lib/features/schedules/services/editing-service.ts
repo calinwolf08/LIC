@@ -281,8 +281,15 @@ export async function bulkReassign(
 
 /**
  * Clear all assignments (for regeneration)
+ * @param fromDate Optional: Only clear assignments from this date forward (preserves past assignments)
  */
-export async function clearAllAssignments(db: Kysely<DB>): Promise<number> {
-	const result = await db.deleteFrom('schedule_assignments').executeTakeFirst();
+export async function clearAllAssignments(db: Kysely<DB>, fromDate?: string): Promise<number> {
+	let query = db.deleteFrom('schedule_assignments');
+
+	if (fromDate) {
+		query = query.where('date', '>=', fromDate);
+	}
+
+	const result = await query.executeTakeFirst();
 	return Number(result.numDeletedRows || 0);
 }

@@ -14,6 +14,7 @@ import {
 import { ConstraintFactory } from '$lib/features/scheduling/services/constraint-factory';
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
 import type { OptionalContextData } from '$lib/features/scheduling/services/context-builder';
+import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
 import { ZodError } from 'zod';
 
 /**
@@ -25,6 +26,7 @@ import { ZodError } from 'zod';
  * {
  *   startDate: string (YYYY-MM-DD)
  *   endDate: string (YYYY-MM-DD)
+ *   regenerateFromDate?: string (YYYY-MM-DD) - Optional: Only regenerate from this date forward
  *   bypassedConstraints?: string[] (optional)
  * }
  *
@@ -40,7 +42,9 @@ import { ZodError } from 'zod';
  *       totalAssignments: number,
  *       totalViolations: number,
  *       mostBlockingConstraints: string[]
- *     }
+ *     },
+ *     regeneratedFrom?: string,
+ *     preservedPastAssignments: boolean
  *   }
  * }
  */
@@ -49,6 +53,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Parse and validate request body
 		const body = await request.json();
 		const validatedData = generateScheduleSchema.parse(body);
+
+		// Determine regeneration date (defaults to today if not provided)
+		const regenerateFromDate = validatedData.regenerateFromDate || (() => {
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			return today.toISOString().split('T')[0];
+		})();
+
+		// Clear future assignments (preserving past assignments before regenerateFromDate)
+		const deletedCount = await clearAllAssignments(db, regenerateFromDate);
 
 		// Fetch all required data from database
 		const [
@@ -144,7 +158,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Return result (exclude violationTracker from response as it's not serializable)
 		const { violationTracker, ...serializable } = result;
 
-		return successResponse(serializable, 200);
+		return successResponse(
+			{
+				...serializable,
+				regeneratedFrom: regenerateFromDate,
+				preservedPastAssignments: true,
+				deletedFutureAssignments: deletedCount
+			},
+			200
+		);
 	} catch (error) {
 		// Handle validation errors
 		if (error instanceof ZodError) {

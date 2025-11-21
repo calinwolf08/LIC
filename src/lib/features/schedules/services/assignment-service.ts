@@ -149,27 +149,30 @@ export async function createAssignment(
 
 /**
  * Update an existing assignment
+ * @param allowModifyPast Optional flag to allow modifying past assignments (admin override)
  * @throws {NotFoundError} If assignment not found
- * @throws {ValidationError} If updated assignment validation fails
+ * @throws {ValidationError} If updated assignment validation fails or date is in the past
  */
 export async function updateAssignment(
 	db: Kysely<DB>,
 	id: string,
-	data: UpdateAssignmentInput
+	data: UpdateAssignmentInput,
+	allowModifyPast: boolean = false
 ): Promise<Selectable<ScheduleAssignments>> {
 	// Check if assignment exists
-	const exists = await assignmentExists(db, id);
-	if (!exists) {
+	const current = await getAssignmentById(db, id);
+	if (!current) {
 		throw new NotFoundError('Assignment');
+	}
+
+	// Check if modifying a past assignment
+	const dateCheck = canModifyAssignmentDate(current.date, allowModifyPast);
+	if (!dateCheck.allowed) {
+		throw new ValidationError(dateCheck.error!);
 	}
 
 	// If updating critical fields, validate the updated assignment
 	if (data.student_id || data.preceptor_id || data.clerkship_id || data.date) {
-		const current = await getAssignmentById(db, id);
-		if (!current) {
-			throw new NotFoundError('Assignment');
-		}
-
 		const mergedData: CreateAssignmentInput = {
 			student_id: data.student_id || current.student_id,
 			preceptor_id: data.preceptor_id || current.preceptor_id,
@@ -199,12 +202,24 @@ export async function updateAssignment(
 
 /**
  * Delete an assignment
+ * @param allowModifyPast Optional flag to allow deleting past assignments (admin override)
  * @throws {NotFoundError} If assignment not found
+ * @throws {ValidationError} If assignment date is in the past
  */
-export async function deleteAssignment(db: Kysely<DB>, id: string): Promise<void> {
-	const exists = await assignmentExists(db, id);
-	if (!exists) {
+export async function deleteAssignment(
+	db: Kysely<DB>,
+	id: string,
+	allowModifyPast: boolean = false
+): Promise<void> {
+	const assignment = await getAssignmentById(db, id);
+	if (!assignment) {
 		throw new NotFoundError('Assignment');
+	}
+
+	// Check if deleting a past assignment
+	const dateCheck = canModifyAssignmentDate(assignment.date, allowModifyPast);
+	if (!dateCheck.allowed) {
+		throw new ValidationError(dateCheck.error!);
 	}
 
 	await db.deleteFrom('schedule_assignments').where('id', '=', id).execute();
@@ -404,4 +419,45 @@ export async function getStudentProgress(
 export async function assignmentExists(db: Kysely<DB>, id: string): Promise<boolean> {
 	const assignment = await getAssignmentById(db, id);
 	return assignment !== null;
+}
+
+/**
+ * Helper: Get today's date as YYYY-MM-DD string
+ */
+function getTodayDateString(): string {
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return today.toISOString().split('T')[0];
+}
+
+/**
+ * Helper: Check if a date string is in the past
+ */
+export function isDateInPast(dateString: string): boolean {
+	const date = new Date(dateString + 'T00:00:00');
+	const today = new Date(getTodayDateString() + 'T00:00:00');
+	return date < today;
+}
+
+/**
+ * Helper: Check if modification of a past assignment should be allowed
+ * @param dateString The assignment date
+ * @param allowModifyPast Override flag (for admin operations)
+ */
+export function canModifyAssignmentDate(
+	dateString: string,
+	allowModifyPast: boolean = false
+): { allowed: boolean; error?: string } {
+	if (allowModifyPast) {
+		return { allowed: true };
+	}
+
+	if (isDateInPast(dateString)) {
+		return {
+			allowed: false,
+			error: 'Cannot modify assignments in the past. Assignment is locked.'
+		};
+	}
+
+	return { allowed: true };
 }
