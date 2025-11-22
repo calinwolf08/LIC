@@ -781,4 +781,397 @@ describe('Schedule Regeneration Integration Tests', () => {
 			expect(impactMinimalChange.summary.willPreserveFuture).toBe(true);
 		});
 	});
+
+	describe('Batch 3: Edge Cases and Error Scenarios', () => {
+		it('handles no replacement preceptor available', async () => {
+			// Edge case: Preceptor becomes unavailable but no other preceptor in same specialty
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor1 = await createPreceptor(db, {
+				name: 'Dr. Only Cardio',
+				email: 'onlycardio@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			// No other Cardiology preceptors!
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 5
+			});
+
+			// Create future assignment
+			const futureDate = getFutureDate(5);
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate
+			});
+
+			// Preceptor becomes unavailable
+			await setAvailability(db, preceptor1.id, futureDate, false);
+
+			// Build context
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayString = today.toISOString().split('T')[0];
+
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'minimal-change'
+			);
+
+			// Assignment is affected but no replacement available
+			expect(impact.affectedCount).toBe(1);
+			expect(impact.replaceableAssignments).toHaveLength(1);
+			expect(impact.replaceableAssignments[0].replacementPreceptorId).toBeNull();
+		});
+
+		it('handles empty schedule (no assignments)', async () => {
+			// Edge case: Analyze regeneration when there are no existing assignments
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor = await createPreceptor(db, {
+				name: 'Dr. Test',
+				email: 'test@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 5
+			});
+
+			// Don't create any assignments
+
+			// Build context
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayString = today.toISOString().split('T')[0];
+
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'full-reoptimize'
+			);
+
+			// Should handle empty schedule gracefully
+			expect(impact.pastAssignmentsCount).toBe(0);
+			expect(impact.deletedCount).toBe(0);
+			expect(impact.preservedCount).toBe(0);
+			expect(impact.affectedCount).toBe(0);
+			expect(impact.studentProgress).toHaveLength(0);
+		});
+
+		it('handles all assignments in the past', async () => {
+			// Edge case: Regenerate when all assignments are in the past (should preserve all)
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor = await createPreceptor(db, {
+				name: 'Dr. Test',
+				email: 'test@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 5
+			});
+
+			// Create only past assignments
+			const pastDate1 = getPastDate(10);
+			const pastDate2 = getPastDate(9);
+			const pastDate3 = getPastDate(8);
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: pastDate1,
+				status: 'completed'
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: pastDate2,
+				status: 'completed'
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: pastDate3,
+				status: 'completed'
+			});
+
+			// Build context
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayString = today.toISOString().split('T')[0];
+
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'full-reoptimize'
+			);
+
+			// All 3 assignments are past, none future
+			expect(impact.pastAssignmentsCount).toBe(3);
+			expect(impact.deletedCount).toBe(0); // Nothing to delete
+			expect(impact.summary.willPreservePast).toBe(true);
+
+			// Student should have credit for 3 days
+			expect(impact.studentProgress).toHaveLength(1);
+			expect(impact.studentProgress[0].completedDays).toBe(3);
+			expect(impact.studentProgress[0].remainingDays).toBe(2); // 5 required - 3 completed
+		});
+
+		it('handles regenerating from specific future date', async () => {
+			// Test regenerating from a specific date in the future (not today)
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor = await createPreceptor(db, {
+				name: 'Dr. Test',
+				email: 'test@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 10
+			});
+
+			// Create assignments at various future dates
+			const futureDate1 = getFutureDate(5); // Near future
+			const futureDate2 = getFutureDate(10); // Mid future
+			const futureDate3 = getFutureDate(15); // Far future
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: futureDate1
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: futureDate2
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: futureDate3
+			});
+
+			// Build context
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			// Regenerate from futureDate2 (should preserve futureDate1, delete futureDate2 and futureDate3)
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				futureDate2,
+				endDate,
+				'full-reoptimize'
+			);
+
+			// futureDate1 is "past" relative to regeneration point
+			expect(impact.pastAssignmentsCount).toBe(1);
+			// futureDate2 and futureDate3 will be deleted
+			expect(impact.deletedCount).toBe(2);
+		});
+
+		it('handles clearAllAssignments with specific date correctly', async () => {
+			// Integration test for clearing assignments from a specific date
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor = await createPreceptor(db, {
+				name: 'Dr. Test',
+				email: 'test@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 5
+			});
+
+			// Create assignments at various dates
+			const pastDate = getPastDate(5);
+			const futureDate1 = getFutureDate(5);
+			const futureDate2 = getFutureDate(10);
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: pastDate,
+				status: 'completed'
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: futureDate1
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: futureDate2
+			});
+
+			// Verify initial state
+			const initialAssignments = await getAssignments(db);
+			expect(initialAssignments).toHaveLength(3);
+
+			// Clear from futureDate1 onwards
+			const deletedCount = await clearAllAssignments(db, futureDate1);
+			expect(deletedCount).toBe(2); // Only futureDate1 and futureDate2
+
+			// Verify past assignment preserved
+			const remainingAssignments = await getAssignments(db);
+			expect(remainingAssignments).toHaveLength(1);
+			expect(remainingAssignments[0].date).toBe(pastDate);
+			expect(remainingAssignments[0].status).toBe('completed');
+		});
+	});
 });
