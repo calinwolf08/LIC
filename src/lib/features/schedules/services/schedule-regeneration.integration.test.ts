@@ -437,4 +437,348 @@ describe('Schedule Regeneration Integration Tests', () => {
 			expect(assignmentsAfter).toHaveLength(3); // Still 3 assignments (1 past + 2 future)
 		});
 	});
+
+	describe('Batch 2: Real-World Scenarios', () => {
+		it('handles preceptor becoming unavailable mid-schedule with minimal-change', async () => {
+			// This is THE key use case: A preceptor's availability changes mid-schedule
+			// We want to preserve valid assignments and only change what's necessary
+
+			// Setup: Two preceptors in same specialty
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor1 = await createPreceptor(db, {
+				name: 'Dr. Original',
+				email: 'original@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const preceptor2 = await createPreceptor(db, {
+				name: 'Dr. Replacement',
+				email: 'replacement@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 10
+			});
+
+			// Create past assignments (completed with preceptor1)
+			const pastDate = getPastDate(5);
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: pastDate,
+				status: 'completed'
+			});
+
+			// Create future assignments with preceptor1
+			const futureDate1 = getFutureDate(5);
+			const futureDate2 = getFutureDate(6);
+			const futureDate3 = getFutureDate(7);
+
+			const future1 = await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate1
+			});
+
+			const future2 = await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate2
+			});
+
+			const future3 = await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate3
+			});
+
+			// Set availability: preceptor1 is no longer available for future dates
+			// but preceptor2 is available
+			await setAvailability(db, preceptor1.id, futureDate1, false);
+			await setAvailability(db, preceptor1.id, futureDate2, false);
+			await setAvailability(db, preceptor1.id, futureDate3, false);
+
+			await setAvailability(db, preceptor2.id, futureDate1, true);
+			await setAvailability(db, preceptor2.id, futureDate2, true);
+			await setAvailability(db, preceptor2.id, futureDate3, true);
+
+			// Build context for regeneration
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			// Analyze impact with minimal-change strategy
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayString = today.toISOString().split('T')[0];
+
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'minimal-change'
+			);
+
+			// Verify impact analysis
+			expect(impact.summary.strategy).toBe('minimal-change');
+			expect(impact.pastAssignmentsCount).toBe(1); // 1 past assignment
+			expect(impact.affectedCount).toBe(3); // All 3 future assignments affected (preceptor unavailable)
+
+			// Should identify all 3 as replaceable (preceptor2 is available)
+			expect(impact.replaceableAssignments).toHaveLength(3);
+			expect(
+				impact.replaceableAssignments.every((r) => r.replacementPreceptorId === preceptor2.id)
+			).toBe(true);
+
+			// Verify original assignments still in database (preview didn't change anything)
+			const assignmentsAfter = await getAssignments(db);
+			expect(assignmentsAfter).toHaveLength(4); // 1 past + 3 future
+		});
+
+		it('preserves unaffected assignments with minimal-change strategy', async () => {
+			// Scenario: Two preceptors, one becomes unavailable for only some dates
+			// We should preserve assignments with the still-available preceptor
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptorCardio = await createPreceptor(db, {
+				name: 'Dr. Cardio',
+				email: 'cardio@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const preceptorNeuro = await createPreceptor(db, {
+				name: 'Dr. Neuro',
+				email: 'neuro@test.com',
+				specialty: 'Neurology',
+				max_students: 2
+			});
+
+			const clerkshipCardio = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 5
+			});
+
+			const clerkshipNeuro = await createClerkship(db, {
+				name: 'Neurology Rotation',
+				specialty: 'Neurology',
+				required_days: 5
+			});
+
+			// Create future assignments with different preceptors
+			const futureDate1 = getFutureDate(5);
+			const futureDate2 = getFutureDate(6);
+
+			// Cardiology assignment - preceptor stays available
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptorCardio.id,
+				clerkship_id: clerkshipCardio.id,
+				date: futureDate1
+			});
+
+			// Neurology assignment - preceptor becomes unavailable
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptorNeuro.id,
+				clerkship_id: clerkshipNeuro.id,
+				date: futureDate2
+			});
+
+			// Set availability: cardio stays available, neuro becomes unavailable
+			await setAvailability(db, preceptorCardio.id, futureDate1, true);
+			await setAvailability(db, preceptorNeuro.id, futureDate2, false);
+
+			// Build context
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			// Analyze with minimal-change
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayString = today.toISOString().split('T')[0];
+
+			const impact = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'minimal-change'
+			);
+
+			// Should preserve cardio assignment, affect only neuro
+			expect(impact.preservedCount).toBe(1); // Cardio preserved
+			expect(impact.affectedCount).toBe(1); // Neuro affected
+			expect(impact.preservableAssignments[0].clerkship_id).toBe(clerkshipCardio.id);
+			expect(impact.affectedAssignments[0].clerkship_id).toBe(clerkshipNeuro.id);
+		});
+
+		it('compares full-reoptimize vs minimal-change impact', async () => {
+			// Same scenario analyzed with both strategies to show the difference
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor1 = await createPreceptor(db, {
+				name: 'Dr. Original',
+				email: 'original@test.com',
+				specialty: 'Cardiology',
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Cardiology Rotation',
+				specialty: 'Cardiology',
+				required_days: 5
+			});
+
+			// Create 3 future assignments
+			const futureDate1 = getFutureDate(5);
+			const futureDate2 = getFutureDate(6);
+			const futureDate3 = getFutureDate(7);
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate1
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate2
+			});
+
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor1.id,
+				clerkship_id: clerkship.id,
+				date: futureDate3
+			});
+
+			// Preceptor stays available
+			await setAvailability(db, preceptor1.id, futureDate1, true);
+			await setAvailability(db, preceptor1.id, futureDate2, true);
+			await setAvailability(db, preceptor1.id, futureDate3, true);
+
+			// Build context
+			const students = await db.selectFrom('students').selectAll().execute();
+			const preceptors = await db.selectFrom('preceptors').selectAll().execute();
+			const clerkships = await db.selectFrom('clerkships').selectAll().execute();
+			const availabilityRecords = await db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.execute();
+
+			const startDate = getPastDate(30);
+			const endDate = getFutureDate(30);
+
+			const context = buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				[],
+				availabilityRecords,
+				startDate,
+				endDate,
+				{}
+			);
+
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayString = today.toISOString().split('T')[0];
+
+			// Analyze with FULL-REOPTIMIZE
+			const impactFullReoptimize = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'full-reoptimize'
+			);
+
+			// Analyze with MINIMAL-CHANGE
+			const impactMinimalChange = await analyzeRegenerationImpact(
+				db,
+				context,
+				todayString,
+				endDate,
+				'minimal-change'
+			);
+
+			// Full-reoptimize: deletes everything, preserves nothing
+			expect(impactFullReoptimize.deletedCount).toBe(3);
+			expect(impactFullReoptimize.preservedCount).toBe(0);
+			expect(impactFullReoptimize.summary.willPreserveFuture).toBe(false);
+
+			// Minimal-change: preserves all valid assignments
+			expect(impactMinimalChange.deletedCount).toBe(3); // Still counted as "to delete"
+			expect(impactMinimalChange.preservedCount).toBe(3); // But will preserve them
+			expect(impactMinimalChange.affectedCount).toBe(0); // None affected
+			expect(impactMinimalChange.summary.willPreserveFuture).toBe(true);
+		});
+	});
 });
