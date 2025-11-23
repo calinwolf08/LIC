@@ -10,21 +10,20 @@ test.describe('Students API', () => {
 			const studentData = fixtures.student();
 
 			const response = await api.post('/api/students', studentData);
-			const student = await api.expectJson(response, 201);
+			const student = await api.expectData(response, 201);
 
 			const id = assertions.crud.created(student, {
-				first_name: studentData.first_name,
-				last_name: studentData.last_name,
-				email: studentData.email,
-				cohort_year: studentData.cohort_year
+				name: studentData.name,
+				email: studentData.email
 			});
 
-			expect(id).toBeGreaterThan(0);
+			expect(id).toBeDefined();
+			expect(typeof id === 'string' || typeof id === 'number').toBeTruthy();
 		});
 
 		test('should reject student with missing required fields', async ({ request }) => {
 			const api = createApiClient(request);
-			const invalidData = { first_name: 'Test' }; // Missing required fields
+			const invalidData = { name: 'Test' }; // Missing email
 
 			const response = await api.post('/api/students', invalidData);
 			const error = await api.expectError(response, 400);
@@ -68,24 +67,29 @@ test.describe('Students API', () => {
 			await api.post('/api/students', student2);
 
 			const response = await api.get('/api/students');
-			const students = await api.expectJson<any[]>(response);
+			const result = await api.expectData<any[]>(response);
 
-			const items = assertions.hasItems(students);
-			assertions.hasMinLength(items, 2);
+			// Handle both array and {items: []} formats
+			const students = Array.isArray(result) ? result : (result as any).items || result;
+
+			expect(Array.isArray(students)).toBeTruthy();
+			expect(students.length).toBeGreaterThanOrEqual(2);
 
 			// Verify our created students are in the list
-			assertions.containsWhere(items, s => s.email === student1.email);
-			assertions.containsWhere(items, s => s.email === student2.email);
+			const foundStudent1 = students.find(s => s.email === student1.email);
+			const foundStudent2 = students.find(s => s.email === student2.email);
+			expect(foundStudent1).toBeDefined();
+			expect(foundStudent2).toBeDefined();
 		});
 
-		test('should return empty array when no students exist', async ({ request }) => {
+		test('should return valid response when querying students', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Note: This test assumes a clean database or runs in isolation
 			const response = await api.get('/api/students');
-			const students = await api.expectJson<any[]>(response);
+			const result = await api.expectData<any>(response);
 
-			expect(Array.isArray(students) || students.items).toBeDefined();
+			// Should return either an array or an object with data
+			expect(result).toBeDefined();
 		});
 	});
 
@@ -95,12 +99,12 @@ test.describe('Students API', () => {
 			const studentData = fixtures.student();
 
 			const createResponse = await api.post('/api/students', studentData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.get(`/api/students/${created.id}`);
-			const student = await api.expectJson(response);
+			const student = await api.expectData(response);
 
-			assertions.hasFields(student, ['id', 'first_name', 'last_name', 'email', 'cohort_year']);
+			assertions.hasFields(student, ['id', 'name', 'email']);
 			expect(student.id).toBe(created.id);
 			expect(student.email).toBe(studentData.email);
 		});
@@ -108,7 +112,8 @@ test.describe('Students API', () => {
 		test('should return 404 for non-existent student', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const response = await api.get('/api/students/999999');
+			// Use a non-existent UUID
+			const response = await api.get('/api/students/00000000-0000-0000-0000-000000000000');
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -121,15 +126,14 @@ test.describe('Students API', () => {
 			const studentData = fixtures.student();
 
 			const createResponse = await api.post('/api/students', studentData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
-				first_name: 'Updated',
-				last_name: 'Name'
+				name: 'Updated Student Name'
 			};
 
 			const response = await api.patch(`/api/students/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			assertions.crud.updated(updated, updates);
 			expect(updated.email).toBe(studentData.email); // Unchanged field
@@ -138,7 +142,9 @@ test.describe('Students API', () => {
 		test('should return 404 when updating non-existent student', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const response = await api.patch('/api/students/999999', { first_name: 'Test' });
+			const response = await api.patch('/api/students/00000000-0000-0000-0000-000000000000', {
+				name: 'Test'
+			});
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -149,7 +155,7 @@ test.describe('Students API', () => {
 			const studentData = fixtures.student();
 
 			const createResponse = await api.post('/api/students', studentData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.patch(`/api/students/${created.id}`, { email: 'invalid' });
 			const error = await api.expectError(response, 400);
@@ -164,7 +170,7 @@ test.describe('Students API', () => {
 			const studentData = fixtures.student();
 
 			const createResponse = await api.post('/api/students', studentData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/students/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -177,7 +183,7 @@ test.describe('Students API', () => {
 		test('should return 404 when deleting non-existent student', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const response = await api.delete('/api/students/999999');
+			const response = await api.delete('/api/students/00000000-0000-0000-0000-000000000000');
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -190,33 +196,32 @@ test.describe('Students API', () => {
 
 			// CREATE
 			const studentData = fixtures.student({
-				first_name: 'John',
-				last_name: 'Doe',
-				cohort_year: 2025
+				name: 'John Doe'
 			});
 
 			const createResponse = await api.post('/api/students', studentData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 			const studentId = assertions.hasId(created);
 
 			// READ
 			const getResponse = await api.get(`/api/students/${studentId}`);
-			const fetched = await api.expectJson(getResponse);
+			const fetched = await api.expectData(getResponse);
 			expect(fetched.email).toBe(studentData.email);
+			expect(fetched.name).toBe('John Doe');
 
 			// UPDATE
 			const updateResponse = await api.patch(`/api/students/${studentId}`, {
-				first_name: 'Jane'
+				name: 'Jane Doe'
 			});
-			const updated = await api.expectJson(updateResponse);
-			expect(updated.first_name).toBe('Jane');
-			expect(updated.last_name).toBe('Doe');
+			const updated = await api.expectData(updateResponse);
+			expect(updated.name).toBe('Jane Doe');
 
-			// LIST
+			// LIST (verify student is in list)
 			const listResponse = await api.get('/api/students');
-			const students = await api.expectJson<any[]>(listResponse);
-			const items = assertions.hasItems(students);
-			assertions.containsWhere(items, s => s.id === studentId);
+			const listResult = await api.expectData<any>(listResponse);
+			const students = Array.isArray(listResult) ? listResult : (listResult as any).items || listResult;
+			const found = students.find((s: any) => s.id === studentId);
+			expect(found).toBeDefined();
 
 			// DELETE
 			const deleteResponse = await api.delete(`/api/students/${studentId}`);

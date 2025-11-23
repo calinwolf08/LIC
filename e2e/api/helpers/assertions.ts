@@ -50,12 +50,21 @@ export const assertions = {
 
 	/**
 	 * Assert error response has message
+	 * Handles format: {success: false, error: {message: string}} or legacy {error: string, message: string}
 	 */
-	hasErrorMessage(errorResponse: { error?: string; message?: string }): void {
-		const message = errorResponse.error || errorResponse.message;
-		expect(message).toBeDefined();
-		expect(typeof message).toBe('string');
-		expect(message!.length).toBeGreaterThan(0);
+	hasErrorMessage(errorResponse: { success?: boolean; error?: any; message?: string }): void {
+		// Handle new format: {success: false, error: {message: string}}
+		if (errorResponse.error && typeof errorResponse.error === 'object') {
+			expect(errorResponse.error.message).toBeDefined();
+			expect(typeof errorResponse.error.message).toBe('string');
+			expect(errorResponse.error.message.length).toBeGreaterThan(0);
+		} else {
+			// Handle legacy format: {error: string} or {message: string}
+			const message = errorResponse.error || errorResponse.message;
+			expect(message).toBeDefined();
+			expect(typeof message).toBe('string');
+			expect((message as string).length).toBeGreaterThan(0);
+		}
 	},
 
 	/**
@@ -75,12 +84,16 @@ export const assertions = {
 	},
 
 	/**
-	 * Assert object has ID field
+	 * Assert object has ID field (supports both string UUIDs and numbers)
 	 */
-	hasId<T extends { id?: number }>(obj: T): number {
+	hasId<T extends { id?: string | number }>(obj: T): string | number {
 		expect(obj.id).toBeDefined();
-		expect(typeof obj.id).toBe('number');
-		expect(obj.id!).toBeGreaterThan(0);
+		expect(typeof obj.id === 'string' || typeof obj.id === 'number').toBeTruthy();
+		if (typeof obj.id === 'number') {
+			expect(obj.id).toBeGreaterThan(0);
+		} else {
+			expect(obj.id!.length).toBeGreaterThan(0);
+		}
 		return obj.id!;
 	},
 
@@ -97,7 +110,7 @@ export const assertions = {
 	 * Assert successful CRUD operations
 	 */
 	crud: {
-		created<T extends { id?: number }>(obj: T, expectedFields: Partial<T> = {}): number {
+		created<T extends { id?: string | number }>(obj: T, expectedFields: Partial<T> = {}): string | number {
 			const id = assertions.hasId(obj);
 			assertions.matchesShape(obj, expectedFields);
 			return id;
@@ -115,25 +128,36 @@ export const assertions = {
 	/**
 	 * Assert validation error
 	 */
-	validationError(errorResponse: { error?: string; message?: string; issues?: unknown[] }): void {
+	validationError(errorResponse: { success?: boolean; error?: any; message?: string }): void {
 		assertions.hasErrorMessage(errorResponse);
-		// Optionally check for validation-specific fields
-		if (errorResponse.issues) {
-			expect(Array.isArray(errorResponse.issues)).toBeTruthy();
+		// Check for validation-specific details
+		if (errorResponse.error && typeof errorResponse.error === 'object') {
+			if (errorResponse.error.details) {
+				expect(Array.isArray(errorResponse.error.details)).toBeTruthy();
+			}
 		}
 	},
 
 	/**
 	 * Assert not found error
 	 */
-	notFoundError(errorResponse: { error?: string; message?: string }): void {
+	notFoundError(errorResponse: { success?: boolean; error?: any; message?: string }): void {
 		assertions.hasErrorMessage(errorResponse);
-		const message = (errorResponse.error || errorResponse.message)!.toLowerCase();
+
+		// Extract message from nested or flat format
+		let message: string;
+		if (errorResponse.error && typeof errorResponse.error === 'object') {
+			message = errorResponse.error.message;
+		} else {
+			message = (errorResponse.error || errorResponse.message) as string;
+		}
+
+		const lowerMessage = message.toLowerCase();
 		expect(
-			message.includes('not found') ||
-			message.includes('does not exist') ||
-			message.includes('no ') ||
-			message.includes('cannot find')
+			lowerMessage.includes('not found') ||
+			lowerMessage.includes('does not exist') ||
+			lowerMessage.includes('no ') ||
+			lowerMessage.includes('cannot find')
 		).toBeTruthy();
 	}
 };
