@@ -56,7 +56,7 @@ export const updateClerkshipSchema = z
  * Schema for validating clerkship ID
  */
 export const clerkshipIdSchema = z.object({
-	id: cuid2Schema
+	id: uuidSchema
 });
 
 // Export inferred types
