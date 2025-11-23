@@ -4,14 +4,21 @@ import { fixtures } from './helpers/fixtures';
 import { assertions, dateHelpers } from './helpers/assertions';
 
 test.describe('Availability & Patterns API', () => {
-	let preceptorId: number;
+	let preceptorId: string;
+	let healthSystemId: string;
 
 	test.beforeEach(async ({ request }) => {
-		// Create a preceptor for tests
+		// Create a health system and preceptor for tests
 		const api = createApiClient(request);
-		const preceptorData = fixtures.preceptor();
+
+		const hsData = fixtures.healthSystem();
+		const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
+		const hs = await api.expectData(hsResponse, 201);
+		healthSystemId = hs.id;
+
+		const preceptorData = fixtures.preceptor({ health_system_id: healthSystemId });
 		const response = await api.post('/api/preceptors', preceptorData);
-		const preceptor = await api.expectJson(response, 201);
+		const preceptor = await api.expectData(response, 201);
 		preceptorId = preceptor.id;
 	});
 
@@ -37,7 +44,7 @@ test.describe('Availability & Patterns API', () => {
 			const getResponse = await api.get(`/api/preceptors/${preceptorId}/availability`, {
 				params: { start_date: startDate, end_date: endDate }
 			});
-			const availability = await api.expectJson<any[]>(getResponse);
+			const availability = await api.expectData<any[]>(getResponse);
 
 			assertions.hasLength(availability, dates.length);
 			availability.forEach(a => {
@@ -54,7 +61,7 @@ test.describe('Availability & Patterns API', () => {
 			const response = await api.get(`/api/preceptors/${preceptorId}/availability`, {
 				params: { start_date: startDate, end_date: endDate }
 			});
-			const availability = await api.expectJson<any[]>(response);
+			const availability = await api.expectData<any[]>(response);
 
 			expect(Array.isArray(availability)).toBeTruthy();
 			// Verify all returned dates are within range
@@ -81,7 +88,7 @@ test.describe('Availability & Patterns API', () => {
 			const getResponse = await api.get(`/api/preceptors/${preceptorId}/availability`, {
 				params: { start_date: '2025-01-06', end_date: '2025-01-31' }
 			});
-			const availability = await api.expectJson<any[]>(getResponse);
+			const availability = await api.expectData<any[]>(getResponse);
 
 			const available = availability.filter(a => a.is_available);
 			const unavailable = availability.filter(a => !a.is_available);
@@ -102,7 +109,7 @@ test.describe('Availability & Patterns API', () => {
 			});
 
 			const response = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const pattern = await api.expectJson(response, 201);
+			const pattern = await api.expectData(response, 201);
 
 			assertions.crud.created(pattern, {
 				preceptor_id: preceptorId,
@@ -124,7 +131,7 @@ test.describe('Availability & Patterns API', () => {
 			});
 
 			const response = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const pattern = await api.expectJson(response, 201);
+			const pattern = await api.expectData(response, 201);
 
 			expect(pattern.pattern_type).toBe('monthly');
 			expect(pattern.month_pattern).toBeDefined();
@@ -141,7 +148,7 @@ test.describe('Availability & Patterns API', () => {
 			});
 
 			const response = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const pattern = await api.expectJson(response, 201);
+			const pattern = await api.expectData(response, 201);
 
 			expect(pattern.pattern_type).toBe('interval');
 			expect(pattern.interval).toBe(2);
@@ -158,7 +165,7 @@ test.describe('Availability & Patterns API', () => {
 			await api.post(`/api/preceptors/${preceptorId}/patterns`, pattern2);
 
 			const response = await api.get(`/api/preceptors/${preceptorId}/patterns`);
-			const patterns = await api.expectJson<any[]>(response);
+			const patterns = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(patterns, 2);
 		});
@@ -168,10 +175,10 @@ test.describe('Availability & Patterns API', () => {
 
 			const patternData = fixtures.pattern(preceptorId);
 			const createResponse = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.get(`/api/preceptors/${preceptorId}/patterns/${created.id}`);
-			const pattern = await api.expectJson(response);
+			const pattern = await api.expectData(response);
 
 			expect(pattern.id).toBe(created.id);
 			expect(pattern.pattern_name).toBe(patternData.pattern_name);
@@ -182,7 +189,7 @@ test.describe('Availability & Patterns API', () => {
 
 			const patternData = fixtures.pattern(preceptorId);
 			const createResponse = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
 				pattern_name: 'Updated Pattern',
@@ -190,7 +197,7 @@ test.describe('Availability & Patterns API', () => {
 			};
 
 			const response = await api.put(`/api/preceptors/${preceptorId}/patterns/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			expect(updated.pattern_name).toBe('Updated Pattern');
 			expect(updated.week_pattern).toEqual(updates.week_pattern);
@@ -201,7 +208,7 @@ test.describe('Availability & Patterns API', () => {
 
 			const patternData = fixtures.pattern(preceptorId);
 			const createResponse = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/preceptors/${preceptorId}/patterns/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -226,13 +233,13 @@ test.describe('Availability & Patterns API', () => {
 			});
 
 			const createResponse = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const pattern = await api.expectJson(createResponse, 201);
+			const pattern = await api.expectData(createResponse, 201);
 
 			// Generate availability
 			const generateResponse = await api.post(`/api/preceptors/${preceptorId}/patterns/generate`, {
 				pattern_id: pattern.id
 			});
-			const result = await api.expectJson(generateResponse);
+			const result = await api.expectData(generateResponse);
 
 			expect(result.generated_count).toBeGreaterThan(0);
 
@@ -240,7 +247,7 @@ test.describe('Availability & Patterns API', () => {
 			const availResponse = await api.get(`/api/preceptors/${preceptorId}/availability`, {
 				params: { start_date: '2025-01-06', end_date: '2025-01-17' }
 			});
-			const availability = await api.expectJson<any[]>(availResponse);
+			const availability = await api.expectData<any[]>(availResponse);
 
 			// Should have 10 available days (2 weeks * 5 weekdays)
 			const availableDays = availability.filter(a => a.is_available);
@@ -267,7 +274,7 @@ test.describe('Availability & Patterns API', () => {
 				start_date: '2025-01-06',
 				end_date: '2025-01-10'
 			});
-			const pattern = await api.expectJson(saveResponse, 201);
+			const pattern = await api.expectData(saveResponse, 201);
 
 			expect(pattern.pattern_name).toBe('Saved Pattern');
 			assertions.hasId(pattern);
@@ -331,21 +338,21 @@ test.describe('Availability & Patterns API', () => {
 			});
 
 			const createResponse = await api.post(`/api/preceptors/${preceptorId}/patterns`, patternData);
-			const pattern = await api.expectJson(createResponse, 201);
+			const pattern = await api.expectData(createResponse, 201);
 			const patternId = assertions.hasId(pattern);
 
 			// 2. Generate availability
 			const generateResponse = await api.post(`/api/preceptors/${preceptorId}/patterns/generate`, {
 				pattern_id: patternId
 			});
-			const genResult = await api.expectJson(generateResponse);
+			const genResult = await api.expectData(generateResponse);
 			expect(genResult.generated_count).toBeGreaterThan(0);
 
 			// 3. Verify availability
 			const availResponse = await api.get(`/api/preceptors/${preceptorId}/availability`, {
 				params: { start_date: '2025-01-06', end_date: '2025-01-31' }
 			});
-			const availability = await api.expectJson<any[]>(availResponse);
+			const availability = await api.expectData<any[]>(availResponse);
 
 			const availableDays = availability.filter(a => a.is_available);
 			// January 2025 has 4 complete weeks (12 M-W-F days) starting from Monday Jan 6
@@ -355,7 +362,7 @@ test.describe('Availability & Patterns API', () => {
 			const updateResponse = await api.put(`/api/preceptors/${preceptorId}/patterns/${patternId}`, {
 				pattern_name: 'Updated Mon-Wed-Fri'
 			});
-			const updated = await api.expectJson(updateResponse);
+			const updated = await api.expectData(updateResponse);
 			expect(updated.pattern_name).toBe('Updated Mon-Wed-Fri');
 
 			// 5. Delete pattern

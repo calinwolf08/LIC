@@ -101,7 +101,7 @@ test.describe('Simple API CRUD Tests', () => {
 	});
 
 	test.describe('Preceptors API', () => {
-		test.skip('should create preceptor with health system - TODO: Debug validation error', async ({ request }) => {
+		test('should create preceptor with health system', async ({ request }) => {
 			const api = createApiClient(request);
 
 			// First create health system (required for preceptor)

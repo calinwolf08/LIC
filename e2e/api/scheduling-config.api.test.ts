@@ -10,7 +10,7 @@ test.describe('Scheduling Configuration API', () => {
 			const hsData = fixtures.healthSystem();
 
 			const response = await api.post('/api/scheduling-config/health-systems', hsData);
-			const hs = await api.expectJson(response, 201);
+			const hs = await api.expectData(response, 201);
 
 			assertions.crud.created(hs, {
 				name: hsData.name,
@@ -27,7 +27,7 @@ test.describe('Scheduling Configuration API', () => {
 			await api.post('/api/scheduling-config/health-systems', hs2);
 
 			const response = await api.get('/api/scheduling-config/health-systems');
-			const systems = await api.expectJson<any[]>(response);
+			const systems = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(systems, 2);
 		});
@@ -37,11 +37,11 @@ test.describe('Scheduling Configuration API', () => {
 			const hsData = fixtures.healthSystem();
 
 			const createResponse = await api.post('/api/scheduling-config/health-systems', hsData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = { name: 'Updated Health System' };
 			const response = await api.put(`/api/scheduling-config/health-systems/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			expect(updated.name).toBe('Updated Health System');
 		});
@@ -51,7 +51,7 @@ test.describe('Scheduling Configuration API', () => {
 			const hsData = fixtures.healthSystem();
 
 			const createResponse = await api.post('/api/scheduling-config/health-systems', hsData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/scheduling-config/health-systems/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -68,7 +68,7 @@ test.describe('Scheduling Configuration API', () => {
 			const api = createApiClient(request);
 			const clerkshipData = fixtures.clerkship();
 			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(response, 201);
+			const clerkship = await api.expectData(response, 201);
 			clerkshipId = clerkship.id;
 		});
 
@@ -81,7 +81,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/requirements', reqData);
-			const req = await api.expectJson(response, 201);
+			const req = await api.expectData(response, 201);
 
 			assertions.crud.created(req, {
 				clerkship_id: clerkshipId,
@@ -102,7 +102,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.get('/api/scheduling-config/requirements', {
 				params: { clerkshipId: String(clerkshipId) }
 			});
-			const requirements = await api.expectJson<any[]>(response);
+			const requirements = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(requirements, 2);
 		});
@@ -112,11 +112,11 @@ test.describe('Scheduling Configuration API', () => {
 			const reqData = fixtures.requirement(clerkshipId);
 
 			const createResponse = await api.post('/api/scheduling-config/requirements', reqData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = { days_required: 15 };
 			const response = await api.put(`/api/scheduling-config/requirements/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			expect(updated.days_required).toBe(15);
 		});
@@ -126,7 +126,7 @@ test.describe('Scheduling Configuration API', () => {
 			const reqData = fixtures.requirement(clerkshipId);
 
 			const createResponse = await api.post('/api/scheduling-config/requirements', reqData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/scheduling-config/requirements/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -138,7 +138,7 @@ test.describe('Scheduling Configuration API', () => {
 			// Create health system
 			const hsData = fixtures.healthSystem();
 			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
-			const hs = await api.expectJson(hsResponse, 201);
+			const hs = await api.expectData(hsResponse, 201);
 
 			const reqData = fixtures.requirement(clerkshipId, {
 				requirement_type: 'inpatient',
@@ -148,7 +148,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/requirements', reqData);
-			const req = await api.expectJson(response, 201);
+			const req = await api.expectData(response, 201);
 
 			expect(req.health_system_id).toBe(hs.id);
 			expect(req.allow_cross_system).toBe(false);
@@ -165,17 +165,17 @@ test.describe('Scheduling Configuration API', () => {
 
 			const clerkshipData = fixtures.clerkship();
 			const clerkshipResponse = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(clerkshipResponse, 201);
+			const clerkship = await api.expectData(clerkshipResponse, 201);
 			clerkshipId = clerkship.id;
 
 			const p1Data = fixtures.preceptor();
 			const p1Response = await api.post('/api/preceptors', p1Data);
-			const p1 = await api.expectJson(p1Response, 201);
+			const p1 = await api.expectData(p1Response, 201);
 			preceptor1Id = p1.id;
 
 			const p2Data = fixtures.preceptor();
 			const p2Response = await api.post('/api/preceptors', p2Data);
-			const p2 = await api.expectJson(p2Response, 201);
+			const p2 = await api.expectData(p2Response, 201);
 			preceptor2Id = p2.id;
 		});
 
@@ -193,7 +193,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.post('/api/scheduling-config/teams', teamData, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
-			const team = await api.expectJson(response, 201);
+			const team = await api.expectData(response, 201);
 
 			assertions.crud.created(team, {
 				name: 'Team Alpha',
@@ -227,7 +227,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.get('/api/scheduling-config/teams', {
 				params: { clerkshipId: String(clerkshipId) }
 			});
-			const teams = await api.expectJson<any[]>(response);
+			const teams = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(teams, 2);
 		});
@@ -240,7 +240,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/teams/validate', teamData);
-			const validation = await api.expectJson(response);
+			const validation = await api.expectData(response);
 
 			expect(validation.valid !== undefined || validation.errors !== undefined).toBeTruthy();
 		});
@@ -255,12 +255,12 @@ test.describe('Scheduling Configuration API', () => {
 
 			const pData = fixtures.preceptor();
 			const pResponse = await api.post('/api/preceptors', pData);
-			const p = await api.expectJson(pResponse, 201);
+			const p = await api.expectData(pResponse, 201);
 			preceptorId = p.id;
 
 			const cData = fixtures.clerkship();
 			const cResponse = await api.post('/api/clerkships', cData);
-			const c = await api.expectJson(cResponse, 201);
+			const c = await api.expectData(cResponse, 201);
 			clerkshipId = c.id;
 		});
 
@@ -273,7 +273,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/capacity-rules', capData);
-			const rule = await api.expectJson(response, 201);
+			const rule = await api.expectData(response, 201);
 
 			assertions.crud.created(rule, {
 				preceptor_id: preceptorId,
@@ -292,7 +292,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/capacity-rules', capData);
-			const rule = await api.expectJson(response, 201);
+			const rule = await api.expectData(response, 201);
 
 			expect(rule.clerkship_id).toBe(clerkshipId);
 			expect(rule.capacity_type).toBe('per_year');
@@ -311,7 +311,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.get('/api/scheduling-config/capacity-rules', {
 				params: { preceptorId: String(preceptorId) }
 			});
-			const rules = await api.expectJson<any[]>(response);
+			const rules = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(rules, 2);
 		});
@@ -328,20 +328,20 @@ test.describe('Scheduling Configuration API', () => {
 
 			// Create preceptors
 			const p1 = await api.post('/api/preceptors', fixtures.preceptor());
-			const primary = await api.expectJson(p1, 201);
+			const primary = await api.expectData(p1, 201);
 			primaryId = primary.id;
 
 			const p2 = await api.post('/api/preceptors', fixtures.preceptor());
-			const f1 = await api.expectJson(p2, 201);
+			const f1 = await api.expectData(p2, 201);
 			fallback1Id = f1.id;
 
 			const p3 = await api.post('/api/preceptors', fixtures.preceptor());
-			const f2 = await api.expectJson(p3, 201);
+			const f2 = await api.expectData(p3, 201);
 			fallback2Id = f2.id;
 
 			// Create clerkship
 			const c = await api.post('/api/clerkships', fixtures.clerkship());
-			const clerkship = await api.expectJson(c, 201);
+			const clerkship = await api.expectData(c, 201);
 			clerkshipId = clerkship.id;
 		});
 
@@ -354,7 +354,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/fallbacks', fallbackData);
-			const fallback = await api.expectJson(response, 201);
+			const fallback = await api.expectData(response, 201);
 
 			assertions.crud.created(fallback, {
 				primary_preceptor_id: primaryId,
@@ -377,7 +377,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.get('/api/scheduling-config/fallbacks', {
 				params: { preceptorId: String(primaryId) }
 			});
-			const fallbacks = await api.expectJson<any[]>(response);
+			const fallbacks = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(fallbacks, 1);
 		});
@@ -390,10 +390,10 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const createResponse = await api.post('/api/scheduling-config/fallbacks', fallbackData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.get(`/api/scheduling-config/fallbacks/${created.id}`);
-			const fallback = await api.expectJson(response);
+			const fallback = await api.expectData(response);
 
 			expect(fallback.id).toBe(created.id);
 			expect(fallback.primary_preceptor_id).toBe(primaryId);
@@ -407,7 +407,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const createResponse = await api.post('/api/scheduling-config/fallbacks', fallbackData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/scheduling-config/fallbacks/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -421,7 +421,7 @@ test.describe('Scheduling Configuration API', () => {
 			const api = createApiClient(request);
 			const clerkshipData = fixtures.clerkship();
 			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(response, 201);
+			const clerkship = await api.expectData(response, 201);
 			clerkshipId = clerkship.id;
 		});
 
@@ -436,7 +436,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.post('/api/scheduling-config/electives', electiveData, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
-			const elective = await api.expectJson(response, 201);
+			const elective = await api.expectData(response, 201);
 
 			assertions.crud.created(elective, {
 				clerkship_id: clerkshipId,
@@ -461,7 +461,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.get('/api/scheduling-config/electives', {
 				params: { clerkshipId: String(clerkshipId) }
 			});
-			const electives = await api.expectJson<any[]>(response);
+			const electives = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(electives, 2);
 		});
@@ -473,7 +473,7 @@ test.describe('Scheduling Configuration API', () => {
 			const createResponse = await api.post('/api/scheduling-config/electives', electiveData, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/scheduling-config/electives/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -487,7 +487,7 @@ test.describe('Scheduling Configuration API', () => {
 			const api = createApiClient(request);
 			const clerkshipData = fixtures.clerkship();
 			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(response, 201);
+			const clerkship = await api.expectData(response, 201);
 			clerkshipId = clerkship.id;
 		});
 
@@ -502,7 +502,7 @@ test.describe('Scheduling Configuration API', () => {
 			const updateResponse = await api.put('/api/scheduling-config/global-defaults/inpatient', defaults, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
-			const updated = await api.expectJson(updateResponse);
+			const updated = await api.expectData(updateResponse);
 
 			expect(updated.assignment_strategy).toBe('prioritize_continuity');
 
@@ -510,7 +510,7 @@ test.describe('Scheduling Configuration API', () => {
 			const getResponse = await api.get('/api/scheduling-config/global-defaults/inpatient', {
 				params: { clerkshipId: String(clerkshipId) }
 			});
-			const fetched = await api.expectJson(getResponse);
+			const fetched = await api.expectData(getResponse);
 
 			expect(fetched.assignment_strategy).toBe('prioritize_continuity');
 		});
@@ -526,7 +526,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.put('/api/scheduling-config/global-defaults/outpatient', defaults, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			expect(updated.assignment_strategy).toBe('balance_load');
 		});
@@ -542,7 +542,7 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.put('/api/scheduling-config/global-defaults/elective', defaults, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			expect(updated.assignment_strategy).toBe('student_preference');
 		});
