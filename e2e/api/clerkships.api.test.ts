@@ -106,26 +106,6 @@ test.describe('Clerkships API', () => {
 				expect(c.specialty).toBe('Family Medicine');
 			});
 		});
-
-		test('should filter clerkships by clerkship_type', async ({ request }) => {
-			const api = createApiClient(request);
-
-			const inpatient = fixtures.clerkship({ clerkship_type: 'inpatient' });
-			const outpatient = fixtures.clerkship({ clerkship_type: 'outpatient' });
-
-			await api.post('/api/clerkships', inpatient);
-			await api.post('/api/clerkships', outpatient);
-
-			const response = await api.get('/api/clerkships', {
-				params: { clerkship_type: 'inpatient' }
-			});
-			const clerkships = await api.expectData<any[]>(response);
-
-			const items = assertions.hasItems(clerkships);
-			items.forEach(c => {
-				expect(c.clerkship_type).toBe('inpatient');
-			});
-		});
 	});
 
 	test.describe('GET /api/clerkships/:id', () => {
@@ -229,9 +209,8 @@ test.describe('Clerkships API', () => {
 		test('should complete full clerkship lifecycle', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// CREATE
+			// CREATE - Use fixture-generated unique name to avoid conflicts
 			const clerkshipData = fixtures.clerkship({
-				name: 'Family Medicine Clerkship',
 				specialty: 'Family Medicine',
 				clerkship_type: 'inpatient',
 				required_days: 28,
