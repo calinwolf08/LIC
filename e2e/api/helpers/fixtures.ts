@@ -15,19 +15,25 @@ export const fixtures = {
 		...overrides
 	}),
 
-	preceptor: (overrides: Partial<PreceptorData> = {}): PreceptorData => ({
-		name: `Dr. Preceptor ${uniqueId()}`,
-		email: `preceptor-${uniqueId()}@test.com`,
-		specialty: overrides.specialty || 'Family Medicine',
-		health_system_id: overrides.health_system_id || 'temp-hs-id',
-		max_students: overrides.max_students || 1,
-		...overrides
-	}),
+	preceptor: (overrides: Partial<PreceptorData> = {}): PreceptorData => {
+		const base: any = {
+			name: `Dr. Preceptor ${uniqueId()}`,
+			email: `preceptor-${uniqueId()}@test.com`,
+			specialty: overrides.specialty || 'Family Medicine',
+			health_system_id: overrides.health_system_id || 'temp-hs-id',
+			...overrides
+		};
+		// Only add max_students if explicitly provided
+		if (overrides.max_students !== undefined) {
+			base.max_students = overrides.max_students;
+		}
+		return base;
+	},
 
 	clerkship: (overrides: Partial<ClerkshipData> = {}): ClerkshipData => ({
 		name: `Clerkship-${uniqueId()}`,
 		specialty: overrides.specialty || 'Family Medicine',
-		clerkship_type: overrides.clerkship_type || 'required',
+		clerkship_type: overrides.clerkship_type || 'inpatient',
 		required_days: overrides.required_days || 28,
 		description: overrides.description,
 		...overrides
