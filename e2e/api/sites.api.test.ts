@@ -4,14 +4,14 @@ import { fixtures } from './helpers/fixtures';
 import { assertions } from './helpers/assertions';
 
 test.describe('Sites API', () => {
-	let healthSystemId: number;
+	let healthSystemId: string;
 
 	test.beforeEach(async ({ request }) => {
 		// Create a health system for tests
 		const api = createApiClient(request);
 		const hsData = fixtures.healthSystem();
 		const response = await api.post('/api/scheduling-config/health-systems', hsData);
-		const hs = await api.expectJson(response, 201);
+		const hs = await api.expectData(response, 201);
 		healthSystemId = hs.id;
 	});
 
@@ -21,36 +21,32 @@ test.describe('Sites API', () => {
 			const siteData = fixtures.site({ health_system_id: healthSystemId });
 
 			const response = await api.post('/api/sites', siteData);
-			const site = await api.expectJson(response, 201);
+			const site = await api.expectData(response, 201);
 
 			assertions.crud.created(site, {
 				name: siteData.name,
-				health_system_id: healthSystemId,
-				site_type: siteData.site_type
+				health_system_id: healthSystemId
 			});
 		});
 
-		test('should create site with different types', async ({ request }) => {
+		test('should create site with address', async ({ request }) => {
 			const api = createApiClient(request);
+			const siteData = fixtures.site({
+				health_system_id: healthSystemId,
+				address: '123 Medical Center Dr, City, ST 12345'
+			});
 
-			for (const siteType of ['clinic', 'hospital', 'mixed'] as const) {
-				const siteData = fixtures.site({
-					health_system_id: healthSystemId,
-					site_type: siteType
-				});
+			const response = await api.post('/api/sites', siteData);
+			const site = await api.expectData(response, 201);
 
-				const response = await api.post('/api/sites', siteData);
-				const site = await api.expectJson(response, 201);
-
-				expect(site.site_type).toBe(siteType);
-			}
+			expect(site.address).toBe('123 Medical Center Dr, City, ST 12345');
+			expect(site.health_system_id).toBe(healthSystemId);
 		});
 
 		test('should reject site with missing health_system_id', async ({ request }) => {
 			const api = createApiClient(request);
 			const invalidData = {
-				name: 'Test Site',
-				site_type: 'clinic'
+				name: 'Test Site'
 			};
 
 			const response = await api.post('/api/sites', invalidData);
@@ -59,12 +55,11 @@ test.describe('Sites API', () => {
 			assertions.validationError(error);
 		});
 
-		test('should reject site with invalid site_type', async ({ request }) => {
+		test('should reject site with invalid health_system_id', async ({ request }) => {
 			const api = createApiClient(request);
 			const siteData = {
 				name: 'Test Site',
-				health_system_id: healthSystemId,
-				site_type: 'invalid_type'
+				health_system_id: 'invalid-id'
 			};
 
 			const response = await api.post('/api/sites', siteData);
@@ -84,7 +79,7 @@ test.describe('Sites API', () => {
 			await api.post('/api/sites', s2);
 
 			const response = await api.get('/api/sites');
-			const sites = await api.expectJson<any[]>(response);
+			const sites = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(sites);
 			assertions.hasMinLength(items, 2);
@@ -96,7 +91,7 @@ test.describe('Sites API', () => {
 			// Create second health system
 			const hs2Data = fixtures.healthSystem();
 			const hs2Response = await api.post('/api/scheduling-config/health-systems', hs2Data);
-			const hs2 = await api.expectJson(hs2Response, 201);
+			const hs2 = await api.expectData(hs2Response, 201);
 
 			// Create sites in different health systems
 			const site1 = fixtures.site({ health_system_id: healthSystemId });
@@ -107,9 +102,9 @@ test.describe('Sites API', () => {
 
 			// Filter by first health system
 			const response = await api.get('/api/sites', {
-				params: { health_system_id: String(healthSystemId) }
+				params: { health_system_id: healthSystemId }
 			});
-			const sites = await api.expectJson<any[]>(response);
+			const sites = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(sites);
 			items.forEach(s => {
@@ -124,20 +119,21 @@ test.describe('Sites API', () => {
 			const siteData = fixtures.site({ health_system_id: healthSystemId });
 
 			const createResponse = await api.post('/api/sites', siteData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.get(`/api/sites/${created.id}`);
-			const site = await api.expectJson(response);
+			const site = await api.expectData(response);
 
-			assertions.hasFields(site, ['id', 'name', 'health_system_id', 'site_type']);
+			assertions.hasFields(site, ['id', 'name', 'health_system_id']);
 			expect(site.id).toBe(created.id);
 			expect(site.health_system_id).toBe(healthSystemId);
 		});
 
 		test('should return 404 for non-existent site', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = 'nonexistent-site-id';
 
-			const response = await api.get('/api/sites/999999');
+			const response = await api.get(`/api/sites/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -147,29 +143,27 @@ test.describe('Sites API', () => {
 	test.describe('PATCH /api/sites/:id', () => {
 		test('should update site fields', async ({ request }) => {
 			const api = createApiClient(request);
-			const siteData = fixtures.site({
-				health_system_id: healthSystemId,
-				site_type: 'clinic'
-			});
+			const siteData = fixtures.site({ health_system_id: healthSystemId });
 
 			const createResponse = await api.post('/api/sites', siteData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
 				name: 'Updated Site Name',
-				site_type: 'hospital' as const
+				address: '456 New Address Ave'
 			};
 
 			const response = await api.patch(`/api/sites/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			assertions.crud.updated(updated, updates);
 		});
 
 		test('should return 404 when updating non-existent site', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = 'nonexistent-site-id';
 
-			const response = await api.patch('/api/sites/999999', { name: 'Test' });
+			const response = await api.patch(`/api/sites/${nonExistentId}`, { name: 'Test' });
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -182,7 +176,7 @@ test.describe('Sites API', () => {
 			const siteData = fixtures.site({ health_system_id: healthSystemId });
 
 			const createResponse = await api.post('/api/sites', siteData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/sites/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -193,8 +187,9 @@ test.describe('Sites API', () => {
 
 		test('should return 404 when deleting non-existent site', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = 'nonexistent-site-id';
 
-			const response = await api.delete('/api/sites/999999');
+			const response = await api.delete(`/api/sites/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -208,11 +203,11 @@ test.describe('Sites API', () => {
 			// Create clerkship and site
 			const clerkshipData = fixtures.clerkship();
 			const clerkshipResponse = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(clerkshipResponse, 201);
+			const clerkship = await api.expectData(clerkshipResponse, 201);
 
 			const siteData = fixtures.site({ health_system_id: healthSystemId });
 			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectJson(siteResponse, 201);
+			const site = await api.expectData(siteResponse, 201);
 
 			// Create association
 			const associationData = {
@@ -225,9 +220,9 @@ test.describe('Sites API', () => {
 
 			// Verify association exists
 			const getResponse = await api.get('/api/clerkship-sites', {
-				params: { clerkship_id: String(clerkship.id) }
+				params: { clerkship_id: clerkship.id }
 			});
-			const associations = await api.expectJson<any[]>(getResponse);
+			const associations = await api.expectData<any[]>(getResponse);
 
 			const items = assertions.hasItems(associations);
 			assertions.containsWhere(items, a => a.site_id === site.id);
@@ -239,11 +234,11 @@ test.describe('Sites API', () => {
 			// Create clerkship and site
 			const clerkshipData = fixtures.clerkship();
 			const clerkshipResponse = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(clerkshipResponse, 201);
+			const clerkship = await api.expectData(clerkshipResponse, 201);
 
 			const siteData = fixtures.site({ health_system_id: healthSystemId });
 			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectJson(siteResponse, 201);
+			const site = await api.expectData(siteResponse, 201);
 
 			// Create association
 			await api.post('/api/clerkship-sites', {
@@ -253,9 +248,9 @@ test.describe('Sites API', () => {
 
 			// Get by site_id
 			const response = await api.get('/api/clerkship-sites', {
-				params: { site_id: String(site.id) }
+				params: { site_id: site.id }
 			});
-			const associations = await api.expectJson<any[]>(response);
+			const associations = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(associations);
 			assertions.containsWhere(items, a => a.clerkship_id === clerkship.id);
@@ -267,11 +262,11 @@ test.describe('Sites API', () => {
 			// Create and associate
 			const clerkshipData = fixtures.clerkship();
 			const clerkshipResponse = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(clerkshipResponse, 201);
+			const clerkship = await api.expectData(clerkshipResponse, 201);
 
 			const siteData = fixtures.site({ health_system_id: healthSystemId });
 			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectJson(siteResponse, 201);
+			const site = await api.expectData(siteResponse, 201);
 
 			await api.post('/api/clerkship-sites', {
 				clerkship_id: clerkship.id,
@@ -281,17 +276,17 @@ test.describe('Sites API', () => {
 			// Delete association
 			const deleteResponse = await api.delete('/api/clerkship-sites', {
 				params: {
-					clerkship_id: String(clerkship.id),
-					site_id: String(site.id)
+					clerkship_id: clerkship.id,
+					site_id: site.id
 				}
 			});
 			await api.expectSuccess(deleteResponse);
 
 			// Verify deleted
 			const getResponse = await api.get('/api/clerkship-sites', {
-				params: { clerkship_id: String(clerkship.id) }
+				params: { clerkship_id: clerkship.id }
 			});
-			const associations = await api.expectJson<any[]>(getResponse);
+			const associations = await api.expectData<any[]>(getResponse);
 
 			const items = assertions.hasItems(associations);
 			const found = items.find(a => a.site_id === site.id);
@@ -306,31 +301,33 @@ test.describe('Sites API', () => {
 			// CREATE
 			const siteData = fixtures.site({
 				health_system_id: healthSystemId,
-				site_type: 'clinic'
+				address: '789 Medical Plaza'
 			});
 
 			const createResponse = await api.post('/api/sites', siteData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 			const siteId = assertions.hasId(created);
 
 			// READ
 			const getResponse = await api.get(`/api/sites/${siteId}`);
-			const fetched = await api.expectJson(getResponse);
+			const fetched = await api.expectData(getResponse);
 			expect(fetched.health_system_id).toBe(healthSystemId);
-			expect(fetched.site_type).toBe('clinic');
+			expect(fetched.address).toBe('789 Medical Plaza');
 
 			// UPDATE
 			const updateResponse = await api.patch(`/api/sites/${siteId}`, {
-				site_type: 'hospital'
+				name: 'Updated Medical Center',
+				address: '999 Updated St'
 			});
-			const updated = await api.expectJson(updateResponse);
-			expect(updated.site_type).toBe('hospital');
+			const updated = await api.expectData(updateResponse);
+			expect(updated.name).toBe('Updated Medical Center');
+			expect(updated.address).toBe('999 Updated St');
 
 			// LIST
 			const listResponse = await api.get('/api/sites', {
-				params: { health_system_id: String(healthSystemId) }
+				params: { health_system_id: healthSystemId }
 			});
-			const sites = await api.expectJson<any[]>(listResponse);
+			const sites = await api.expectData<any[]>(listResponse);
 			const items = assertions.hasItems(sites);
 			assertions.containsWhere(items, s => s.id === siteId);
 

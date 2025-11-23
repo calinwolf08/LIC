@@ -1,8 +1,8 @@
-import { json } from '@sveltejs/kit';
 import { siteService } from '$lib/features/sites/services/site-service';
 import { createSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
-import { ConflictError, NotFoundError } from '$lib/api/errors';
+import { ConflictError, NotFoundError, handleApiError } from '$lib/api/errors';
+import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
 import type { RequestHandler } from './$types';
 
 /**
@@ -17,10 +17,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			? await siteService.getSitesByHealthSystem(healthSystemId)
 			: await siteService.getAllSites();
 
-		return json({ data: sites });
+		return successResponse(sites);
 	} catch (error) {
-		console.error('Error fetching sites:', error);
-		return json({ error: 'Failed to fetch sites' }, { status: 500 });
+		return handleApiError(error);
 	}
 };
 
@@ -35,21 +34,20 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const site = await siteService.createSite(input);
 
-		return json({ data: site }, { status: 201 });
+		return successResponse(site, 201);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json({ error: 'Validation failed', details: error.errors }, { status: 400 });
+			return validationErrorResponse(error);
 		}
 
 		if (error instanceof ConflictError) {
-			return json({ error: error.message }, { status: 409 });
+			return errorResponse(error.message, 409);
 		}
 
 		if (error instanceof NotFoundError) {
-			return json({ error: error.message }, { status: 404 });
+			return errorResponse(error.message, 404);
 		}
 
-		console.error('Error creating site:', error);
-		return json({ error: 'Failed to create site' }, { status: 500 });
+		return handleApiError(error);
 	}
 };
