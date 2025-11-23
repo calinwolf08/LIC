@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { emailSchema, nameSchema, uuidSchema, positiveIntSchema } from '$lib/validation/common-schemas';
+import { emailSchema, nameSchema, uuidSchema, cuid2Schema, positiveIntSchema } from '$lib/validation/common-schemas';
 
 /**
  * Specialty validation schema
@@ -21,7 +21,7 @@ export const createPreceptorSchema = z.object({
 	name: nameSchema,
 	email: emailSchema,
 	specialty: specialtySchema,
-	health_system_id: uuidSchema,
+	health_system_id: cuid2Schema,
 	max_students: positiveIntSchema.default(1)
 });
 
@@ -33,7 +33,7 @@ export const updatePreceptorSchema = z
 		name: nameSchema.optional(),
 		email: emailSchema.optional(),
 		specialty: specialtySchema.optional(),
-		health_system_id: uuidSchema.optional(),
+		health_system_id: cuid2Schema.optional(),
 		max_students: positiveIntSchema.optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {

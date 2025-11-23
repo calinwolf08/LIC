@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { nameSchema, uuidSchema, positiveIntSchema } from '$lib/validation/common-schemas';
+import { nameSchema, uuidSchema, cuid2Schema, positiveIntSchema } from '$lib/validation/common-schemas';
 
 /**
  * Specialty validation schema (now optional)
@@ -56,7 +56,7 @@ export const updateClerkshipSchema = z
  * Schema for validating clerkship ID
  */
 export const clerkshipIdSchema = z.object({
-	id: uuidSchema
+	id: cuid2Schema
 });
 
 // Export inferred types

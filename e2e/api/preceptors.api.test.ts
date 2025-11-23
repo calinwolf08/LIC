@@ -4,51 +4,51 @@ import { fixtures } from './helpers/fixtures';
 import { assertions } from './helpers/assertions';
 
 test.describe('Preceptors API', () => {
+	let healthSystemId: string;
+
+	test.beforeEach(async ({ request }) => {
+		// Create a health system for all preceptor tests since it's required
+		const api = createApiClient(request);
+		const hsData = fixtures.healthSystem();
+		const response = await api.post('/api/scheduling-config/health-systems', hsData);
+		const hs = await api.expectData(response, 201);
+		healthSystemId = hs.id;
+	});
+
 	test.describe('POST /api/preceptors', () => {
 		test('should create a new preceptor', async ({ request }) => {
 			const api = createApiClient(request);
-			const preceptorData = fixtures.preceptor();
+			const preceptorData = fixtures.preceptor({ health_system_id: healthSystemId });
 
 			const response = await api.post('/api/preceptors', preceptorData);
 			const preceptor = await api.expectData(response, 201);
 
 			assertions.crud.created(preceptor, {
-				first_name: preceptorData.first_name,
-				last_name: preceptorData.last_name,
+				name: preceptorData.name,
 				email: preceptorData.email,
 				specialty: preceptorData.specialty
 			});
 		});
 
-		test('should create preceptor with health system and site', async ({ request }) => {
+		test('should create preceptor with max_students', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Create health system first
-			const healthSystemData = fixtures.healthSystem();
-			const hsResponse = await api.post('/api/scheduling-config/health-systems', healthSystemData);
-			const healthSystem = await api.expectData(hsResponse, 201);
-
-			// Create site
-			const siteData = fixtures.site({ health_system_id: healthSystem.id });
-			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectData(siteResponse, 201);
-
-			// Create preceptor
+			// Create preceptor with explicit max_students
 			const preceptorData = fixtures.preceptor({
-				health_system_id: healthSystem.id,
-				site_id: site.id
+				health_system_id: healthSystemId,
+				max_students: 5
 			});
 
 			const response = await api.post('/api/preceptors', preceptorData);
 			const preceptor = await api.expectData(response, 201);
 
-			expect(preceptor.health_system_id).toBe(healthSystem.id);
-			expect(preceptor.site_id).toBe(site.id);
+			expect(preceptor.health_system_id).toBe(healthSystemId);
+			expect(preceptor.max_students).toBe(5);
 		});
 
 		test('should reject preceptor with missing required fields', async ({ request }) => {
 			const api = createApiClient(request);
-			const invalidData = { first_name: 'Dr.' };
+			const invalidData = { name: 'Dr.' };
 
 			const response = await api.post('/api/preceptors', invalidData);
 			const error = await api.expectError(response, 400);
@@ -58,7 +58,7 @@ test.describe('Preceptors API', () => {
 
 		test('should reject duplicate email', async ({ request }) => {
 			const api = createApiClient(request);
-			const preceptorData = fixtures.preceptor();
+			const preceptorData = fixtures.preceptor({ health_system_id: healthSystemId });
 
 			await api.post('/api/preceptors', preceptorData);
 
@@ -73,13 +73,13 @@ test.describe('Preceptors API', () => {
 		test('should list all preceptors', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const p1 = fixtures.preceptor({ specialty: 'Family Medicine' });
-			const p2 = fixtures.preceptor({ specialty: 'Surgery' });
+			const p1 = fixtures.preceptor({ specialty: 'Family Medicine', health_system_id: healthSystemId });
+			const p2 = fixtures.preceptor({ specialty: 'Surgery', health_system_id: healthSystemId });
 			await api.post('/api/preceptors', p1);
 			await api.post('/api/preceptors', p2);
 
 			const response = await api.get('/api/preceptors');
-			const preceptors = await api.expectJson<any[]>(response);
+			const preceptors = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(preceptors);
 			assertions.hasMinLength(items, 2);
@@ -88,9 +88,9 @@ test.describe('Preceptors API', () => {
 		test('should filter preceptors by specialty', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const fm1 = fixtures.preceptor({ specialty: 'Family Medicine' });
-			const fm2 = fixtures.preceptor({ specialty: 'Family Medicine' });
-			const surgery = fixtures.preceptor({ specialty: 'Surgery' });
+			const fm1 = fixtures.preceptor({ specialty: 'Family Medicine', health_system_id: healthSystemId });
+			const fm2 = fixtures.preceptor({ specialty: 'Family Medicine', health_system_id: healthSystemId });
+			const surgery = fixtures.preceptor({ specialty: 'Surgery', health_system_id: healthSystemId });
 
 			await api.post('/api/preceptors', fm1);
 			await api.post('/api/preceptors', fm2);
@@ -99,7 +99,7 @@ test.describe('Preceptors API', () => {
 			const response = await api.get('/api/preceptors', {
 				params: { specialty: 'Family Medicine' }
 			});
-			const preceptors = await api.expectJson<any[]>(response);
+			const preceptors = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(preceptors);
 			items.forEach(p => {
@@ -111,7 +111,7 @@ test.describe('Preceptors API', () => {
 	test.describe('GET /api/preceptors/:id', () => {
 		test('should get preceptor by id', async ({ request }) => {
 			const api = createApiClient(request);
-			const preceptorData = fixtures.preceptor();
+			const preceptorData = fixtures.preceptor({ health_system_id: healthSystemId });
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
 			const created = await api.expectData(createResponse, 201);
@@ -119,14 +119,15 @@ test.describe('Preceptors API', () => {
 			const response = await api.get(`/api/preceptors/${created.id}`);
 			const preceptor = await api.expectData(response);
 
-			assertions.hasFields(preceptor, ['id', 'first_name', 'last_name', 'email', 'specialty']);
+			assertions.hasFields(preceptor, ['id', 'name', 'email', 'specialty']);
 			expect(preceptor.id).toBe(created.id);
 		});
 
 		test('should return 404 for non-existent preceptor', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
-			const response = await api.get('/api/preceptors/999999');
+			const response = await api.get(`/api/preceptors/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -136,14 +137,14 @@ test.describe('Preceptors API', () => {
 	test.describe('PATCH /api/preceptors/:id', () => {
 		test('should update preceptor fields', async ({ request }) => {
 			const api = createApiClient(request);
-			const preceptorData = fixtures.preceptor({ specialty: 'Family Medicine' });
+			const preceptorData = fixtures.preceptor({ specialty: 'Family Medicine', health_system_id: healthSystemId });
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
 			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
 				specialty: 'Surgery',
-				first_name: 'Updated'
+				name: 'Dr. Updated Name'
 			};
 
 			const response = await api.patch(`/api/preceptors/${created.id}`, updates);
@@ -154,8 +155,9 @@ test.describe('Preceptors API', () => {
 
 		test('should return 404 when updating non-existent preceptor', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
-			const response = await api.patch('/api/preceptors/999999', { specialty: 'Test' });
+			const response = await api.patch(`/api/preceptors/${nonExistentId}`, { specialty: 'Test' });
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -165,7 +167,7 @@ test.describe('Preceptors API', () => {
 	test.describe('DELETE /api/preceptors/:id', () => {
 		test('should delete preceptor', async ({ request }) => {
 			const api = createApiClient(request);
-			const preceptorData = fixtures.preceptor();
+			const preceptorData = fixtures.preceptor({ health_system_id: healthSystemId });
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
 			const created = await api.expectData(createResponse, 201);
@@ -179,8 +181,9 @@ test.describe('Preceptors API', () => {
 
 		test('should return 404 when deleting non-existent preceptor', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
-			const response = await api.delete('/api/preceptors/999999');
+			const response = await api.delete(`/api/preceptors/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -188,23 +191,14 @@ test.describe('Preceptors API', () => {
 	});
 
 	test.describe('Full CRUD workflow', () => {
-		test('should complete full preceptor lifecycle with associations', async ({ request }) => {
+		test('should complete full preceptor lifecycle', async ({ request }) => {
 			const api = createApiClient(request);
-
-			// Create dependencies
-			const hsData = fixtures.healthSystem();
-			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
-			const hs = await api.expectData(hsResponse, 201);
-
-			const siteData = fixtures.site({ health_system_id: hs.id });
-			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectData(siteResponse, 201);
 
 			// CREATE preceptor
 			const preceptorData = fixtures.preceptor({
 				specialty: 'Family Medicine',
-				health_system_id: hs.id,
-				site_id: site.id
+				health_system_id: healthSystemId,
+				max_students: 3
 			});
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
@@ -214,21 +208,24 @@ test.describe('Preceptors API', () => {
 			// READ
 			const getResponse = await api.get(`/api/preceptors/${preceptorId}`);
 			const fetched = await api.expectData(getResponse);
-			expect(fetched.health_system_id).toBe(hs.id);
-			expect(fetched.site_id).toBe(site.id);
+			expect(fetched.health_system_id).toBe(healthSystemId);
+			expect(fetched.specialty).toBe('Family Medicine');
+			expect(fetched.max_students).toBe(3);
 
 			// UPDATE
 			const updateResponse = await api.patch(`/api/preceptors/${preceptorId}`, {
-				specialty: 'Surgery'
+				specialty: 'Surgery',
+				max_students: 5
 			});
 			const updated = await api.expectData(updateResponse);
 			expect(updated.specialty).toBe('Surgery');
+			expect(updated.max_students).toBe(5);
 
 			// LIST with filter
 			const listResponse = await api.get('/api/preceptors', {
 				params: { specialty: 'Surgery' }
 			});
-			const preceptors = await api.expectJson<any[]>(listResponse);
+			const preceptors = await api.expectData<any[]>(listResponse);
 			const items = assertions.hasItems(preceptors);
 			assertions.containsWhere(items, p => p.id === preceptorId);
 

@@ -10,27 +10,40 @@ test.describe('Clerkships API', () => {
 			const clerkshipData = fixtures.clerkship();
 
 			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(response, 201);
+			const clerkship = await api.expectData(response, 201);
 
 			assertions.crud.created(clerkship, {
 				name: clerkshipData.name,
 				specialty: clerkshipData.specialty,
-				duration_weeks: clerkshipData.duration_weeks
+				clerkship_type: clerkshipData.clerkship_type,
+				required_days: clerkshipData.required_days
 			});
 		});
 
-		test('should create clerkship with inpatient and outpatient days', async ({ request }) => {
+		test('should create clerkship with description', async ({ request }) => {
 			const api = createApiClient(request);
 			const clerkshipData = fixtures.clerkship({
-				inpatient_days: 10,
-				outpatient_days: 10
+				description: 'Test description for clerkship'
 			});
 
 			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectJson(response, 201);
+			const clerkship = await api.expectData(response, 201);
 
-			expect(clerkship.inpatient_days).toBe(10);
-			expect(clerkship.outpatient_days).toBe(10);
+			expect(clerkship.description).toBe('Test description for clerkship');
+		});
+
+		test('should create outpatient clerkship', async ({ request }) => {
+			const api = createApiClient(request);
+			const clerkshipData = fixtures.clerkship({
+				clerkship_type: 'outpatient',
+				required_days: 14
+			});
+
+			const response = await api.post('/api/clerkships', clerkshipData);
+			const clerkship = await api.expectData(response, 201);
+
+			expect(clerkship.clerkship_type).toBe('outpatient');
+			expect(clerkship.required_days).toBe(14);
 		});
 
 		test('should reject clerkship with missing required fields', async ({ request }) => {
@@ -43,12 +56,13 @@ test.describe('Clerkships API', () => {
 			assertions.validationError(error);
 		});
 
-		test('should reject clerkship with invalid date range', async ({ request }) => {
+		test('should reject clerkship with invalid clerkship_type', async ({ request }) => {
 			const api = createApiClient(request);
-			const clerkshipData = fixtures.clerkship({
-				start_date: '2025-12-31',
-				end_date: '2025-01-01' // End before start
-			});
+			const clerkshipData = {
+				name: 'Test Clerkship',
+				clerkship_type: 'invalid_type',
+				required_days: 28
+			};
 
 			const response = await api.post('/api/clerkships', clerkshipData);
 			const error = await api.expectError(response, 400);
@@ -67,7 +81,7 @@ test.describe('Clerkships API', () => {
 			await api.post('/api/clerkships', c2);
 
 			const response = await api.get('/api/clerkships');
-			const clerkships = await api.expectJson<any[]>(response);
+			const clerkships = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(clerkships);
 			assertions.hasMinLength(items, 2);
@@ -85,11 +99,31 @@ test.describe('Clerkships API', () => {
 			const response = await api.get('/api/clerkships', {
 				params: { specialty: 'Family Medicine' }
 			});
-			const clerkships = await api.expectJson<any[]>(response);
+			const clerkships = await api.expectData<any[]>(response);
 
 			const items = assertions.hasItems(clerkships);
 			items.forEach(c => {
 				expect(c.specialty).toBe('Family Medicine');
+			});
+		});
+
+		test('should filter clerkships by clerkship_type', async ({ request }) => {
+			const api = createApiClient(request);
+
+			const inpatient = fixtures.clerkship({ clerkship_type: 'inpatient' });
+			const outpatient = fixtures.clerkship({ clerkship_type: 'outpatient' });
+
+			await api.post('/api/clerkships', inpatient);
+			await api.post('/api/clerkships', outpatient);
+
+			const response = await api.get('/api/clerkships', {
+				params: { clerkship_type: 'inpatient' }
+			});
+			const clerkships = await api.expectData<any[]>(response);
+
+			const items = assertions.hasItems(clerkships);
+			items.forEach(c => {
+				expect(c.clerkship_type).toBe('inpatient');
 			});
 		});
 	});
@@ -100,19 +134,20 @@ test.describe('Clerkships API', () => {
 			const clerkshipData = fixtures.clerkship();
 
 			const createResponse = await api.post('/api/clerkships', clerkshipData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.get(`/api/clerkships/${created.id}`);
-			const clerkship = await api.expectJson(response);
+			const clerkship = await api.expectData(response);
 
-			assertions.hasFields(clerkship, ['id', 'name', 'specialty', 'duration_weeks', 'start_date', 'end_date']);
+			assertions.hasFields(clerkship, ['id', 'name', 'clerkship_type', 'required_days']);
 			expect(clerkship.id).toBe(created.id);
 		});
 
 		test('should return 404 for non-existent clerkship', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
-			const response = await api.get('/api/clerkships/999999');
+			const response = await api.get(`/api/clerkships/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -125,23 +160,39 @@ test.describe('Clerkships API', () => {
 			const clerkshipData = fixtures.clerkship();
 
 			const createResponse = await api.post('/api/clerkships', clerkshipData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
-				duration_weeks: 6,
-				inpatient_days: 15
+				required_days: 42,
+				description: 'Updated description'
 			};
 
 			const response = await api.patch(`/api/clerkships/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			assertions.crud.updated(updated, updates);
 		});
 
+		test('should update clerkship_type', async ({ request }) => {
+			const api = createApiClient(request);
+			const clerkshipData = fixtures.clerkship({ clerkship_type: 'inpatient' });
+
+			const createResponse = await api.post('/api/clerkships', clerkshipData);
+			const created = await api.expectData(createResponse, 201);
+
+			const response = await api.patch(`/api/clerkships/${created.id}`, {
+				clerkship_type: 'outpatient'
+			});
+			const updated = await api.expectData(response);
+
+			expect(updated.clerkship_type).toBe('outpatient');
+		});
+
 		test('should return 404 when updating non-existent clerkship', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
-			const response = await api.patch('/api/clerkships/999999', { duration_weeks: 5 });
+			const response = await api.patch(`/api/clerkships/${nonExistentId}`, { required_days: 35 });
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -154,7 +205,7 @@ test.describe('Clerkships API', () => {
 			const clerkshipData = fixtures.clerkship();
 
 			const createResponse = await api.post('/api/clerkships', clerkshipData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/clerkships/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -165,8 +216,9 @@ test.describe('Clerkships API', () => {
 
 		test('should return 404 when deleting non-existent clerkship', async ({ request }) => {
 			const api = createApiClient(request);
+			const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
-			const response = await api.delete('/api/clerkships/999999');
+			const response = await api.delete(`/api/clerkships/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
 
 			assertions.notFoundError(error);
@@ -181,36 +233,36 @@ test.describe('Clerkships API', () => {
 			const clerkshipData = fixtures.clerkship({
 				name: 'Family Medicine Clerkship',
 				specialty: 'Family Medicine',
-				duration_weeks: 4,
-				inpatient_days: 10,
-				outpatient_days: 10
+				clerkship_type: 'inpatient',
+				required_days: 28,
+				description: 'Core family medicine rotation'
 			});
 
 			const createResponse = await api.post('/api/clerkships', clerkshipData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 			const clerkshipId = assertions.hasId(created);
 
 			// READ
 			const getResponse = await api.get(`/api/clerkships/${clerkshipId}`);
-			const fetched = await api.expectJson(getResponse);
+			const fetched = await api.expectData(getResponse);
 			expect(fetched.name).toBe(clerkshipData.name);
-			expect(fetched.inpatient_days).toBe(10);
-			expect(fetched.outpatient_days).toBe(10);
+			expect(fetched.required_days).toBe(28);
+			expect(fetched.description).toBe('Core family medicine rotation');
 
 			// UPDATE
 			const updateResponse = await api.patch(`/api/clerkships/${clerkshipId}`, {
-				duration_weeks: 6,
-				inpatient_days: 15
+				required_days: 42,
+				clerkship_type: 'outpatient'
 			});
-			const updated = await api.expectJson(updateResponse);
-			expect(updated.duration_weeks).toBe(6);
-			expect(updated.inpatient_days).toBe(15);
+			const updated = await api.expectData(updateResponse);
+			expect(updated.required_days).toBe(42);
+			expect(updated.clerkship_type).toBe('outpatient');
 
-			// LIST
+			// LIST with filter
 			const listResponse = await api.get('/api/clerkships', {
 				params: { specialty: 'Family Medicine' }
 			});
-			const clerkships = await api.expectJson<any[]>(listResponse);
+			const clerkships = await api.expectData<any[]>(listResponse);
 			const items = assertions.hasItems(clerkships);
 			assertions.containsWhere(items, c => c.id === clerkshipId);
 

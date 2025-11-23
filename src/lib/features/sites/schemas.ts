@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 
 /**
  * Schema for creating a new site
  */
 export const createSiteSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
-	health_system_id: z.string().uuid('Invalid health system ID'),
+	health_system_id: cuid2Schema,
 	address: z.string().min(1, 'Address is required').max(500, 'Address is too long').optional()
 });
 
@@ -15,7 +16,7 @@ export const createSiteSchema = z.object({
 export const updateSiteSchema = z
 	.object({
 		name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long').optional(),
-		health_system_id: z.string().uuid('Invalid health system ID').optional(),
+		health_system_id: cuid2Schema.optional(),
 		address: z.string().min(1, 'Address is required').max(500, 'Address is too long').optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {
@@ -26,23 +27,23 @@ export const updateSiteSchema = z
  * Schema for site ID parameter
  */
 export const siteIdSchema = z.object({
-	id: z.string().uuid('Invalid site ID format')
+	id: cuid2Schema
 });
 
 /**
  * Schema for clerkship-site association
  */
 export const clerkshipSiteSchema = z.object({
-	clerkship_id: z.string().uuid('Invalid clerkship ID'),
-	site_id: z.string().uuid('Invalid site ID')
+	clerkship_id: cuid2Schema,
+	site_id: cuid2Schema
 });
 
 /**
  * Schema for site-elective association
  */
 export const siteElectiveSchema = z.object({
-	site_id: z.string().uuid('Invalid site ID'),
-	elective_requirement_id: z.string().uuid('Invalid elective requirement ID')
+	site_id: cuid2Schema,
+	elective_requirement_id: cuid2Schema
 });
 
 /**

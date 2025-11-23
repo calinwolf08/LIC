@@ -14,6 +14,14 @@ export const uuidSchema = z.string().uuid({
 });
 
 /**
+ * CUID2 validation schema (for database IDs)
+ * CUID2s are 24 character strings that start with a letter
+ */
+export const cuid2Schema = z.string().min(20).max(30, {
+	message: 'Invalid ID format'
+});
+
+/**
  * Email validation schema
  */
 export const emailSchema = z.string().email({

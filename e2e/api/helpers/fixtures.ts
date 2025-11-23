@@ -48,7 +48,6 @@ export const fixtures = {
 	site: (overrides: Partial<SiteData> = {}): SiteData => ({
 		name: `Site-${uniqueId()}`,
 		health_system_id: overrides.health_system_id!,
-		site_type: overrides.site_type || 'clinic',
 		...overrides
 	}),
 
@@ -146,7 +145,8 @@ export interface PreceptorData {
 	email: string;
 	specialty: string;
 	health_system_id: string;
-	max_students: number;
+	max_students?: number;
+	site_id?: string;
 }
 
 export interface ClerkshipData {
@@ -164,8 +164,8 @@ export interface HealthSystemData {
 
 export interface SiteData {
 	name: string;
-	health_system_id: number;
-	site_type: 'clinic' | 'hospital' | 'mixed';
+	health_system_id: string;
+	address?: string;
 }
 
 export interface RequirementData {
