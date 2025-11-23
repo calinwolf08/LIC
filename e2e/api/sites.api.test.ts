@@ -131,7 +131,8 @@ test.describe('Sites API', () => {
 
 		test('should return 404 for non-existent site', async ({ request }) => {
 			const api = createApiClient(request);
-			const nonExistentId = 'nonexistent-site-id';
+			// Use a valid cuid2/nanoid format (20-30 chars) that doesn't exist
+			const nonExistentId = 'nonexistentsite123456';
 
 			const response = await api.get(`/api/sites/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
@@ -148,8 +149,9 @@ test.describe('Sites API', () => {
 			const createResponse = await api.post('/api/sites', siteData);
 			const created = await api.expectData(createResponse, 201);
 
+			const updatedSite = fixtures.site({ health_system_id: healthSystemId });
 			const updates = {
-				name: 'Updated Site Name',
+				name: updatedSite.name,
 				address: '456 New Address Ave'
 			};
 
@@ -161,7 +163,8 @@ test.describe('Sites API', () => {
 
 		test('should return 404 when updating non-existent site', async ({ request }) => {
 			const api = createApiClient(request);
-			const nonExistentId = 'nonexistent-site-id';
+			// Use a valid cuid2/nanoid format (20-30 chars) that doesn't exist
+			const nonExistentId = 'nonexistentsite123456';
 
 			const response = await api.patch(`/api/sites/${nonExistentId}`, { name: 'Test' });
 			const error = await api.expectError(response, 404);
@@ -187,7 +190,8 @@ test.describe('Sites API', () => {
 
 		test('should return 404 when deleting non-existent site', async ({ request }) => {
 			const api = createApiClient(request);
-			const nonExistentId = 'nonexistent-site-id';
+			// Use a valid cuid2/nanoid format (20-30 chars) that doesn't exist
+			const nonExistentId = 'nonexistentsite123456';
 
 			const response = await api.delete(`/api/sites/${nonExistentId}`);
 			const error = await api.expectError(response, 404);
@@ -216,16 +220,16 @@ test.describe('Sites API', () => {
 			};
 
 			const response = await api.post('/api/clerkship-sites', associationData);
-			await api.expectSuccess(response);
+			const association = await api.expectData(response, 201);
 
-			// Verify association exists
+			// Verify association exists - API returns site objects, not association records
 			const getResponse = await api.get('/api/clerkship-sites', {
 				params: { clerkship_id: clerkship.id }
 			});
-			const associations = await api.expectData<any[]>(getResponse);
+			const sites = await api.expectData<any[]>(getResponse);
 
-			const items = assertions.hasItems(associations);
-			assertions.containsWhere(items, a => a.site_id === site.id);
+			const items = assertions.hasItems(sites);
+			assertions.containsWhere(items, s => s.id === site.id);
 		});
 
 		test('should get associations by site_id', async ({ request }) => {
@@ -246,14 +250,14 @@ test.describe('Sites API', () => {
 				site_id: site.id
 			});
 
-			// Get by site_id
+			// Get by site_id - API returns clerkship objects, not association records
 			const response = await api.get('/api/clerkship-sites', {
 				params: { site_id: site.id }
 			});
-			const associations = await api.expectData<any[]>(response);
+			const clerkships = await api.expectData<any[]>(response);
 
-			const items = assertions.hasItems(associations);
-			assertions.containsWhere(items, a => a.clerkship_id === clerkship.id);
+			const items = assertions.hasItems(clerkships);
+			assertions.containsWhere(items, c => c.id === clerkship.id);
 		});
 
 		test('should delete clerkship-site association', async ({ request }) => {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cuid2Schema } from '$lib/validation/common-schemas';
+import { cuid2Schema, uuidSchema } from '$lib/validation/common-schemas';
 
 /**
  * Schema for creating a new site
@@ -34,8 +34,8 @@ export const siteIdSchema = z.object({
  * Schema for clerkship-site association
  */
 export const clerkshipSiteSchema = z.object({
-	clerkship_id: cuid2Schema,
-	site_id: cuid2Schema
+	clerkship_id: uuidSchema, // Clerkships use crypto.randomUUID()
+	site_id: cuid2Schema // Sites use nanoid()
 });
 
 /**

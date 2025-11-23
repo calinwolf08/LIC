@@ -1,7 +1,8 @@
-import { json } from '@sveltejs/kit';
 import { siteService } from '$lib/features/sites/services/site-service';
 import { clerkshipSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
+import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
+import { handleApiError } from '$lib/api/errors';
 import type { RequestHandler } from './$types';
 
 /**
@@ -15,18 +16,17 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		if (clerkshipId) {
 			const sites = await siteService.getSitesByClerkship(clerkshipId);
-			return json({ data: sites });
+			return successResponse(sites);
 		}
 
 		if (siteId) {
 			const clerkships = await siteService.getClerkshipsBySite(siteId);
-			return json({ data: clerkships });
+			return successResponse(clerkships);
 		}
 
-		return json({ error: 'Either clerkship_id or site_id parameter is required' }, { status: 400 });
+		return errorResponse('Either clerkship_id or site_id parameter is required', 400);
 	} catch (error) {
-		console.error('Error fetching clerkship-site associations:', error);
-		return json({ error: 'Failed to fetch associations' }, { status: 500 });
+		return handleApiError(error);
 	}
 };
 
@@ -41,14 +41,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const association = await siteService.addClerkshipToSite(site_id, clerkship_id);
 
-		return json({ data: association }, { status: 201 });
+		return successResponse(association, 201);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json({ error: 'Validation failed', details: error.errors }, { status: 400 });
+			return validationErrorResponse(error);
 		}
 
-		console.error('Error creating clerkship-site association:', error);
-		return json({ error: 'Failed to create association' }, { status: 500 });
+		return handleApiError(error);
 	}
 };
 
@@ -56,20 +55,28 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/clerkship-sites
  * Remove a clerkship-site association
  */
-export const DELETE: RequestHandler = async ({ request }) => {
+export const DELETE: RequestHandler = async ({ url }) => {
 	try {
-		const body = await request.json();
-		const { clerkship_id, site_id } = clerkshipSiteSchema.parse(body);
+		const clerkshipId = url.searchParams.get('clerkship_id');
+		const siteId = url.searchParams.get('site_id');
+
+		if (!clerkshipId || !siteId) {
+			return errorResponse('Both clerkship_id and site_id parameters are required', 400);
+		}
+
+		const { clerkship_id, site_id } = clerkshipSiteSchema.parse({
+			clerkship_id: clerkshipId,
+			site_id: siteId
+		});
 
 		await siteService.removeClerkshipFromSite(site_id, clerkship_id);
 
-		return json({ success: true });
+		return successResponse({ success: true });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json({ error: 'Validation failed', details: error.errors }, { status: 400 });
+			return validationErrorResponse(error);
 		}
 
-		console.error('Error removing clerkship-site association:', error);
-		return json({ error: 'Failed to remove association' }, { status: 500 });
+		return handleApiError(error);
 	}
 };
