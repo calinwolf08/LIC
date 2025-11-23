@@ -10,7 +10,7 @@ test.describe('Preceptors API', () => {
 			const preceptorData = fixtures.preceptor();
 
 			const response = await api.post('/api/preceptors', preceptorData);
-			const preceptor = await api.expectJson(response, 201);
+			const preceptor = await api.expectData(response, 201);
 
 			assertions.crud.created(preceptor, {
 				first_name: preceptorData.first_name,
@@ -26,12 +26,12 @@ test.describe('Preceptors API', () => {
 			// Create health system first
 			const healthSystemData = fixtures.healthSystem();
 			const hsResponse = await api.post('/api/scheduling-config/health-systems', healthSystemData);
-			const healthSystem = await api.expectJson(hsResponse, 201);
+			const healthSystem = await api.expectData(hsResponse, 201);
 
 			// Create site
 			const siteData = fixtures.site({ health_system_id: healthSystem.id });
 			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectJson(siteResponse, 201);
+			const site = await api.expectData(siteResponse, 201);
 
 			// Create preceptor
 			const preceptorData = fixtures.preceptor({
@@ -40,7 +40,7 @@ test.describe('Preceptors API', () => {
 			});
 
 			const response = await api.post('/api/preceptors', preceptorData);
-			const preceptor = await api.expectJson(response, 201);
+			const preceptor = await api.expectData(response, 201);
 
 			expect(preceptor.health_system_id).toBe(healthSystem.id);
 			expect(preceptor.site_id).toBe(site.id);
@@ -114,10 +114,10 @@ test.describe('Preceptors API', () => {
 			const preceptorData = fixtures.preceptor();
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.get(`/api/preceptors/${created.id}`);
-			const preceptor = await api.expectJson(response);
+			const preceptor = await api.expectData(response);
 
 			assertions.hasFields(preceptor, ['id', 'first_name', 'last_name', 'email', 'specialty']);
 			expect(preceptor.id).toBe(created.id);
@@ -139,7 +139,7 @@ test.describe('Preceptors API', () => {
 			const preceptorData = fixtures.preceptor({ specialty: 'Family Medicine' });
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
 				specialty: 'Surgery',
@@ -147,7 +147,7 @@ test.describe('Preceptors API', () => {
 			};
 
 			const response = await api.patch(`/api/preceptors/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			assertions.crud.updated(updated, updates);
 		});
@@ -168,7 +168,7 @@ test.describe('Preceptors API', () => {
 			const preceptorData = fixtures.preceptor();
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/preceptors/${created.id}`);
 			await api.expectSuccess(deleteResponse);
@@ -194,11 +194,11 @@ test.describe('Preceptors API', () => {
 			// Create dependencies
 			const hsData = fixtures.healthSystem();
 			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
-			const hs = await api.expectJson(hsResponse, 201);
+			const hs = await api.expectData(hsResponse, 201);
 
 			const siteData = fixtures.site({ health_system_id: hs.id });
 			const siteResponse = await api.post('/api/sites', siteData);
-			const site = await api.expectJson(siteResponse, 201);
+			const site = await api.expectData(siteResponse, 201);
 
 			// CREATE preceptor
 			const preceptorData = fixtures.preceptor({
@@ -208,12 +208,12 @@ test.describe('Preceptors API', () => {
 			});
 
 			const createResponse = await api.post('/api/preceptors', preceptorData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 			const preceptorId = assertions.hasId(created);
 
 			// READ
 			const getResponse = await api.get(`/api/preceptors/${preceptorId}`);
-			const fetched = await api.expectJson(getResponse);
+			const fetched = await api.expectData(getResponse);
 			expect(fetched.health_system_id).toBe(hs.id);
 			expect(fetched.site_id).toBe(site.id);
 
@@ -221,7 +221,7 @@ test.describe('Preceptors API', () => {
 			const updateResponse = await api.patch(`/api/preceptors/${preceptorId}`, {
 				specialty: 'Surgery'
 			});
-			const updated = await api.expectJson(updateResponse);
+			const updated = await api.expectData(updateResponse);
 			expect(updated.specialty).toBe('Surgery');
 
 			// LIST with filter
