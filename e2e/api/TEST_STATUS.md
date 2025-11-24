@@ -98,8 +98,9 @@
 
 ## 📊 Overall Progress
 
-**Total Tests Passing: 79/79 (100%) ✅**
+**Total Tests Passing: 87/104 (84%) - Excellent Progress!**
 
+**Core APIs (Complete):**
 - ✅ Students: 14/14 (100%)
 - ✅ Preceptors: 13/13 (100%)
 - ✅ Clerkships: 15/15 (100%)
@@ -107,14 +108,33 @@
 - ✅ Simple CRUD: 5/5 (100%)
 - ✅ Availability & Patterns: 16/16 (100%)
 
+**Scheduling Config:**
+- ⚠️ Scheduling Config: 8/25 (32%) - In progress, major fixture updates completed
+
+### Scheduling Config API - **8/25 passing (32%)** ⚠️
+- Health systems: 4/4 passing ✅
+- Requirements: 3/5 passing (create, list, delete working; update failing)
+- Remaining issues: Teams, Capacity Rules, Fallbacks, Electives, Global Defaults all have 404/routing issues
+- File: `e2e/api/scheduling-config.api.test.ts`
+- **Fixes Applied:**
+  - Completely rewrote all fixtures to match actual API schemas
+  - Health system: removed `abbreviation`, now uses `name`, `location`, `description`
+  - Requirements: changed to camelCase with `overrideMode` system
+  - Teams: changed to `members` array with validation flags
+  - Capacity rules: uses `maxStudentsPerDay/Year` instead of `capacity_type`
+  - Fallbacks: single fallback per record with `primaryPreceptorId/fallbackPreceptorId`
+  - Electives: uses `name`, `minimumDays`, `availablePreceptorIds`
+  - Global defaults: uses camelCase with proper field names
+- **Remaining Work:** Fix routing/endpoint issues for teams, capacity rules, fallbacks, electives, and global defaults (17 tests failing with 404s)
+
 ## 🚀 Next Steps
 
 1. ✅ ~~Fix or remove the 2 failing clerkship tests~~ **COMPLETED**
 2. ✅ ~~Fix all sites API tests~~ **COMPLETED**
 3. ✅ ~~Fix simple-crud.api.test.ts~~ **COMPLETED**
 4. ✅ ~~Fix availability-patterns.api.test.ts~~ **COMPLETED**
-5. Update remaining test files:
-   - `scheduling-config.api.test.ts` - Review and update
+5. 🔄 **IN PROGRESS:** Fix scheduling-config.api.test.ts (8/25 passing, 32%)
+6. Update remaining test files:
    - `schedules.api.test.ts` - Complex workflows
    - `calendar.api.test.ts` - Depends on schedules
    - Workflow test files - End-to-end scenarios

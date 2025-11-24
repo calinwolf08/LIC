@@ -41,7 +41,8 @@ export const fixtures = {
 
 	healthSystem: (overrides: Partial<HealthSystemData> = {}): HealthSystemData => ({
 		name: `Health System ${uniqueId()}`,
-		abbreviation: `HS-${uniqueId().slice(0, 5).toUpperCase()}`,
+		location: overrides.location,
+		description: overrides.description,
 		...overrides
 	}),
 
@@ -51,49 +52,66 @@ export const fixtures = {
 		...overrides
 	}),
 
-	requirement: (clerkshipId: number, overrides: Partial<RequirementData> = {}): RequirementData => ({
-		clerkship_id: clerkshipId,
-		requirement_type: overrides.requirement_type || 'inpatient',
-		days_required: overrides.days_required || 10,
-		assignment_strategy: overrides.assignment_strategy || 'prioritize_continuity',
-		health_system_id: overrides.health_system_id,
-		site_id: overrides.site_id,
-		team_id: overrides.team_id,
-		allow_cross_system: overrides.allow_cross_system ?? false,
+	requirement: (clerkshipId: string, overrides: Partial<RequirementData> = {}): RequirementData => ({
+		clerkshipId: clerkshipId,
+		requirementType: overrides.requirementType || 'inpatient',
+		requiredDays: overrides.requiredDays || 10,
+		overrideMode: overrides.overrideMode || 'inherit',
+		overrideAssignmentStrategy: overrides.overrideAssignmentStrategy,
+		overrideHealthSystemRule: overrides.overrideHealthSystemRule,
+		overrideMaxStudentsPerDay: overrides.overrideMaxStudentsPerDay,
+		overrideMaxStudentsPerYear: overrides.overrideMaxStudentsPerYear,
+		overrideMaxStudentsPerBlock: overrides.overrideMaxStudentsPerBlock,
+		overrideMaxBlocksPerYear: overrides.overrideMaxBlocksPerYear,
+		overrideBlockSizeDays: overrides.overrideBlockSizeDays,
+		overrideAllowPartialBlocks: overrides.overrideAllowPartialBlocks,
+		overridePreferContinuousBlocks: overrides.overridePreferContinuousBlocks,
+		overrideAllowTeams: overrides.overrideAllowTeams,
+		overrideAllowFallbacks: overrides.overrideAllowFallbacks,
+		overrideFallbackRequiresApproval: overrides.overrideFallbackRequiresApproval,
+		overrideFallbackAllowCrossSystem: overrides.overrideFallbackAllowCrossSystem,
 		...overrides
 	}),
 
-	team: (clerkshipId: number, overrides: Partial<TeamData> = {}): TeamData => ({
-		clerkship_id: clerkshipId,
+	team: (overrides: Partial<TeamData> = {}): TeamData => ({
 		name: `Team-${uniqueId()}`,
-		priority_order: overrides.priority_order || 1,
-		min_days: overrides.min_days,
-		max_days: overrides.max_days,
-		preceptor_ids: overrides.preceptor_ids || [],
+		requireSameHealthSystem: overrides.requireSameHealthSystem ?? false,
+		requireSameSite: overrides.requireSameSite ?? false,
+		requireSameSpecialty: overrides.requireSameSpecialty ?? false,
+		requiresAdminApproval: overrides.requiresAdminApproval ?? false,
+		members: overrides.members || [
+			{ preceptorId: 'temp-prec-1', priority: 1 },
+			{ preceptorId: 'temp-prec-2', priority: 2 }
+		],
 		...overrides
 	}),
 
-	capacityRule: (preceptorId: number, overrides: Partial<CapacityRuleData> = {}): CapacityRuleData => ({
-		preceptor_id: preceptorId,
-		clerkship_id: overrides.clerkship_id,
-		capacity_type: overrides.capacity_type || 'per_day',
-		max_students: overrides.max_students || 2,
-		start_date: overrides.start_date,
-		end_date: overrides.end_date,
+	capacityRule: (preceptorId: string, overrides: Partial<CapacityRuleData> = {}): CapacityRuleData => ({
+		preceptorId: preceptorId,
+		clerkshipId: overrides.clerkshipId,
+		requirementType: overrides.requirementType,
+		maxStudentsPerDay: overrides.maxStudentsPerDay || 2,
+		maxStudentsPerYear: overrides.maxStudentsPerYear || 10,
+		maxStudentsPerBlock: overrides.maxStudentsPerBlock,
+		maxBlocksPerYear: overrides.maxBlocksPerYear,
 		...overrides
 	}),
 
-	fallback: (primaryPreceptorId: number, overrides: Partial<FallbackData> = {}): FallbackData => ({
-		primary_preceptor_id: primaryPreceptorId,
-		clerkship_id: overrides.clerkship_id,
-		fallback_order: overrides.fallback_order || [],
+	fallback: (primaryPreceptorId: string, fallbackPreceptorId: string, overrides: Partial<FallbackData> = {}): FallbackData => ({
+		primaryPreceptorId: primaryPreceptorId,
+		fallbackPreceptorId: fallbackPreceptorId,
+		clerkshipId: overrides.clerkshipId,
+		priority: overrides.priority || 1,
+		requiresApproval: overrides.requiresApproval ?? false,
+		allowDifferentHealthSystem: overrides.allowDifferentHealthSystem ?? false,
 		...overrides
 	}),
 
-	elective: (clerkshipId: number, overrides: Partial<ElectiveData> = {}): ElectiveData => ({
-		clerkship_id: clerkshipId,
+	elective: (overrides: Partial<ElectiveData> = {}): ElectiveData => ({
+		name: overrides.name || `Elective-${uniqueId()}`,
+		minimumDays: overrides.minimumDays || 5,
 		specialty: overrides.specialty || 'Surgery',
-		days_required: overrides.days_required || 5,
+		availablePreceptorIds: overrides.availablePreceptorIds || ['temp-prec-1'],
 		...overrides
 	}),
 
@@ -182,7 +200,8 @@ export interface ClerkshipData {
 
 export interface HealthSystemData {
 	name: string;
-	abbreviation: string;
+	location?: string;
+	description?: string;
 }
 
 export interface SiteData {
@@ -192,44 +211,64 @@ export interface SiteData {
 }
 
 export interface RequirementData {
-	clerkship_id: number;
-	requirement_type: string;
-	days_required: number;
-	assignment_strategy: string;
-	health_system_id?: number;
-	site_id?: number;
-	team_id?: number;
-	allow_cross_system?: boolean;
+	clerkshipId: string;
+	requirementType: 'outpatient' | 'inpatient' | 'elective';
+	requiredDays: number;
+	overrideMode: 'inherit' | 'override_fields' | 'override_section';
+	overrideAssignmentStrategy?: 'continuous_single' | 'continuous_team' | 'block_based' | 'daily_rotation';
+	overrideHealthSystemRule?: 'enforce_same_system' | 'prefer_same_system' | 'no_preference';
+	overrideMaxStudentsPerDay?: number;
+	overrideMaxStudentsPerYear?: number;
+	overrideMaxStudentsPerBlock?: number;
+	overrideMaxBlocksPerYear?: number;
+	overrideBlockSizeDays?: number;
+	overrideAllowPartialBlocks?: boolean;
+	overridePreferContinuousBlocks?: boolean;
+	overrideAllowTeams?: boolean;
+	overrideAllowFallbacks?: boolean;
+	overrideFallbackRequiresApproval?: boolean;
+	overrideFallbackAllowCrossSystem?: boolean;
+}
+
+export interface TeamMemberData {
+	preceptorId: string;
+	role?: string;
+	priority: number;
 }
 
 export interface TeamData {
-	clerkship_id: number;
-	name: string;
-	priority_order: number;
-	min_days?: number;
-	max_days?: number;
-	preceptor_ids: number[];
+	name?: string;
+	requireSameHealthSystem?: boolean;
+	requireSameSite?: boolean;
+	requireSameSpecialty?: boolean;
+	requiresAdminApproval?: boolean;
+	members: TeamMemberData[];
 }
 
 export interface CapacityRuleData {
-	preceptor_id: number;
-	clerkship_id?: number;
-	capacity_type: string;
-	max_students: number;
-	start_date?: string;
-	end_date?: string;
+	preceptorId: string;
+	clerkshipId?: string;
+	requirementType?: 'outpatient' | 'inpatient' | 'elective';
+	maxStudentsPerDay: number;
+	maxStudentsPerYear: number;
+	maxStudentsPerBlock?: number;
+	maxBlocksPerYear?: number;
 }
 
 export interface FallbackData {
-	primary_preceptor_id: number;
-	clerkship_id?: number;
-	fallback_order: number[];
+	primaryPreceptorId: string;
+	fallbackPreceptorId: string;
+	clerkshipId?: string;
+	priority: number;
+	requiresApproval?: boolean;
+	allowDifferentHealthSystem?: boolean;
 }
 
 export interface ElectiveData {
-	clerkship_id: number;
-	specialty: string;
-	days_required: number;
+	name: string;
+	minimumDays: number;
+	specialty?: string;
+	availablePreceptorIds: string[];
 }
 
 export interface AvailabilityData {

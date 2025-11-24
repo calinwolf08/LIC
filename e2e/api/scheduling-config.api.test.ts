@@ -13,8 +13,7 @@ test.describe('Scheduling Configuration API', () => {
 			const hs = await api.expectData(response, 201);
 
 			assertions.crud.created(hs, {
-				name: hsData.name,
-				abbreviation: hsData.abbreviation
+				name: hsData.name
 			});
 		});
 
@@ -62,7 +61,7 @@ test.describe('Scheduling Configuration API', () => {
 	});
 
 	test.describe('Requirements', () => {
-		let clerkshipId: number;
+		let clerkshipId: string;
 
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
@@ -75,26 +74,24 @@ test.describe('Scheduling Configuration API', () => {
 		test('should create requirement', async ({ request }) => {
 			const api = createApiClient(request);
 			const reqData = fixtures.requirement(clerkshipId, {
-				requirement_type: 'inpatient',
-				days_required: 10,
-				assignment_strategy: 'prioritize_continuity'
+				requirementType: 'inpatient',
+				requiredDays: 10,
+				overrideMode: 'inherit'
 			});
 
 			const response = await api.post('/api/scheduling-config/requirements', reqData);
 			const req = await api.expectData(response, 201);
 
-			assertions.crud.created(req, {
-				clerkship_id: clerkshipId,
-				requirement_type: 'inpatient',
-				days_required: 10
-			});
+			expect(req.clerkshipId).toBe(clerkshipId);
+			expect(req.requirementType).toBe('inpatient');
+			expect(req.requiredDays).toBe(10);
 		});
 
 		test('should list requirements for clerkship', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const req1 = fixtures.requirement(clerkshipId, { requirement_type: 'inpatient' });
-			const req2 = fixtures.requirement(clerkshipId, { requirement_type: 'outpatient' });
+			const req1 = fixtures.requirement(clerkshipId, { requirementType: 'inpatient' });
+			const req2 = fixtures.requirement(clerkshipId, { requirementType: 'outpatient' });
 
 			await api.post('/api/scheduling-config/requirements', req1);
 			await api.post('/api/scheduling-config/requirements', req2);
@@ -114,11 +111,11 @@ test.describe('Scheduling Configuration API', () => {
 			const createResponse = await api.post('/api/scheduling-config/requirements', reqData);
 			const created = await api.expectData(createResponse, 201);
 
-			const updates = { days_required: 15 };
+			const updates = { requiredDays: 15 };
 			const response = await api.put(`/api/scheduling-config/requirements/${created.id}`, updates);
 			const updated = await api.expectData(response);
 
-			expect(updated.days_required).toBe(15);
+			expect(updated.requiredDays).toBe(15);
 		});
 
 		test('should delete requirement', async ({ request }) => {
@@ -141,24 +138,23 @@ test.describe('Scheduling Configuration API', () => {
 			const hs = await api.expectData(hsResponse, 201);
 
 			const reqData = fixtures.requirement(clerkshipId, {
-				requirement_type: 'inpatient',
-				days_required: 10,
-				health_system_id: hs.id,
-				allow_cross_system: false
+				requirementType: 'inpatient',
+				requiredDays: 10,
+				overrideMode: 'override_fields',
+				overrideHealthSystemRule: 'enforce_same_system'
 			});
 
 			const response = await api.post('/api/scheduling-config/requirements', reqData);
 			const req = await api.expectData(response, 201);
 
-			expect(req.health_system_id).toBe(hs.id);
-			expect(req.allow_cross_system).toBe(false);
+			expect(req.overrideHealthSystemRule).toBe('enforce_same_system');
 		});
 	});
 
 	test.describe('Teams', () => {
-		let clerkshipId: number;
-		let preceptor1Id: number;
-		let preceptor2Id: number;
+		let clerkshipId: string;
+		let preceptor1Id: string;
+		let preceptor2Id: string;
 
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
@@ -182,12 +178,13 @@ test.describe('Scheduling Configuration API', () => {
 		test('should create team with preceptors', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const teamData = fixtures.team(clerkshipId, {
+			const teamData = fixtures.team({
 				name: 'Team Alpha',
-				priority_order: 1,
-				preceptor_ids: [preceptor1Id, preceptor2Id],
-				min_days: 5,
-				max_days: 15
+				requireSameHealthSystem: false,
+				members: [
+					{ preceptorId: preceptor1Id, priority: 1 },
+					{ preceptorId: preceptor2Id, priority: 2 }
+				]
 			});
 
 			const response = await api.post('/api/scheduling-config/teams', teamData, {
@@ -195,26 +192,27 @@ test.describe('Scheduling Configuration API', () => {
 			} as any);
 			const team = await api.expectData(response, 201);
 
-			assertions.crud.created(team, {
-				name: 'Team Alpha',
-				clerkship_id: clerkshipId,
-				priority_order: 1
-			});
-
-			expect(team.preceptor_ids).toBeDefined();
-			expect(team.preceptor_ids.length).toBe(2);
+			expect(team.name).toBe('Team Alpha');
+			expect(team.members).toBeDefined();
+			expect(team.members.length).toBe(2);
 		});
 
 		test('should list teams for clerkship', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const team1 = fixtures.team(clerkshipId, {
+			const team1 = fixtures.team({
 				name: 'Team 1',
-				preceptor_ids: [preceptor1Id]
+				members: [
+					{ preceptorId: preceptor1Id, priority: 1 },
+					{ preceptorId: preceptor2Id, priority: 2 }
+				]
 			});
-			const team2 = fixtures.team(clerkshipId, {
+			const team2 = fixtures.team({
 				name: 'Team 2',
-				preceptor_ids: [preceptor2Id]
+				members: [
+					{ preceptorId: preceptor2Id, priority: 1 },
+					{ preceptorId: preceptor1Id, priority: 2 }
+				]
 			});
 
 			await api.post('/api/scheduling-config/teams', team1, {
@@ -235,8 +233,11 @@ test.describe('Scheduling Configuration API', () => {
 		test('should validate team configuration', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const teamData = fixtures.team(clerkshipId, {
-				preceptor_ids: [preceptor1Id, preceptor2Id]
+			const teamData = fixtures.team({
+				members: [
+					{ preceptorId: preceptor1Id, priority: 1 },
+					{ preceptorId: preceptor2Id, priority: 2 }
+				]
 			});
 
 			const response = await api.post('/api/scheduling-config/teams/validate', teamData);
@@ -247,8 +248,8 @@ test.describe('Scheduling Configuration API', () => {
 	});
 
 	test.describe('Capacity Rules', () => {
-		let preceptorId: number;
-		let clerkshipId: number;
+		let preceptorId: string;
+		let clerkshipId: string;
 
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
@@ -268,42 +269,39 @@ test.describe('Scheduling Configuration API', () => {
 			const api = createApiClient(request);
 
 			const capData = fixtures.capacityRule(preceptorId, {
-				capacity_type: 'per_day',
-				max_students: 2
+				maxStudentsPerDay: 2,
+				maxStudentsPerYear: 50
 			});
 
 			const response = await api.post('/api/scheduling-config/capacity-rules', capData);
 			const rule = await api.expectData(response, 201);
 
-			assertions.crud.created(rule, {
-				preceptor_id: preceptorId,
-				capacity_type: 'per_day',
-				max_students: 2
-			});
+			expect(rule.preceptorId).toBe(preceptorId);
+			expect(rule.maxStudentsPerDay).toBe(2);
+			expect(rule.maxStudentsPerYear).toBe(50);
 		});
 
 		test('should create per-year capacity rule with clerkship', async ({ request }) => {
 			const api = createApiClient(request);
 
 			const capData = fixtures.capacityRule(preceptorId, {
-				clerkship_id: clerkshipId,
-				capacity_type: 'per_year',
-				max_students: 10
+				clerkshipId: clerkshipId,
+				maxStudentsPerDay: 1,
+				maxStudentsPerYear: 10
 			});
 
 			const response = await api.post('/api/scheduling-config/capacity-rules', capData);
 			const rule = await api.expectData(response, 201);
 
-			expect(rule.clerkship_id).toBe(clerkshipId);
-			expect(rule.capacity_type).toBe('per_year');
-			expect(rule.max_students).toBe(10);
+			expect(rule.clerkshipId).toBe(clerkshipId);
+			expect(rule.maxStudentsPerYear).toBe(10);
 		});
 
 		test('should list capacity rules for preceptor', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const cap1 = fixtures.capacityRule(preceptorId, { capacity_type: 'per_day' });
-			const cap2 = fixtures.capacityRule(preceptorId, { capacity_type: 'per_year' });
+			const cap1 = fixtures.capacityRule(preceptorId, { maxStudentsPerDay: 2, maxStudentsPerYear: 20 });
+			const cap2 = fixtures.capacityRule(preceptorId, { maxStudentsPerDay: 3, maxStudentsPerYear: 30 });
 
 			await api.post('/api/scheduling-config/capacity-rules', cap1);
 			await api.post('/api/scheduling-config/capacity-rules', cap2);
@@ -318,10 +316,10 @@ test.describe('Scheduling Configuration API', () => {
 	});
 
 	test.describe('Fallbacks', () => {
-		let primaryId: number;
-		let fallback1Id: number;
-		let fallback2Id: number;
-		let clerkshipId: number;
+		let primaryId: string;
+		let fallback1Id: string;
+		let fallback2Id: string;
+		let clerkshipId: string;
 
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
@@ -348,29 +346,23 @@ test.describe('Scheduling Configuration API', () => {
 		test('should create fallback chain', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const fallbackData = fixtures.fallback(primaryId, {
-				clerkship_id: clerkshipId,
-				fallback_order: [fallback1Id, fallback2Id]
+			const fallbackData = fixtures.fallback(primaryId, fallback1Id, {
+				clerkshipId: clerkshipId,
+				priority: 1
 			});
 
 			const response = await api.post('/api/scheduling-config/fallbacks', fallbackData);
 			const fallback = await api.expectData(response, 201);
 
-			assertions.crud.created(fallback, {
-				primary_preceptor_id: primaryId,
-				clerkship_id: clerkshipId
-			});
-
-			expect(fallback.fallback_order).toBeDefined();
-			expect(fallback.fallback_order.length).toBe(2);
+			expect(fallback.primaryPreceptorId).toBe(primaryId);
+			expect(fallback.fallbackPreceptorId).toBe(fallback1Id);
+			expect(fallback.clerkshipId).toBe(clerkshipId);
 		});
 
 		test('should list fallbacks for preceptor', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const fallbackData = fixtures.fallback(primaryId, {
-				fallback_order: [fallback1Id]
-			});
+			const fallbackData = fixtures.fallback(primaryId, fallback1Id);
 
 			await api.post('/api/scheduling-config/fallbacks', fallbackData);
 
@@ -385,9 +377,7 @@ test.describe('Scheduling Configuration API', () => {
 		test('should get specific fallback', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const fallbackData = fixtures.fallback(primaryId, {
-				fallback_order: [fallback1Id, fallback2Id]
-			});
+			const fallbackData = fixtures.fallback(primaryId, fallback1Id);
 
 			const createResponse = await api.post('/api/scheduling-config/fallbacks', fallbackData);
 			const created = await api.expectData(createResponse, 201);
@@ -396,15 +386,13 @@ test.describe('Scheduling Configuration API', () => {
 			const fallback = await api.expectData(response);
 
 			expect(fallback.id).toBe(created.id);
-			expect(fallback.primary_preceptor_id).toBe(primaryId);
+			expect(fallback.primaryPreceptorId).toBe(primaryId);
 		});
 
 		test('should delete fallback', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const fallbackData = fixtures.fallback(primaryId, {
-				fallback_order: [fallback1Id]
-			});
+			const fallbackData = fixtures.fallback(primaryId, fallback1Id);
 
 			const createResponse = await api.post('/api/scheduling-config/fallbacks', fallbackData);
 			const created = await api.expectData(createResponse, 201);
@@ -415,7 +403,8 @@ test.describe('Scheduling Configuration API', () => {
 	});
 
 	test.describe('Electives', () => {
-		let clerkshipId: number;
+		let clerkshipId: string;
+		let preceptorId: string;
 
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
@@ -423,43 +412,49 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.post('/api/clerkships', clerkshipData);
 			const clerkship = await api.expectData(response, 201);
 			clerkshipId = clerkship.id;
+
+			// Create a preceptor for electives
+			const pData = fixtures.preceptor();
+			const pResponse = await api.post('/api/preceptors', pData);
+			const p = await api.expectData(pResponse, 201);
+			preceptorId = p.id;
 		});
 
 		test('should create elective', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const electiveData = fixtures.elective(clerkshipId, {
+			const electiveData = fixtures.elective({
+				name: 'Surgery Elective',
 				specialty: 'Surgery',
-				days_required: 5
+				minimumDays: 5,
+				availablePreceptorIds: [preceptorId]
 			});
 
 			const response = await api.post('/api/scheduling-config/electives', electiveData, {
-				params: { clerkshipId: String(clerkshipId) }
+				params: { requirementId: String(clerkshipId) }
 			} as any);
 			const elective = await api.expectData(response, 201);
 
-			assertions.crud.created(elective, {
-				clerkship_id: clerkshipId,
-				specialty: 'Surgery',
-				days_required: 5
-			});
+			expect(elective.name).toBe('Surgery Elective');
+			expect(elective.specialty).toBe('Surgery');
+			expect(elective.minimumDays).toBe(5);
 		});
 
 		test('should list electives for clerkship', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const e1 = fixtures.elective(clerkshipId, { specialty: 'Surgery' });
-			const e2 = fixtures.elective(clerkshipId, { specialty: 'Pediatrics' });
+			const e1 = fixtures.elective({ specialty: 'Surgery', availablePreceptorIds: [preceptorId] });
+			const e2 = fixtures.elective({ specialty: 'Pediatrics', availablePreceptorIds: [preceptorId] });
 
 			await api.post('/api/scheduling-config/electives', e1, {
-				params: { clerkshipId: String(clerkshipId) }
+				params: { requirementId: String(clerkshipId) }
 			} as any);
 			await api.post('/api/scheduling-config/electives', e2, {
-				params: { clerkshipId: String(clerkshipId) }
+				params: { requirementId: String(clerkshipId) }
 			} as any);
 
 			const response = await api.get('/api/scheduling-config/electives', {
-				params: { clerkshipId: String(clerkshipId) }
+				params: { requirementId: String(clerkshipId) }
 			});
 			const electives = await api.expectData<any[]>(response);
 
@@ -469,9 +464,9 @@ test.describe('Scheduling Configuration API', () => {
 		test('should delete elective', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const electiveData = fixtures.elective(clerkshipId);
+			const electiveData = fixtures.elective({ availablePreceptorIds: [preceptorId] });
 			const createResponse = await api.post('/api/scheduling-config/electives', electiveData, {
-				params: { clerkshipId: String(clerkshipId) }
+				params: { requirementId: String(clerkshipId) }
 			} as any);
 			const created = await api.expectData(createResponse, 201);
 
@@ -481,70 +476,66 @@ test.describe('Scheduling Configuration API', () => {
 	});
 
 	test.describe('Global Defaults', () => {
-		let clerkshipId: number;
-
-		test.beforeEach(async ({ request }) => {
-			const api = createApiClient(request);
-			const clerkshipData = fixtures.clerkship();
-			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectData(response, 201);
-			clerkshipId = clerkship.id;
-		});
-
 		test('should get and update inpatient defaults', async ({ request }) => {
 			const api = createApiClient(request);
 
 			const defaults = {
-				assignment_strategy: 'prioritize_continuity',
-				allow_cross_system: false
+				assignmentStrategy: 'continuous_single',
+				healthSystemRule: 'prefer_same_system',
+				defaultMaxStudentsPerDay: 2,
+				defaultMaxStudentsPerYear: 50,
+				allowTeams: false,
+				allowFallbacks: true,
+				fallbackRequiresApproval: false,
+				fallbackAllowCrossSystem: false
 			};
 
-			const updateResponse = await api.put('/api/scheduling-config/global-defaults/inpatient', defaults, {
-				params: { clerkshipId: String(clerkshipId) }
-			} as any);
+			const updateResponse = await api.put('/api/scheduling-config/global-defaults/inpatient', defaults);
 			const updated = await api.expectData(updateResponse);
 
-			expect(updated.assignment_strategy).toBe('prioritize_continuity');
+			expect(updated.assignmentStrategy).toBe('continuous_single');
 
 			// Get defaults
-			const getResponse = await api.get('/api/scheduling-config/global-defaults/inpatient', {
-				params: { clerkshipId: String(clerkshipId) }
-			});
+			const getResponse = await api.get('/api/scheduling-config/global-defaults/inpatient');
 			const fetched = await api.expectData(getResponse);
 
-			expect(fetched.assignment_strategy).toBe('prioritize_continuity');
+			expect(fetched.assignmentStrategy).toBe('continuous_single');
 		});
 
 		test('should get and update outpatient defaults', async ({ request }) => {
 			const api = createApiClient(request);
 
 			const defaults = {
-				assignment_strategy: 'balance_load',
-				allow_cross_system: true
+				assignmentStrategy: 'daily_rotation',
+				healthSystemRule: 'no_preference',
+				defaultMaxStudentsPerDay: 3,
+				defaultMaxStudentsPerYear: 60,
+				allowTeams: true,
+				allowFallbacks: true
 			};
 
-			const response = await api.put('/api/scheduling-config/global-defaults/outpatient', defaults, {
-				params: { clerkshipId: String(clerkshipId) }
-			} as any);
+			const response = await api.put('/api/scheduling-config/global-defaults/outpatient', defaults);
 			const updated = await api.expectData(response);
 
-			expect(updated.assignment_strategy).toBe('balance_load');
+			expect(updated.assignmentStrategy).toBe('daily_rotation');
 		});
 
 		test('should get and update elective defaults', async ({ request }) => {
 			const api = createApiClient(request);
 
 			const defaults = {
-				assignment_strategy: 'student_preference',
-				allow_cross_system: true
+				assignmentStrategy: 'continuous_single',
+				healthSystemRule: 'no_preference',
+				defaultMaxStudentsPerDay: 1,
+				defaultMaxStudentsPerYear: 20,
+				allowTeams: false,
+				allowFallbacks: true
 			};
 
-			const response = await api.put('/api/scheduling-config/global-defaults/elective', defaults, {
-				params: { clerkshipId: String(clerkshipId) }
-			} as any);
+			const response = await api.put('/api/scheduling-config/global-defaults/elective', defaults);
 			const updated = await api.expectData(response);
 
-			expect(updated.assignment_strategy).toBe('student_preference');
+			expect(updated.assignmentStrategy).toBe('continuous_single');
 		});
 	});
 });
