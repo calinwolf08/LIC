@@ -17,8 +17,13 @@ export class ApiClient {
 		return this.request.get(url.toString());
 	}
 
-	async post(endpoint: string, data?: unknown) {
+	async post(endpoint: string, data?: unknown, options: { params?: Record<string, string> } = {}) {
 		const url = new URL(endpoint, this.baseURL);
+		if (options.params) {
+			Object.entries(options.params).forEach(([key, value]) => {
+				url.searchParams.append(key, value);
+			});
+		}
 		return this.request.post(url.toString(), {
 			data: data,
 			headers: {

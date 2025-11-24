@@ -111,8 +111,16 @@ test.describe('Scheduling Configuration API', () => {
 			const createResponse = await api.post('/api/scheduling-config/requirements', reqData);
 			const created = await api.expectData(createResponse, 201);
 
-			const updates = { requiredDays: 15 };
+			// Update with full schema object (API validates against full requirementInputSchema)
+			const updates = {
+				...reqData,
+				requiredDays: 15
+			};
 			const response = await api.put(`/api/scheduling-config/requirements/${created.id}`, updates);
+			if (response.status() !== 200) {
+				const body = await response.json();
+				console.log('Requirement PUT error:', JSON.stringify(body, null, 2));
+			}
 			const updated = await api.expectData(response);
 
 			expect(updated.requiredDays).toBe(15);
@@ -195,6 +203,10 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.post('/api/scheduling-config/teams', teamData, {
 				params: { clerkshipId: String(clerkshipId) }
 			} as any);
+			if (response.status() !== 201) {
+				const body = await response.json();
+				console.log('Teams POST error:', JSON.stringify(body, null, 2));
+			}
 			const team = await api.expectData(response, 201);
 
 			expect(team.name).toBe('Team Alpha');
@@ -442,7 +454,7 @@ test.describe('Scheduling Configuration API', () => {
 			requirementId = requirement.id;
 
 			// Create a preceptor for electives
-			const pData = fixtures.preceptor({ health_system_id: hs.id });
+			const pData = fixtures.preceptor({ health_system_id: hs.id, specialty: 'Surgery' });
 			const pResponse = await api.post('/api/preceptors', pData);
 			const p = await api.expectData(pResponse, 201);
 			preceptorId = p.id;
@@ -461,6 +473,10 @@ test.describe('Scheduling Configuration API', () => {
 			const response = await api.post('/api/scheduling-config/electives', electiveData, {
 				params: { requirementId: String(requirementId) }
 			} as any);
+			if (response.status() !== 201) {
+				const body = await response.json();
+				console.log('Electives POST error:', JSON.stringify(body, null, 2));
+			}
 			const elective = await api.expectData(response, 201);
 
 			expect(elective.name).toBe('Surgery Elective');
