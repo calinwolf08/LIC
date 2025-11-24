@@ -1,6 +1,6 @@
 # E2E API Test Status
 
-## ✅ Completed Test Files (79/79 tests passing - 100%)
+## ✅ Test Suite Status (100/104 tests passing - 96.2%)
 
 ### Students API - **14/14 passing** ✅
 - Full CRUD operations working
@@ -165,3 +165,22 @@ The availability pattern API uses a discriminated union schema based on `pattern
 - SQLite stores booleans as 0/1, so tests should use `.toBeTruthy()` instead of `.toBe(true)`
 - Pattern updates use PUT, not PATCH
 - Pattern generation creates preview from all enabled patterns, not specific pattern_id
+
+### Scheduling Configuration API - **21/25 passing** (84%) 🔨
+- Health Systems: 4/4 passing ✅
+- Requirements: 4/5 passing (update test has service-side validation issue)
+- Teams: 3/3 passing ✅
+- Capacity Rules: 3/3 passing ✅
+- Fallbacks: 4/4 passing ✅
+- Electives: 0/3 failing (DB errors)
+- Global Defaults: 3/3 passing ✅
+- File: `e2e/api/scheduling-config.api.test.ts`
+- **Fixes Applied:**
+  - Added health system creation in beforeEach for all test groups
+  - Fixed API client to support query params in POST requests
+  - Fixed electives to use requirementId instead of clerkshipId
+  - Fixed global defaults tests to handle non-standard {data} response format
+  - Fixed teams validation test to match validate endpoint schema
+- **Known Issues:**
+  - Requirement update: Service validates merged data but doesn't include clerkshipId in merge
+  - Electives: "DB error: Failed to create elective" - investigating database constraints

@@ -250,17 +250,24 @@ test.describe('Scheduling Configuration API', () => {
 		test('should validate team configuration', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const teamData = fixtures.team({
+			// Validate endpoint expects different structure
+			const validateData = {
 				members: [
 					{ preceptorId: preceptor1Id, priority: 1 },
 					{ preceptorId: preceptor2Id, priority: 2 }
-				]
-			});
+				],
+				config: {
+					requireSameHealthSystem: false,
+					requireSameSite: false,
+					requireSameSpecialty: false,
+					requiresAdminApproval: false
+				}
+			};
 
-			const response = await api.post('/api/scheduling-config/teams/validate', teamData);
+			const response = await api.post('/api/scheduling-config/teams/validate', validateData);
 			const validation = await api.expectData(response);
 
-			expect(validation.valid !== undefined || validation.errors !== undefined).toBeTruthy();
+			expect(validation.isValid !== undefined).toBeTruthy();
 		});
 	});
 
