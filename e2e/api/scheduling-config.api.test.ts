@@ -159,17 +159,22 @@ test.describe('Scheduling Configuration API', () => {
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
 
+			// Create health system first
+			const hsData = fixtures.healthSystem();
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
+			const hs = await api.expectData(hsResponse, 201);
+
 			const clerkshipData = fixtures.clerkship();
 			const clerkshipResponse = await api.post('/api/clerkships', clerkshipData);
 			const clerkship = await api.expectData(clerkshipResponse, 201);
 			clerkshipId = clerkship.id;
 
-			const p1Data = fixtures.preceptor();
+			const p1Data = fixtures.preceptor({ health_system_id: hs.id });
 			const p1Response = await api.post('/api/preceptors', p1Data);
 			const p1 = await api.expectData(p1Response, 201);
 			preceptor1Id = p1.id;
 
-			const p2Data = fixtures.preceptor();
+			const p2Data = fixtures.preceptor({ health_system_id: hs.id });
 			const p2Response = await api.post('/api/preceptors', p2Data);
 			const p2 = await api.expectData(p2Response, 201);
 			preceptor2Id = p2.id;
@@ -254,7 +259,12 @@ test.describe('Scheduling Configuration API', () => {
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
 
-			const pData = fixtures.preceptor();
+			// Create health system first
+			const hsData = fixtures.healthSystem();
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
+			const hs = await api.expectData(hsResponse, 201);
+
+			const pData = fixtures.preceptor({ health_system_id: hs.id });
 			const pResponse = await api.post('/api/preceptors', pData);
 			const p = await api.expectData(pResponse, 201);
 			preceptorId = p.id;
@@ -324,16 +334,21 @@ test.describe('Scheduling Configuration API', () => {
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
 
+			// Create health system first
+			const hsData = fixtures.healthSystem();
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
+			const hs = await api.expectData(hsResponse, 201);
+
 			// Create preceptors
-			const p1 = await api.post('/api/preceptors', fixtures.preceptor());
+			const p1 = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: hs.id }));
 			const primary = await api.expectData(p1, 201);
 			primaryId = primary.id;
 
-			const p2 = await api.post('/api/preceptors', fixtures.preceptor());
+			const p2 = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: hs.id }));
 			const f1 = await api.expectData(p2, 201);
 			fallback1Id = f1.id;
 
-			const p3 = await api.post('/api/preceptors', fixtures.preceptor());
+			const p3 = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: hs.id }));
 			const f2 = await api.expectData(p3, 201);
 			fallback2Id = f2.id;
 
@@ -403,18 +418,31 @@ test.describe('Scheduling Configuration API', () => {
 	});
 
 	test.describe('Electives', () => {
-		let clerkshipId: string;
+		let requirementId: string;
 		let preceptorId: string;
 
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
+
+			// Create health system first
+			const hsData = fixtures.healthSystem();
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', hsData);
+			const hs = await api.expectData(hsResponse, 201);
+
 			const clerkshipData = fixtures.clerkship();
 			const response = await api.post('/api/clerkships', clerkshipData);
 			const clerkship = await api.expectData(response, 201);
-			clerkshipId = clerkship.id;
+
+			// Create a requirement for electives
+			const reqData = fixtures.requirement(clerkship.id, {
+				requirementType: 'elective'
+			});
+			const reqResponse = await api.post('/api/scheduling-config/requirements', reqData);
+			const requirement = await api.expectData(reqResponse, 201);
+			requirementId = requirement.id;
 
 			// Create a preceptor for electives
-			const pData = fixtures.preceptor();
+			const pData = fixtures.preceptor({ health_system_id: hs.id });
 			const pResponse = await api.post('/api/preceptors', pData);
 			const p = await api.expectData(pResponse, 201);
 			preceptorId = p.id;
@@ -431,7 +459,7 @@ test.describe('Scheduling Configuration API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-config/electives', electiveData, {
-				params: { requirementId: String(clerkshipId) }
+				params: { requirementId: String(requirementId) }
 			} as any);
 			const elective = await api.expectData(response, 201);
 
@@ -447,14 +475,14 @@ test.describe('Scheduling Configuration API', () => {
 			const e2 = fixtures.elective({ specialty: 'Pediatrics', availablePreceptorIds: [preceptorId] });
 
 			await api.post('/api/scheduling-config/electives', e1, {
-				params: { requirementId: String(clerkshipId) }
+				params: { requirementId: String(requirementId) }
 			} as any);
 			await api.post('/api/scheduling-config/electives', e2, {
-				params: { requirementId: String(clerkshipId) }
+				params: { requirementId: String(requirementId) }
 			} as any);
 
 			const response = await api.get('/api/scheduling-config/electives', {
-				params: { requirementId: String(clerkshipId) }
+				params: { requirementId: String(requirementId) }
 			});
 			const electives = await api.expectData<any[]>(response);
 
@@ -491,13 +519,17 @@ test.describe('Scheduling Configuration API', () => {
 			};
 
 			const updateResponse = await api.put('/api/scheduling-config/global-defaults/inpatient', defaults);
-			const updated = await api.expectData(updateResponse);
+			expect(updateResponse.status()).toBe(200);
+			const updateBody = await updateResponse.json() as { data: any };
+			const updated = updateBody.data;
 
 			expect(updated.assignmentStrategy).toBe('continuous_single');
 
 			// Get defaults
 			const getResponse = await api.get('/api/scheduling-config/global-defaults/inpatient');
-			const fetched = await api.expectData(getResponse);
+			expect(getResponse.status()).toBe(200);
+			const getBody = await getResponse.json() as { data: any };
+			const fetched = getBody.data;
 
 			expect(fetched.assignmentStrategy).toBe('continuous_single');
 		});
@@ -515,7 +547,9 @@ test.describe('Scheduling Configuration API', () => {
 			};
 
 			const response = await api.put('/api/scheduling-config/global-defaults/outpatient', defaults);
-			const updated = await api.expectData(response);
+			expect(response.status()).toBe(200);
+			const body = await response.json() as { data: any };
+			const updated = body.data;
 
 			expect(updated.assignmentStrategy).toBe('daily_rotation');
 		});
@@ -533,7 +567,9 @@ test.describe('Scheduling Configuration API', () => {
 			};
 
 			const response = await api.put('/api/scheduling-config/global-defaults/elective', defaults);
-			const updated = await api.expectData(response);
+			expect(response.status()).toBe(200);
+			const body = await response.json() as { data: any };
+			const updated = body.data;
 
 			expect(updated.assignmentStrategy).toBe('continuous_single');
 		});
