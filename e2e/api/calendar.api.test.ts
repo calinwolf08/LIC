@@ -36,8 +36,8 @@ test.describe('Calendar API', () => {
 			});
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-10'
+				startDate: '2025-01-06',
+				endDate: '2025-01-10'
 			});
 		});
 
@@ -192,8 +192,8 @@ test.describe('Calendar API', () => {
 			});
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-10'
+				startDate: '2025-01-06',
+				endDate: '2025-01-10'
 			});
 
 			// Get summary
@@ -255,8 +255,8 @@ test.describe('Calendar API', () => {
 			});
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-06'
+				startDate: '2025-01-06',
+				endDate: '2025-01-06'
 			});
 
 			// Get summary filtered by student
