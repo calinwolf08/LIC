@@ -14,19 +14,19 @@ test.describe('Calendar API', () => {
 
 			// Create health system first (required for preceptors)
 			const hsResponse = await api.post('/api/scheduling-config/health-systems', fixtures.healthSystem());
-			const healthSystem = await api.expectJson(hsResponse, 201);
+			const healthSystem = await api.expectData(hsResponse, 201);
 
 			// Create test data
 			const sResponse = await api.post('/api/students', fixtures.student());
-			const student = await api.expectJson(sResponse, 201);
+			const student = await api.expectData(sResponse, 201);
 			studentId = student.id;
 
 			const pResponse = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
-			const preceptor = await api.expectJson(pResponse, 201);
+			const preceptor = await api.expectData(pResponse, 201);
 			preceptorId = preceptor.id;
 
 			const cResponse = await api.post('/api/clerkships', fixtures.clerkship());
-			const clerkship = await api.expectJson(cResponse, 201);
+			const clerkship = await api.expectData(cResponse, 201);
 			clerkshipId = clerkship.id;
 
 			// Set availability and generate schedule
@@ -51,7 +51,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			expect(Array.isArray(events)).toBeTruthy();
 			assertions.hasMinLength(events, 1);
@@ -74,7 +74,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
 				expect(event.student_id).toBe(studentId);
@@ -92,7 +92,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
 				expect(event.preceptor_id).toBe(preceptorId);
@@ -110,7 +110,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
 				expect(event.clerkship_id).toBe(clerkshipId);
@@ -127,7 +127,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			expect(Array.isArray(events)).toBeTruthy();
 			expect(events.length).toBe(0);
@@ -145,7 +145,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
 				expect(event.student_id).toBe(studentId);
@@ -163,7 +163,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const events = await api.expectJson<any[]>(response);
+			const events = await api.expectData<any[]>(response);
 
 			expect(Array.isArray(events)).toBeTruthy();
 			events.forEach(event => {
@@ -178,12 +178,12 @@ test.describe('Calendar API', () => {
 
 			// Create health system first
 			const hsResponse = await api.post('/api/scheduling-config/health-systems', fixtures.healthSystem());
-			const healthSystem = await api.expectJson(hsResponse, 201);
+			const healthSystem = await api.expectData(hsResponse, 201);
 
 			// Create minimal data and generate schedule
 			await api.post('/api/students', fixtures.student());
 			const pResponse = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
-			const preceptor = await api.expectJson(pResponse, 201);
+			const preceptor = await api.expectData(pResponse, 201);
 			await api.post('/api/clerkships', fixtures.clerkship());
 
 			const dates = dateHelpers.getDateRange('2025-01-06', '2025-01-10');
@@ -204,7 +204,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const summary = await api.expectJson(response);
+			const summary = await api.expectData(response);
 
 			// Verify summary structure
 			expect(summary).toBeDefined();
@@ -228,7 +228,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const summary = await api.expectJson(response);
+			const summary = await api.expectData(response);
 
 			expect(summary).toBeDefined();
 			// Should return valid summary even for empty range
@@ -239,14 +239,14 @@ test.describe('Calendar API', () => {
 
 			// Create health system first
 			const hsResponse = await api.post('/api/scheduling-config/health-systems', fixtures.healthSystem());
-			const healthSystem = await api.expectJson(hsResponse, 201);
+			const healthSystem = await api.expectData(hsResponse, 201);
 
 			// Create data
 			const sResponse = await api.post('/api/students', fixtures.student());
-			const student = await api.expectJson(sResponse, 201);
+			const student = await api.expectData(sResponse, 201);
 
 			const pResponse = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
-			const preceptor = await api.expectJson(pResponse, 201);
+			const preceptor = await api.expectData(pResponse, 201);
 
 			await api.post('/api/clerkships', fixtures.clerkship());
 
@@ -268,7 +268,7 @@ test.describe('Calendar API', () => {
 				}
 			});
 
-			const summary = await api.expectJson(response);
+			const summary = await api.expectData(response);
 
 			expect(summary).toBeDefined();
 		});
@@ -286,7 +286,7 @@ test.describe('Calendar API', () => {
 			});
 
 			const response = await api.post('/api/scheduling-periods', periodData);
-			const period = await api.expectJson(response, 201);
+			const period = await api.expectData(response, 201);
 
 			assertions.crud.created(period, {
 				name: 'Spring 2025',
@@ -305,7 +305,7 @@ test.describe('Calendar API', () => {
 			await api.post('/api/scheduling-periods', p2);
 
 			const response = await api.get('/api/scheduling-periods');
-			const periods = await api.expectJson<any[]>(response);
+			const periods = await api.expectData<any[]>(response);
 
 			assertions.hasMinLength(periods, 2);
 		});
@@ -315,13 +315,13 @@ test.describe('Calendar API', () => {
 
 			const periodData = fixtures.schedulingPeriod({ is_active: true });
 			const createResponse = await api.post('/api/scheduling-periods', periodData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			// Activate the period
 			await api.post(`/api/scheduling-periods/${created.id}/activate`, {});
 
 			const response = await api.get('/api/scheduling-periods/active');
-			const active = await api.expectJson(response);
+			const active = await api.expectData(response);
 
 			expect(active).toBeDefined();
 			if (active.id) {
@@ -334,7 +334,7 @@ test.describe('Calendar API', () => {
 
 			const periodData = fixtures.schedulingPeriod();
 			const createResponse = await api.post('/api/scheduling-periods', periodData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const updates = {
 				name: 'Updated Period Name',
@@ -342,7 +342,7 @@ test.describe('Calendar API', () => {
 			};
 
 			const response = await api.put(`/api/scheduling-periods/${created.id}`, updates);
-			const updated = await api.expectJson(response);
+			const updated = await api.expectData(response);
 
 			expect(updated.name).toBe('Updated Period Name');
 			expect(updated.end_date).toBe('2025-12-31');
@@ -353,10 +353,10 @@ test.describe('Calendar API', () => {
 
 			const periodData = fixtures.schedulingPeriod({ is_active: false });
 			const createResponse = await api.post('/api/scheduling-periods', periodData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const response = await api.post(`/api/scheduling-periods/${created.id}/activate`, {});
-			const activated = await api.expectJson(response);
+			const activated = await api.expectData(response);
 
 			expect(activated.is_active || activated.success).toBeTruthy();
 		});
@@ -366,7 +366,7 @@ test.describe('Calendar API', () => {
 
 			const periodData = fixtures.schedulingPeriod();
 			const createResponse = await api.post('/api/scheduling-periods', periodData);
-			const created = await api.expectJson(createResponse, 201);
+			const created = await api.expectData(createResponse, 201);
 
 			const deleteResponse = await api.delete(`/api/scheduling-periods/${created.id}`);
 			await api.expectSuccess(deleteResponse);
