@@ -49,6 +49,10 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		const result = await service.updateRequirement(params.id, validatedData);
 
 		if (!result.success) {
+			// Include validation details if available
+			if (result.error.details) {
+				return errorResponse(`${result.error.message}: ${JSON.stringify(result.error.details)}`, 400);
+			}
 			return errorResponse(result.error.message, 400);
 		}
 

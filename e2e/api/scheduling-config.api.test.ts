@@ -495,7 +495,7 @@ test.describe('Scheduling Configuration API', () => {
 			const api = createApiClient(request);
 
 			const e1 = fixtures.elective({ specialty: 'Surgery', availablePreceptorIds: [preceptorId] });
-			const e2 = fixtures.elective({ specialty: 'Pediatrics', availablePreceptorIds: [preceptorId] });
+			const e2 = fixtures.elective({ specialty: 'Surgery', availablePreceptorIds: [preceptorId] });
 
 			await api.post('/api/scheduling-config/electives', e1, {
 				params: { requirementId: String(requirementId) }
@@ -515,9 +515,9 @@ test.describe('Scheduling Configuration API', () => {
 		test('should delete elective', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const electiveData = fixtures.elective({ availablePreceptorIds: [preceptorId] });
+			const electiveData = fixtures.elective({ specialty: 'Surgery', availablePreceptorIds: [preceptorId] });
 			const createResponse = await api.post('/api/scheduling-config/electives', electiveData, {
-				params: { requirementId: String(clerkshipId) }
+				params: { requirementId: String(requirementId) }
 			} as any);
 			const created = await api.expectData(createResponse, 201);
 

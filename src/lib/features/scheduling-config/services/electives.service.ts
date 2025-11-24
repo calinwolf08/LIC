@@ -101,6 +101,7 @@ export class ElectiveService {
           name: input.name,
           minimum_days: input.minimumDays,
           specialty: input.specialty || null,
+          available_preceptor_ids: JSON.stringify(input.availablePreceptorIds),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

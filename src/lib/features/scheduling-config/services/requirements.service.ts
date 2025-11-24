@@ -118,12 +118,18 @@ export class RequirementService {
 
       // Build merged requirement for validation
       const mergedRequirement: any = {
+        clerkshipId: input.clerkshipId ?? existing.clerkship_id,
         requirementType: input.requirementType ?? existing.requirement_type,
         requiredDays: input.requiredDays ?? existing.required_days,
         overrideMode: input.overrideMode ?? existing.override_mode,
-        overrideAssignmentStrategy: input.overrideAssignmentStrategy ?? existing.override_assignment_strategy,
-        overrideHealthSystemRule: input.overrideHealthSystemRule ?? existing.override_health_system_rule,
       };
+
+      // Add optional override fields only if they have values (not null/undefined)
+      const assignmentStrategy = input.overrideAssignmentStrategy ?? existing.override_assignment_strategy;
+      if (assignmentStrategy) mergedRequirement.overrideAssignmentStrategy = assignmentStrategy;
+
+      const healthSystemRule = input.overrideHealthSystemRule ?? existing.override_health_system_rule;
+      if (healthSystemRule) mergedRequirement.overrideHealthSystemRule = healthSystemRule;
 
       // Validate merged requirement
       const validation = requirementInputSchema.safeParse(mergedRequirement);
