@@ -24,6 +24,7 @@ import {
 	logRegenerationEvent,
 	createRegenerationAuditLog
 } from '$lib/features/scheduling/services/audit-service';
+import { bulkCreateAssignments } from '$lib/features/schedules/services/assignment-service';
 import { ZodError } from 'zod';
 
 /**
@@ -236,6 +237,19 @@ export const POST: RequestHandler = async ({ request }) => {
 			validatedData.endDate,
 			new Set(validatedData.bypassedConstraints || [])
 		);
+
+		// Save generated assignments to database
+		if (result.assignments.length > 0) {
+			const assignmentsToSave = result.assignments.map((assignment) => ({
+				student_id: assignment.studentId,
+				preceptor_id: assignment.preceptorId,
+				clerkship_id: assignment.clerkshipId,
+				date: assignment.date,
+				status: 'scheduled'
+			}));
+
+			await bulkCreateAssignments(db, { assignments: assignmentsToSave });
+		}
 
 		// Return result (exclude violationTracker from response as it's not serializable)
 		const { violationTracker, ...serializable } = result;

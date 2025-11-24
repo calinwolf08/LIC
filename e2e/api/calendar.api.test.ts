@@ -56,10 +56,11 @@ test.describe('Calendar API', () => {
 			expect(Array.isArray(events)).toBeTruthy();
 			assertions.hasMinLength(events, 1);
 
-			// Verify event structure
+			// Verify event structure - calendar events have nested assignment data
 			events.forEach(event => {
-				assertions.hasFields(event, ['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date']);
+				assertions.hasFields(event, ['id', 'title', 'date', 'description', 'color', 'assignment']);
 				assertions.isValidDate(event.date);
+				assertions.hasFields(event.assignment, ['student_id', 'preceptor_id', 'clerkship_id', 'date']);
 			});
 		});
 
@@ -77,7 +78,7 @@ test.describe('Calendar API', () => {
 			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
-				expect(event.student_id).toBe(studentId);
+				expect(event.assignment.student_id).toBe(studentId);
 			});
 		});
 
@@ -95,7 +96,7 @@ test.describe('Calendar API', () => {
 			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
-				expect(event.preceptor_id).toBe(preceptorId);
+				expect(event.assignment.preceptor_id).toBe(preceptorId);
 			});
 		});
 
@@ -113,7 +114,7 @@ test.describe('Calendar API', () => {
 			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
-				expect(event.clerkship_id).toBe(clerkshipId);
+				expect(event.assignment.clerkship_id).toBe(clerkshipId);
 			});
 		});
 
@@ -148,8 +149,8 @@ test.describe('Calendar API', () => {
 			const events = await api.expectData<any[]>(response);
 
 			events.forEach(event => {
-				expect(event.student_id).toBe(studentId);
-				expect(event.clerkship_id).toBe(clerkshipId);
+				expect(event.assignment.student_id).toBe(studentId);
+				expect(event.assignment.clerkship_id).toBe(clerkshipId);
 			});
 		});
 
@@ -313,7 +314,8 @@ test.describe('Calendar API', () => {
 		test('should get active scheduling period', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const periodData = fixtures.schedulingPeriod({ is_active: true });
+			// Create inactive period first to avoid conflict
+			const periodData = fixtures.schedulingPeriod({ is_active: false });
 			const createResponse = await api.post('/api/scheduling-periods', periodData);
 			const created = await api.expectData(createResponse, 201);
 
@@ -325,7 +327,8 @@ test.describe('Calendar API', () => {
 
 			expect(active).toBeDefined();
 			if (active.id) {
-				expect(active.is_active).toBe(true);
+				// SQLite returns 1 for true, convert to boolean
+				expect(!!active.is_active).toBe(true);
 			}
 		});
 

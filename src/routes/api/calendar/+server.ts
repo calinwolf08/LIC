@@ -6,7 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { successResponse, validationErrorResponse } from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { getCalendarEvents } from '$lib/features/schedules/services/calendar-service.js';
 import { z, ZodError } from 'zod';
@@ -49,6 +49,11 @@ export const GET: RequestHandler = async ({ url }) => {
 			preceptor_id: preceptorId || undefined,
 			clerkship_id: clerkshipId || undefined
 		});
+
+		// Validate date range order
+		if (filters.start_date > filters.end_date) {
+			return errorResponse('end_date must be greater than or equal to start_date', 400);
+		}
 
 		const events = await getCalendarEvents(db, filters);
 
