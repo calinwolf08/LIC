@@ -12,12 +12,16 @@ test.describe('Calendar API', () => {
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
 
+			// Create health system first (required for preceptors)
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', fixtures.healthSystem());
+			const healthSystem = await api.expectJson(hsResponse, 201);
+
 			// Create test data
 			const sResponse = await api.post('/api/students', fixtures.student());
 			const student = await api.expectJson(sResponse, 201);
 			studentId = student.id;
 
-			const pResponse = await api.post('/api/preceptors', fixtures.preceptor());
+			const pResponse = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
 			const preceptor = await api.expectJson(pResponse, 201);
 			preceptorId = preceptor.id;
 
@@ -172,9 +176,13 @@ test.describe('Calendar API', () => {
 		test('should get calendar summary statistics', async ({ request }) => {
 			const api = createApiClient(request);
 
+			// Create health system first
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', fixtures.healthSystem());
+			const healthSystem = await api.expectJson(hsResponse, 201);
+
 			// Create minimal data and generate schedule
 			await api.post('/api/students', fixtures.student());
-			const pResponse = await api.post('/api/preceptors', fixtures.preceptor());
+			const pResponse = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
 			const preceptor = await api.expectJson(pResponse, 201);
 			await api.post('/api/clerkships', fixtures.clerkship());
 
@@ -229,11 +237,15 @@ test.describe('Calendar API', () => {
 		test('should get summary with filters', async ({ request }) => {
 			const api = createApiClient(request);
 
+			// Create health system first
+			const hsResponse = await api.post('/api/scheduling-config/health-systems', fixtures.healthSystem());
+			const healthSystem = await api.expectJson(hsResponse, 201);
+
 			// Create data
 			const sResponse = await api.post('/api/students', fixtures.student());
 			const student = await api.expectJson(sResponse, 201);
 
-			const pResponse = await api.post('/api/preceptors', fixtures.preceptor());
+			const pResponse = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
 			const preceptor = await api.expectJson(pResponse, 201);
 
 			await api.post('/api/clerkships', fixtures.clerkship());

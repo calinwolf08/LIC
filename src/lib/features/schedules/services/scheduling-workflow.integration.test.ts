@@ -40,6 +40,17 @@ function createTestDb(): Kysely<DB> {
  * Initialize complete database schema for integration tests
  */
 async function initializeSchema(db: Kysely<DB>) {
+	// Health Systems table (must be created before preceptors)
+	await db.schema
+		.createTable('health_systems')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('location', 'text')
+		.addColumn('description', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
 	// Students table
 	await db.schema
 		.createTable('students')
@@ -58,6 +69,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull())
 		.addColumn('specialty', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text')
 		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -71,6 +84,15 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('specialty', 'text', (col) => col.notNull())
 		.addColumn('required_days', 'integer', (col) => col.notNull())
 		.addColumn('description', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Clerkship Configurations table (required by clerkship service)
+	await db.schema
+		.createTable('clerkship_configurations')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull().unique())
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -110,6 +132,26 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 }
 
+/**
+ * Helper to create a health system for tests
+ */
+async function createHealthSystem(db: Kysely<DB>, name: string = 'Test Health System') {
+	const timestamp = new Date().toISOString();
+	const healthSystem = await db
+		.insertInto('health_systems')
+		.values({
+			id: crypto.randomUUID(),
+			name,
+			location: 'Test Location',
+			description: null,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+	return healthSystem;
+}
+
 describe('Scheduling Workflow Integration Tests', () => {
 	let db: Kysely<DB>;
 
@@ -124,6 +166,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 	describe('Complete Scheduling Workflow', () => {
 		it('creates a full schedule from setup to assignments', async () => {
+			// Step 0: Create health system
+			const healthSystem = await createHealthSystem(db);
+
 			// Step 1: Create students
 			const student1 = await createStudent(db, {
 				name: 'Alice Johnson',
@@ -145,6 +190,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Sarah Williams',
 				email: 'sarah@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
@@ -152,6 +198,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. John Davis',
 				email: 'john@hospital.com',
 				specialty: 'Neurology',
+				health_system_id: healthSystem.id,
 				max_students: 1
 			});
 
@@ -238,6 +285,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 		});
 
 		it('enforces business rules across the workflow', async () => {
+			// Create health system
+			const healthSystem = await createHealthSystem(db);
+
 			// Create entities
 			const student = await createStudent(db, {
 				name: 'Test Student',
@@ -249,6 +299,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Cardio',
 				email: 'cardio@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 1
 			});
 
@@ -270,6 +321,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 		});
 
 		it('respects blackout dates in assignment creation', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'test@example.com',
@@ -280,6 +333,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 1
 			});
 
@@ -307,6 +361,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 		});
 
 		it('enforces preceptor availability constraints', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'test@example.com',
@@ -317,6 +373,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 1
 			});
 
@@ -341,6 +398,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 		});
 
 		it('enforces preceptor capacity limits', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			const student1 = await createStudent(db, {
 				name: 'Student 1',
 				email: 'student1@example.com',
@@ -357,6 +416,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 1 // Only 1 student allowed
 			});
 
@@ -386,6 +446,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 		});
 
 		it('prevents student double-booking', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'test@example.com',
@@ -396,6 +458,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. One',
 				email: 'one@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 1
 			});
 
@@ -403,6 +466,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Two',
 				email: 'two@hospital.com',
 				specialty: 'Neurology',
+				health_system_id: healthSystem.id,
 				max_students: 1
 			});
 
@@ -440,6 +504,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 	describe('Multi-Student Scheduling Scenarios', () => {
 		it('schedules multiple students across different clerkships', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			// Create 3 students
 			const students = await Promise.all([
 				createStudent(db, { name: 'Alice', email: 'alice@example.com', cohort: '2024' }),
@@ -453,12 +519,14 @@ describe('Scheduling Workflow Integration Tests', () => {
 					name: 'Dr. A',
 					email: 'a@hospital.com',
 					specialty: 'Cardiology',
+					health_system_id: healthSystem.id,
 					max_students: 2
 				}),
 				createPreceptor(db, {
 					name: 'Dr. B',
 					email: 'b@hospital.com',
 					specialty: 'Neurology',
+					health_system_id: healthSystem.id,
 					max_students: 2
 				})
 			]);
@@ -499,6 +567,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 		});
 
 		it('tracks progress for multiple students simultaneously', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			const student1 = await createStudent(db, {
 				name: 'Student 1',
 				email: 's1@example.com',
@@ -515,6 +585,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
@@ -557,6 +628,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 	describe('Validation Integration', () => {
 		it('validates assignment with all constraints', async () => {
+			const healthSystem = await createHealthSystem(db);
+
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'test@example.com',
@@ -567,6 +640,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
 				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
