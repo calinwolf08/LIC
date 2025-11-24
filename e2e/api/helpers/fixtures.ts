@@ -104,15 +104,38 @@ export const fixtures = {
 		...overrides
 	}),
 
-	pattern: (preceptorId: number, overrides: Partial<PatternData> = {}): PatternData => ({
-		preceptor_id: preceptorId,
-		pattern_name: `Pattern-${uniqueId()}`,
-		pattern_type: overrides.pattern_type || 'weekly',
-		start_date: overrides.start_date || '2025-01-06',
-		end_date: overrides.end_date || '2025-12-31',
-		week_pattern: overrides.week_pattern || [true, true, true, true, true, false, false],
-		...overrides
-	}),
+	pattern: (preceptorId: string, overrides: Partial<PatternData> = {}): PatternData => {
+		const patternType = overrides.pattern_type || 'weekly';
+		const basePattern: any = {
+			preceptor_id: preceptorId,
+			pattern_type: patternType,
+			is_available: overrides.is_available ?? true,
+			date_range_start: overrides.date_range_start || '2025-01-06',
+			date_range_end: overrides.date_range_end || '2025-12-31',
+			enabled: overrides.enabled ?? true,
+			reason: overrides.reason
+		};
+
+		// Add config based on pattern type
+		if (patternType === 'weekly') {
+			basePattern.config = overrides.config || {
+				days_of_week: [0, 1, 2, 3, 4] // Monday-Friday (0=Monday, 6=Sunday)
+			};
+		} else if (patternType === 'monthly') {
+			basePattern.config = overrides.config || {
+				monthly_type: 'specific_days',
+				specific_days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+			};
+		} else if (patternType === 'block') {
+			basePattern.config = overrides.config || {
+				exclude_weekends: false
+			};
+		} else if (patternType === 'individual') {
+			basePattern.config = null;
+		}
+
+		return { ...basePattern, ...overrides };
+	},
 
 	schedulingPeriod: (overrides: Partial<SchedulingPeriodData> = {}): SchedulingPeriodData => ({
 		name: `Period-${uniqueId()}`,
@@ -216,14 +239,14 @@ export interface AvailabilityData {
 }
 
 export interface PatternData {
-	preceptor_id: number;
-	pattern_name: string;
-	pattern_type: string;
-	start_date: string;
-	end_date: string;
-	week_pattern?: boolean[];
-	month_pattern?: number[];
-	interval?: number;
+	preceptor_id: string;
+	pattern_type: 'weekly' | 'monthly' | 'block' | 'individual';
+	is_available: boolean;
+	date_range_start: string;
+	date_range_end: string;
+	config: any; // WeeklyConfig | MonthlyConfig | BlockConfig | null
+	enabled?: boolean;
+	reason?: string;
 }
 
 export interface SchedulingPeriodData {

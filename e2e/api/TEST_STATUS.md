@@ -1,6 +1,6 @@
 # E2E API Test Status
 
-## ✅ Completed Test Files (58/58 tests passing - 100%)
+## ✅ Completed Test Files (79/79 tests passing - 100%)
 
 ### Students API - **14/14 passing** ✅
 - Full CRUD operations working
@@ -38,13 +38,39 @@
   - Updated tests to expect site/clerkship objects instead of association records
   - Fixed PATCH test to use unique names (no more 409 conflicts)
 
+### Simple CRUD - **5/5 passing** ✅
+- Basic CRUD workflows working
+- Preceptor creation with health system
+- File: `e2e/api/simple-crud.api.test.ts`
+- **Fixes Applied:**
+  - Unskipped preceptor test (was working correctly)
+
+### Availability & Patterns API - **16/16 passing** ✅
+- Availability CRUD operations working
+- Pattern creation (weekly, monthly, block)
+- Pattern CRUD operations (list, get, update, delete)
+- Pattern generation and saving
+- Full workflow testing
+- Error handling and validation
+- File: `e2e/api/availability-patterns.api.test.ts`
+- **Fixes Applied:**
+  - Completely rewrote pattern fixture to match actual API schema
+  - Updated pattern tests from old schema (pattern_name, week_pattern, etc.) to new schema (pattern_type, config, date_range_start/end)
+  - Fixed SQLite boolean conversion (use .toBeTruthy() instead of .toBe(true))
+  - Changed PATCH to PUT for pattern updates
+  - Fixed non-existent preceptor test to use POST (which validates existence)
+  - Corrected pattern generation tests (API generates from all patterns, not specific pattern_id)
+  - Updated pattern save test to match actual endpoint behavior
+
 ## 🔧 Key Schema Fixes Applied
 
 ### ID Format Discovery (Critical!)
 - **Health System IDs**: cuid2 format (e.g., `gD-PHBaSTY9ikK0cdASd1`) - 20-30 chars
 - **Site IDs**: nanoid format (e.g., `imrO9R7VGiD_bh-40_OIp`) - 21 chars
 - **Clerkship IDs**: UUID format (e.g., `8edfef32-4595-4bd8-b9c6-920366cc4113`) - 36 chars
-- **Student/Preceptor IDs**: nanoid format - 21 chars
+- **Student IDs**: nanoid format - 21 chars
+- **Preceptor IDs**: UUID format (crypto.randomUUID()) - 36 chars
+- **Pattern IDs**: UUID format (crypto.randomUUID()) - 36 chars
 
 ### Schema Changes Made
 1. Added `cuid2Schema` to `src/lib/validation/common-schemas.ts`
@@ -72,20 +98,22 @@
 
 ## 📊 Overall Progress
 
-**Total Tests Passing: 58/58 (100%) ✅**
+**Total Tests Passing: 79/79 (100%) ✅**
 
 - ✅ Students: 14/14 (100%)
 - ✅ Preceptors: 13/13 (100%)
 - ✅ Clerkships: 15/15 (100%)
 - ✅ Sites: 16/16 (100%)
+- ✅ Simple CRUD: 5/5 (100%)
+- ✅ Availability & Patterns: 16/16 (100%)
 
 ## 🚀 Next Steps
 
 1. ✅ ~~Fix or remove the 2 failing clerkship tests~~ **COMPLETED**
 2. ✅ ~~Fix all sites API tests~~ **COMPLETED**
-3. Update remaining test files:
-   - `simple-crud.api.test.ts` - Already partially fixed (4/5 passing)
-   - `availability-patterns.api.test.ts` - Review and update
+3. ✅ ~~Fix simple-crud.api.test.ts~~ **COMPLETED**
+4. ✅ ~~Fix availability-patterns.api.test.ts~~ **COMPLETED**
+5. Update remaining test files:
    - `scheduling-config.api.test.ts` - Review and update
    - `schedules.api.test.ts` - Complex workflows
    - `calendar.api.test.ts` - Depends on schedules
@@ -93,9 +121,27 @@
 
 ## 📝 Notes
 
+### ID Generation Strategy
 - All schema changes maintain backward compatibility
 - The cuid2/UUID/nanoid distinction is critical for proper validation
-- Health system IDs use cuid2 format (likely from a different ID generation strategy)
-- Sites, students, preceptors use nanoid() which generates 21-char IDs
-- Clerkships use crypto.randomUUID() which generates standard 36-char UUIDs
+- **Health system IDs**: cuid2 format (likely from a different ID generation strategy)
+- **Students**: nanoid() generates 21-char IDs
+- **Sites**: nanoid() generates 21-char IDs
+- **Preceptors**: crypto.randomUUID() generates standard 36-char UUIDs
+- **Clerkships**: crypto.randomUUID() generates standard 36-char UUIDs
+- **Patterns**: crypto.randomUUID() generates standard 36-char UUIDs
 - Mixed ID formats require careful schema validation setup
+
+### Pattern Schema Structure
+The availability pattern API uses a discriminated union schema based on `pattern_type`:
+- **Weekly**: `config: { days_of_week: number[] }` where 0=Monday, 6=Sunday
+- **Monthly**: `config: { monthly_type: 'first_week'|'last_week'|'specific_days', specific_days?: number[] }`
+- **Block**: `config: { exclude_weekends: boolean }`
+- **Individual**: `config: null`
+
+### API Design Patterns
+- GET endpoints for collections (e.g., GET /patterns) return empty arrays for non-existent parent resources (200 with [])
+- POST endpoints verify parent resource exists and return 404 if not found
+- SQLite stores booleans as 0/1, so tests should use `.toBeTruthy()` instead of `.toBe(true)`
+- Pattern updates use PUT, not PATCH
+- Pattern generation creates preview from all enabled patterns, not specific pattern_id
