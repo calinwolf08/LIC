@@ -156,14 +156,28 @@ export class TeamService {
       for (const team of teams) {
         const members = await this.db
           .selectFrom('preceptor_team_members')
-          .selectAll()
+          .innerJoin('preceptors', 'preceptors.id', 'preceptor_team_members.preceptor_id')
+          .select([
+            'preceptor_team_members.id',
+            'preceptor_team_members.team_id',
+            'preceptor_team_members.preceptor_id',
+            'preceptor_team_members.role',
+            'preceptor_team_members.priority',
+            'preceptor_team_members.created_at',
+            'preceptors.name as preceptorName',
+            'preceptors.specialty as preceptorSpecialty'
+          ])
           .where('team_id', '=', team.id)
           .orderBy('priority', 'asc')
           .execute();
 
         teamsWithMembers.push({
           ...this.mapTeam(team),
-          members: members.map(m => this.mapTeamMember(m)),
+          members: members.map((m: any) => ({
+            ...this.mapTeamMember(m),
+            preceptorName: m.preceptorName,
+            preceptorSpecialty: m.preceptorSpecialty
+          })),
         });
       }
 
@@ -203,39 +217,64 @@ export class TeamService {
       if (input.requiresAdminApproval !== undefined)
         updateData.requires_admin_approval = input.requiresAdminApproval;
 
-      const updated = await this.db
-        .updateTable('preceptor_teams')
-        .set(updateData)
-        .where('id', '=', teamId)
-        .returningAll()
-        .executeTakeFirstOrThrow();
+      return this.db.transaction().execute(async (trx) => {
+        const updated = await trx
+          .updateTable('preceptor_teams')
+          .set(updateData)
+          .where('id', '=', teamId)
+          .returningAll()
+          .executeTakeFirstOrThrow();
 
-      // Get current members
-      const members = await this.db
-        .selectFrom('preceptor_team_members')
-        .selectAll()
-        .where('team_id', '=', teamId)
-        .orderBy('priority', 'asc')
-        .execute();
+        // If members provided, update them
+        let members: any[] = [];
+        if (input.members) {
+          // Validate team rules
+          const validationResult = await this.validateTeamRules({
+            ...input,
+            members: input.members,
+            requireSameHealthSystem: updateData.require_same_health_system ?? existing.require_same_health_system,
+            requireSameSite: updateData.require_same_site ?? existing.require_same_site,
+            requireSameSpecialty: updateData.require_same_specialty ?? existing.require_same_specialty,
+          } as PreceptorTeamInput);
 
-      // If members updated, validate team rules
-      if (input.members) {
-        const validationResult = await this.validateTeamRules({
-          ...input,
-          members: input.members,
-          requireSameHealthSystem: updateData.require_same_health_system ?? existing.require_same_health_system,
-          requireSameSite: updateData.require_same_site ?? existing.require_same_site,
-          requireSameSpecialty: updateData.require_same_specialty ?? existing.require_same_specialty,
-        } as PreceptorTeamInput);
+          if (!validationResult.success) {
+            throw new Error(validationResult.error.message);
+          }
 
-        if (!validationResult.success) {
-          return Result.failure(validationResult.error);
+          // Delete existing members
+          await trx.deleteFrom('preceptor_team_members').where('team_id', '=', teamId).execute();
+
+          // Insert new members
+          for (const memberInput of input.members) {
+            const member = await trx
+              .insertInto('preceptor_team_members')
+              .values({
+                id: nanoid(),
+                team_id: teamId,
+                preceptor_id: memberInput.preceptorId,
+                role: memberInput.role ?? null,
+                priority: memberInput.priority,
+                created_at: new Date().toISOString(),
+              })
+              .returningAll()
+              .executeTakeFirstOrThrow();
+
+            members.push(member);
+          }
+        } else {
+          // Get current members if not updating them
+          members = await trx
+            .selectFrom('preceptor_team_members')
+            .selectAll()
+            .where('team_id', '=', teamId)
+            .orderBy('priority', 'asc')
+            .execute();
         }
-      }
 
-      return Result.success({
-        ...this.mapTeam(updated),
-        members: members.map(m => this.mapTeamMember(m)),
+        return Result.success({
+          ...this.mapTeam(updated),
+          members: members.map(m => this.mapTeamMember(m)),
+        });
       });
     } catch (error) {
       return Result.failure(ServiceErrors.databaseError('Failed to update team', error));

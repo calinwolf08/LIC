@@ -5,12 +5,19 @@
 	import { Label } from '$lib/components/ui/label';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
+	import TeamFormDialog from '$lib/features/teams/components/team-form-dialog.svelte';
+	import { onMount } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
+
+	let preceptors = $state<Array<{ id: string; name: string; specialty: string }>>([]);
+	let loadingPreceptors = $state(true);
 
 	let activeTab = $state<'overview' | 'requirements' | 'teams' | 'capacity'>('overview');
 	let showAddRequirementModal = $state(false);
 	let showAddTeamModal = $state(false);
+	let teamToEdit = $state<any>(null);
+	let teamToDelete = $state<any>(null);
 
 	// Form state for new requirement
 	let newRequirement = $state({
@@ -75,10 +82,65 @@
 		error = null;
 	}
 
+	onMount(async () => {
+		await loadPreceptors();
+	});
+
+	async function loadPreceptors() {
+		loadingPreceptors = true;
+		try {
+			const response = await fetch('/api/preceptors');
+			const result = await response.json();
+			if (result.success && result.data) {
+				preceptors = result.data.map((p: any) => ({
+					id: p.id,
+					name: p.name,
+					specialty: p.specialty
+				}));
+			}
+		} catch (error) {
+			console.error('Failed to load preceptors:', error);
+		} finally {
+			loadingPreceptors = false;
+		}
+	}
+
 	async function handleAddTeam() {
-		// Add team logic
-		console.log('Add team');
+		teamToEdit = null;
 		showAddTeamModal = true;
+	}
+
+	function handleEditTeam(team: any) {
+		teamToEdit = team;
+		showAddTeamModal = true;
+	}
+
+	function handleCloseTeamModal() {
+		showAddTeamModal = false;
+		teamToEdit = null;
+	}
+
+	async function handleDeleteTeam(team: any) {
+		if (!confirm(`Are you sure you want to delete this team?`)) {
+			return;
+		}
+
+		try {
+			const response = await fetch(`/api/scheduling-config/teams/${team.id}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				const result = await response.json();
+				alert(result.error?.message || 'Failed to delete team');
+				return;
+			}
+
+			// Refresh data
+			await invalidateAll();
+		} catch (error) {
+			alert(error instanceof Error ? error.message : 'Failed to delete team');
+		}
 	}
 
 	function formatStrategy(strategy: string | undefined): string {
@@ -307,16 +369,33 @@
 						<div class="rounded-lg border p-6">
 							<div class="mb-4 flex items-start justify-between">
 								<div>
-									<h3 class="text-lg font-semibold">{team.name}</h3>
-									{#if team.description}
-										<p class="text-sm text-muted-foreground">{team.description}</p>
-									{/if}
+									<h3 class="text-lg font-semibold">{team.name || 'Unnamed Team'}</h3>
+									<p class="text-sm text-muted-foreground">
+										{team.members?.length || 0} members
+									</p>
 								</div>
 								<div class="flex gap-2">
-									<Button size="sm" variant="outline">Edit</Button>
-									<Button size="sm" variant="outline">Delete</Button>
+									<Button size="sm" variant="outline" onclick={() => handleEditTeam(team)}>Edit</Button>
+									<Button size="sm" variant="destructive" onclick={() => handleDeleteTeam(team)}>Delete</Button>
 								</div>
 							</div>
+
+							{#if team.members && team.members.length > 0}
+								<div class="mb-4 rounded border p-3">
+									<p class="mb-2 text-sm font-medium">Team Members:</p>
+									<div class="space-y-1">
+										{#each team.members as member, index}
+											<div class="text-sm text-muted-foreground">
+												{index + 1}. {member.preceptorName || 'Unknown Preceptor'}
+												{#if member.role}
+													<span class="text-xs">({member.role})</span>
+												{/if}
+												<span class="text-xs">- Priority {member.priority}</span>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
 
 							<div class="text-sm">
 								<p class="mb-2 font-medium">Formation Rules:</p>
@@ -364,6 +443,15 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Team Form Dialog -->
+<TeamFormDialog
+	open={showAddTeamModal}
+	clerkshipId={data.configuration.clerkshipId}
+	team={teamToEdit}
+	{preceptors}
+	onClose={handleCloseTeamModal}
+/>
 
 <!-- Add Requirement Modal -->
 {#if showAddRequirementModal}
