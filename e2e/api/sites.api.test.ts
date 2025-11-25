@@ -43,6 +43,27 @@ test.describe('Sites API', () => {
 			expect(site.health_system_id).toBe(healthSystemId);
 		});
 
+		test('should create site with all contact fields', async ({ request }) => {
+			const api = createApiClient(request);
+			const siteData = {
+				name: 'Main Campus Hospital',
+				health_system_id: healthSystemId,
+				address: '456 Healthcare Blvd, City, ST 67890',
+				office_phone: '+1 (555) 987-6543',
+				contact_person: 'Dr. Jane Smith',
+				contact_email: 'jane.smith@hospital.com'
+			};
+
+			const response = await api.post('/api/sites', siteData);
+			const site = await api.expectData(response, 201);
+
+			expect(site.name).toBe('Main Campus Hospital');
+			expect(site.address).toBe('456 Healthcare Blvd, City, ST 67890');
+			expect(site.office_phone).toBe('+1 (555) 987-6543');
+			expect(site.contact_person).toBe('Dr. Jane Smith');
+			expect(site.contact_email).toBe('jane.smith@hospital.com');
+		});
+
 		test('should reject site with missing health_system_id', async ({ request }) => {
 			const api = createApiClient(request);
 			const invalidData = {

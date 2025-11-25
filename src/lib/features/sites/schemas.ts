@@ -2,12 +2,43 @@ import { z } from 'zod';
 import { cuid2Schema, uuidSchema } from '$lib/validation/common-schemas';
 
 /**
+ * Phone schema for validation
+ */
+const phoneSchema = z
+	.string()
+	.regex(/^[\d\s\-\(\)\+\.]+$/, 'Invalid phone number format')
+	.min(10, 'Phone number must be at least 10 digits')
+	.max(20, 'Phone number too long')
+	.transform((val) => (val === '' ? undefined : val))
+	.optional();
+
+/**
+ * Email schema for validation
+ */
+const emailSchema = z
+	.string()
+	.email('Invalid email address')
+	.transform((val) => (val === '' ? undefined : val))
+	.optional();
+
+/**
  * Schema for creating a new site
  */
 export const createSiteSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
-	health_system_id: cuid2Schema,
-	address: z.string().min(1, 'Address is required').max(500, 'Address is too long').optional()
+	health_system_id: cuid2Schema.optional(),
+	address: z
+		.string()
+		.max(500, 'Address is too long')
+		.transform((val) => (val === '' ? undefined : val))
+		.optional(),
+	office_phone: phoneSchema,
+	contact_person: z
+		.string()
+		.max(200, 'Name is too long')
+		.transform((val) => (val === '' ? undefined : val))
+		.optional(),
+	contact_email: emailSchema
 });
 
 /**
@@ -17,7 +48,18 @@ export const updateSiteSchema = z
 	.object({
 		name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long').optional(),
 		health_system_id: cuid2Schema.optional(),
-		address: z.string().min(1, 'Address is required').max(500, 'Address is too long').optional()
+		address: z
+			.string()
+			.max(500, 'Address is too long')
+			.transform((val) => (val === '' ? undefined : val))
+			.optional(),
+		office_phone: phoneSchema,
+		contact_person: z
+			.string()
+			.max(200, 'Name is too long')
+			.transform((val) => (val === '' ? undefined : val))
+			.optional(),
+		contact_email: emailSchema
 	})
 	.refine((data) => Object.keys(data).length > 0, {
 		message: 'At least one field must be provided for update'

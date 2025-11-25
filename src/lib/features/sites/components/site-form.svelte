@@ -19,7 +19,10 @@
 	let formData = $state({
 		name: site?.name || '',
 		health_system_id: site?.health_system_id || '',
-		address: site?.address || ''
+		address: site?.address || '',
+		office_phone: site?.office_phone || '',
+		contact_person: site?.contact_person || '',
+		contact_email: site?.contact_email || ''
 	});
 
 	let errors = $state<Record<string, string>>({});
@@ -143,6 +146,51 @@
 				></textarea>
 				{#if errors.address}
 					<p class="text-sm text-destructive">{errors.address}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2">
+				<Label for="office_phone">Office Phone (Optional)</Label>
+				<Input
+					id="office_phone"
+					type="tel"
+					bind:value={formData.office_phone}
+					placeholder="+1 (555) 123-4567"
+					disabled={isSubmitting}
+					class={errors.office_phone ? 'border-destructive' : ''}
+				/>
+				{#if errors.office_phone}
+					<p class="text-sm text-destructive">{errors.office_phone}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2">
+				<Label for="contact_person">Contact Person (Optional)</Label>
+				<Input
+					id="contact_person"
+					type="text"
+					bind:value={formData.contact_person}
+					placeholder="Dr. Jane Smith"
+					disabled={isSubmitting}
+					class={errors.contact_person ? 'border-destructive' : ''}
+				/>
+				{#if errors.contact_person}
+					<p class="text-sm text-destructive">{errors.contact_person}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2">
+				<Label for="contact_email">Contact Email (Optional)</Label>
+				<Input
+					id="contact_email"
+					type="email"
+					bind:value={formData.contact_email}
+					placeholder="contact@hospital.com"
+					disabled={isSubmitting}
+					class={errors.contact_email ? 'border-destructive' : ''}
+				/>
+				{#if errors.contact_email}
+					<p class="text-sm text-destructive">{errors.contact_email}</p>
 				{/if}
 			</div>
 
