@@ -9,10 +9,12 @@ import { nameSchema, uuidSchema, cuid2Schema, positiveIntSchema } from '$lib/val
 
 /**
  * Specialty validation schema (now optional)
+ * Transforms empty strings to undefined for proper null storage
  */
-export const specialtySchema = z.string().min(1, {
-	message: 'Specialty must not be empty if provided'
-}).optional();
+export const specialtySchema = z
+	.string()
+	.transform((val) => (val === '' ? undefined : val))
+	.optional();
 
 /**
  * Clerkship type validation schema

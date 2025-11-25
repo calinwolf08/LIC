@@ -46,6 +46,38 @@ test.describe('Clerkships API', () => {
 			expect(clerkship.required_days).toBe(14);
 		});
 
+		test('should create clerkship without specialty (empty string)', async ({ request }) => {
+			const api = createApiClient(request);
+			const clerkshipData = {
+				name: 'Test Clerkship',
+				specialty: '', // Empty string should be allowed
+				clerkship_type: 'inpatient' as const,
+				required_days: 28
+			};
+
+			const response = await api.post('/api/clerkships', clerkshipData);
+			const clerkship = await api.expectData(response, 201);
+
+			expect(clerkship.specialty).toBeNull();
+			expect(clerkship.name).toBe('Test Clerkship');
+			expect(clerkship.clerkship_type).toBe('inpatient');
+		});
+
+		test('should create clerkship without specialty field', async ({ request }) => {
+			const api = createApiClient(request);
+			const clerkshipData = {
+				name: 'Test Clerkship No Specialty',
+				clerkship_type: 'outpatient' as const,
+				required_days: 14
+			};
+
+			const response = await api.post('/api/clerkships', clerkshipData);
+			const clerkship = await api.expectData(response, 201);
+
+			expect(clerkship.specialty).toBeNull();
+			expect(clerkship.name).toBe('Test Clerkship No Specialty');
+		});
+
 		test('should reject clerkship with missing required fields', async ({ request }) => {
 			const api = createApiClient(request);
 			const invalidData = { name: 'Test' };

@@ -14,15 +14,10 @@
 		| 'associations'
 		| 'onboarding'
 		| 'health-systems'
-		| 'execute'
 	>('clerkships');
 
 	function handleClerkshipConfigure(clerkshipId: string) {
 		goto(`/scheduling-config/clerkships/${clerkshipId}`);
-	}
-
-	function handleExecuteScheduling() {
-		activeTab = 'execute';
 	}
 </script>
 
@@ -30,8 +25,7 @@
 	<div class="mb-6">
 		<h1 class="text-3xl font-bold">Scheduling Configuration</h1>
 		<p class="mt-2 text-muted-foreground">
-			Configure clerkships, global defaults, preceptor associations, student onboarding, and
-			execute the scheduling engine.
+			Configure clerkships, global defaults, preceptor associations, and student onboarding.
 		</p>
 	</div>
 
@@ -87,16 +81,6 @@
 				}`}
 			>
 				Health Systems
-			</button>
-			<button
-				onclick={() => (activeTab = 'execute')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'execute'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Execute
 			</button>
 		</nav>
 	</div>
@@ -170,19 +154,6 @@
 			<div class="rounded-lg border p-8 text-center text-muted-foreground">
 				<p>Health system management coming soon.</p>
 				<p class="mt-2 text-sm">Configure health systems, sites, and organizational structure.</p>
-			</div>
-		</div>
-	{:else if activeTab === 'execute'}
-		<div class="space-y-4">
-			<div class="flex items-center justify-between">
-				<h2 class="text-xl font-semibold">Execute Scheduling Engine</h2>
-			</div>
-
-			<div class="rounded-lg border p-8 text-center text-muted-foreground">
-				<p>Scheduling execution interface coming soon.</p>
-				<p class="mt-2 text-sm">
-					Execute the configurable scheduling engine with custom options.
-				</p>
 			</div>
 		</div>
 	{/if}
