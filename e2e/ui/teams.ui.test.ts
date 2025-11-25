@@ -44,11 +44,12 @@ test.describe('Team Management UI', () => {
 
 		// Create test clerkship
 		clerkshipId = `clerkship_${Date.now()}`;
+		const timestamp = Date.now();
 		await db
 			.insertInto('clerkships')
 			.values({
 				id: clerkshipId,
-				name: 'Test Clerkship for Teams',
+				name: `Test Clerkship for Teams ${timestamp}`,
 				specialty: 'Internal Medicine',
 				clerkship_type: 'outpatient',
 				required_days: 20,

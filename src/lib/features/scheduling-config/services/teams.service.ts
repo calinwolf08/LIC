@@ -210,12 +210,13 @@ export class TeamService {
 
       if (input.name !== undefined) updateData.name = input.name || null;
       if (input.requireSameHealthSystem !== undefined)
-        updateData.require_same_health_system = input.requireSameHealthSystem;
-      if (input.requireSameSite !== undefined) updateData.require_same_site = input.requireSameSite;
+        updateData.require_same_health_system = input.requireSameHealthSystem ? 1 : 0;
+      if (input.requireSameSite !== undefined)
+        updateData.require_same_site = input.requireSameSite ? 1 : 0;
       if (input.requireSameSpecialty !== undefined)
-        updateData.require_same_specialty = input.requireSameSpecialty;
+        updateData.require_same_specialty = input.requireSameSpecialty ? 1 : 0;
       if (input.requiresAdminApproval !== undefined)
-        updateData.requires_admin_approval = input.requiresAdminApproval;
+        updateData.requires_admin_approval = input.requiresAdminApproval ? 1 : 0;
 
       return this.db.transaction().execute(async (trx) => {
         const updated = await trx
