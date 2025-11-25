@@ -3,23 +3,36 @@ import { cuid2Schema, uuidSchema } from '$lib/validation/common-schemas';
 
 /**
  * Phone schema for validation
+ * Only validates if value is provided and not empty
  */
 const phoneSchema = z
 	.string()
-	.regex(/^[\d\s\-\(\)\+\.]+$/, 'Invalid phone number format')
-	.min(10, 'Phone number must be at least 10 digits')
-	.max(20, 'Phone number too long')
 	.transform((val) => (val === '' ? undefined : val))
-	.optional();
+	.optional()
+	.refine(
+		(val) => {
+			if (!val) return true; // Allow empty/undefined
+			return /^[\d\s\-\(\)\+\.]+$/.test(val) && val.length >= 10 && val.length <= 20;
+		},
+		{ message: 'Invalid phone number format (10-20 digits allowed)' }
+	);
 
 /**
  * Email schema for validation
+ * Only validates if value is provided and not empty
  */
 const emailSchema = z
 	.string()
-	.email('Invalid email address')
 	.transform((val) => (val === '' ? undefined : val))
-	.optional();
+	.optional()
+	.refine(
+		(val) => {
+			if (!val) return true; // Allow empty/undefined
+			// Basic email validation
+			return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+		},
+		{ message: 'Invalid email address' }
+	);
 
 /**
  * Schema for creating a new site

@@ -63,18 +63,33 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 };
 
 /**
+ * PATCH /api/scheduling-config/health-systems/[id]
+ * Alias for PUT to support both methods
+ */
+export const PATCH: RequestHandler = PUT;
+
+/**
  * DELETE /api/scheduling-config/health-systems/[id]
  */
 export const DELETE: RequestHandler = async ({ params }) => {
 	try {
+		console.log('[DELETE Health System] Attempting to delete:', params.id);
+
+		// Check dependencies first
+		const dependencies = await service.getHealthSystemDependencies(params.id);
+		console.log('[DELETE Health System] Dependencies:', dependencies);
+
 		const result = await service.deleteHealthSystem(params.id);
 
 		if (!result.success) {
+			console.log('[DELETE Health System] Failed:', result.error.message);
 			return errorResponse(result.error.message, 400);
 		}
 
+		console.log('[DELETE Health System] Success');
 		return successResponse({ deleted: true });
 	} catch (error) {
+		console.error('[DELETE Health System] Error:', error);
 		return handleApiError(error);
 	}
 };

@@ -140,6 +140,53 @@ export class HealthSystemService {
   }
 
   /**
+   * Get dependency counts for a health system
+   * Returns counts of all entities that reference this health system
+   */
+  async getHealthSystemDependencies(id: string): Promise<ServiceResult<{
+    sites: number;
+    preceptors: number;
+    studentOnboarding: number;
+    total: number;
+  }>> {
+    try {
+      // Check for dependent sites
+      const siteCount = await this.db
+        .selectFrom('sites')
+        .select(({ fn }) => [fn.count<number>('id').as('count')])
+        .where('health_system_id', '=', id)
+        .executeTakeFirst();
+
+      // Check for dependent preceptors
+      const preceptorCount = await this.db
+        .selectFrom('preceptors')
+        .select(({ fn }) => [fn.count<number>('id').as('count')])
+        .where('health_system_id', '=', id)
+        .executeTakeFirst();
+
+      // Check for student onboarding records (these cascade delete, but good to know)
+      const studentOnboardingCount = await this.db
+        .selectFrom('student_health_system_onboarding')
+        .select(({ fn }) => [fn.count<number>('id').as('count')])
+        .where('health_system_id', '=', id)
+        .executeTakeFirst();
+
+      const sites = siteCount?.count ?? 0;
+      const preceptors = preceptorCount?.count ?? 0;
+      const studentOnboarding = studentOnboardingCount?.count ?? 0;
+
+      return Result.success({
+        sites,
+        preceptors,
+        studentOnboarding,
+        total: sites + preceptors
+      });
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to check dependencies', error));
+    }
+  }
+
+  /**
    * Delete health system
    *
    * Business rule: Cannot delete if sites or preceptors assigned

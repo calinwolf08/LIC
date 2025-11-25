@@ -22,10 +22,53 @@
 	}
 
 	async function handleDelete(healthSystem: HealthSystems) {
-		if (!confirm(`Are you sure you want to delete "${healthSystem.name}"?`)) {
-			return;
+		// Fetch dependencies to show cascade delete warning
+		try {
+			const depsResponse = await fetch(
+				`/api/scheduling-config/health-systems/${healthSystem.id}/dependencies`
+			);
+			const depsResult = await depsResponse.json();
+
+			if (depsResult.success && depsResult.data) {
+				const deps = depsResult.data;
+
+				// If there are blocking dependencies, don't allow delete
+				if (deps.total > 0) {
+					const parts: string[] = [];
+					if (deps.sites > 0) parts.push(`${deps.sites} site(s)`);
+					if (deps.preceptors > 0) parts.push(`${deps.preceptors} preceptor(s)`);
+
+					alert(
+						`Cannot delete "${healthSystem.name}" - ${parts.join(', ')} depend on this health system. Remove these dependencies first.`
+					);
+					return;
+				}
+
+				// Build confirmation message with cascade delete warning
+				let confirmMessage = `Are you sure you want to delete "${healthSystem.name}"?`;
+
+				if (deps.studentOnboarding > 0) {
+					confirmMessage += `\n\nWarning: This will also delete ${deps.studentOnboarding} student onboarding record${deps.studentOnboarding > 1 ? 's' : ''}.`;
+				}
+
+				if (!confirm(confirmMessage)) {
+					return;
+				}
+			} else {
+				// Fallback to simple confirmation if dependency check fails
+				if (!confirm(`Are you sure you want to delete "${healthSystem.name}"?`)) {
+					return;
+				}
+			}
+		} catch (error) {
+			console.error('Error checking dependencies:', error);
+			// Fallback to simple confirmation
+			if (!confirm(`Are you sure you want to delete "${healthSystem.name}"?`)) {
+				return;
+			}
 		}
 
+		// Proceed with deletion
 		try {
 			const response = await fetch(`/api/scheduling-config/health-systems/${healthSystem.id}`, {
 				method: 'DELETE'

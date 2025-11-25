@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { SiteForm } from '$lib/features/sites/components';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	function handleSuccess() {
+	async function handleSuccess() {
+		// Invalidate all data to force reload of sites list
+		await invalidateAll();
 		goto('/sites');
 	}
 

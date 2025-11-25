@@ -80,15 +80,17 @@ export class SiteService {
 			throw new ConflictError(`Site with name "${input.name}" already exists`);
 		}
 
-		// Verify health system exists
-		const healthSystem = await this.db
-			.selectFrom('health_systems')
-			.select('id')
-			.where('id', '=', input.health_system_id)
-			.executeTakeFirst();
+		// Verify health system exists (only if provided)
+		if (input.health_system_id) {
+			const healthSystem = await this.db
+				.selectFrom('health_systems')
+				.select('id')
+				.where('id', '=', input.health_system_id)
+				.executeTakeFirst();
 
-		if (!healthSystem) {
-			throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
+			if (!healthSystem) {
+				throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
+			}
 		}
 
 		const id = nanoid();
@@ -99,14 +101,18 @@ export class SiteService {
 			.values({
 				id,
 				name: input.name,
-				health_system_id: input.health_system_id,
+				health_system_id: input.health_system_id || null,
 				address: input.address || null,
+				office_phone: input.office_phone || null,
+				contact_person: input.contact_person || null,
+				contact_email: input.contact_email || null,
 				created_at: now,
 				updated_at: now
 			})
 			.returningAll()
 			.executeTakeFirstOrThrow();
 
+		console.log('[SiteService] Created site:', { id: site.id, name: site.name });
 		return site;
 	}
 
@@ -172,40 +178,64 @@ export class SiteService {
 	}
 
 	/**
+	 * Get dependency counts for a site
+	 * Returns counts of all entities that reference this site
+	 */
+	async getSiteDependencies(id: string): Promise<{
+		clerkships: number;
+		preceptorClerkships: number;
+		electives: number;
+		preceptors: number;
+		total: number;
+	}> {
+		// Check clerkship associations
+		const clerkshipCount = await this.db
+			.selectFrom('clerkship_sites')
+			.select(({ fn }) => [fn.count<number>('clerkship_id').as('count')])
+			.where('site_id', '=', id)
+			.executeTakeFirst();
+
+		// Check preceptor-site-clerkship associations
+		const preceptorClerkshipCount = await this.db
+			.selectFrom('preceptor_site_clerkships')
+			.select(({ fn }) => [fn.count<number>('preceptor_id').as('count')])
+			.where('site_id', '=', id)
+			.executeTakeFirst();
+
+		// Check site electives
+		const electiveCount = await this.db
+			.selectFrom('site_electives')
+			.select(({ fn }) => [fn.count<number>('site_id').as('count')])
+			.where('site_id', '=', id)
+			.executeTakeFirst();
+
+		// Check preceptors with this as their primary site
+		const preceptorCount = await this.db
+			.selectFrom('preceptors')
+			.select(({ fn }) => [fn.count<number>('id').as('count')])
+			.where('site_id', '=', id)
+			.executeTakeFirst();
+
+		const clerkships = clerkshipCount?.count ?? 0;
+		const preceptorClerkships = preceptorClerkshipCount?.count ?? 0;
+		const electives = electiveCount?.count ?? 0;
+		const preceptors = preceptorCount?.count ?? 0;
+
+		return {
+			clerkships,
+			preceptorClerkships,
+			electives,
+			preceptors,
+			total: clerkships + preceptorClerkships + electives + preceptors
+		};
+	}
+
+	/**
 	 * Check if a site can be deleted
 	 */
 	async canDeleteSite(id: string): Promise<boolean> {
-		// Check clerkship associations
-		const clerkshipSites = await this.db
-			.selectFrom('clerkship_sites')
-			.select('clerkship_id')
-			.where('site_id', '=', id)
-			.limit(1)
-			.execute();
-
-		if (clerkshipSites.length > 0) return false;
-
-		// Check preceptor associations
-		const preceptorSites = await this.db
-			.selectFrom('preceptor_site_clerkships')
-			.select('preceptor_id')
-			.where('site_id', '=', id)
-			.limit(1)
-			.execute();
-
-		if (preceptorSites.length > 0) return false;
-
-		// Check site electives
-		const siteElectives = await this.db
-			.selectFrom('site_electives')
-			.select('site_id')
-			.where('site_id', '=', id)
-			.limit(1)
-			.execute();
-
-		if (siteElectives.length > 0) return false;
-
-		return true;
+		const deps = await this.getSiteDependencies(id);
+		return deps.total === 0;
 	}
 
 	/**
