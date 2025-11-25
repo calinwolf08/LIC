@@ -6,6 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { createSiteSchema } from '../schemas.js';
 	import { ZodError } from 'zod';
+	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 
 	interface Props {
 		site?: Sites;
@@ -28,6 +29,40 @@
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
 	let generalError = $state<string | null>(null);
+	let showHealthSystemForm = $state(false);
+	let healthSystemsList = $state([...healthSystems]);
+
+	function handleHealthSystemChange(e: Event) {
+		const target = e.target as HTMLSelectElement;
+		if (target.value === '__create_new__') {
+			showHealthSystemForm = true;
+			// Reset selection
+			formData.health_system_id = '';
+		}
+	}
+
+	async function handleHealthSystemCreated() {
+		// Refresh health systems list
+		try {
+			const response = await fetch('/api/scheduling-config/health-systems');
+			const result = await response.json();
+			if (result.success && result.data) {
+				healthSystemsList = result.data;
+				// Auto-select the most recently created health system (last in array)
+				if (healthSystemsList.length > 0) {
+					const newest = healthSystemsList[healthSystemsList.length - 1];
+					formData.health_system_id = newest.id;
+				}
+			}
+		} catch (error) {
+			console.error('Failed to refresh health systems:', error);
+		}
+		showHealthSystemForm = false;
+	}
+
+	function handleHealthSystemFormCancel() {
+		showHealthSystemForm = false;
+	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -117,17 +152,21 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="health_system_id">Health System</Label>
+				<Label for="health_system_id">Health System (Optional)</Label>
 				<select
 					id="health_system_id"
 					bind:value={formData.health_system_id}
+					onchange={handleHealthSystemChange}
 					disabled={isSubmitting}
 					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id ? 'border-destructive' : ''}"
 				>
 					<option value="">Select a health system...</option>
-					{#each healthSystems as hs}
+					{#each healthSystemsList as hs}
 						<option value={hs.id}>{hs.name}</option>
 					{/each}
+					<option value="__create_new__" class="font-semibold text-primary">
+						+ Create New Health System
+					</option>
 				</select>
 				{#if errors.health_system_id}
 					<p class="text-sm text-destructive">{errors.health_system_id}</p>
@@ -207,3 +246,20 @@
 		</div>
 	</form>
 </Card>
+
+<!-- Nested Health System Form Modal -->
+{#if showHealthSystemForm}
+	<div
+		class="fixed inset-0 z-[60] bg-black/50"
+		onclick={handleHealthSystemFormCancel}
+		role="presentation"
+	></div>
+	<div
+		class="fixed left-1/2 top-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2"
+	>
+		<HealthSystemForm
+			onSuccess={handleHealthSystemCreated}
+			onCancel={handleHealthSystemFormCancel}
+		/>
+	</div>
+{/if}

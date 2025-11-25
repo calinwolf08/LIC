@@ -8,6 +8,8 @@
 		{ href: '/students', label: 'Students', icon: '👨‍🎓' },
 		{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
 		{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
+		{ href: '/health-systems', label: 'Health Systems', icon: '🏥' },
+		{ href: '/sites', label: 'Sites', icon: '📍' },
 		{ href: '/calendar', label: 'Calendar', icon: '📅' },
 		{ href: '/scheduling-config', label: 'Scheduling Config', icon: '⚙️' }
 	];
