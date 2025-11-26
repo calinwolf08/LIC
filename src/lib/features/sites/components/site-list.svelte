@@ -2,8 +2,6 @@
 	import type { Sites } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import DataTable from '$lib/features/shared/components/data-table.svelte';
 	import { DeleteSiteDialog } from './index';
 
 	interface SiteWithHealthSystem extends Sites {
@@ -38,62 +36,53 @@
 		deleteDialogOpen = false;
 		siteToDelete = null;
 	}
-
-	const columns = [
-		{
-			key: 'name',
-			label: 'Site Name',
-			sortable: true
-		},
-		{
-			key: 'health_system_name',
-			label: 'Health System',
-			sortable: true
-		},
-		{
-			key: 'address',
-			label: 'Address',
-			sortable: false
-		},
-		{
-			key: 'actions',
-			label: 'Actions',
-			sortable: false
-		}
-	];
-
-	function renderCell(site: SiteWithHealthSystem, column: { key: string }) {
-		if (column.key === 'name') {
-			return site.name;
-		}
-		if (column.key === 'health_system_name') {
-			return site.health_system_name || 'Unknown';
-		}
-		if (column.key === 'address') {
-			return site.address || '-';
-		}
-		return '';
-	}
 </script>
 
-<div>
-	<DataTable data={sites} {columns} {renderCell} searchPlaceholder="Search sites...">
-		{#snippet actions(site: SiteWithHealthSystem)}
-			<div class="flex items-center gap-2">
-				<Button size="sm" variant="outline" onclick={() => onEdit(site)}>Edit</Button>
-				<Button size="sm" variant="destructive" onclick={() => handleDeleteClick(site)}>
-					Delete
-				</Button>
-			</div>
-		{/snippet}
-	</DataTable>
+<Card class="w-full">
+	<div class="overflow-x-auto">
+		<table class="w-full border-collapse">
+			<thead>
+				<tr class="border-b bg-muted/50">
+					<th class="px-4 py-3 text-left text-sm font-medium">Site Name</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Health System</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Address</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#if sites.length === 0}
+					<tr>
+						<td colspan="4" class="px-4 py-8 text-center text-muted-foreground">
+							No sites available
+						</td>
+					</tr>
+				{:else}
+					{#each sites as site}
+						<tr class="border-b transition-colors hover:bg-muted/50">
+							<td class="px-4 py-3 text-sm">{site.name}</td>
+							<td class="px-4 py-3 text-sm">{site.health_system_name || '-'}</td>
+							<td class="px-4 py-3 text-sm">{site.address || '-'}</td>
+							<td class="px-4 py-3 text-sm">
+								<div class="flex items-center gap-2">
+									<Button size="sm" variant="outline" onclick={() => onEdit(site)}>Edit</Button>
+									<Button size="sm" variant="destructive" onclick={() => handleDeleteClick(site)}>
+										Delete
+									</Button>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				{/if}
+			</tbody>
+		</table>
+	</div>
+</Card>
 
-	{#if siteToDelete}
-		<DeleteSiteDialog
-			site={siteToDelete}
-			open={deleteDialogOpen}
-			onConfirm={handleDeleteConfirm}
-			onCancel={handleDeleteCancel}
-		/>
-	{/if}
-</div>
+{#if siteToDelete}
+	<DeleteSiteDialog
+		site={siteToDelete}
+		open={deleteDialogOpen}
+		onConfirm={handleDeleteConfirm}
+		onCancel={handleDeleteCancel}
+	/>
+{/if}
