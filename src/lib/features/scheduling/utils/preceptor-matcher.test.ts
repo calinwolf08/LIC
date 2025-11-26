@@ -3,6 +3,7 @@
  * Preceptor Matcher Unit Tests
  *
  * Tests for preceptor matching and filtering utilities
+ * Note: Specialty matching has been removed from preceptors
  */
 
 import { describe, it, expect } from 'vitest';
@@ -58,7 +59,6 @@ function createMockPreceptor(overrides: Partial<Preceptors> = {}): Preceptors {
 		id: crypto.randomUUID(),
 		name: 'Dr. Test',
 		email: 'test@example.com',
-		specialty: 'Family Medicine',
 		max_students: 2,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
@@ -79,44 +79,21 @@ function createMockClerkship(overrides: Partial<Clerkships> = {}): Clerkships {
 }
 
 describe('getPreceptorsForClerkship()', () => {
-	it('returns preceptors with matching specialty', () => {
-		const fmPreceptor1 = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine' });
-		const fmPreceptor2 = createMockPreceptor({ id: 'p2', specialty: 'Family Medicine' });
-		const imPreceptor = createMockPreceptor({ id: 'p3', specialty: 'Internal Medicine' });
+	it('returns all preceptors (specialty matching disabled)', () => {
+		const preceptor1 = createMockPreceptor({ id: 'p1' });
+		const preceptor2 = createMockPreceptor({ id: 'p2' });
+		const preceptor3 = createMockPreceptor({ id: 'p3' });
 
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
-		const context = createMockContext([fmPreceptor1, fmPreceptor2, imPreceptor], [clerkship]);
+		const context = createMockContext([preceptor1, preceptor2, preceptor3], [clerkship]);
 
 		const result = getPreceptorsForClerkship(clerkship, context);
 
-		expect(result).toHaveLength(2);
+		// All preceptors returned since specialty matching is disabled
+		expect(result).toHaveLength(3);
 		expect(result.map((p) => p.id)).toContain('p1');
 		expect(result.map((p) => p.id)).toContain('p2');
-		expect(result.map((p) => p.id)).not.toContain('p3');
-	});
-
-	it('returns empty array when no matching specialty', () => {
-		const preceptor = createMockPreceptor({ specialty: 'Surgery' });
-		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
-		const context = createMockContext([preceptor], [clerkship]);
-
-		const result = getPreceptorsForClerkship(clerkship, context);
-
-		expect(result).toEqual([]);
-	});
-
-	it('returns all preceptors when all match specialty', () => {
-		const preceptors = [
-			createMockPreceptor({ id: 'p1', specialty: 'Family Medicine' }),
-			createMockPreceptor({ id: 'p2', specialty: 'Family Medicine' }),
-			createMockPreceptor({ id: 'p3', specialty: 'Family Medicine' })
-		];
-		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
-		const context = createMockContext(preceptors, [clerkship]);
-
-		const result = getPreceptorsForClerkship(clerkship, context);
-
-		expect(result).toHaveLength(3);
+		expect(result.map((p) => p.id)).toContain('p3');
 	});
 
 	it('handles empty preceptor list', () => {
@@ -127,21 +104,11 @@ describe('getPreceptorsForClerkship()', () => {
 
 		expect(result).toEqual([]);
 	});
-
-	it('is case-sensitive for specialty matching', () => {
-		const preceptor = createMockPreceptor({ specialty: 'family medicine' });
-		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
-		const context = createMockContext([preceptor], [clerkship]);
-
-		const result = getPreceptorsForClerkship(clerkship, context);
-
-		expect(result).toEqual([]);
-	});
 });
 
 describe('getAvailablePreceptors()', () => {
-	it('returns preceptors with matching specialty, availability, and capacity', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine', max_students: 2 });
+	it('returns preceptors with availability and capacity', () => {
+		const preceptor = createMockPreceptor({ id: 'p1', max_students: 2 });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 		const context = createMockContext([preceptor], [clerkship]);
 
@@ -154,20 +121,8 @@ describe('getAvailablePreceptors()', () => {
 		expect(result[0].id).toBe('p1');
 	});
 
-	it('excludes preceptors with non-matching specialty', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Internal Medicine' });
-		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
-		const context = createMockContext([preceptor], [clerkship]);
-
-		context.preceptorAvailability.set('p1', new Set(['2024-01-15']));
-
-		const result = getAvailablePreceptors(clerkship, '2024-01-15', context);
-
-		expect(result).toEqual([]);
-	});
-
 	it('excludes preceptors not available on the date', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine' });
+		const preceptor = createMockPreceptor({ id: 'p1' });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 		const context = createMockContext([preceptor], [clerkship]);
 
@@ -180,7 +135,7 @@ describe('getAvailablePreceptors()', () => {
 	});
 
 	it('excludes preceptors with no availability records', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine' });
+		const preceptor = createMockPreceptor({ id: 'p1' });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 		const context = createMockContext([preceptor], [clerkship]);
 
@@ -191,7 +146,7 @@ describe('getAvailablePreceptors()', () => {
 	});
 
 	it('excludes preceptors at capacity', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine', max_students: 1 });
+		const preceptor = createMockPreceptor({ id: 'p1', max_students: 1 });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 
 		// Already has one assignment on this date
@@ -213,7 +168,7 @@ describe('getAvailablePreceptors()', () => {
 	});
 
 	it('includes preceptors below capacity', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine', max_students: 2 });
+		const preceptor = createMockPreceptor({ id: 'p1', max_students: 2 });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 
 		// Has one assignment, capacity is 2
@@ -235,10 +190,10 @@ describe('getAvailablePreceptors()', () => {
 		expect(result[0].id).toBe('p1');
 	});
 
-	it('filters multiple preceptors correctly', () => {
-		const p1 = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine', max_students: 1 });
-		const p2 = createMockPreceptor({ id: 'p2', specialty: 'Family Medicine', max_students: 2 });
-		const p3 = createMockPreceptor({ id: 'p3', specialty: 'Internal Medicine', max_students: 2 });
+	it('filters multiple preceptors by availability and capacity', () => {
+		const p1 = createMockPreceptor({ id: 'p1', max_students: 1 });
+		const p2 = createMockPreceptor({ id: 'p2', max_students: 2 });
+		const p3 = createMockPreceptor({ id: 'p3', max_students: 2 });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 
 		// p1 is at capacity
@@ -253,20 +208,20 @@ describe('getAvailablePreceptors()', () => {
 
 		const context = createMockContext([p1, p2, p3], [clerkship], assignments);
 
-		// All available on the date
+		// p1 and p2 available, p3 not available on the date
 		context.preceptorAvailability.set('p1', new Set(['2024-01-15']));
 		context.preceptorAvailability.set('p2', new Set(['2024-01-15']));
-		context.preceptorAvailability.set('p3', new Set(['2024-01-15']));
+		context.preceptorAvailability.set('p3', new Set(['2024-01-16'])); // Different date
 
 		const result = getAvailablePreceptors(clerkship, '2024-01-15', context);
 
-		// Should only return p2 (p1 at capacity, p3 wrong specialty)
+		// Should only return p2 (p1 at capacity, p3 not available on date)
 		expect(result).toHaveLength(1);
 		expect(result[0].id).toBe('p2');
 	});
 
 	it('handles assignments on different dates correctly', () => {
-		const preceptor = createMockPreceptor({ id: 'p1', specialty: 'Family Medicine', max_students: 1 });
+		const preceptor = createMockPreceptor({ id: 'p1', max_students: 1 });
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 
 		// Has assignment on different date
@@ -300,9 +255,9 @@ describe('getAvailablePreceptors()', () => {
 
 	it('returns preceptors in original order', () => {
 		const preceptors = [
-			createMockPreceptor({ id: 'p1', name: 'Dr. A', specialty: 'Family Medicine' }),
-			createMockPreceptor({ id: 'p2', name: 'Dr. B', specialty: 'Family Medicine' }),
-			createMockPreceptor({ id: 'p3', name: 'Dr. C', specialty: 'Family Medicine' })
+			createMockPreceptor({ id: 'p1', name: 'Dr. A' }),
+			createMockPreceptor({ id: 'p2', name: 'Dr. B' }),
+			createMockPreceptor({ id: 'p3', name: 'Dr. C' })
 		];
 		const clerkship = createMockClerkship({ specialty: 'Family Medicine' });
 		const context = createMockContext(preceptors, [clerkship]);
