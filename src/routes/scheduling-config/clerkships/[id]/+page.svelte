@@ -116,8 +116,10 @@
 	}
 
 	function handleCloseTeamModal() {
+		console.log('[ClerkshipPage] handleCloseTeamModal called');
 		showAddTeamModal = false;
 		teamToEdit = null;
+		console.log('[ClerkshipPage] Modal state updated', { showAddTeamModal, teamToEdit });
 	}
 
 	async function handleDeleteTeam(team: any) {

@@ -256,6 +256,11 @@ test.describe('Team Management UI', () => {
 	});
 
 	test('should edit an existing team', async ({ page }) => {
+		// Listen for console messages from the browser
+		page.on('console', (msg) => {
+			console.log(`[BROWSER] ${msg.type()}: ${msg.text()}`);
+		});
+
 		// Create a team first via API
 		const teamId = `team_${Date.now()}`;
 		await executeWithRetry(() =>

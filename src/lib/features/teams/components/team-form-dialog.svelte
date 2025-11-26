@@ -124,15 +124,18 @@
 	}
 
 	async function handleSubmit(e: Event) {
+		console.log('[TeamForm] handleSubmit started', { team: team?.id, isSubmitting });
 		e.preventDefault();
 		error = null;
 
 		// Validation
 		if (members.length < 2) {
+			console.log('[TeamForm] Validation failed: not enough members', members.length);
 			error = 'Team must have at least 2 members';
 			return;
 		}
 
+		console.log('[TeamForm] Setting isSubmitting = true');
 		isSubmitting = true;
 
 		try {
@@ -150,32 +153,46 @@
 				}))
 			};
 
+			console.log('[TeamForm] About to fetch', { method, url, payload });
+
 			const response = await fetch(url, {
 				method,
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
 
+			console.log('[TeamForm] Fetch response received', {
+				status: response.status,
+				ok: response.ok
+			});
+
 			const result = await response.json();
+			console.log('[TeamForm] Response parsed', { result });
 
 			if (!response.ok) {
+				console.log('[TeamForm] Response not OK, showing error');
 				error = result.error?.message || 'Failed to save team';
 				isSubmitting = false;
 				return;
 			}
 
+			console.log('[TeamForm] Success! Resetting isSubmitting');
 			// Reset submitting state before closing modal
 			isSubmitting = false;
 
+			console.log('[TeamForm] Calling onClose()');
 			// Close modal immediately for better UX
 			onClose();
 
+			console.log('[TeamForm] Triggering invalidateAll()');
 			// Refresh data in background (don't await to avoid blocking)
 			invalidateAll().catch(console.error);
 		} catch (err) {
+			console.error('[TeamForm] Caught error in handleSubmit', err);
 			error = err instanceof Error ? err.message : 'Failed to save team';
 			isSubmitting = false;
 		}
+		console.log('[TeamForm] handleSubmit completed');
 	}
 
 	function handleCancel() {
