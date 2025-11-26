@@ -74,21 +74,18 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 
 			// Create preceptors
 			const famMedPreceptors = await createTestPreceptors(db, 8, {
-				specialty: 'Family Medicine',
 				healthSystemId: hs1,
 				siteId: sites1[0],
 				maxStudents: 3,
 			});
 
 			const internalMedPreceptors = await createTestPreceptors(db, 6, {
-				specialty: 'Internal Medicine',
 				healthSystemId: hs1,
 				siteId: sites1[1],
 				maxStudents: 3,
 			});
 
 			const surgeryPreceptors = await createTestPreceptors(db, 5, {
-				specialty: 'Surgery',
 				healthSystemId: hs2,
 				siteId: sites2[0],
 				maxStudents: 4,
@@ -144,7 +141,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(20);
+			expect(result.statistics.fullyScheduledStudents).toBe(20);
 			expect(result.statistics.totalAssignments).toBeGreaterThan(0);
 
 			// Verify each student has continuous single assignments
@@ -192,21 +189,18 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 
 			// Create preceptors for teams
 			const famMedTeam1 = await createTestPreceptors(db, 3, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
 			});
 
 			const famMedTeam2 = await createTestPreceptors(db, 3, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId: siteIds[1],
 				maxStudents: 3,
 			});
 
 			const obTeam = await createTestPreceptors(db, 4, {
-				specialty: 'Obstetrics',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -263,7 +257,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(15);
+			expect(result.statistics.fullyScheduledStudents).toBe(15);
 
 			// Verify team assignments
 			for (const studentId of studentIds) {
@@ -307,7 +301,6 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 
 			// Create preceptors
 			const preceptorIds = await createTestPreceptors(db, 8, {
-				specialty: 'Psychiatry',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -346,7 +339,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(10);
+			expect(result.statistics.fullyScheduledStudents).toBe(10);
 
 			// Verify hybrid assignments
 			for (const studentId of studentIds) {
@@ -357,14 +350,8 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 
 				expect(psychiatryAssignments.length).toBeGreaterThan(0);
 
-				// Total should be 28 + 14 = 42 days
-				let totalDays = 0;
-				for (const assignment of psychiatryAssignments) {
-					const start = new Date(assignment.start_date);
-					const end = new Date(assignment.end_date);
-					const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-					totalDays += days;
-				}
+				// Total should be 28 + 14 = 42 days (one assignment per day)
+				const totalDays = psychiatryAssignments.length;
 
 				expect(totalDays).toBe(42);
 
@@ -391,7 +378,6 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 
 			// Create preceptors
 			const preceptorIds = await createTestPreceptors(db, 12, {
-				specialty: 'Emergency Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 4,
@@ -429,7 +415,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBeGreaterThan(25); // Should schedule most students
+			expect(result.statistics.fullyScheduledStudents).toBeGreaterThan(25); // Should schedule most students
 
 			// Verify assignments distributed across preceptors
 			for (const studentId of studentIds.slice(0, 10)) {
@@ -476,28 +462,24 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 
 			// Create preceptors for each specialty
 			const famMedPreceptors = await createTestPreceptors(db, 10, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
 			});
 
 			const internalMedPreceptors = await createTestPreceptors(db, 8, {
-				specialty: 'Internal Medicine',
 				healthSystemId,
 				siteId: siteIds[1],
 				maxStudents: 3,
 			});
 
 			const surgeryPreceptors = await createTestPreceptors(db, 6, {
-				specialty: 'Surgery',
 				healthSystemId,
 				siteId: siteIds[2],
 				maxStudents: 4,
 			});
 
 			const pediatricsPreceptors = await createTestPreceptors(db, 8, {
-				specialty: 'Pediatrics',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -557,22 +539,16 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(25);
+			expect(result.statistics.fullyScheduledStudents).toBe(25);
 			expect(result.statistics.totalAssignments).toBeGreaterThan(0);
 
 			// Verify each student has complete schedule
 			for (const studentId of studentIds) {
-				// Calculate total days across all clerkships
+				// Calculate total days across all clerkships (one assignment per day)
 				const assignments = await getStudentAssignments(db, studentId);
 				expect(assignments.length).toBeGreaterThan(0);
 
-				let totalDays = 0;
-				for (const assignment of assignments) {
-					const start = new Date(assignment.start_date);
-					const end = new Date(assignment.end_date);
-					const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-					totalDays += days;
-				}
+				const totalDays = assignments.length;
 
 				// Total: 20 + 28 + 42 + 21 = 111 days
 				expect(totalDays).toBe(111);
@@ -582,12 +558,12 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			}
 
 			// Generate summary statistics
-			const allAssignments = await db.selectFrom('assignments').selectAll().execute();
+			const allAssignments = await db.selectFrom('schedule_assignments').selectAll().execute();
 
 			console.log('\n📊 Full Year Simulation Results:');
 			console.log(`   Total Students: ${studentIds.length}`);
 			console.log(`   Total Assignments Created: ${allAssignments.length}`);
-			console.log(`   Students Fully Scheduled: ${result.statistics.studentsScheduled}`);
+			console.log(`   Students Fully Scheduled: ${result.statistics.fullyScheduledStudents}`);
 			console.log(`   Unmet Requirements: ${result.unmetRequirements.length}`);
 		});
 	});

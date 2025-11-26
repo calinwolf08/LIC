@@ -8,9 +8,10 @@
 		loading?: boolean;
 		onEdit?: (clerkship: Clerkships) => void;
 		onDelete?: (clerkship: Clerkships) => void;
+		onConfigure?: (clerkship: Clerkships) => void;
 	}
 
-	let { clerkships, loading = false, onEdit, onDelete }: Props = $props();
+	let { clerkships, loading = false, onEdit, onDelete, onConfigure }: Props = $props();
 
 	let sortColumn = $state<'name' | 'specialty' | 'required_days' | null>(null);
 	let sortDirection = $state<'asc' | 'desc'>('asc');
@@ -146,6 +147,11 @@
 							</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
+									{#if onConfigure}
+										<Button size="sm" variant="default" onclick={() => onConfigure?.(clerkship)}>
+											Configure
+										</Button>
+									{/if}
 									{#if onEdit}
 										<Button size="sm" variant="outline" onclick={() => onEdit?.(clerkship)}>
 											Edit

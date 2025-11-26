@@ -4,11 +4,15 @@
 	import ClerkshipList from '$lib/features/clerkships/components/clerkship-list.svelte';
 	import ClerkshipForm from '$lib/features/clerkships/components/clerkship-form.svelte';
 	import DeleteClerkshipDialog from '$lib/features/clerkships/components/delete-clerkship-dialog.svelte';
+	import GlobalDefaultsForm from '$lib/features/scheduling-config/components/global-defaults-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
+
+	// Tab state
+	let activeTab = $state<'clerkships' | 'scheduling-defaults'>('clerkships');
 
 	let showForm = $state(false);
 	let showDeleteDialog = $state(false);
@@ -27,6 +31,10 @@
 	function handleDelete(clerkship: Clerkships) {
 		selectedClerkship = clerkship;
 		showDeleteDialog = true;
+	}
+
+	function handleConfigure(clerkship: Clerkships) {
+		goto(`/clerkships/${clerkship.id}/config`);
 	}
 
 	async function handleFormSuccess() {
@@ -62,12 +70,51 @@
 </script>
 
 <div class="container mx-auto py-8">
-	<div class="mb-6 flex items-center justify-between">
+	<div class="mb-6">
 		<h1 class="text-3xl font-bold">Clerkships</h1>
-		<Button onclick={handleAdd}>Add Clerkship</Button>
 	</div>
 
-	<ClerkshipList clerkships={data.clerkships} onEdit={handleEdit} onDelete={handleDelete} />
+	<!-- Tabs -->
+	<div class="mb-6 border-b">
+		<nav class="-mb-px flex space-x-8">
+			<button
+				onclick={() => (activeTab = 'clerkships')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'clerkships'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Clerkships ({data.clerkships.length})
+			</button>
+			<button
+				onclick={() => (activeTab = 'scheduling-defaults')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'scheduling-defaults'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Scheduling Defaults
+			</button>
+		</nav>
+	</div>
+
+	<!-- Tab Content -->
+	{#if activeTab === 'clerkships'}
+		<div class="mb-6 flex items-center justify-end">
+			<Button onclick={handleAdd}>Add Clerkship</Button>
+		</div>
+
+		<ClerkshipList
+			clerkships={data.clerkships}
+			onEdit={handleEdit}
+			onDelete={handleDelete}
+			onConfigure={handleConfigure}
+		/>
+	{:else if activeTab === 'scheduling-defaults'}
+		<GlobalDefaultsForm />
+	{/if}
 </div>
 
 <!-- Form Modal -->

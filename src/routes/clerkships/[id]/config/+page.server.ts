@@ -1,5 +1,5 @@
 /**
- * Clerkship Configuration Detail Page - Server Load
+ * Clerkship Configuration Page - Server Load
  *
  * Loads complete configuration for a specific clerkship
  */
@@ -19,6 +19,6 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 	return {
 		clerkshipId: params.id,
-		configuration: result.data,
+		configuration: result.data
 	};
 };

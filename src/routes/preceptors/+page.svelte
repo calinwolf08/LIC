@@ -7,6 +7,7 @@
 	import DeletePreceptorDialog from '$lib/features/preceptors/components/delete-preceptor-dialog.svelte';
 	import TeamList from '$lib/features/teams/components/team-list.svelte';
 	import TeamFormDialog from '$lib/features/teams/components/team-form-dialog.svelte';
+	import PreceptorAssociationsForm from '$lib/features/scheduling-config/components/preceptor-associations-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
@@ -14,7 +15,7 @@
 	let { data }: { data: PageData } = $props();
 
 	// Tab state
-	let activeTab = $state<'preceptors' | 'teams'>('preceptors');
+	let activeTab = $state<'preceptors' | 'teams' | 'associations'>('preceptors');
 
 	// Preceptor state
 	let showForm = $state(false);
@@ -186,6 +187,16 @@
 			>
 				Teams
 			</button>
+			<button
+				onclick={() => (activeTab = 'associations')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'associations'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Site Associations
+			</button>
 		</nav>
 	</div>
 
@@ -240,6 +251,8 @@
 				/>
 			{/if}
 		</div>
+	{:else if activeTab === 'associations'}
+		<PreceptorAssociationsForm />
 	{/if}
 </div>
 

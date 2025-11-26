@@ -10,8 +10,7 @@
 		{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
 		{ href: '/health-systems', label: 'Health Systems', icon: '🏥' },
 		{ href: '/sites', label: 'Sites', icon: '📍' },
-		{ href: '/calendar', label: 'Calendar', icon: '📅' },
-		{ href: '/scheduling-config', label: 'Scheduling Config', icon: '⚙️' }
+		{ href: '/calendar', label: 'Calendar', icon: '📅' }
 	];
 
 	function isActive(href: string): boolean {

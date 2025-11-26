@@ -261,42 +261,14 @@ export class TeamValidator {
 
   /**
    * Validate specialty consistency
+   * Note: Specialty field was removed from preceptors, so this validation is no longer applicable
    */
   private async validateSpecialtyConsistency(
-    members: TeamMember[],
-    requiredSpecialty?: string
+    _members: TeamMember[],
+    _requiredSpecialty?: string
   ): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
-
-    const preceptors = await this.db
-      .selectFrom('preceptors')
-      .select(['id', 'specialty'])
-      .where(
-        'id',
-        'in',
-        members.map(m => m.preceptorId)
-      )
-      .execute();
-
-    const specialties = new Set(preceptors.map(p => p.specialty));
-
-    if (specialties.size > 1) {
-      errors.push({
-        field: 'specialty',
-        message: 'All team members must have the same specialty',
-        severity: 'error',
-      });
-    }
-
-    if (requiredSpecialty && !specialties.has(requiredSpecialty)) {
-      errors.push({
-        field: 'specialty',
-        message: `Team specialty does not match required specialty: ${requiredSpecialty}`,
-        severity: 'error',
-      });
-    }
-
-    return errors;
+    // Specialty field removed from preceptors - validation no longer applicable
+    return [];
   }
 
   /**

@@ -42,7 +42,6 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const studentIds = await createTestStudents(db, 10); // 10 students
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				// Only 2 preceptors
-				specialty: 'Geriatrics',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
@@ -72,8 +71,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			if (!result.success) return;
 
 			// Should schedule some students (up to capacity)
-			expect(result.statistics.studentsScheduled).toBeGreaterThan(0);
-			expect(result.statistics.studentsScheduled).toBeLessThan(10); // Can't schedule all 10
+			expect(result.statistics.fullyScheduledStudents).toBeGreaterThan(0);
+			expect(result.statistics.fullyScheduledStudents).toBeLessThan(10); // Can't schedule all 10
 
 			// Should have unmet requirements reported
 			expect(result.unmetRequirements.length).toBeGreaterThan(0);
@@ -91,8 +90,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			// Setup: Students need specialty with no preceptors
 			const clerkshipId = await createTestClerkship(db, 'Neurosurgery', 'Neurosurgery');
 			const studentIds = await createTestStudents(db, 3);
-			// Create preceptors but wrong specialty
-			await createTestPreceptors(db, 2, { specialty: 'Cardiology' });
+			// Create preceptors
+			await createTestPreceptors(db, 2, {});
 
 			await createTestRequirement(db, clerkshipId, {
 				requirementType: 'inpatient',
@@ -110,7 +109,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			if (!result.success) return;
 
 			// No students should be scheduled
-			expect(result.statistics.studentsScheduled).toBe(0);
+			expect(result.statistics.fullyScheduledStudents).toBe(0);
 			expect(result.statistics.totalAssignments).toBe(0);
 
 			// All students should be in unmet requirements
@@ -131,7 +130,6 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const clerkshipId = await createTestClerkship(db, 'Primary Care', 'Family Medicine');
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -169,27 +167,24 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Some students might be scheduled if engine can find continuous blocks
 			// But this is a difficult scenario
-			if (result.statistics.studentsScheduled > 0) {
+			if (result.statistics.fullyScheduledStudents > 0) {
 				// Verify assignments don't conflict with blackout dates
-				const assignments = await db.selectFrom('assignments').selectAll().execute();
+				const assignments = await db.selectFrom('schedule_assignments').selectAll().execute();
 
 				for (const assignment of assignments) {
-					const assignmentStart = new Date(assignment.start_date);
-					const assignmentEnd = new Date(assignment.end_date);
+					const assignmentDate = new Date(assignment.date);
 
 					// Get blackout dates for this preceptor
 					const blackouts = await db
 						.selectFrom('blackout_dates')
 						.selectAll()
-						.where('preceptor_id', '=', assignment.preceptor_id)
 						.execute();
 
-					// Verify assignment doesn't overlap with any blackout
+					// Verify assignment date doesn't match any blackout date
 					for (const blackout of blackouts) {
-						const blackoutStart = new Date(blackout.start_date);
-						const blackoutEnd = new Date(blackout.end_date);
-						const hasOverlap = assignmentStart <= blackoutEnd && blackoutStart <= assignmentEnd;
-						expect(hasOverlap).toBe(false);
+						const blackoutDate = new Date(blackout.date);
+						const isSameDate = assignmentDate.toISOString().split('T')[0] === blackoutDate.toISOString().split('T')[0];
+						expect(isSameDate).toBe(false);
 					}
 				}
 			}
@@ -202,7 +197,6 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Full Practice');
 			const clerkshipId = await createTestClerkship(db, 'Ophthalmology', 'Ophthalmology');
 			const preceptorIds = await createTestPreceptors(db, 2, {
-				specialty: 'Ophthalmology',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
@@ -255,7 +249,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			// Setup
 			const clerkshipId = await createTestClerkship(db, 'Observation', 'General');
 			const studentIds = await createTestStudents(db, 1);
-			const preceptorIds = await createTestPreceptors(db, 1, { specialty: 'General' });
+			const preceptorIds = await createTestPreceptors(db, 1, {});
 
 			// Create requirement with 0 days (edge case)
 			await createTestRequirement(db, clerkshipId, {
@@ -285,7 +279,6 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const clerkshipId = await createTestClerkship(db, 'Longitudinal Care', 'Family Medicine');
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -307,10 +300,10 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			if (result.statistics.studentsScheduled > 0) {
-				// Verify assignment created
+			if (result.statistics.fullyScheduledStudents > 0) {
+				// Verify assignment created (one assignment per day)
 				const assignments = await db
-					.selectFrom('assignments')
+					.selectFrom('schedule_assignments')
 					.selectAll()
 					.where('student_id', '=', studentIds[0])
 					.where('clerkship_id', '=', clerkshipId)
@@ -318,14 +311,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 				expect(assignments.length).toBeGreaterThan(0);
 
-				// Calculate total days
-				let totalDays = 0;
-				for (const assignment of assignments) {
-					const start = new Date(assignment.start_date);
-					const end = new Date(assignment.end_date);
-					const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-					totalDays += days;
-				}
+				// Total days = number of assignments (one per day)
+				const totalDays = assignments.length;
 
 				expect(totalDays).toBe(180);
 			}
@@ -336,7 +323,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle empty student list gracefully', async () => {
 			// Setup
 			const clerkshipId = await createTestClerkship(db, 'Empty Test', 'General');
-			await createTestPreceptors(db, 1, { specialty: 'General' });
+			await createTestPreceptors(db, 1, {});
 
 			await createTestRequirement(db, clerkshipId, {
 				requirementType: 'outpatient',
@@ -353,7 +340,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(0);
+			expect(result.statistics.fullyScheduledStudents).toBe(0);
 			expect(result.statistics.totalAssignments).toBe(0);
 			expect(result.unmetRequirements.length).toBe(0);
 		});
@@ -373,7 +360,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(0);
+			expect(result.statistics.fullyScheduledStudents).toBe(0);
 			expect(result.statistics.totalAssignments).toBe(0);
 		});
 	});
@@ -385,7 +372,6 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const clerkshipId = await createTestClerkship(db, 'Test Rotation', 'General');
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 2, {
-				specialty: 'General',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -407,11 +393,11 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			if (!result.success) return;
 
 			// Should report what would happen
-			expect(result.statistics.studentsScheduled).toBeGreaterThan(0);
+			expect(result.statistics.fullyScheduledStudents).toBeGreaterThan(0);
 
 			// But no assignments should be in database
 			const assignmentCount = await db
-				.selectFrom('assignments')
+				.selectFrom('schedule_assignments')
 				.select(({ fn }) => [fn.countAll<number>().as('count')])
 				.executeTakeFirst();
 
@@ -424,7 +410,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			// Setup
 			const clerkshipId = await createTestClerkship(db, 'Orphan Test', 'General');
 			const studentIds = await createTestStudents(db, 1);
-			const preceptorIds = await createTestPreceptors(db, 1, { specialty: 'General' });
+			const preceptorIds = await createTestPreceptors(db, 1, {});
 
 			await createTestRequirement(db, clerkshipId, {
 				requirementType: 'outpatient',
