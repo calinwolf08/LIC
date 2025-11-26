@@ -22,10 +22,10 @@
 
 	let formData = $state({
 		name: team?.name || '',
-		requireSameHealthSystem: team?.require_same_health_system === 1 || false,
-		requireSameSite: team?.require_same_site === 1 || false,
-		requireSameSpecialty: team?.require_same_specialty === 1 || false,
-		requiresAdminApproval: team?.requires_admin_approval === 1 || false
+		requireSameHealthSystem: team?.requireSameHealthSystem || false,
+		requireSameSite: team?.requireSameSite || false,
+		requireSameSpecialty: team?.requireSameSpecialty || false,
+		requiresAdminApproval: team?.requiresAdminApproval || false
 	});
 
 	let members = $state<TeamMember[]>(
@@ -46,10 +46,10 @@
 		if (open) {
 			formData = {
 				name: team?.name || '',
-				requireSameHealthSystem: team?.require_same_health_system === 1 || false,
-				requireSameSite: team?.require_same_site === 1 || false,
-				requireSameSpecialty: team?.require_same_specialty === 1 || false,
-				requiresAdminApproval: team?.requires_admin_approval === 1 || false
+				requireSameHealthSystem: team?.requireSameHealthSystem || false,
+				requireSameSite: team?.requireSameSite || false,
+				requireSameSpecialty: team?.requireSameSpecialty || false,
+				requiresAdminApproval: team?.requiresAdminApproval || false
 			};
 			members =
 				team?.members?.map((m: any) => ({
@@ -160,15 +160,20 @@
 
 			if (!response.ok) {
 				error = result.error?.message || 'Failed to save team';
+				isSubmitting = false;
 				return;
 			}
 
-			// Refresh data
-			await invalidateAll();
+			// Reset submitting state before closing modal
+			isSubmitting = false;
+
+			// Close modal immediately for better UX
 			onClose();
+
+			// Refresh data in background (don't await to avoid blocking)
+			invalidateAll().catch(console.error);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save team';
-		} finally {
 			isSubmitting = false;
 		}
 	}
