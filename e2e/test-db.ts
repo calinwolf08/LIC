@@ -63,8 +63,8 @@ export async function cleanupTestDb(): Promise<void> {
  */
 async function retryWithBackoff<T>(
 	operation: () => Promise<T>,
-	maxRetries = 5,
-	initialDelay = 100
+	maxRetries = 10,
+	initialDelay = 200
 ): Promise<T> {
 	let lastError: Error | null = null;
 

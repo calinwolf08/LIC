@@ -400,16 +400,16 @@
 							<div class="text-sm">
 								<p class="mb-2 font-medium">Formation Rules:</p>
 								<ul class="ml-4 space-y-1 text-muted-foreground">
-									{#if team.require_same_health_system}
+									{#if team.requireSameHealthSystem}
 										<li>✓ Same health system required</li>
 									{/if}
-									{#if team.require_same_site}
+									{#if team.requireSameSite}
 										<li>✓ Same site required</li>
 									{/if}
-									{#if team.require_same_specialty}
+									{#if team.requireSameSpecialty}
 										<li>✓ Same specialty required</li>
 									{/if}
-									{#if team.requires_admin_approval}
+									{#if team.requiresAdminApproval}
 										<li>⚠ Requires admin approval</li>
 									{/if}
 								</ul>

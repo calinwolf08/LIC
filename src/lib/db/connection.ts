@@ -14,8 +14,8 @@ export function createDB(dbPath = './sqlite.db'): Kysely<DB> {
 	// Enable WAL mode for better concurrency
 	sqlite.pragma('journal_mode = WAL');
 
-	// Set busy timeout to 5 seconds to wait for locks instead of failing immediately
-	sqlite.pragma('busy_timeout = 5000');
+	// Set busy timeout to 10 seconds to wait for locks instead of failing immediately
+	sqlite.pragma('busy_timeout = 10000');
 
 	const db = new Kysely<DB>({
 		dialect: new SqliteDialect({
