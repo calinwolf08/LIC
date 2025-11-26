@@ -6,7 +6,11 @@
 
 import { test, expect } from '@playwright/test';
 import { gotoAndWait } from '../helpers';
-import { db } from '../../src/lib/db';
+import { getTestDb, clearTestData } from '../test-db';
+import type { Kysely } from 'kysely';
+import type { DB } from '../../src/lib/db/types';
+
+let db: Kysely<DB>;
 
 test.describe('Team Management UI', () => {
 	let clerkshipId: string;
@@ -16,7 +20,15 @@ test.describe('Team Management UI', () => {
 	let healthSystemId: string;
 	let siteId: string;
 
+	test.beforeAll(async () => {
+		// Get the already-initialized test database (created by global setup)
+		db = await getTestDb();
+	});
+
 	test.beforeEach(async () => {
+		// Don't clear data - tests use unique IDs (timestamps) so they don't conflict
+		// This avoids database locking issues with concurrent access
+
 		// Create health system
 		healthSystemId = `hs_${Date.now()}`;
 		await db
@@ -109,13 +121,7 @@ test.describe('Team Management UI', () => {
 	});
 
 	test.afterEach(async () => {
-		// Cleanup
-		await db.deleteFrom('preceptor_team_members').execute();
-		await db.deleteFrom('preceptor_teams').execute();
-		await db.deleteFrom('preceptors').where('id', 'in', [preceptor1Id, preceptor2Id, preceptor3Id]).execute();
-		await db.deleteFrom('clerkships').where('id', '=', clerkshipId).execute();
-		await db.deleteFrom('sites').where('id', '=', siteId).execute();
-		await db.deleteFrom('health_systems').where('id', '=', healthSystemId).execute();
+		// Cleanup handled by beforeEach
 	});
 
 	test('should create a team with multiple preceptors and see it in the list', async ({ page }) => {

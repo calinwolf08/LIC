@@ -1,8 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+	globalSetup: './e2e/global-setup.ts',
+	globalTeardown: './e2e/global-teardown.ts',
 	webServer: {
-		command: 'E2E_TESTING=true npm run build && E2E_TESTING=true npm run preview',
+		command: 'DATABASE_PATH=./test-sqlite.db E2E_TESTING=true npm run build && DATABASE_PATH=./test-sqlite.db E2E_TESTING=true npm run preview',
 		port: 4173,
 		timeout: 180000, // 3 minutes for build + server start
 		reuseExistingServer: false
