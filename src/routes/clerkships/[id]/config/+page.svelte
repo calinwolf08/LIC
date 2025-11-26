@@ -9,6 +9,9 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// Tab state
+	let activeTab = $state<'basic-info' | 'scheduling' | 'sites' | 'teams'>('basic-info');
+
 	// Clerkship basic info (editable)
 	let name = $state(data.clerkship?.name || '');
 	let clerkshipType = $state(data.clerkship?.clerkship_type || 'outpatient');
@@ -30,9 +33,61 @@
 
 	let isUsingDefaults = $derived(settings.overrideMode === 'inherit');
 
+	// Associated sites (mutable copy)
+	let associatedSites = $state(data.sites || []);
+
+	// Available sites (not already associated)
+	let availableSites = $derived(
+		(data.allSites || []).filter(
+			(site: any) => !associatedSites.some((as: any) => as.id === site.id)
+		)
+	);
+
+	// Site dependency tracking
+	let siteDependencies = $state<Record<string, { teamId: string; teamName: string }[]>>({});
+	let removeSiteError = $state<string | null>(null);
+
+	// Add site modal state
+	let showAddSiteModal = $state(false);
+	let selectedSiteToAdd = $state('');
+
 	// Status messages
 	let basicInfoStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null);
 	let settingsStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null);
+
+	// Load dependencies for associated sites
+	async function loadSiteDependencies() {
+		const deps: Record<string, { teamId: string; teamName: string }[]> = {};
+		for (const site of associatedSites) {
+			try {
+				const res = await fetch(
+					`/api/clerkship-sites/dependencies?clerkship_id=${data.clerkship.id}&site_id=${site.id}`
+				);
+				if (res.ok) {
+					const result = await res.json();
+					deps[site.id] = result.data || [];
+				}
+			} catch {
+				// Ignore errors, assume no dependencies
+			}
+		}
+		siteDependencies = deps;
+	}
+
+	// Load dependencies when sites change
+	$effect(() => {
+		if (associatedSites.length > 0) {
+			loadSiteDependencies();
+		}
+	});
+
+	function hasDependencies(siteId: string): boolean {
+		return (siteDependencies[siteId]?.length || 0) > 0;
+	}
+
+	function getDependencyCount(siteId: string): number {
+		return siteDependencies[siteId]?.length || 0;
+	}
 
 	async function handleSaveBasicInfo() {
 		basicInfoStatus = null;
@@ -107,6 +162,57 @@
 			settingsStatus = { type: 'error', message: 'Failed to reset settings' };
 		}
 	}
+
+	async function handleAddSite() {
+		if (!selectedSiteToAdd) return;
+
+		try {
+			const res = await fetch('/api/clerkship-sites', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					clerkship_id: data.clerkship.id,
+					site_id: selectedSiteToAdd
+				})
+			});
+
+			if (res.ok) {
+				const siteToAdd = data.allSites.find((s: any) => s.id === selectedSiteToAdd);
+				if (siteToAdd) {
+					associatedSites = [...associatedSites, siteToAdd];
+				}
+				selectedSiteToAdd = '';
+				showAddSiteModal = false;
+			}
+		} catch (err) {
+			// Handle error
+		}
+	}
+
+	async function handleRemoveSite(siteId: string) {
+		removeSiteError = null;
+
+		// Check for dependencies first
+		const dependencies = siteDependencies[siteId] || [];
+		if (dependencies.length > 0) {
+			const teamNames = dependencies.map(d => d.teamName).join(', ');
+			removeSiteError = `Cannot remove site. The following teams depend on this site: ${teamNames}. Please update or remove these teams first.`;
+			return;
+		}
+
+		try {
+			const res = await fetch(
+				`/api/clerkship-sites?clerkship_id=${data.clerkship.id}&site_id=${siteId}`,
+				{ method: 'DELETE' }
+			);
+
+			if (res.ok) {
+				associatedSites = associatedSites.filter((s: any) => s.id !== siteId);
+			}
+		} catch (err) {
+			// Handle error
+		}
+	}
 </script>
 
 <div class="container mx-auto py-8 max-w-4xl">
@@ -119,8 +225,54 @@
 		<p class="mt-2 text-muted-foreground">{data.clerkship?.name || 'Clerkship'}</p>
 	</div>
 
-	<div class="space-y-8">
-		<!-- Section 1: Basic Information -->
+	<!-- Tabs -->
+	<div class="mb-6 border-b">
+		<nav class="-mb-px flex space-x-8">
+			<button
+				onclick={() => (activeTab = 'basic-info')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'basic-info'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Basic Information
+			</button>
+			<button
+				onclick={() => (activeTab = 'scheduling')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'scheduling'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Scheduling Settings
+			</button>
+			<button
+				onclick={() => (activeTab = 'sites')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'sites'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Associated Sites ({associatedSites.length})
+			</button>
+			<button
+				onclick={() => (activeTab = 'teams')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'teams'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Preceptor Teams ({data.teams?.length || 0})
+			</button>
+		</nav>
+	</div>
+
+	<!-- Tab Content -->
+	{#if activeTab === 'basic-info'}
 		<Card class="p-6">
 			<h2 class="text-xl font-semibold mb-4">Basic Information</h2>
 
@@ -187,8 +339,7 @@
 				</div>
 			</div>
 		</Card>
-
-		<!-- Section 2: Scheduling Settings -->
+	{:else if activeTab === 'scheduling'}
 		<Card class="p-6">
 			<div class="flex items-center justify-between mb-4">
 				<h2 class="text-xl font-semibold">Scheduling Settings</h2>
@@ -378,39 +529,106 @@
 				</div>
 			</div>
 		</Card>
-
-		<!-- Section 3: Associated Sites -->
+	{:else if activeTab === 'sites'}
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Associated Sites</h2>
-			{#if data.sites?.length > 0}
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold">Associated Sites</h2>
+				<Button onclick={() => showAddSiteModal = true}>Add Site</Button>
+			</div>
+
+			<!-- Error message for dependency blocking -->
+			{#if removeSiteError}
+				<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+					<p class="font-medium">Cannot Remove Site</p>
+					<p class="text-sm mt-1">{removeSiteError}</p>
+				</div>
+			{/if}
+
+			{#if associatedSites.length > 0}
 				<div class="space-y-2">
-					{#each data.sites as site}
+					{#each associatedSites as site (site.id)}
 						<div class="flex items-center justify-between p-3 border rounded-md">
-							<a
-								href="/sites/{site.id}/edit"
-								class="text-blue-600 hover:underline"
+							<div>
+								<a
+									href="/sites/{site.id}/edit"
+									class="text-blue-600 hover:underline"
+								>
+									{site.name}
+								</a>
+								{#if hasDependencies(site.id)}
+									<p class="text-xs text-amber-600 mt-1">
+										Used by {getDependencyCount(site.id)} team{getDependencyCount(site.id) > 1 ? 's' : ''}
+									</p>
+								{/if}
+							</div>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => handleRemoveSite(site.id)}
+								disabled={hasDependencies(site.id)}
+								title={hasDependencies(site.id) ? 'Cannot remove: teams depend on this site' : 'Remove site'}
 							>
-								{site.name}
-							</a>
+								Remove
+							</Button>
 						</div>
 					{/each}
 				</div>
 			{:else}
-				<p class="text-muted-foreground">No sites associated with this clerkship.</p>
+				<p class="text-muted-foreground text-center py-8">
+					No sites associated with this clerkship.
+					<br />
+					<span class="text-sm">Add sites to define where this clerkship is offered.</span>
+				</p>
 			{/if}
-			<div class="mt-4">
-				<Button variant="outline" onclick={() => goto('/sites')}>
-					Manage Sites
-				</Button>
-			</div>
 		</Card>
 
-		<!-- Section 4: Preceptor Teams -->
+		<!-- Add Site Modal -->
+		{#if showAddSiteModal}
+			<div
+				class="fixed inset-0 z-50 bg-black/50"
+				onclick={() => showAddSiteModal = false}
+				role="presentation"
+			></div>
+			<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2">
+				<Card class="p-6">
+					<h3 class="text-lg font-semibold mb-4">Add Site</h3>
+					<div class="space-y-4">
+						<div class="space-y-2">
+							<Label for="site-select">Select Site</Label>
+							<select
+								id="site-select"
+								bind:value={selectedSiteToAdd}
+								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+							>
+								<option value="">Choose a site...</option>
+								{#each availableSites as site (site.id)}
+									<option value={site.id}>{site.name}</option>
+								{/each}
+							</select>
+						</div>
+						{#if availableSites.length === 0}
+							<p class="text-sm text-muted-foreground">All sites are already associated with this clerkship.</p>
+						{/if}
+						<div class="flex justify-end gap-2">
+							<Button variant="outline" onclick={() => showAddSiteModal = false}>Cancel</Button>
+							<Button onclick={handleAddSite} disabled={!selectedSiteToAdd}>Add</Button>
+						</div>
+					</div>
+				</Card>
+			</div>
+		{/if}
+	{:else if activeTab === 'teams'}
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Preceptor Teams</h2>
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold">Preceptor Teams</h2>
+				<Button variant="outline" onclick={() => goto('/preceptors?tab=teams')}>
+					Manage Teams
+				</Button>
+			</div>
+
 			{#if data.teams?.length > 0}
 				<div class="space-y-2">
-					{#each data.teams as team}
+					{#each data.teams as team (team.id)}
 						<div class="flex items-center justify-between p-3 border rounded-md">
 							<div>
 								<a
@@ -434,13 +652,12 @@
 					{/each}
 				</div>
 			{:else}
-				<p class="text-muted-foreground">No teams created for this clerkship.</p>
+				<p class="text-muted-foreground text-center py-8">
+					No teams created for this clerkship.
+					<br />
+					<span class="text-sm">Teams can be created on the Preceptors page.</span>
+				</p>
 			{/if}
-			<div class="mt-4">
-				<Button variant="outline" onclick={() => goto('/preceptors?tab=teams')}>
-					Manage Teams
-				</Button>
-			</div>
 		</Card>
-	</div>
+	{/if}
 </div>

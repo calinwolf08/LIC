@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Clerkship Schema Tests
  *
@@ -10,23 +9,23 @@ import {
 	createClerkshipSchema,
 	updateClerkshipSchema,
 	clerkshipIdSchema,
-	specialtySchema
+	clerkshipTypeSchema
 } from './schemas';
 
-describe('specialtySchema', () => {
-	it('validates non-empty string', () => {
-		const result = specialtySchema.safeParse('Family Medicine');
+describe('clerkshipTypeSchema', () => {
+	it('validates inpatient type', () => {
+		const result = clerkshipTypeSchema.safeParse('inpatient');
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects empty string', () => {
-		const result = specialtySchema.safeParse('');
+	it('validates outpatient type', () => {
+		const result = clerkshipTypeSchema.safeParse('outpatient');
+		expect(result.success).toBe(true);
+	});
+
+	it('rejects invalid type', () => {
+		const result = clerkshipTypeSchema.safeParse('invalid');
 		expect(result.success).toBe(false);
-	});
-
-	it('accepts specialty with spaces and punctuation', () => {
-		const result = specialtySchema.safeParse('Obstetrics & Gynecology');
-		expect(result.success).toBe(true);
 	});
 });
 
@@ -34,7 +33,7 @@ describe('createClerkshipSchema', () => {
 	it('validates valid input', () => {
 		const validInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5
 		};
 
@@ -45,7 +44,7 @@ describe('createClerkshipSchema', () => {
 	it('validates with optional description', () => {
 		const validInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5,
 			description: 'Primary care rotation'
 		};
@@ -56,7 +55,7 @@ describe('createClerkshipSchema', () => {
 
 	it('requires name', () => {
 		const invalidInput = {
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5
 		};
 
@@ -64,7 +63,7 @@ describe('createClerkshipSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('requires specialty', () => {
+	it('requires clerkship_type', () => {
 		const invalidInput = {
 			name: 'Family Medicine Clerkship',
 			required_days: 5
@@ -77,7 +76,7 @@ describe('createClerkshipSchema', () => {
 	it('requires required_days', () => {
 		const invalidInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine'
+			clerkship_type: 'outpatient'
 		};
 
 		const result = createClerkshipSchema.safeParse(invalidInput);
@@ -87,7 +86,7 @@ describe('createClerkshipSchema', () => {
 	it('rejects empty name', () => {
 		const invalidInput = {
 			name: '',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5
 		};
 
@@ -98,7 +97,7 @@ describe('createClerkshipSchema', () => {
 	it('rejects name shorter than 2 characters', () => {
 		const invalidInput = {
 			name: 'A',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5
 		};
 
@@ -109,7 +108,7 @@ describe('createClerkshipSchema', () => {
 	it('accepts name with exactly 2 characters', () => {
 		const validInput = {
 			name: 'FM',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5
 		};
 
@@ -117,10 +116,10 @@ describe('createClerkshipSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects empty specialty', () => {
+	it('rejects invalid clerkship_type', () => {
 		const invalidInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: '',
+			clerkship_type: 'invalid',
 			required_days: 5
 		};
 
@@ -131,7 +130,7 @@ describe('createClerkshipSchema', () => {
 	it('rejects zero required_days', () => {
 		const invalidInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 0
 		};
 
@@ -142,7 +141,7 @@ describe('createClerkshipSchema', () => {
 	it('rejects negative required_days', () => {
 		const invalidInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: -5
 		};
 
@@ -153,7 +152,7 @@ describe('createClerkshipSchema', () => {
 	it('accepts large required_days values', () => {
 		const validInput = {
 			name: 'Extended Clerkship',
-			specialty: 'Surgery',
+			clerkship_type: 'inpatient',
 			required_days: 60
 		};
 
@@ -164,7 +163,7 @@ describe('createClerkshipSchema', () => {
 	it('accepts empty description', () => {
 		const validInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5,
 			description: ''
 		};
@@ -176,7 +175,7 @@ describe('createClerkshipSchema', () => {
 	it('accepts long description', () => {
 		const validInput = {
 			name: 'Family Medicine Clerkship',
-			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
 			required_days: 5,
 			description: 'A'.repeat(500)
 		};
@@ -196,9 +195,9 @@ describe('updateClerkshipSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('allows optional specialty', () => {
+	it('allows optional clerkship_type', () => {
 		const validInput = {
-			specialty: 'Internal Medicine'
+			clerkship_type: 'inpatient'
 		};
 
 		const result = updateClerkshipSchema.safeParse(validInput);
@@ -226,7 +225,7 @@ describe('updateClerkshipSchema', () => {
 	it('allows all fields', () => {
 		const validInput = {
 			name: 'Updated Clerkship',
-			specialty: 'Internal Medicine',
+			clerkship_type: 'inpatient',
 			required_days: 10,
 			description: 'Updated description'
 		};
@@ -254,9 +253,9 @@ describe('updateClerkshipSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('validates specialty format when provided', () => {
+	it('validates clerkship_type when provided', () => {
 		const invalidInput = {
-			specialty: ''
+			clerkship_type: 'invalid'
 		};
 
 		const result = updateClerkshipSchema.safeParse(invalidInput);
