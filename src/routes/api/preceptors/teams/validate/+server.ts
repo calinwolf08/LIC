@@ -1,7 +1,7 @@
 /**
  * Team Validation API
  *
- * POST /api/scheduling-config/teams/validate - Validate a team configuration before creation
+ * POST /api/preceptors/teams/validate - Validate a team configuration before creation
  */
 
 import type { RequestHandler } from './$types';
@@ -43,7 +43,7 @@ const validateTeamSchema = z.object({
 });
 
 /**
- * POST /api/scheduling-config/teams/validate
+ * POST /api/preceptors/teams/validate
  * Validates a team configuration against formation rules
  *
  * Request Body:

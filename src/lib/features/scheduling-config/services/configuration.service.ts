@@ -348,7 +348,6 @@ export class ConfigurationService {
                 name: elective.name,
                 minimumDays: elective.minimumDays,
                 specialty: elective.specialty,
-                availablePreceptorIds: elective.availablePreceptorIds,
               });
             }
           }

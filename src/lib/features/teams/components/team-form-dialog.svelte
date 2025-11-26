@@ -14,7 +14,7 @@
 		open: boolean;
 		clerkshipId: string;
 		team?: any; // Existing team for editing
-		preceptors: Array<{ id: string; name: string; specialty: string }>;
+		preceptors: Array<{ id: string; name: string }>;
 		onClose: () => void;
 	}
 
@@ -119,19 +119,15 @@
 		return preceptors.find((p) => p.id === id)?.name || 'Unknown';
 	}
 
-	function getPreceptorSpecialty(id: string): string {
-		return preceptors.find((p) => p.id === id)?.specialty || '';
-	}
-
 	async function handleSubmit(e: Event) {
 		console.log('[TeamForm] handleSubmit started', { team: team?.id, isSubmitting });
 		e.preventDefault();
 		error = null;
 
 		// Validation
-		if (members.length < 2) {
+		if (members.length < 1) {
 			console.log('[TeamForm] Validation failed: not enough members', members.length);
-			error = 'Team must have at least 2 members';
+			error = 'Team must have at least 1 member';
 			return;
 		}
 
@@ -140,8 +136,8 @@
 
 		try {
 			const url = team
-				? `/api/scheduling-config/teams/${team.id}`
-				: `/api/scheduling-config/teams?clerkshipId=${clerkshipId}`;
+				? `/api/preceptors/teams/${team.id}`
+				: `/api/preceptors/teams?clerkshipId=${clerkshipId}`;
 			const method = team ? 'PATCH' : 'POST';
 
 			const payload = {
@@ -298,7 +294,7 @@
 
 				<!-- Team Members -->
 				<div class="space-y-3 rounded-lg border p-4">
-					<h3 class="font-semibold">Team Members (minimum 2 required)</h3>
+					<h3 class="font-semibold">Team Members (minimum 1 required)</h3>
 
 					<!-- Add Member -->
 					<div class="flex gap-2">
@@ -310,7 +306,7 @@
 							>
 								<option value="">Select preceptor...</option>
 								{#each preceptors.filter((p) => !members.find((m) => m.preceptorId === p.id)) as preceptor}
-									<option value={preceptor.id}>{preceptor.name} - {preceptor.specialty}</option>
+									<option value={preceptor.id}>{preceptor.name}</option>
 								{/each}
 							</select>
 						</div>
@@ -337,11 +333,10 @@
 											{index + 1}. {getPreceptorName(member.preceptorId)}
 										</p>
 										<div class="mt-1 flex gap-3 text-xs text-muted-foreground">
-											<span>{getPreceptorSpecialty(member.preceptorId)}</span>
 											{#if member.role}
-												<span>• Role: {member.role}</span>
+												<span>Role: {member.role}</span>
 											{/if}
-											<span>• Priority: {member.priority}</span>
+											<span>{member.role ? '• ' : ''}Priority: {member.priority}</span>
 										</div>
 									</div>
 									<div class="flex gap-1">
@@ -377,7 +372,7 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="text-sm text-muted-foreground">No members added yet. Add at least 2 members.</p>
+						<p class="text-sm text-muted-foreground">No members added yet. Add at least 1 member.</p>
 					{/if}
 				</div>
 
@@ -386,7 +381,7 @@
 					<Button type="button" variant="outline" onclick={handleCancel} disabled={isSubmitting}>
 						Cancel
 					</Button>
-					<Button type="submit" disabled={isSubmitting || members.length < 2}>
+					<Button type="submit" disabled={isSubmitting || members.length < 1}>
 						{isSubmitting ? 'Saving...' : team ? 'Update Team' : 'Create Team'}
 					</Button>
 				</div>

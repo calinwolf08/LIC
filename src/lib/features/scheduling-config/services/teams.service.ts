@@ -164,8 +164,7 @@ export class TeamService {
             'preceptor_team_members.role',
             'preceptor_team_members.priority',
             'preceptor_team_members.created_at',
-            'preceptors.name as preceptorName',
-            'preceptors.specialty as preceptorSpecialty'
+            'preceptors.name as preceptorName'
           ])
           .where('team_id', '=', team.id)
           .orderBy('priority', 'asc')
@@ -175,8 +174,7 @@ export class TeamService {
           ...this.mapTeam(team),
           members: members.map((m: any) => ({
             ...this.mapTeamMember(m),
-            preceptorName: m.preceptorName,
-            preceptorSpecialty: m.preceptorSpecialty
+            preceptorName: m.preceptorName
           })),
         });
       }
@@ -470,15 +468,8 @@ export class TeamService {
         }
       }
 
-      // Check same specialty if required
-      if (input.requireSameSpecialty) {
-        const specialties = new Set(preceptors.map(p => p.specialty));
-        if (specialties.size > 1) {
-          return Result.failure(
-            ServiceErrors.conflict('All team members must have the same specialty')
-          );
-        }
-      }
+      // Note: Specialty validation removed - preceptors no longer have specialty field
+      // The requireSameSpecialty option is kept for potential future use
 
       return Result.success(true);
     } catch (error) {

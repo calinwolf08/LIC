@@ -65,34 +65,6 @@ export class ElectiveService {
         );
       }
 
-      // Verify all preceptors exist
-      if (input.availablePreceptorIds.length === 0) {
-        return Result.failure(
-          ServiceErrors.validationError('At least one preceptor must be available')
-        );
-      }
-
-      for (const preceptorId of input.availablePreceptorIds) {
-        const preceptor = await this.db
-          .selectFrom('preceptors')
-          .select(['id', 'specialty'])
-          .where('id', '=', preceptorId)
-          .executeTakeFirst();
-
-        if (!preceptor) {
-          return Result.failure(ServiceErrors.notFound('Preceptor', preceptorId));
-        }
-
-        // If specialty specified, validate match
-        if (input.specialty && preceptor.specialty !== input.specialty) {
-          return Result.failure(
-            ServiceErrors.conflict(
-              `Preceptor ${preceptorId} specialty (${preceptor.specialty}) does not match elective specialty (${input.specialty})`
-            )
-          );
-        }
-      }
-
       const elective = await this.db
         .insertInto('clerkship_electives')
         .values({
@@ -101,7 +73,6 @@ export class ElectiveService {
           name: input.name,
           minimum_days: input.minimumDays,
           specialty: input.specialty || null,
-          available_preceptor_ids: JSON.stringify(input.availablePreceptorIds),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -199,14 +170,6 @@ export class ElectiveService {
         updateData.minimum_days = input.minimumDays;
       }
       if (input.specialty !== undefined) updateData.specialty = input.specialty || null;
-      if (input.availablePreceptorIds !== undefined) {
-        if (input.availablePreceptorIds.length === 0) {
-          return Result.failure(
-            ServiceErrors.validationError('At least one preceptor must be available')
-          );
-        }
-        updateData.available_preceptor_ids = JSON.stringify(input.availablePreceptorIds);
-      }
 
       const updated = await this.db
         .updateTable('clerkship_electives')
@@ -243,12 +206,14 @@ export class ElectiveService {
 
   /**
    * Get available preceptors for an elective
+   *
+   * Note: Returns all preceptors since specialty matching is disabled.
    */
   async getAvailablePreceptors(electiveId: string): Promise<ServiceResult<any[]>> {
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
-        .select('specialty')
+        .select('id')
         .where('id', '=', electiveId)
         .executeTakeFirst();
 
@@ -256,11 +221,10 @@ export class ElectiveService {
         return Result.failure(ServiceErrors.notFound('Elective', electiveId));
       }
 
-      // Return preceptors matching the elective's specialty
+      // Return all preceptors (specialty matching disabled)
       const preceptors = await this.db
         .selectFrom('preceptors')
         .selectAll()
-        .where('specialty', '=', elective.specialty || '')
         .execute();
 
       return Result.success(preceptors);
@@ -279,7 +243,6 @@ export class ElectiveService {
       name: row.name,
       minimumDays: row.minimum_days,
       specialty: row.specialty || undefined,
-      availablePreceptorIds: JSON.parse(row.available_preceptor_ids as string),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

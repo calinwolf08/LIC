@@ -121,10 +121,7 @@ export class StrategyContextBuilder {
     // Get all preceptors
     let query = this.db.selectFrom('preceptors').selectAll();
 
-    // Filter by specialty if configured
-    if (clerkship.specialty) {
-      query = query.where('specialty', '=', clerkship.specialty);
-    }
+    // Note: Specialty filtering removed - preceptors no longer have specialty field
 
     const preceptors = await query.execute();
 
@@ -164,7 +161,6 @@ export class StrategyContextBuilder {
       result.push({
         id: preceptor.id,
         name: preceptor.name,
-        specialty: preceptor.specialty,
         healthSystemId: preceptor.health_system_id,
         siteId: preceptor.site_id,
         availability: availabilityDates,
@@ -237,7 +233,7 @@ export class StrategyContextBuilder {
    */
   private async buildHealthSystemInfo(): Promise<{
     healthSystems: Map<string, { id: string; name: string }>;
-    sites: Map<string, { id: string; healthSystemId: string; name: string }>;
+    sites: Map<string, { id: string; healthSystemId: string | null; name: string }>;
   }> {
     const healthSystems = await this.db.selectFrom('health_systems').selectAll().execute();
 

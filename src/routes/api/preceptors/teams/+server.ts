@@ -1,8 +1,8 @@
 /**
  * Teams API - Collection Endpoints
  *
- * GET /api/scheduling-config/teams - List teams (filtered by clerkship)
- * POST /api/scheduling-config/teams - Create new team
+ * GET /api/preceptors/teams - List teams (filtered by clerkship)
+ * POST /api/preceptors/teams - Create new team
  */
 
 import type { RequestHandler } from './$types';
@@ -20,7 +20,7 @@ import { ZodError } from 'zod';
 const service = new TeamService(db);
 
 /**
- * GET /api/scheduling-config/teams
+ * GET /api/preceptors/teams
  * Returns teams for a clerkship
  */
 export const GET: RequestHandler = async ({ url }) => {
@@ -44,7 +44,7 @@ export const GET: RequestHandler = async ({ url }) => {
 };
 
 /**
- * POST /api/scheduling-config/teams
+ * POST /api/preceptors/teams
  * Creates a new team
  */
 export const POST: RequestHandler = async ({ request, url }) => {

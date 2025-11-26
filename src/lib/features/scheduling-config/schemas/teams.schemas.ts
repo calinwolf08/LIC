@@ -24,7 +24,7 @@ export const preceptorTeamInputSchema = z.object({
   requireSameSite: z.boolean().default(false),
   requireSameSpecialty: z.boolean().default(false),
   requiresAdminApproval: z.boolean().default(false),
-  members: z.array(preceptorTeamMemberInputSchema).min(2, 'Team must have at least 2 members'),
+  members: z.array(preceptorTeamMemberInputSchema).min(1, 'Team must have at least 1 member'),
 }).refine(
   (data) => {
     // Check for unique priorities
@@ -58,7 +58,7 @@ export const preceptorTeamSchema = z.object({
   requireSameSite: z.boolean().default(false),
   requireSameSpecialty: z.boolean().default(false),
   requiresAdminApproval: z.boolean().default(false),
-  members: z.array(preceptorTeamMemberInputSchema).min(2, 'Team must have at least 2 members'),
+  members: z.array(preceptorTeamMemberInputSchema).min(1, 'Team must have at least 1 member'),
   id: z.string(),
   clerkshipId: z.string(),
   createdAt: z.date(),

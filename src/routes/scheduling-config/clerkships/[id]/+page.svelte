@@ -5,19 +5,11 @@
 	import { Label } from '$lib/components/ui/label';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
-	import TeamFormDialog from '$lib/features/teams/components/team-form-dialog.svelte';
-	import { onMount } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	let preceptors = $state<Array<{ id: string; name: string; specialty: string }>>([]);
-	let loadingPreceptors = $state(true);
-
-	let activeTab = $state<'overview' | 'requirements' | 'teams' | 'capacity'>('overview');
+	let activeTab = $state<'overview' | 'requirements' | 'capacity'>('overview');
 	let showAddRequirementModal = $state(false);
-	let showAddTeamModal = $state(false);
-	let teamToEdit = $state<any>(null);
-	let teamToDelete = $state<any>(null);
 
 	// Form state for new requirement
 	let newRequirement = $state({
@@ -82,69 +74,6 @@
 		error = null;
 	}
 
-	onMount(async () => {
-		await loadPreceptors();
-	});
-
-	async function loadPreceptors() {
-		loadingPreceptors = true;
-		try {
-			const response = await fetch('/api/preceptors');
-			const result = await response.json();
-			if (result.success && result.data) {
-				preceptors = result.data.map((p: any) => ({
-					id: p.id,
-					name: p.name,
-					specialty: p.specialty
-				}));
-			}
-		} catch (error) {
-			console.error('Failed to load preceptors:', error);
-		} finally {
-			loadingPreceptors = false;
-		}
-	}
-
-	async function handleAddTeam() {
-		teamToEdit = null;
-		showAddTeamModal = true;
-	}
-
-	function handleEditTeam(team: any) {
-		teamToEdit = team;
-		showAddTeamModal = true;
-	}
-
-	function handleCloseTeamModal() {
-		console.log('[ClerkshipPage] handleCloseTeamModal called');
-		showAddTeamModal = false;
-		teamToEdit = null;
-		console.log('[ClerkshipPage] Modal state updated', { showAddTeamModal, teamToEdit });
-	}
-
-	async function handleDeleteTeam(team: any) {
-		if (!confirm(`Are you sure you want to delete this team?`)) {
-			return;
-		}
-
-		try {
-			const response = await fetch(`/api/scheduling-config/teams/${team.id}`, {
-				method: 'DELETE'
-			});
-
-			if (!response.ok) {
-				const result = await response.json();
-				alert(result.error?.message || 'Failed to delete team');
-				return;
-			}
-
-			// Refresh data
-			await invalidateAll();
-		} catch (error) {
-			alert(error instanceof Error ? error.message : 'Failed to delete team');
-		}
-	}
-
 	function formatStrategy(strategy: string | undefined): string {
 		if (!strategy) return 'Not configured';
 		return strategy
@@ -162,7 +91,7 @@
 		</Button>
 		<h1 class="text-3xl font-bold">{data.configuration.clerkshipName}</h1>
 		<p class="mt-2 text-muted-foreground">
-			Configure scheduling strategies, requirements, teams, and capacity rules
+			Configure scheduling strategies, requirements, and capacity rules
 		</p>
 	</div>
 
@@ -190,16 +119,6 @@
 				Requirements ({data.configuration.requirements.length})
 			</button>
 			<button
-				onclick={() => (activeTab = 'teams')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'teams'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Teams ({data.configuration.teams?.length || 0})
-			</button>
-			<button
 				onclick={() => (activeTab = 'capacity')}
 				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
 					activeTab === 'capacity'
@@ -218,7 +137,7 @@
 			<!-- Summary Card -->
 			<div class="rounded-lg border p-6">
 				<h2 class="text-xl font-semibold">Configuration Summary</h2>
-				<div class="mt-4 grid gap-4 md:grid-cols-3">
+				<div class="mt-4 grid gap-4 md:grid-cols-2">
 					<div>
 						<p class="text-sm text-muted-foreground">Total Required Days</p>
 						<p class="text-2xl font-bold">{data.configuration.totalRequiredDays}</p>
@@ -226,10 +145,6 @@
 					<div>
 						<p class="text-sm text-muted-foreground">Requirements</p>
 						<p class="text-2xl font-bold">{data.configuration.requirements.length}</p>
-					</div>
-					<div>
-						<p class="text-sm text-muted-foreground">Configured Teams</p>
-						<p class="text-2xl font-bold">{data.configuration.teams?.length || 0}</p>
 					</div>
 				</div>
 			</div>
@@ -358,77 +273,6 @@
 				{/each}
 			</div>
 		</div>
-	{:else if activeTab === 'teams'}
-		<div class="space-y-4">
-			<div class="flex items-center justify-between">
-				<h2 class="text-xl font-semibold">Preceptor Teams</h2>
-				<Button onclick={handleAddTeam}>Add Team</Button>
-			</div>
-
-			{#if data.configuration.teams && data.configuration.teams.length > 0}
-				<div class="space-y-4">
-					{#each data.configuration.teams as team}
-						<div class="rounded-lg border p-6">
-							<div class="mb-4 flex items-start justify-between">
-								<div>
-									<h3 class="text-lg font-semibold">{team.name || 'Unnamed Team'}</h3>
-									<p class="text-sm text-muted-foreground">
-										{team.members?.length || 0} members
-									</p>
-								</div>
-								<div class="flex gap-2">
-									<Button size="sm" variant="outline" onclick={() => handleEditTeam(team)}>Edit</Button>
-									<Button size="sm" variant="destructive" onclick={() => handleDeleteTeam(team)}>Delete</Button>
-								</div>
-							</div>
-
-							{#if team.members && team.members.length > 0}
-								<div class="mb-4 rounded border p-3">
-									<p class="mb-2 text-sm font-medium">Team Members:</p>
-									<div class="space-y-1">
-										{#each team.members as member, index}
-											<div class="text-sm text-muted-foreground">
-												{index + 1}. {member.preceptorName || 'Unknown Preceptor'}
-												{#if member.role}
-													<span class="text-xs">({member.role})</span>
-												{/if}
-												<span class="text-xs">- Priority {member.priority}</span>
-											</div>
-										{/each}
-									</div>
-								</div>
-							{/if}
-
-							<div class="text-sm">
-								<p class="mb-2 font-medium">Formation Rules:</p>
-								<ul class="ml-4 space-y-1 text-muted-foreground">
-									{#if team.requireSameHealthSystem}
-										<li>✓ Same health system required</li>
-									{/if}
-									{#if team.requireSameSite}
-										<li>✓ Same site required</li>
-									{/if}
-									{#if team.requireSameSpecialty}
-										<li>✓ Same specialty required</li>
-									{/if}
-									{#if team.requiresAdminApproval}
-										<li>⚠ Requires admin approval</li>
-									{/if}
-								</ul>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{:else}
-				<div class="rounded-lg border p-12 text-center text-muted-foreground">
-					<p>No teams configured for this clerkship.</p>
-					<p class="mt-2 text-sm">
-						Teams allow multiple preceptors to share teaching responsibilities.
-					</p>
-					<Button class="mt-4" onclick={handleAddTeam}>Create First Team</Button>
-				</div>
-			{/if}
-		</div>
 	{:else if activeTab === 'capacity'}
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">
@@ -445,15 +289,6 @@
 		</div>
 	{/if}
 </div>
-
-<!-- Team Form Dialog -->
-<TeamFormDialog
-	open={showAddTeamModal}
-	clerkshipId={data.configuration.clerkshipId}
-	team={teamToEdit}
-	{preceptors}
-	onClose={handleCloseTeamModal}
-/>
 
 <!-- Add Requirement Modal -->
 {#if showAddRequirementModal}

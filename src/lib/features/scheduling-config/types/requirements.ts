@@ -64,7 +64,6 @@ export interface ClerkshipElective {
   name: string;
   minimumDays: number;
   specialty?: string;
-  availablePreceptorIds: string[];
   createdAt: Date;
   updatedAt: Date;
 }

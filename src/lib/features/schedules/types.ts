@@ -13,7 +13,6 @@ export interface EnrichedAssignment extends Selectable<ScheduleAssignments> {
 	student_email: string;
 	preceptor_name: string;
 	preceptor_email: string;
-	preceptor_specialty: string;
 	clerkship_name: string;
 	clerkship_specialty: string;
 	clerkship_required_days: number;

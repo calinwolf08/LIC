@@ -85,18 +85,7 @@ export class FallbackResolver {
     for (let i = 0; i < chain.length; i++) {
       const fallback = chain[i];
 
-      // Check specialty match if required
-      if (options.specialty) {
-        const preceptor = await this.db
-          .selectFrom('preceptors')
-          .select('specialty')
-          .where('id', '=', fallback.fallbackPreceptorId)
-          .executeTakeFirst();
-
-        if (!preceptor || preceptor.specialty !== options.specialty) {
-          continue; // Try next fallback
-        }
-      }
+      // Note: Specialty matching disabled - preceptors no longer have specialty field
 
       // Check health system rules
       if (options.healthSystemId && !fallback.allowDifferentHealthSystem) {

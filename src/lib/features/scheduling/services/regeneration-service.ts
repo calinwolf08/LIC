@@ -171,8 +171,7 @@ export function findReplacementPreceptor(
 		// Skip if already assigned
 		if (preceptor.id === assignment.preceptor_id) continue;
 
-		// Check specialty match
-		if (preceptor.specialty !== clerkship.specialty) continue;
+		// Note: Specialty matching removed - preceptors no longer have specialty field
 
 		// Check if available on this date
 		const availableDates = context.preceptorAvailability.get(preceptor.id!);

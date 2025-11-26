@@ -342,12 +342,7 @@ export async function validateAssignment(
 		return { valid: false, errors };
 	}
 
-	// Check specialty matching
-	if (preceptor && clerkship && preceptor.specialty !== clerkship.specialty) {
-		errors.push(
-			`Preceptor specialty (${preceptor.specialty}) does not match clerkship specialty (${clerkship.specialty})`
-		);
-	}
+	// Note: Specialty matching removed - preceptors no longer have specialty field
 
 	// Check for student conflicts (no double-booking)
 	const studentConflict = await hasStudentConflict(db, data.student_id, data.date, excludeId);

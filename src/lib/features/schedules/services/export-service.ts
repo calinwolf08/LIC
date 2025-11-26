@@ -131,7 +131,6 @@ async function generatePreceptorScheduleWorksheet(
 	worksheet.columns = [
 		{ header: 'Preceptor Name', key: 'preceptor_name', width: 20 },
 		{ header: 'Email', key: 'preceptor_email', width: 25 },
-		{ header: 'Specialty', key: 'preceptor_specialty', width: 20 },
 		{ header: 'Student', key: 'student_name', width: 20 },
 		{ header: 'Clerkship', key: 'clerkship_name', width: 25 },
 		{ header: 'Date', key: 'date', width: 12 },
@@ -165,7 +164,6 @@ async function generatePreceptorScheduleWorksheet(
 			worksheet.addRow({
 				preceptor_name: assignment.preceptor_name,
 				preceptor_email: assignment.preceptor_email,
-				preceptor_specialty: assignment.preceptor_specialty,
 				student_name: assignment.student_name,
 				clerkship_name: assignment.clerkship_name,
 				date: assignment.date,

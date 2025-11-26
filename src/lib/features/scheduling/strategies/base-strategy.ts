@@ -39,7 +39,6 @@ export interface StrategyContext {
   availablePreceptors: Array<{
     id: string;
     name: string;
-    specialty: string;
     healthSystemId: string | null;
     siteId: string | null;
     availability: string[]; // Dates this preceptor is available
@@ -70,7 +69,7 @@ export interface StrategyContext {
 
   // Health system information
   healthSystems: Map<string, { id: string; name: string }>;
-  sites: Map<string, { id: string; healthSystemId: string; name: string }>;
+  sites: Map<string, { id: string; healthSystemId: string | null; name: string }>;
 }
 
 /**
@@ -141,13 +140,16 @@ export abstract class BaseStrategy implements SchedulingStrategy {
   }
 
   /**
-   * Helper: Filter preceptors by specialty
+   * Helper: Filter preceptors by specialty (currently disabled)
+   *
+   * Note: Returns all preceptors since specialty field was removed from preceptors.
    */
   protected filterBySpecialty(
     preceptors: StrategyContext['availablePreceptors'],
-    specialty: string
+    specialty: string | undefined
   ): StrategyContext['availablePreceptors'] {
-    return preceptors.filter(p => p.specialty === specialty);
+    // Specialty matching disabled - preceptors no longer have specialty field
+    return preceptors;
   }
 
   /**

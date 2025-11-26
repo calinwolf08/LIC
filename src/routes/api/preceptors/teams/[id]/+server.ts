@@ -1,8 +1,8 @@
 /**
  * Team API - Individual Team Endpoints
  *
- * PATCH /api/scheduling-config/teams/[id] - Update team
- * DELETE /api/scheduling-config/teams/[id] - Delete team
+ * PATCH /api/preceptors/teams/[id] - Update team
+ * DELETE /api/preceptors/teams/[id] - Delete team
  */
 
 import type { RequestHandler } from './$types';
@@ -15,7 +15,7 @@ import { ZodError, z } from 'zod';
 const service = new TeamService(db);
 
 /**
- * PATCH /api/scheduling-config/teams/[id]
+ * PATCH /api/preceptors/teams/[id]
  * Update an existing team
  */
 export const PATCH: RequestHandler = async ({ params, request }) => {
@@ -78,7 +78,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 };
 
 /**
- * DELETE /api/scheduling-config/teams/[id]
+ * DELETE /api/preceptors/teams/[id]
  * Delete a team
  */
 export const DELETE: RequestHandler = async ({ params }) => {

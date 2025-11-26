@@ -39,7 +39,6 @@ export async function getEnrichedAssignments(
 			's.email as student_email',
 			'p.name as preceptor_name',
 			'p.email as preceptor_email',
-			'p.specialty as preceptor_specialty',
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
 			'c.required_days as clerkship_required_days'
