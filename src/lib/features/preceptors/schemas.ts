@@ -15,13 +15,40 @@ export const specialtySchema = z.string().min(1, {
 });
 
 /**
+ * Phone schema for validation
+ */
+const phoneSchema = z
+	.string()
+	.transform((val) => (val === '' ? undefined : val))
+	.pipe(
+		z
+			.string()
+			.refine(
+				(val) => /^[\d\s\-\(\)\+\.]+$/.test(val) && val.length >= 10 && val.length <= 20,
+				{ message: 'Invalid phone number format (10-20 digits allowed)' }
+			)
+			.optional()
+	);
+
+/**
+ * Optional ID schema that transforms empty strings to undefined
+ */
+const optionalIdSchema = z
+	.string()
+	.transform((val) => (val === '' ? undefined : val))
+	.pipe(cuid2Schema.optional())
+	.optional();
+
+/**
  * Schema for creating a new preceptor
  */
 export const createPreceptorSchema = z.object({
 	name: nameSchema,
 	email: emailSchema,
 	specialty: specialtySchema,
-	health_system_id: cuid2Schema,
+	phone: phoneSchema.optional(),
+	health_system_id: optionalIdSchema,
+	site_id: optionalIdSchema,
 	max_students: positiveIntSchema.default(1)
 });
 
@@ -33,7 +60,9 @@ export const updatePreceptorSchema = z
 		name: nameSchema.optional(),
 		email: emailSchema.optional(),
 		specialty: specialtySchema.optional(),
-		health_system_id: cuid2Schema.optional(),
+		phone: phoneSchema.optional(),
+		health_system_id: optionalIdSchema,
+		site_id: optionalIdSchema,
 		max_students: positiveIntSchema.optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {

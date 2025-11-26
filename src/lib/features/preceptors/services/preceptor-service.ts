@@ -86,9 +86,10 @@ export async function createPreceptor(
 		name: data.name,
 		email: data.email,
 		specialty: data.specialty,
-		health_system_id: data.health_system_id,
+		phone: data.phone || null,
+		health_system_id: data.health_system_id || null,
+		site_id: data.site_id || null,
 		max_students: data.max_students ?? 1,
-		site_id: null,
 		created_at: timestamp,
 		updated_at: timestamp
 	};
@@ -126,12 +127,22 @@ export async function updatePreceptor(
 		}
 	}
 
+	// Build update object, converting undefined to null for nullable fields
+	const updateData: Record<string, unknown> = {
+		updated_at: new Date().toISOString()
+	};
+
+	if (data.name !== undefined) updateData.name = data.name;
+	if (data.email !== undefined) updateData.email = data.email;
+	if (data.specialty !== undefined) updateData.specialty = data.specialty;
+	if (data.max_students !== undefined) updateData.max_students = data.max_students;
+	if (data.phone !== undefined) updateData.phone = data.phone || null;
+	if ('health_system_id' in data) updateData.health_system_id = data.health_system_id || null;
+	if ('site_id' in data) updateData.site_id = data.site_id || null;
+
 	const updated = await db
 		.updateTable('preceptors')
-		.set({
-			...data,
-			updated_at: new Date().toISOString()
-		})
+		.set(updateData)
 		.where('id', '=', id)
 		.returningAll()
 		.executeTakeFirstOrThrow();

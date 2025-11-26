@@ -212,10 +212,11 @@ export interface PreceptorFallbacks {
 export interface Preceptors {
   created_at: Generated<string>;
   email: string;
-  health_system_id: string;
+  health_system_id: string | null;
   id: string | null;
   max_students: Generated<number>;
   name: string;
+  phone: string | null;
   site_id: string | null;
   specialty: string;
   updated_at: Generated<string>;

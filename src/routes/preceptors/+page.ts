@@ -1,7 +1,7 @@
 /**
  * Preceptors Page Load Function
  *
- * Fetches all preceptors from the API
+ * Fetches all preceptors, health systems, and sites from the API
  */
 
 import type { PageLoad } from './$types';
@@ -9,21 +9,27 @@ import type { Preceptors } from '$lib/db/types';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
-		const response = await fetch('/api/preceptors');
+		const [preceptorsRes, healthSystemsRes, sitesRes] = await Promise.all([
+			fetch('/api/preceptors'),
+			fetch('/api/scheduling-config/health-systems'),
+			fetch('/api/sites')
+		]);
 
-		if (!response.ok) {
-			throw new Error('Failed to fetch preceptors');
-		}
-
-		const result = await response.json();
+		const preceptorsResult = preceptorsRes.ok ? await preceptorsRes.json() : { data: [] };
+		const healthSystemsResult = healthSystemsRes.ok ? await healthSystemsRes.json() : { data: [] };
+		const sitesResult = sitesRes.ok ? await sitesRes.json() : { data: [] };
 
 		return {
-			preceptors: result.data as Preceptors[]
+			preceptors: (preceptorsResult.data || []) as Preceptors[],
+			healthSystems: (healthSystemsResult.data || []) as Array<{ id: string; name: string }>,
+			sites: (sitesResult.data || []) as Array<{ id: string; name: string; health_system_id: string | null }>
 		};
 	} catch (error) {
-		console.error('Error loading preceptors:', error);
+		console.error('Error loading preceptors page data:', error);
 		return {
-			preceptors: [] as Preceptors[]
+			preceptors: [] as Preceptors[],
+			healthSystems: [] as Array<{ id: string; name: string }>,
+			sites: [] as Array<{ id: string; name: string; health_system_id: string | null }>
 		};
 	}
 };
