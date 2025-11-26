@@ -1,10 +1,11 @@
 /**
  * UI E2E Test - Sites Management
  *
- * These tests would have caught the bugs found during manual testing:
+ * These tests catch bugs found during manual testing:
  * 1. Sites not appearing in the table after creation
  * 2. Phone and email fields showing validation errors when empty (despite being optional)
  * 3. Site delete dialog not showing dependencies correctly
+ * 4. Sites not created when health_system_id left empty (schema validation failed on empty string)
  */
 
 import { test, expect } from '@playwright/test';
@@ -83,6 +84,41 @@ test.describe('Sites UI Workflow', () => {
 		// Verify action buttons are present
 		await expect(siteRow.getByRole('button', { name: 'Edit' })).toBeVisible();
 		await expect(siteRow.getByRole('button', { name: 'Delete' })).toBeVisible();
+	});
+
+	test('should create site without health system (optional field)', async ({ page }) => {
+		// This test catches Bug: "Sites not created when health_system_id is empty string"
+		// The schema was failing validation on empty string instead of treating it as undefined
+		const timestamp = Date.now();
+		const siteName = `Site No HS ${timestamp}`;
+
+		await gotoAndWait(page, '/sites');
+
+		// Click "New Site" link
+		await page.getByRole('link', { name: /new site/i }).click();
+		await page.waitForURL('/sites/new');
+
+		// Fill only the required name field
+		await page.locator('input#name').fill(siteName);
+
+		// Do NOT select a health system - leave it as default empty option
+		const healthSystemSelect = page.locator('select#health_system_id');
+		await expect(healthSystemSelect).toHaveValue(''); // Verify it's empty
+
+		// Submit
+		await page.getByRole('button', { name: 'Create' }).click();
+
+		// Should successfully redirect to sites list (not stay on form with error)
+		await page.waitForURL('/sites', { timeout: 5000 });
+
+		// CRITICAL: Site should appear in table even without health system
+		const siteRow = page.locator('table tbody tr', {
+			has: page.locator(`text="${siteName}"`)
+		});
+		await expect(siteRow).toBeVisible({ timeout: 5000 });
+
+		// Health system column should show "Unknown" or similar
+		await expect(siteRow.locator('text=/Unknown|—|-/')).toBeVisible();
 	});
 
 	test('should not show validation errors for optional empty phone and email fields', async ({
