@@ -90,18 +90,19 @@
 			const result = await response.json();
 
 			if (!response.ok) {
-				if (result.details) {
+				const errorData = result.error || {};
+				if (errorData.details && Array.isArray(errorData.details)) {
 					// Handle Zod validation errors
 					const fieldErrors: Record<string, string> = {};
-					for (const detail of result.details) {
-						const field = detail.path?.[0];
+					for (const detail of errorData.details) {
+						const field = detail.field || detail.path?.[0];
 						if (field) {
 							fieldErrors[field] = detail.message;
 						}
 					}
 					errors = fieldErrors;
 				} else {
-					generalError = result.error || 'An error occurred';
+					generalError = errorData.message || 'An error occurred';
 				}
 				return;
 			}

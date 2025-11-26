@@ -146,12 +146,22 @@ export class SiteService {
 
 		const now = new Date().toISOString();
 
+		// Build update object, converting undefined to null for nullable fields
+		const updateData: Record<string, unknown> = {
+			updated_at: now
+		};
+
+		if (input.name !== undefined) updateData.name = input.name;
+		if (input.address !== undefined) updateData.address = input.address || null;
+		if (input.office_phone !== undefined) updateData.office_phone = input.office_phone || null;
+		if (input.contact_person !== undefined) updateData.contact_person = input.contact_person || null;
+		if (input.contact_email !== undefined) updateData.contact_email = input.contact_email || null;
+		// Allow clearing health_system_id by setting to null
+		if ('health_system_id' in input) updateData.health_system_id = input.health_system_id || null;
+
 		const site = await this.db
 			.updateTable('sites')
-			.set({
-				...input,
-				updated_at: now
-			})
+			.set(updateData)
 			.where('id', '=', id)
 			.returningAll()
 			.executeTakeFirstOrThrow();
