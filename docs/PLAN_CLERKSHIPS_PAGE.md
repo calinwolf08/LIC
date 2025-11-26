@@ -52,6 +52,15 @@ Tab Content Area
 - Sites are filtered to show only those not already associated
 - API: POST/DELETE to `/api/clerkship-sites`
 
+**Dependency Checking on Remove:**
+- Before removing a site from a clerkship, check if any teams depend on that site-clerkship relationship
+- Query: Check `team_sites` for teams that belong to this clerkship AND reference this site
+- If dependencies exist:
+  - Block removal (disable Remove button or show error)
+  - Display notification listing the dependent teams by name
+  - Message: "Cannot remove site. The following teams depend on this site: [Team A, Team B]. Please update or remove these teams first."
+- Only allow removal when no teams depend on the site-clerkship relationship
+
 ### Tab 4: Preceptor Teams
 - List of teams for this clerkship
 - Each team shows: name, sites, member count
@@ -512,6 +521,47 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 
 ---
 
+## Step 4.5: Create Clerkship-Sites Dependencies Endpoint
+
+### 4.5.1 Create dependencies check endpoint
+**Create:** `src/routes/api/clerkship-sites/dependencies/+server.ts`
+
+```typescript
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+export const GET: RequestHandler = async ({ url, locals }) => {
+  const clerkshipId = url.searchParams.get('clerkship_id');
+  const siteId = url.searchParams.get('site_id');
+
+  if (!clerkshipId || !siteId) {
+    throw error(400, 'clerkship_id and site_id are required');
+  }
+
+  // Find teams that:
+  // 1. Belong to this clerkship (via preceptor_teams.clerkship_id)
+  // 2. Have this site in their team_sites
+  const dependentTeams = await locals.db
+    .selectFrom('preceptor_teams')
+    .innerJoin('team_sites', 'preceptor_teams.id', 'team_sites.team_id')
+    .select(['preceptor_teams.id as teamId', 'preceptor_teams.name as teamName'])
+    .where('preceptor_teams.clerkship_id', '=', clerkshipId)
+    .where('team_sites.site_id', '=', siteId)
+    .execute();
+
+  return json({
+    data: dependentTeams.map(t => ({
+      teamId: t.teamId,
+      teamName: t.teamName || 'Unnamed Team'
+    }))
+  });
+};
+```
+
+This endpoint checks if any teams for the given clerkship use the specified site. Returns an array of dependent teams (empty if no dependencies).
+
+---
+
 ## Step 5: Update Clerkship API Endpoints
 
 ### 5.1 Remove specialty from clerkship schema
@@ -675,7 +725,43 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
     }
   }
 
+  // Track site dependencies (teams that use each site)
+  let siteDependencies = $state<Record<string, { teamId: string; teamName: string }[]>>({});
+  let removeSiteError = $state<string | null>(null);
+
+  // Load dependencies for each associated site
+  async function loadSiteDependencies() {
+    const deps: Record<string, { teamId: string; teamName: string }[]> = {};
+    for (const site of associatedSites) {
+      const res = await fetch(
+        `/api/clerkship-sites/dependencies?clerkship_id=${data.clerkship.id}&site_id=${site.id}`
+      );
+      if (res.ok) {
+        const result = await res.json();
+        deps[site.id] = result.data || [];
+      }
+    }
+    siteDependencies = deps;
+  }
+
+  // Load dependencies when sites change
+  $effect(() => {
+    if (associatedSites.length > 0) {
+      loadSiteDependencies();
+    }
+  });
+
   async function handleRemoveSite(siteId: string) {
+    removeSiteError = null;
+
+    // Check for dependencies first
+    const dependencies = siteDependencies[siteId] || [];
+    if (dependencies.length > 0) {
+      const teamNames = dependencies.map(d => d.teamName).join(', ');
+      removeSiteError = `Cannot remove site. The following teams depend on this site: ${teamNames}. Please update or remove these teams first.`;
+      return;
+    }
+
     const res = await fetch(`/api/clerkship-sites?clerkship_id=${data.clerkship.id}&site_id=${siteId}`, {
       method: 'DELETE'
     });
@@ -683,6 +769,14 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
     if (res.ok) {
       associatedSites = associatedSites.filter(s => s.id !== siteId);
     }
+  }
+
+  function hasDependencies(siteId: string): boolean {
+    return (siteDependencies[siteId]?.length || 0) > 0;
+  }
+
+  function getDependencyCount(siteId: string): number {
+    return siteDependencies[siteId]?.length || 0;
   }
 </script>
 
@@ -790,14 +884,35 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
           <Button onclick={() => showAddSiteModal = true}>Add Site</Button>
         </div>
 
+        <!-- Error message for dependency blocking -->
+        {#if removeSiteError}
+          <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            <p class="font-medium">Cannot Remove Site</p>
+            <p class="text-sm mt-1">{removeSiteError}</p>
+          </div>
+        {/if}
+
         {#if associatedSites.length > 0}
           <div class="space-y-2">
             {#each associatedSites as site}
               <div class="flex items-center justify-between p-3 border rounded">
-                <a href="/sites/{site.id}/edit" class="text-blue-600 hover:underline">
-                  {site.name}
-                </a>
-                <Button variant="ghost" size="sm" onclick={() => handleRemoveSite(site.id)}>
+                <div>
+                  <a href="/sites/{site.id}/edit" class="text-blue-600 hover:underline">
+                    {site.name}
+                  </a>
+                  {#if hasDependencies(site.id)}
+                    <p class="text-xs text-amber-600 mt-1">
+                      Used by {getDependencyCount(site.id)} team{getDependencyCount(site.id) > 1 ? 's' : ''}
+                    </p>
+                  {/if}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onclick={() => handleRemoveSite(site.id)}
+                  disabled={hasDependencies(site.id)}
+                  title={hasDependencies(site.id) ? 'Cannot remove: teams depend on this site' : 'Remove site'}
+                >
                   Remove
                 </Button>
               </div>
@@ -990,6 +1105,7 @@ npm run build
 - `src/lib/db/migrations/017_clerkship_settings_overrides.ts`
 - `src/lib/features/clerkships/services/clerkship-settings.service.ts`
 - `src/routes/api/clerkships/[id]/settings/+server.ts`
+- `src/routes/api/clerkship-sites/dependencies/+server.ts`
 
 ### Modified Files:
 - `src/lib/db/types.ts`
@@ -1020,3 +1136,12 @@ npm run build
 - [ ] All TypeScript/Svelte checks pass
 - [ ] Build succeeds
 - [ ] Related tests pass
+
+### Associated Sites Dependency Tests
+- [ ] Sites with no dependent teams can be removed
+- [ ] Sites with dependent teams show warning indicator (e.g., "Used by 2 teams")
+- [ ] Remove button is disabled for sites with dependencies
+- [ ] Attempting to remove a site with dependencies shows error message
+- [ ] Error message lists the specific team names that depend on the site
+- [ ] After removing dependent teams, site can be removed
+- [ ] Dependencies endpoint returns correct team list
