@@ -1,7 +1,7 @@
 # Implementation Plan: Clerkships Page Changes
 
 ## Overview
-Redesign the clerkship configuration page to remove requirements section, add clerkship-level settings with global defaults, and improve preceptor teams display.
+Redesign the clerkship configuration page to use tabs, add clerkship-site association management, and improve overall UX.
 
 ## Changes Summary
 1. Rename "Scheduling Defaults" tab to "Default Scheduling Rules"
@@ -10,9 +10,53 @@ Redesign the clerkship configuration page to remove requirements section, add cl
 4. Move edit form fields to config page (except specialty which is removed)
 5. Add form populated with global defaults based on clerkship type
 6. Add "Return to Default" functionality
-7. Update Preceptor Teams section to show team list with links
-8. Add Sites section to show associated sites
-9. Fix related tests
+7. **Use tabs instead of cards**: Basic Information, Scheduling Settings, Associated Sites, Preceptor Teams
+8. **Add clerkship-site association management** (add/remove sites)
+9. Update Preceptor Teams section to show team list with links
+10. Fix related tests
+
+---
+
+## UI Design: Config Page with Tabs
+
+The config page will use a tabbed interface instead of stacked cards:
+
+```
+[Basic Information] [Scheduling Settings] [Associated Sites] [Preceptor Teams]
+─────────────────────────────────────────────────────────────────────────────
+
+Tab Content Area
+```
+
+### Tab 1: Basic Information
+- Name (text input)
+- Type (inpatient/outpatient radio)
+- Required Days (number input)
+- Description (textarea)
+- Save button
+
+### Tab 2: Scheduling Settings
+- Badge showing "Using Global Defaults" or "Custom Settings"
+- Return to Defaults button (when custom)
+- Assignment Strategy dropdown
+- Health System Rule dropdown
+- Capacity settings (max per day, max per year)
+- Inpatient-specific settings (if type is inpatient)
+- Team settings
+- Fallback settings
+- Save button
+
+### Tab 3: Associated Sites
+- List of currently associated sites with Remove button
+- "Add Site" button → opens modal/dropdown to select from available sites
+- Sites are filtered to show only those not already associated
+- API: POST/DELETE to `/api/clerkship-sites`
+
+### Tab 4: Preceptor Teams
+- List of teams for this clerkship
+- Each team shows: name, sites, member count
+- Link to team configuration page
+- "Manage Teams" button → navigates to preceptors page teams tab
 
 ---
 
@@ -527,7 +571,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 };
 ```
 
-### 6.2 Redesign config page component
+### 6.2 Redesign config page component with Tabs
 **File:** `src/routes/clerkships/[id]/config/+page.svelte`
 
 ```svelte
@@ -537,9 +581,12 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Badge } from '$lib/components/ui/badge';
-  import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
+  import * as Tabs from '$lib/components/ui/tabs';
 
   let { data } = $props();
+
+  // Active tab state
+  let activeTab = $state('basic-info');
 
   // Clerkship basic info (editable)
   let name = $state(data.clerkship.name);
@@ -550,6 +597,14 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
   // Settings (from global defaults or overrides)
   let settings = $state(data.settings);
   let isUsingDefaults = $derived(settings.overrideMode === 'inherit');
+
+  // Associated sites
+  let associatedSites = $state(data.sites || []);
+  let availableSites = $derived(
+    data.allSites?.filter(s => !associatedSites.some(as => as.id === s.id)) || []
+  );
+  let showAddSiteModal = $state(false);
+  let selectedSiteToAdd = $state('');
 
   // Track if type changed
   let originalType = data.clerkship.clerkship_type;
@@ -567,8 +622,6 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
     });
 
     if (res.ok) {
-      // If type changed, settings stay the same but "return to default"
-      // will now load defaults for the NEW type
       originalType = clerkshipType;
     }
   }
@@ -594,10 +647,41 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
     });
 
     if (res.ok) {
-      // Reload settings (will get defaults for current type)
       const settingsRes = await fetch(`/api/clerkships/${data.clerkship.id}/settings`);
       const newSettings = await settingsRes.json();
       settings = newSettings.data;
+    }
+  }
+
+  async function handleAddSite() {
+    if (!selectedSiteToAdd) return;
+
+    const res = await fetch('/api/clerkship-sites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clerkship_id: data.clerkship.id,
+        site_id: selectedSiteToAdd
+      })
+    });
+
+    if (res.ok) {
+      const siteToAdd = data.allSites.find(s => s.id === selectedSiteToAdd);
+      if (siteToAdd) {
+        associatedSites = [...associatedSites, siteToAdd];
+      }
+      selectedSiteToAdd = '';
+      showAddSiteModal = false;
+    }
+  }
+
+  async function handleRemoveSite(siteId: string) {
+    const res = await fetch(`/api/clerkship-sites?clerkship_id=${data.clerkship.id}&site_id=${siteId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      associatedSites = associatedSites.filter(s => s.id !== siteId);
     }
   }
 </script>
@@ -614,13 +698,19 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
     </Button>
   </div>
 
-  <div class="space-y-8">
-    <!-- Section 1: Basic Information -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Basic Information</CardTitle>
-      </CardHeader>
-      <CardContent>
+  <!-- Tabbed Interface -->
+  <Tabs.Root bind:value={activeTab}>
+    <Tabs.List class="grid w-full grid-cols-4">
+      <Tabs.Trigger value="basic-info">Basic Information</Tabs.Trigger>
+      <Tabs.Trigger value="scheduling">Scheduling Settings</Tabs.Trigger>
+      <Tabs.Trigger value="sites">Associated Sites</Tabs.Trigger>
+      <Tabs.Trigger value="teams">Preceptor Teams</Tabs.Trigger>
+    </Tabs.List>
+
+    <!-- Tab 1: Basic Information -->
+    <Tabs.Content value="basic-info" class="mt-6">
+      <div class="border rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">Basic Information</h3>
         <div class="grid gap-4">
           <div class="space-y-2">
             <Label for="name">Name *</Label>
@@ -631,23 +721,15 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
             <Label>Type *</Label>
             <div class="flex gap-4">
               <label class="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="type"
-                  value="inpatient"
+                <input type="radio" name="type" value="inpatient"
                   checked={clerkshipType === 'inpatient'}
-                  onchange={() => clerkshipType = 'inpatient'}
-                />
+                  onchange={() => clerkshipType = 'inpatient'} />
                 <span>Inpatient</span>
               </label>
               <label class="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="type"
-                  value="outpatient"
+                <input type="radio" name="type" value="outpatient"
                   checked={clerkshipType === 'outpatient'}
-                  onchange={() => clerkshipType = 'outpatient'}
-                />
+                  onchange={() => clerkshipType = 'outpatient'} />
                 <span>Outpatient</span>
               </label>
             </div>
@@ -655,264 +737,123 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
           <div class="space-y-2">
             <Label for="required-days">Required Days *</Label>
-            <Input
-              id="required-days"
-              type="number"
-              min="1"
-              bind:value={requiredDays}
-              required
-            />
+            <Input id="required-days" type="number" min="1" bind:value={requiredDays} required />
           </div>
 
           <div class="space-y-2">
             <Label for="description">Description</Label>
-            <textarea
-              id="description"
-              bind:value={description}
-              class="w-full rounded-md border px-3 py-2 min-h-[80px]"
-            ></textarea>
+            <textarea id="description" bind:value={description}
+              class="w-full rounded-md border px-3 py-2 min-h-[80px]"></textarea>
           </div>
 
           <div class="flex justify-end">
             <Button onclick={handleSaveBasicInfo}>Save Basic Info</Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Tabs.Content>
 
-    <!-- Section 2: Scheduling Settings -->
-    <Card>
-      <CardHeader>
-        <div class="flex items-center justify-between">
-          <CardTitle>Scheduling Settings</CardTitle>
+    <!-- Tab 2: Scheduling Settings -->
+    <Tabs.Content value="scheduling" class="mt-6">
+      <div class="border rounded-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Scheduling Settings</h3>
           <div class="flex items-center gap-2">
             {#if isUsingDefaults}
               <Badge variant="secondary">Using Global Defaults</Badge>
             {:else}
               <Badge variant="default">Custom Settings</Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={handleReturnToDefaults}
-              >
+              <Button variant="outline" size="sm" onclick={handleReturnToDefaults}>
                 Return to Defaults
               </Button>
             {/if}
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
+
+        <!-- Settings form fields (same as before) -->
         <div class="grid gap-6">
-          <!-- Assignment Strategy -->
-          <div class="space-y-2">
-            <Label for="strategy">Assignment Strategy</Label>
-            <select
-              id="strategy"
-              bind:value={settings.assignmentStrategy}
-              class="w-full rounded-md border px-3 py-2"
-            >
-              <option value="continuous_single">Continuous Single</option>
-              <option value="continuous_team">Continuous Team</option>
-              <option value="block_based">Block Based</option>
-              <option value="daily_rotation">Daily Rotation</option>
-            </select>
-          </div>
-
-          <!-- Health System Rule -->
-          <div class="space-y-2">
-            <Label for="health-rule">Health System Rule</Label>
-            <select
-              id="health-rule"
-              bind:value={settings.healthSystemRule}
-              class="w-full rounded-md border px-3 py-2"
-            >
-              <option value="enforce_same_system">Enforce Same System</option>
-              <option value="prefer_same_system">Prefer Same System</option>
-              <option value="no_preference">No Preference</option>
-            </select>
-          </div>
-
-          <!-- Capacity Settings -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <Label for="max-day">Max Students Per Day</Label>
-              <Input
-                id="max-day"
-                type="number"
-                min="1"
-                bind:value={settings.maxStudentsPerDay}
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="max-year">Max Students Per Year</Label>
-              <Input
-                id="max-year"
-                type="number"
-                min="1"
-                bind:value={settings.maxStudentsPerYear}
-              />
-            </div>
-          </div>
-
-          <!-- Inpatient-specific settings -->
-          {#if clerkshipType === 'inpatient'}
-            <div class="border-t pt-4">
-              <h4 class="font-medium mb-4">Inpatient Settings</h4>
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <Label for="block-size">Block Size (Days)</Label>
-                  <Input
-                    id="block-size"
-                    type="number"
-                    min="1"
-                    bind:value={settings.blockSizeDays}
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label for="max-block">Max Students Per Block</Label>
-                  <Input
-                    id="max-block"
-                    type="number"
-                    min="1"
-                    bind:value={settings.maxStudentsPerBlock}
-                  />
-                </div>
-              </div>
-              <div class="mt-4 space-y-2">
-                <label class="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    bind:checked={settings.allowPartialBlocks}
-                  />
-                  <span>Allow Partial Blocks</span>
-                </label>
-                <label class="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    bind:checked={settings.preferContinuousBlocks}
-                  />
-                  <span>Prefer Continuous Blocks</span>
-                </label>
-              </div>
-            </div>
-          {/if}
-
-          <!-- Team Settings -->
-          <div class="border-t pt-4">
-            <h4 class="font-medium mb-4">Team Settings</h4>
-            <label class="flex items-center gap-2 mb-4">
-              <input
-                type="checkbox"
-                bind:checked={settings.allowTeams}
-              />
-              <span>Allow Teams</span>
-            </label>
-            {#if settings.allowTeams}
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <Label for="team-min">Min Team Size</Label>
-                  <Input
-                    id="team-min"
-                    type="number"
-                    min="1"
-                    bind:value={settings.teamSizeMin}
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label for="team-max">Max Team Size</Label>
-                  <Input
-                    id="team-max"
-                    type="number"
-                    min="1"
-                    bind:value={settings.teamSizeMax}
-                  />
-                </div>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Fallback Settings -->
-          <div class="border-t pt-4">
-            <h4 class="font-medium mb-4">Fallback Settings</h4>
-            <div class="space-y-2">
-              <label class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  bind:checked={settings.allowFallbacks}
-                />
-                <span>Allow Fallbacks</span>
-              </label>
-              {#if settings.allowFallbacks}
-                <label class="flex items-center gap-2 ml-6">
-                  <input
-                    type="checkbox"
-                    bind:checked={settings.fallbackRequiresApproval}
-                  />
-                  <span>Fallback Requires Approval</span>
-                </label>
-                <label class="flex items-center gap-2 ml-6">
-                  <input
-                    type="checkbox"
-                    bind:checked={settings.fallbackAllowCrossSystem}
-                  />
-                  <span>Allow Cross-System Fallbacks</span>
-                </label>
-              {/if}
-            </div>
-          </div>
+          <!-- Assignment Strategy, Health System Rule, Capacity, etc. -->
+          <!-- ... (keep existing settings form content) ... -->
 
           <div class="flex justify-end">
             <Button onclick={handleSaveSettings}>Save Settings</Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Tabs.Content>
 
-    <!-- Section 3: Associated Sites -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Associated Sites</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {#if data.sites?.length > 0}
+    <!-- Tab 3: Associated Sites -->
+    <Tabs.Content value="sites" class="mt-6">
+      <div class="border rounded-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Associated Sites</h3>
+          <Button onclick={() => showAddSiteModal = true}>Add Site</Button>
+        </div>
+
+        {#if associatedSites.length > 0}
           <div class="space-y-2">
-            {#each data.sites as site}
-              <div class="flex items-center justify-between p-2 border rounded">
-                <a
-                  href="/sites/{site.id}/edit"
-                  class="text-blue-600 hover:underline"
-                >
+            {#each associatedSites as site}
+              <div class="flex items-center justify-between p-3 border rounded">
+                <a href="/sites/{site.id}/edit" class="text-blue-600 hover:underline">
                   {site.name}
                 </a>
+                <Button variant="ghost" size="sm" onclick={() => handleRemoveSite(site.id)}>
+                  Remove
+                </Button>
               </div>
             {/each}
           </div>
         {:else}
-          <p class="text-gray-500">No sites associated with this clerkship.</p>
+          <p class="text-gray-500 text-center py-8">
+            No sites associated with this clerkship.
+            <br />
+            <span class="text-sm">Add sites to define where this clerkship is offered.</span>
+          </p>
         {/if}
-        <div class="mt-4">
-          <Button variant="outline" onclick={() => goto('/sites')}>
-            Manage Sites
+      </div>
+
+      <!-- Add Site Modal -->
+      {#if showAddSiteModal}
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Add Site</h3>
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <Label for="site-select">Select Site</Label>
+                <select id="site-select" bind:value={selectedSiteToAdd}
+                  class="w-full rounded-md border px-3 py-2">
+                  <option value="">Choose a site...</option>
+                  {#each availableSites as site}
+                    <option value={site.id}>{site.name}</option>
+                  {/each}
+                </select>
+              </div>
+              <div class="flex justify-end gap-2">
+                <Button variant="outline" onclick={() => showAddSiteModal = false}>Cancel</Button>
+                <Button onclick={handleAddSite} disabled={!selectedSiteToAdd}>Add</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+    </Tabs.Content>
+
+    <!-- Tab 4: Preceptor Teams -->
+    <Tabs.Content value="teams" class="mt-6">
+      <div class="border rounded-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Preceptor Teams</h3>
+          <Button variant="outline" onclick={() => goto('/preceptors?tab=teams')}>
+            Manage Teams
           </Button>
         </div>
-      </CardContent>
-    </Card>
 
-    <!-- Section 4: Preceptor Teams -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Preceptor Teams</CardTitle>
-      </CardHeader>
-      <CardContent>
         {#if data.teams?.length > 0}
           <div class="space-y-2">
             {#each data.teams as team}
               <div class="flex items-center justify-between p-3 border rounded">
                 <div>
-                  <a
-                    href="/preceptors/teams/{team.id}"
-                    class="text-blue-600 hover:underline font-medium"
-                  >
+                  <a href="/preceptors/teams/{team.id}" class="text-blue-600 hover:underline font-medium">
                     {team.name || 'Unnamed Team'}
                   </a>
                   <p class="text-sm text-gray-500">
@@ -922,31 +863,50 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
                     {/if}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => goto(`/preceptors/teams/${team.id}`)}
-                >
+                <Button variant="outline" size="sm" onclick={() => goto(`/preceptors/teams/${team.id}`)}>
                   Configure
                 </Button>
               </div>
             {/each}
           </div>
         {:else}
-          <p class="text-gray-500">No teams created for this clerkship.</p>
+          <p class="text-gray-500 text-center py-8">
+            No teams created for this clerkship.
+            <br />
+            <span class="text-sm">Teams can be created on the Preceptors page.</span>
+          </p>
         {/if}
-        <div class="mt-4">
-          <Button
-            variant="outline"
-            onclick={() => goto('/preceptors?tab=teams')}
-          >
-            Manage Teams
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
+      </div>
+    </Tabs.Content>
+  </Tabs.Root>
 </div>
+```
+
+### 6.3 Update server load to include all sites
+**File:** `src/routes/clerkships/[id]/config/+page.server.ts`
+
+```typescript
+export const load: PageServerLoad = async ({ params, fetch }) => {
+  const clerkshipId = params.id;
+
+  const [clerkshipRes, settingsRes, sitesRes, allSitesRes, teamsRes] = await Promise.all([
+    fetch(`/api/clerkships/${clerkshipId}`),
+    fetch(`/api/clerkships/${clerkshipId}/settings`),
+    fetch(`/api/clerkship-sites?clerkship_id=${clerkshipId}`),
+    fetch('/api/sites'),  // All sites for the "Add Site" dropdown
+    fetch(`/api/preceptors/teams?clerkshipId=${clerkshipId}`)
+  ]);
+
+  // ... process responses
+
+  return {
+    clerkship: clerkship.data,
+    settings: settings.data,
+    sites: sites.data,        // Currently associated sites
+    allSites: allSites.data,  // All available sites
+    teams: teams.data
+  };
+};
 ```
 
 ---

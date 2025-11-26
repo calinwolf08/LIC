@@ -5,14 +5,37 @@ Major architectural changes to support multi-site preceptors, team site associat
 
 ## Changes Summary
 1. Database schema changes (preceptor_sites, team_sites tables)
-2. Remove `site_id` from preceptors table
+2. Keep `preceptor_sites` table for preceptor-site associations
 3. Update preceptor list to show health system, site(s), clerkships, teams
 4. Convert teams display from cards to table with clerkship filter
-5. Update team creation to include clerkship and site selection
-6. Remove Site Associations tab
+5. **Team creation flow**: Select clerkship → Toggle "Require Same Health System" (filters sites) → Select 1+ sites (filtered by clerkship) → Select preceptors (filtered by selected sites)
+6. **Preceptor-site management**: On preceptor edit page AND sites page (preceptors tab)
 7. Create teams configuration route at `/preceptors/teams/[id]`
-8. Remove `require_same_site` from team rules
+8. Keep `team_sites` table (teams can have multiple sites)
 9. Fix related tests
+
+---
+
+## Data Model Summary
+
+### Relationships
+- **Preceptor ↔ Sites**: Many-to-many via `preceptor_sites` (preceptor can work at multiple sites)
+- **Clerkship ↔ Sites**: Many-to-many via `clerkship_sites` (clerkship offered at multiple sites)
+- **Team ↔ Sites**: Many-to-many via `team_sites` (team operates at multiple sites)
+- **Team → Clerkship**: Many-to-one (each team belongs to one clerkship)
+- **Preceptor ↔ Teams**: Many-to-many via `preceptor_team_members`
+
+### Team Creation Flow
+1. User selects **one clerkship** (required)
+2. User toggles **"Require Same Health System"** (optional filter)
+   - If enabled: site dropdown only shows sites from health systems that have at least one associated site for this clerkship
+3. User selects **one or more sites** from:
+   - Sites associated with the selected clerkship (`clerkship_sites`)
+   - Optionally filtered by health system toggle
+4. User selects **preceptors** from:
+   - Preceptors who work at any of the selected sites (`preceptor_sites`)
+
+---
 
 ---
 
@@ -499,58 +522,243 @@ Add filter dropdown above the table:
 
 ## Step 9: Update Team Form Dialog
 
-### 9.1 Add clerkship selection
+### 9.1 Team Creation Flow
 **File:** `src/lib/features/teams/components/team-form-dialog.svelte`
 
-Remove `clerkshipId` from required props. Add clerkship dropdown:
+The form should follow this sequential flow:
 
-```svelte
-<div class="space-y-2">
-  <Label for="clerkship">Clerkship *</Label>
-  <select
-    id="clerkship"
-    bind:value={selectedClerkshipId}
-    required
-    class="w-full rounded-md border px-3 py-2"
-  >
-    <option value="">Select a clerkship...</option>
-    {#each clerkships as clerkship}
-      <option value={clerkship.id}>{clerkship.name}</option>
-    {/each}
-  </select>
-</div>
+```
+1. Select Clerkship (dropdown)
+       ↓
+2. Toggle "Require Same Health System" (checkbox)
+       ↓
+3. Select Sites (multi-select, filtered by clerkship + optionally health system)
+       ↓
+4. Select Preceptors (multi-select, filtered by selected sites)
 ```
 
-### 9.2 Add site selection
-Add site multi-select (filtered by clerkship's associated sites):
+### 9.2 Implementation
 
 ```svelte
-<div class="space-y-2">
-  <Label>Sites *</Label>
-  <div class="max-h-40 overflow-y-auto border rounded-md p-2">
-    {#each availableSites as site}
-      <label class="flex items-center gap-2 py-1">
-        <input
-          type="checkbox"
-          checked={selectedSiteIds.includes(site.id)}
-          onchange={() => toggleSite(site.id)}
-        />
-        <span>{site.name}</span>
-      </label>
-    {/each}
+<script lang="ts">
+  let { clerkships, allSites, onSubmit, onCancel } = $props();
+
+  // Step 1: Clerkship selection
+  let selectedClerkshipId = $state('');
+
+  // Step 2: Health system filter toggle
+  let requireSameHealthSystem = $state(false);
+
+  // Step 3: Site selection
+  let selectedSiteIds = $state<string[]>([]);
+
+  // Step 4: Preceptor selection
+  let selectedPreceptors = $state<{preceptorId: string, priority: number}[]>([]);
+  let availablePreceptors = $state([]);
+
+  // Derived: Sites available based on clerkship + health system filter
+  let availableSites = $derived(() => {
+    if (!selectedClerkshipId) return [];
+
+    // Get sites associated with the clerkship
+    const clerkshipSites = allSites.filter(site =>
+      site.clerkship_ids?.includes(selectedClerkshipId)
+    );
+
+    if (!requireSameHealthSystem) {
+      return clerkshipSites;
+    }
+
+    // If health system filter is on, group by health system
+    // and only show sites from health systems that have clerkship sites
+    const healthSystemsWithClerkship = new Set(
+      clerkshipSites.map(s => s.health_system_id)
+    );
+    return clerkshipSites.filter(s =>
+      healthSystemsWithClerkship.has(s.health_system_id)
+    );
+  });
+
+  // When clerkship changes, reset downstream selections
+  $effect(() => {
+    if (selectedClerkshipId) {
+      selectedSiteIds = [];
+      selectedPreceptors = [];
+    }
+  });
+
+  // When sites change, reload available preceptors
+  $effect(() => {
+    if (selectedSiteIds.length > 0) {
+      loadAvailablePreceptors();
+    } else {
+      availablePreceptors = [];
+    }
+  });
+
+  async function loadAvailablePreceptors() {
+    const res = await fetch(
+      `/api/preceptors/teams/available-preceptors?siteIds=${selectedSiteIds.join(',')}`
+    );
+    const data = await res.json();
+    availablePreceptors = data.data;
+  }
+</script>
+
+<form onsubmit={handleSubmit}>
+  <!-- Step 1: Clerkship -->
+  <div class="space-y-2">
+    <Label for="clerkship">Clerkship *</Label>
+    <select id="clerkship" bind:value={selectedClerkshipId} required
+      class="w-full rounded-md border px-3 py-2">
+      <option value="">Select a clerkship...</option>
+      {#each clerkships as clerkship}
+        <option value={clerkship.id}>{clerkship.name}</option>
+      {/each}
+    </select>
   </div>
-  <p class="text-sm text-gray-500">Select at least one site</p>
-</div>
+
+  <!-- Step 2: Health System Toggle (only shown after clerkship selected) -->
+  {#if selectedClerkshipId}
+    <div class="space-y-2 mt-4">
+      <label class="flex items-center gap-2">
+        <input type="checkbox" bind:checked={requireSameHealthSystem} />
+        <span>Require Same Health System</span>
+      </label>
+      <p class="text-sm text-gray-500">
+        When enabled, only sites from health systems offering this clerkship are shown
+      </p>
+    </div>
+  {/if}
+
+  <!-- Step 3: Sites (only shown after clerkship selected) -->
+  {#if selectedClerkshipId}
+    <div class="space-y-2 mt-4">
+      <Label>Sites *</Label>
+      {#if availableSites.length > 0}
+        <div class="max-h-40 overflow-y-auto border rounded-md p-2">
+          {#each availableSites as site}
+            <label class="flex items-center gap-2 py-1">
+              <input type="checkbox"
+                checked={selectedSiteIds.includes(site.id)}
+                onchange={() => toggleSite(site.id)} />
+              <span>{site.name}</span>
+              <span class="text-gray-400 text-sm">({site.health_system_name})</span>
+            </label>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-gray-500 text-sm">
+          No sites are associated with this clerkship.
+          <a href="/clerkships/{selectedClerkshipId}/config" class="text-blue-600">
+            Add sites to this clerkship
+          </a>
+        </p>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Step 4: Preceptors (only shown after sites selected) -->
+  {#if selectedSiteIds.length > 0}
+    <div class="space-y-2 mt-4">
+      <Label>Team Members *</Label>
+      {#if availablePreceptors.length > 0}
+        <div class="max-h-60 overflow-y-auto border rounded-md p-2">
+          {#each availablePreceptors as preceptor}
+            <label class="flex items-center gap-2 py-1">
+              <input type="checkbox"
+                checked={selectedPreceptors.some(p => p.preceptorId === preceptor.id)}
+                onchange={() => togglePreceptor(preceptor.id)} />
+              <span>{preceptor.name}</span>
+              <span class="text-gray-400 text-sm">
+                ({preceptor.sites?.map(s => s.name).join(', ')})
+              </span>
+            </label>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-gray-500 text-sm">
+          No preceptors are associated with the selected sites.
+        </p>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Other fields: Team name, admin approval, etc. -->
+</form>
 ```
 
-### 9.3 Filter preceptors by selected sites
-When sites change, reload available preceptors from `/api/preceptors/teams/available-preceptors?siteIds=...`
+### 9.3 Key Behaviors
+- **Clerkship selection** resets site and preceptor selections
+- **Site selection** triggers reload of available preceptors
+- **Health system toggle** filters available sites in real-time
+- **Preceptors are filtered** by `preceptor_sites` - only showing those who work at selected sites
 
-### 9.4 Remove require_same_site checkbox
-Remove the "Require Same Site" checkbox from formation rules.
+---
 
-### 9.5 Load available sites based on clerkship
-When clerkship is selected, fetch sites via `/api/clerkship-sites?clerkship_id=...`
+## Step 9.5: Add Preceptors Tab to Sites Page
+
+### Overview
+The Sites page should have a "Preceptors" tab showing preceptors who work at that site.
+
+**File:** `src/routes/sites/[id]/edit/+page.svelte`
+
+Add a tab for preceptors:
+
+```svelte
+<Tabs.Root>
+  <Tabs.List>
+    <Tabs.Trigger value="details">Site Details</Tabs.Trigger>
+    <Tabs.Trigger value="preceptors">Preceptors</Tabs.Trigger>
+    <Tabs.Trigger value="clerkships">Clerkships</Tabs.Trigger>
+  </Tabs.List>
+
+  <!-- Preceptors Tab -->
+  <Tabs.Content value="preceptors">
+    <div class="border rounded-lg p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Preceptors at this Site</h3>
+        <Button onclick={() => showAddPreceptorModal = true}>Add Preceptor</Button>
+      </div>
+
+      {#if sitePreceptors.length > 0}
+        <table class="min-w-full">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Health System</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each sitePreceptors as preceptor}
+              <tr>
+                <td>{preceptor.name}</td>
+                <td>{preceptor.email}</td>
+                <td>{preceptor.health_system_name || '—'}</td>
+                <td>
+                  <Button variant="ghost" size="sm"
+                    onclick={() => removePreceptorFromSite(preceptor.id)}>
+                    Remove
+                  </Button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {:else}
+        <p class="text-gray-500">No preceptors assigned to this site.</p>
+      {/if}
+    </div>
+  </Tabs.Content>
+</Tabs.Root>
+```
+
+### API Endpoints for Site-Preceptor Management
+- `GET /api/preceptor-sites?site_id={id}` - Get preceptors at a site
+- `POST /api/preceptor-sites` - Add preceptor to site
+- `DELETE /api/preceptor-sites?preceptor_id={}&site_id={}` - Remove preceptor from site
 
 ---
 
