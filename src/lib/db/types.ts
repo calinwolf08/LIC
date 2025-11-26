@@ -218,7 +218,6 @@ export interface Preceptors {
   name: string;
   phone: string | null;
   site_id: string | null;
-  specialty: string;
   updated_at: Generated<string>;
 }
 

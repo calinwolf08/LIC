@@ -13,7 +13,7 @@
 
 	let { preceptors, loading = false, onEdit, onDelete, onManageAvailability }: Props = $props();
 
-	let sortColumn = $state<'name' | 'email' | 'specialty' | null>(null);
+	let sortColumn = $state<'name' | 'email' | null>(null);
 	let sortDirection = $state<'asc' | 'desc'>('asc');
 
 	let sortedPreceptors = $derived(() => {
@@ -31,7 +31,7 @@
 		});
 	});
 
-	function handleSort(column: 'name' | 'email' | 'specialty') {
+	function handleSort(column: 'name' | 'email') {
 		if (sortColumn === column) {
 			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -77,19 +77,6 @@
 							{/if}
 						</div>
 					</th>
-					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
-						onclick={() => handleSort('specialty')}
-					>
-						<div class="flex items-center gap-2">
-							Specialty
-							{#if sortColumn === 'specialty'}
-								<span class="text-xs">
-									{sortDirection === 'asc' ? '↑' : '↓'}
-								</span>
-							{/if}
-						</div>
-					</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Max Students</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Created</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Actions</th>
@@ -98,13 +85,13 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="5" class="px-4 py-8 text-center text-muted-foreground">
 							Loading...
 						</td>
 					</tr>
 				{:else if sortedPreceptors().length === 0}
 					<tr>
-						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="5" class="px-4 py-8 text-center text-muted-foreground">
 							No preceptors found
 						</td>
 					</tr>
@@ -113,7 +100,6 @@
 						<tr class="border-b transition-colors hover:bg-muted/50">
 							<td class="px-4 py-3 text-sm">{preceptor.name}</td>
 							<td class="px-4 py-3 text-sm">{preceptor.email}</td>
-							<td class="px-4 py-3 text-sm">{preceptor.specialty}</td>
 							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
 								{formatDate(preceptor.created_at as unknown as string)}

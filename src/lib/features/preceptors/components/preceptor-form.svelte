@@ -23,7 +23,6 @@
 		name: preceptor?.name || '',
 		email: preceptor?.email || '',
 		phone: preceptor?.phone || '',
-		specialty: preceptor?.specialty || '',
 		health_system_id: preceptor?.health_system_id || '',
 		site_id: preceptor?.site_id || '',
 		max_students: preceptor?.max_students || 1
@@ -227,22 +226,7 @@
 				{/if}
 			</div>
 
-			<div class="space-y-2">
-				<Label for="specialty">Specialty</Label>
-				<Input
-					id="specialty"
-					type="text"
-					bind:value={formData.specialty}
-					placeholder="Internal Medicine"
-					disabled={isSubmitting}
-					class={errors.specialty ? 'border-destructive' : ''}
-				/>
-				{#if errors.specialty}
-					<p class="text-sm text-destructive">{errors.specialty}</p>
-				{/if}
-			</div>
-
-			<div class="space-y-2">
+				<div class="space-y-2">
 				<Label for="health_system_id">Health System (Optional)</Label>
 				<select
 					id="health_system_id"

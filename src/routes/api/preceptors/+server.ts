@@ -1,7 +1,7 @@
 /**
  * Preceptors API - Collection Endpoints
  *
- * GET /api/preceptors - List all preceptors (optionally filter by specialty)
+ * GET /api/preceptors - List all preceptors
  * POST /api/preceptors - Create new preceptor
  */
 
@@ -15,7 +15,6 @@ import {
 import { ConflictError, handleApiError } from '$lib/api/errors';
 import {
 	getPreceptors,
-	getPreceptorsBySpecialty,
 	createPreceptor
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { createPreceptorSchema } from '$lib/features/preceptors/schemas.js';
@@ -23,16 +22,11 @@ import { ZodError } from 'zod';
 
 /**
  * GET /api/preceptors
- * Returns all preceptors, optionally filtered by specialty
+ * Returns all preceptors
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async () => {
 	try {
-		const specialty = url.searchParams.get('specialty');
-
-		const preceptors = specialty
-			? await getPreceptorsBySpecialty(db, specialty)
-			: await getPreceptors(db);
-
+		const preceptors = await getPreceptors(db);
 		return successResponse(preceptors);
 	} catch (error) {
 		return handleApiError(error);

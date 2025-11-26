@@ -35,21 +35,6 @@ export async function getPreceptorById(
 }
 
 /**
- * Get all preceptors with a specific specialty
- */
-export async function getPreceptorsBySpecialty(
-	db: Kysely<DB>,
-	specialty: string
-): Promise<Selectable<Preceptors>[]> {
-	return await db
-		.selectFrom('preceptors')
-		.selectAll()
-		.where('specialty', '=', specialty)
-		.orderBy('name', 'asc')
-		.execute();
-}
-
-/**
  * Get a preceptor by email (case-insensitive)
  * @returns Preceptor or null if not found
  */
@@ -85,7 +70,6 @@ export async function createPreceptor(
 		id: crypto.randomUUID(),
 		name: data.name,
 		email: data.email,
-		specialty: data.specialty,
 		phone: data.phone || null,
 		health_system_id: data.health_system_id || null,
 		site_id: data.site_id || null,
@@ -134,7 +118,6 @@ export async function updatePreceptor(
 
 	if (data.name !== undefined) updateData.name = data.name;
 	if (data.email !== undefined) updateData.email = data.email;
-	if (data.specialty !== undefined) updateData.specialty = data.specialty;
 	if (data.max_students !== undefined) updateData.max_students = data.max_students;
 	if (data.phone !== undefined) updateData.phone = data.phone || null;
 	if ('health_system_id' in data) updateData.health_system_id = data.health_system_id || null;

@@ -19,7 +19,6 @@ export const fixtures = {
 		const base: any = {
 			name: `Dr. Preceptor ${uniqueId()}`,
 			email: `preceptor-${uniqueId()}@test.com`,
-			specialty: overrides.specialty || 'Family Medicine',
 			health_system_id: overrides.health_system_id || 'temp-hs-id',
 			...overrides
 		};
@@ -184,8 +183,7 @@ export interface StudentData {
 export interface PreceptorData {
 	name: string;
 	email: string;
-	specialty: string;
-	health_system_id: string;
+	health_system_id?: string;
 	max_students?: number;
 	site_id?: string;
 }

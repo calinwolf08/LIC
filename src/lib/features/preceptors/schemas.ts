@@ -8,13 +8,6 @@ import { z } from 'zod';
 import { emailSchema, nameSchema, uuidSchema, cuid2Schema, positiveIntSchema } from '$lib/validation/common-schemas';
 
 /**
- * Specialty validation schema
- */
-export const specialtySchema = z.string().min(1, {
-	message: 'Specialty is required'
-});
-
-/**
  * Phone schema for validation
  */
 const phoneSchema = z
@@ -45,7 +38,6 @@ const optionalIdSchema = z
 export const createPreceptorSchema = z.object({
 	name: nameSchema,
 	email: emailSchema,
-	specialty: specialtySchema,
 	phone: phoneSchema.optional(),
 	health_system_id: optionalIdSchema,
 	site_id: optionalIdSchema,
@@ -59,7 +51,6 @@ export const updatePreceptorSchema = z
 	.object({
 		name: nameSchema.optional(),
 		email: emailSchema.optional(),
-		specialty: specialtySchema.optional(),
 		phone: phoneSchema.optional(),
 		health_system_id: optionalIdSchema,
 		site_id: optionalIdSchema,
