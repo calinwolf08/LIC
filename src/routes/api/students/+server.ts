@@ -13,17 +13,17 @@ import {
 	errorResponse
 } from '$lib/api/responses';
 import { ConflictError, handleApiError } from '$lib/api/errors';
-import { getStudents, createStudent } from '$lib/features/students/services/student-service.js';
+import { getStudentsWithOnboardingStats, createStudent } from '$lib/features/students/services/student-service.js';
 import { createStudentSchema } from '$lib/features/students/schemas.js';
 import { ZodError } from 'zod';
 
 /**
  * GET /api/students
- * Returns all students ordered by name
+ * Returns all students ordered by name, with onboarding stats
  */
 export const GET: RequestHandler = async () => {
 	try {
-		const students = await getStudents(db);
+		const students = await getStudentsWithOnboardingStats(db);
 		return successResponse(students);
 	} catch (error) {
 		return handleApiError(error);

@@ -27,7 +27,7 @@
 		loadingDependencies = true;
 		const promises = healthSystems.map(async (hs) => {
 			try {
-				const response = await fetch(`/api/scheduling-config/health-systems/${hs.id}/dependencies`);
+				const response = await fetch(`/api/health-systems/${hs.id}/dependencies`);
 				const result = await response.json();
 				if (result.success && result.data) {
 					dependenciesMap.set(hs.id, result.data);

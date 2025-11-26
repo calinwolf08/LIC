@@ -1,8 +1,8 @@
 /**
  * Health Systems API - Collection Endpoints
  *
- * GET /api/scheduling-config/health-systems - List all health systems
- * POST /api/scheduling-config/health-systems - Create new health system
+ * GET /api/health-systems - List all health systems
+ * POST /api/health-systems - Create new health system
  */
 
 import type { RequestHandler } from './$types';
@@ -20,7 +20,7 @@ import { ZodError } from 'zod';
 const service = new HealthSystemService(db);
 
 /**
- * GET /api/scheduling-config/health-systems
+ * GET /api/health-systems
  * Returns all health systems
  */
 export const GET: RequestHandler = async () => {
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async () => {
 };
 
 /**
- * POST /api/scheduling-config/health-systems
+ * POST /api/health-systems
  * Creates a new health system
  */
 export const POST: RequestHandler = async ({ request }) => {

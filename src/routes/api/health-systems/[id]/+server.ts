@@ -1,9 +1,9 @@
 /**
  * Health Systems API - Individual Resource Endpoints
  *
- * GET /api/scheduling-config/health-systems/[id] - Get single health system
- * PUT /api/scheduling-config/health-systems/[id] - Update health system
- * DELETE /api/scheduling-config/health-systems/[id] - Delete health system
+ * GET /api/health-systems/[id] - Get single health system
+ * PUT /api/health-systems/[id] - Update health system
+ * DELETE /api/health-systems/[id] - Delete health system
  */
 
 import type { RequestHandler } from './$types';
@@ -22,7 +22,7 @@ import { ZodError } from 'zod';
 const service = new HealthSystemService(db);
 
 /**
- * GET /api/scheduling-config/health-systems/[id]
+ * GET /api/health-systems/[id]
  */
 export const GET: RequestHandler = async ({ params }) => {
 	try {
@@ -39,7 +39,7 @@ export const GET: RequestHandler = async ({ params }) => {
 };
 
 /**
- * PUT /api/scheduling-config/health-systems/[id]
+ * PUT /api/health-systems/[id]
  */
 export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
@@ -63,33 +63,27 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 };
 
 /**
- * PATCH /api/scheduling-config/health-systems/[id]
+ * PATCH /api/health-systems/[id]
  * Alias for PUT to support both methods
  */
 export const PATCH: RequestHandler = PUT;
 
 /**
- * DELETE /api/scheduling-config/health-systems/[id]
+ * DELETE /api/health-systems/[id]
  */
 export const DELETE: RequestHandler = async ({ params }) => {
 	try {
-		console.log('[DELETE Health System] Attempting to delete:', params.id);
-
 		// Check dependencies first
 		const dependencies = await service.getHealthSystemDependencies(params.id);
-		console.log('[DELETE Health System] Dependencies:', dependencies);
 
 		const result = await service.deleteHealthSystem(params.id);
 
 		if (!result.success) {
-			console.log('[DELETE Health System] Failed:', result.error.message);
 			return errorResponse(result.error.message, 400);
 		}
 
-		console.log('[DELETE Health System] Success');
 		return successResponse({ deleted: true });
 	} catch (error) {
-		console.error('[DELETE Health System] Error:', error);
 		return handleApiError(error);
 	}
 };

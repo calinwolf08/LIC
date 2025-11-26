@@ -25,7 +25,7 @@
 		// Fetch dependencies to show cascade delete warning
 		try {
 			const depsResponse = await fetch(
-				`/api/scheduling-config/health-systems/${healthSystem.id}/dependencies`
+				`/api/health-systems/${healthSystem.id}/dependencies`
 			);
 			const depsResult = await depsResponse.json();
 
@@ -70,7 +70,7 @@
 
 		// Proceed with deletion
 		try {
-			const response = await fetch(`/api/scheduling-config/health-systems/${healthSystem.id}`, {
+			const response = await fetch(`/api/health-systems/${healthSystem.id}`, {
 				method: 'DELETE'
 			});
 

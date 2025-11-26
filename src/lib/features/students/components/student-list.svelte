@@ -2,12 +2,18 @@
 	import type { Students } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+
+	interface StudentWithOnboarding extends Students {
+		completed_onboarding?: number;
+		total_health_systems?: number;
+	}
 
 	interface Props {
-		students: Students[];
+		students: StudentWithOnboarding[];
 		loading?: boolean;
-		onEdit?: (student: Students) => void;
-		onDelete?: (student: Students) => void;
+		onEdit?: (student: StudentWithOnboarding) => void;
+		onDelete?: (student: StudentWithOnboarding) => void;
 	}
 
 	let { students, loading = false, onEdit, onDelete }: Props = $props();
@@ -76,6 +82,7 @@
 							{/if}
 						</div>
 					</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Onboarding</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Created</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Actions</th>
 				</tr>
@@ -83,13 +90,13 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="4" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="5" class="px-4 py-8 text-center text-muted-foreground">
 							Loading...
 						</td>
 					</tr>
 				{:else if sortedStudents().length === 0}
 					<tr>
-						<td colspan="4" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="5" class="px-4 py-8 text-center text-muted-foreground">
 							No students found
 						</td>
 					</tr>
@@ -98,6 +105,19 @@
 						<tr class="border-b transition-colors hover:bg-muted/50">
 							<td class="px-4 py-3 text-sm">{student.name}</td>
 							<td class="px-4 py-3 text-sm">{student.email}</td>
+							<td class="px-4 py-3 text-sm">
+								{#if student.total_health_systems !== undefined && student.total_health_systems > 0}
+									<Badge
+										variant={student.completed_onboarding === student.total_health_systems
+											? 'default'
+											: 'secondary'}
+									>
+										{student.completed_onboarding || 0}/{student.total_health_systems}
+									</Badge>
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">
 								{formatDate(student.created_at as unknown as string)}
 							</td>

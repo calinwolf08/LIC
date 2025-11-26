@@ -11,7 +11,7 @@ export const load: PageLoad = async ({ fetch }) => {
 	try {
 		const [preceptorsRes, healthSystemsRes, sitesRes, clerkshipsRes] = await Promise.all([
 			fetch('/api/preceptors'),
-			fetch('/api/scheduling-config/health-systems'),
+			fetch('/api/health-systems'),
 			fetch('/api/sites'),
 			fetch('/api/clerkships')
 		]);

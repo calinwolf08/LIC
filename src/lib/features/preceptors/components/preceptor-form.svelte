@@ -66,7 +66,7 @@
 
 	async function handleHealthSystemCreated() {
 		try {
-			const response = await fetch('/api/scheduling-config/health-systems');
+			const response = await fetch('/api/health-systems');
 			const result = await response.json();
 			if (result.success && result.data) {
 				healthSystemsList = result.data;

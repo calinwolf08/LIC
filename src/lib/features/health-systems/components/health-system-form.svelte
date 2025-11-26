@@ -37,8 +37,8 @@
 
 			// Determine endpoint and method
 			const url = healthSystem
-				? `/api/scheduling-config/health-systems/${healthSystem.id}`
-				: '/api/scheduling-config/health-systems';
+				? `/api/health-systems/${healthSystem.id}`
+				: '/api/health-systems';
 			const method = healthSystem ? 'PATCH' : 'POST';
 
 			// Submit to API

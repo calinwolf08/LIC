@@ -176,3 +176,54 @@ export async function isEmailTaken(
 	const student = await query.executeTakeFirst();
 	return !!student;
 }
+
+/**
+ * Student with onboarding stats
+ */
+export interface StudentWithOnboarding extends Selectable<Students> {
+	completed_onboarding: number;
+	total_health_systems: number;
+}
+
+/**
+ * Get all students with their onboarding completion stats
+ */
+export async function getStudentsWithOnboardingStats(
+	db: Kysely<DB>
+): Promise<StudentWithOnboarding[]> {
+	// Get total health systems count
+	const healthSystemCount = await db
+		.selectFrom('health_systems')
+		.select(sql<number>`count(*)`.as('count'))
+		.executeTakeFirst();
+
+	const totalHealthSystems = Number(healthSystemCount?.count || 0);
+
+	// Get students with completed onboarding count
+	const students = await db
+		.selectFrom('students')
+		.leftJoin(
+			'student_health_system_onboarding',
+			'students.id',
+			'student_health_system_onboarding.student_id'
+		)
+		.select([
+			'students.id',
+			'students.name',
+			'students.email',
+			'students.created_at',
+			'students.updated_at',
+			sql<number>`sum(case when student_health_system_onboarding.is_completed = 1 then 1 else 0 end)`.as(
+				'completed_onboarding'
+			)
+		])
+		.groupBy('students.id')
+		.orderBy('students.name', 'asc')
+		.execute();
+
+	return students.map((s) => ({
+		...s,
+		completed_onboarding: Number(s.completed_onboarding || 0),
+		total_health_systems: totalHealthSystems
+	}));
+}
