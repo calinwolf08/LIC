@@ -14,7 +14,6 @@ test.describe('Clerkships API', () => {
 
 			assertions.crud.created(clerkship, {
 				name: clerkshipData.name,
-				specialty: clerkshipData.specialty,
 				clerkship_type: clerkshipData.clerkship_type,
 				required_days: clerkshipData.required_days
 			});
@@ -46,27 +45,10 @@ test.describe('Clerkships API', () => {
 			expect(clerkship.required_days).toBe(14);
 		});
 
-		test('should create clerkship without specialty (empty string)', async ({ request }) => {
+		test('should create clerkship without description', async ({ request }) => {
 			const api = createApiClient(request);
 			const clerkshipData = {
-				name: 'Test Clerkship',
-				specialty: '', // Empty string should be allowed
-				clerkship_type: 'inpatient' as const,
-				required_days: 28
-			};
-
-			const response = await api.post('/api/clerkships', clerkshipData);
-			const clerkship = await api.expectData(response, 201);
-
-			expect(clerkship.specialty).toBeNull();
-			expect(clerkship.name).toBe('Test Clerkship');
-			expect(clerkship.clerkship_type).toBe('inpatient');
-		});
-
-		test('should create clerkship without specialty field', async ({ request }) => {
-			const api = createApiClient(request);
-			const clerkshipData = {
-				name: 'Test Clerkship No Specialty',
+				name: 'Test Clerkship No Description',
 				clerkship_type: 'outpatient' as const,
 				required_days: 14
 			};
@@ -74,8 +56,8 @@ test.describe('Clerkships API', () => {
 			const response = await api.post('/api/clerkships', clerkshipData);
 			const clerkship = await api.expectData(response, 201);
 
-			expect(clerkship.specialty).toBeNull();
-			expect(clerkship.name).toBe('Test Clerkship No Specialty');
+			expect(clerkship.name).toBe('Test Clerkship No Description');
+			expect(clerkship.clerkship_type).toBe('outpatient');
 		});
 
 		test('should reject clerkship with missing required fields', async ({ request }) => {
@@ -107,8 +89,8 @@ test.describe('Clerkships API', () => {
 		test('should list all clerkships', async ({ request }) => {
 			const api = createApiClient(request);
 
-			const c1 = fixtures.clerkship({ specialty: 'Family Medicine' });
-			const c2 = fixtures.clerkship({ specialty: 'Surgery' });
+			const c1 = fixtures.clerkship({ clerkship_type: 'inpatient' });
+			const c2 = fixtures.clerkship({ clerkship_type: 'outpatient' });
 			await api.post('/api/clerkships', c1);
 			await api.post('/api/clerkships', c2);
 
@@ -117,26 +99,6 @@ test.describe('Clerkships API', () => {
 
 			const items = assertions.hasItems(clerkships);
 			assertions.hasMinLength(items, 2);
-		});
-
-		test('should filter clerkships by specialty', async ({ request }) => {
-			const api = createApiClient(request);
-
-			const fm = fixtures.clerkship({ specialty: 'Family Medicine' });
-			const surgery = fixtures.clerkship({ specialty: 'Surgery' });
-
-			await api.post('/api/clerkships', fm);
-			await api.post('/api/clerkships', surgery);
-
-			const response = await api.get('/api/clerkships', {
-				params: { specialty: 'Family Medicine' }
-			});
-			const clerkships = await api.expectData<any[]>(response);
-
-			const items = assertions.hasItems(clerkships);
-			items.forEach(c => {
-				expect(c.specialty).toBe('Family Medicine');
-			});
 		});
 	});
 
@@ -243,7 +205,6 @@ test.describe('Clerkships API', () => {
 
 			// CREATE - Use fixture-generated unique name to avoid conflicts
 			const clerkshipData = fixtures.clerkship({
-				specialty: 'Family Medicine',
 				clerkship_type: 'inpatient',
 				required_days: 28,
 				description: 'Core family medicine rotation'
@@ -269,10 +230,8 @@ test.describe('Clerkships API', () => {
 			expect(updated.required_days).toBe(42);
 			expect(updated.clerkship_type).toBe('outpatient');
 
-			// LIST with filter
-			const listResponse = await api.get('/api/clerkships', {
-				params: { specialty: 'Family Medicine' }
-			});
+			// LIST
+			const listResponse = await api.get('/api/clerkships');
 			const clerkships = await api.expectData<any[]>(listResponse);
 			const items = assertions.hasItems(clerkships);
 			assertions.containsWhere(items, c => c.id === clerkshipId);

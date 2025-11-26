@@ -31,7 +31,6 @@ export const fixtures = {
 
 	clerkship: (overrides: Partial<ClerkshipData> = {}): ClerkshipData => ({
 		name: `Clerkship-${uniqueId()}`,
-		specialty: overrides.specialty || 'Family Medicine',
 		clerkship_type: overrides.clerkship_type || 'inpatient',
 		required_days: overrides.required_days || 28,
 		description: overrides.description,
@@ -190,7 +189,6 @@ export interface PreceptorData {
 
 export interface ClerkshipData {
 	name: string;
-	specialty: string;
 	clerkship_type: string;
 	required_days: number;
 	description?: string;
