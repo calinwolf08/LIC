@@ -12,7 +12,6 @@ import type { DB, Clerkships } from '$lib/db/types';
 import {
 	getClerkships,
 	getClerkshipById,
-	getClerkshipsBySpecialty,
 	getClerkshipByName,
 	createClerkship,
 	updateClerkship,
@@ -37,9 +36,19 @@ async function initializeSchema(db: Kysely<DB>) {
 		.createTable('clerkships')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('specialty', 'text', (col) => col.notNull())
+		.addColumn('clerkship_type', 'text', (col) => col.notNull())
 		.addColumn('required_days', 'integer', (col) => col.notNull())
 		.addColumn('description', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Also create clerkship_configurations table for createClerkship to work
+	await db.schema
+		.createTable('clerkship_configurations')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('override_mode', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -61,7 +70,7 @@ function createMockClerkshipData(
 ): Omit<Clerkships, 'id' | 'created_at' | 'updated_at'> {
 	return {
 		name: 'Family Medicine Clerkship',
-		specialty: 'Family Medicine',
+		clerkship_type: 'outpatient',
 		required_days: 5,
 		description: null,
 		...overrides
@@ -76,7 +85,7 @@ async function createClerkshipDirect(
 	const clerkship: Clerkships = {
 		id: crypto.randomUUID(),
 		name: 'Family Medicine Clerkship',
-		specialty: 'Family Medicine',
+		clerkship_type: 'outpatient',
 		required_days: 5,
 		description: null,
 		created_at: timestamp,
@@ -110,8 +119,8 @@ describe('Clerkship Service', () => {
 		});
 
 		it('returns all clerkships', async () => {
-			await createClerkshipDirect(db, { name: 'FM Clerkship', specialty: 'Family Medicine' });
-			await createClerkshipDirect(db, { name: 'IM Clerkship', specialty: 'Internal Medicine' });
+			await createClerkshipDirect(db, { name: 'FM Clerkship' });
+			await createClerkshipDirect(db, { name: 'IM Clerkship' });
 
 			const clerkships = await getClerkships(db);
 			expect(clerkships).toHaveLength(2);
@@ -147,65 +156,15 @@ describe('Clerkship Service', () => {
 		it('returns complete clerkship data', async () => {
 			const created = await createClerkshipDirect(db, {
 				name: 'Test Clerkship',
-				specialty: 'Surgery',
+				clerkship_type: 'inpatient',
 				required_days: 10,
 				description: 'Test description'
 			});
 
 			const found = await getClerkshipById(db, created.id);
-			expect(found?.specialty).toBe('Surgery');
+			expect(found?.clerkship_type).toBe('inpatient');
 			expect(found?.required_days).toBe(10);
 			expect(found?.description).toBe('Test description');
-		});
-	});
-
-	describe('getClerkshipsBySpecialty()', () => {
-		it('returns clerkships with matching specialty', async () => {
-			await createClerkshipDirect(db, {
-				name: 'FM1',
-				specialty: 'Family Medicine'
-			});
-			await createClerkshipDirect(db, {
-				name: 'FM2',
-				specialty: 'Family Medicine'
-			});
-			await createClerkshipDirect(db, {
-				name: 'IM1',
-				specialty: 'Internal Medicine'
-			});
-
-			const familyMedicine = await getClerkshipsBySpecialty(db, 'Family Medicine');
-			expect(familyMedicine).toHaveLength(2);
-			expect(familyMedicine.every((c) => c.specialty === 'Family Medicine')).toBe(true);
-		});
-
-		it('returns empty array when no matching specialty', async () => {
-			await createClerkshipDirect(db, { specialty: 'Surgery' });
-
-			const result = await getClerkshipsBySpecialty(db, 'Pediatrics');
-			expect(result).toEqual([]);
-		});
-
-		it('is case-sensitive', async () => {
-			await createClerkshipDirect(db, { specialty: 'Family Medicine' });
-
-			const result = await getClerkshipsBySpecialty(db, 'family medicine');
-			expect(result).toEqual([]);
-		});
-
-		it('returns clerkships ordered by name', async () => {
-			await createClerkshipDirect(db, {
-				name: 'Surgery 2',
-				specialty: 'Surgery'
-			});
-			await createClerkshipDirect(db, {
-				name: 'Surgery 1',
-				specialty: 'Surgery'
-			});
-
-			const result = await getClerkshipsBySpecialty(db, 'Surgery');
-			expect(result[0].name).toBe('Surgery 1');
-			expect(result[1].name).toBe('Surgery 2');
 		});
 	});
 
@@ -236,7 +195,7 @@ describe('Clerkship Service', () => {
 		it('creates a new clerkship', async () => {
 			const data = createMockClerkshipData({
 				name: 'New Clerkship',
-				specialty: 'Pediatrics',
+				clerkship_type: 'inpatient',
 				required_days: 8
 			});
 
@@ -244,7 +203,7 @@ describe('Clerkship Service', () => {
 
 			expect(created.id).toBeDefined();
 			expect(created.name).toBe('New Clerkship');
-			expect(created.specialty).toBe('Pediatrics');
+			expect(created.clerkship_type).toBe('inpatient');
 			expect(created.required_days).toBe(8);
 			expect(created.created_at).toBeDefined();
 			expect(created.updated_at).toBeDefined();
@@ -297,14 +256,14 @@ describe('Clerkship Service', () => {
 			expect(updated.id).toBe(clerkship.id);
 		});
 
-		it('updates clerkship specialty', async () => {
-			const clerkship = await createClerkshipDirect(db, { specialty: 'Family Medicine' });
+		it('updates clerkship type', async () => {
+			const clerkship = await createClerkshipDirect(db, { clerkship_type: 'outpatient' });
 
 			const updated = await updateClerkship(db, clerkship.id, {
-				specialty: 'Internal Medicine'
+				clerkship_type: 'inpatient'
 			});
 
-			expect(updated.specialty).toBe('Internal Medicine');
+			expect(updated.clerkship_type).toBe('inpatient');
 		});
 
 		it('updates clerkship required_days', async () => {
@@ -330,12 +289,12 @@ describe('Clerkship Service', () => {
 
 			const updated = await updateClerkship(db, clerkship.id, {
 				name: 'New Name',
-				specialty: 'Surgery',
+				clerkship_type: 'inpatient',
 				required_days: 15
 			});
 
 			expect(updated.name).toBe('New Name');
-			expect(updated.specialty).toBe('Surgery');
+			expect(updated.clerkship_type).toBe('inpatient');
 			expect(updated.required_days).toBe(15);
 		});
 

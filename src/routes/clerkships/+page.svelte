@@ -19,12 +19,6 @@
 	let selectedClerkship = $state<Clerkships | undefined>(undefined);
 
 	function handleAdd() {
-		selectedClerkship = undefined;
-		showForm = true;
-	}
-
-	function handleEdit(clerkship: Clerkships) {
-		selectedClerkship = clerkship;
 		showForm = true;
 	}
 
@@ -39,13 +33,11 @@
 
 	async function handleFormSuccess() {
 		showForm = false;
-		selectedClerkship = undefined;
 		await invalidateAll();
 	}
 
 	function handleFormCancel() {
 		showForm = false;
-		selectedClerkship = undefined;
 	}
 
 	async function handleDeleteConfirm(clerkship: Clerkships) {
@@ -95,7 +87,7 @@
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
 				}`}
 			>
-				Scheduling Defaults
+				Default Scheduling Rules
 			</button>
 		</nav>
 	</div>
@@ -108,7 +100,6 @@
 
 		<ClerkshipList
 			clerkships={data.clerkships}
-			onEdit={handleEdit}
 			onDelete={handleDelete}
 			onConfigure={handleConfigure}
 		/>
@@ -117,12 +108,11 @@
 	{/if}
 </div>
 
-<!-- Form Modal -->
+<!-- Form Modal (for adding new clerkships only) -->
 {#if showForm}
 	<div class="fixed inset-0 z-50 bg-black/50" onclick={handleFormCancel} role="presentation"></div>
 	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
 		<ClerkshipForm
-			clerkship={selectedClerkship}
 			onSuccess={handleFormSuccess}
 			onCancel={handleFormCancel}
 		/>

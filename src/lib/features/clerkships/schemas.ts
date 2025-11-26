@@ -8,15 +8,6 @@ import { z } from 'zod';
 import { nameSchema, uuidSchema, cuid2Schema, positiveIntSchema } from '$lib/validation/common-schemas';
 
 /**
- * Specialty validation schema (now optional)
- * Transforms empty strings to undefined for proper null storage
- */
-export const specialtySchema = z
-	.string()
-	.transform((val) => (val === '' ? undefined : val))
-	.optional();
-
-/**
  * Clerkship type validation schema
  */
 export const clerkshipTypeSchema = z.enum(['inpatient', 'outpatient'], {
@@ -33,7 +24,6 @@ export const requiredDaysSchema = positiveIntSchema;
  */
 export const createClerkshipSchema = z.object({
 	name: nameSchema,
-	specialty: specialtySchema,
 	clerkship_type: clerkshipTypeSchema,
 	required_days: requiredDaysSchema,
 	description: z.string().optional()
@@ -45,7 +35,6 @@ export const createClerkshipSchema = z.object({
 export const updateClerkshipSchema = z
 	.object({
 		name: nameSchema.optional(),
-		specialty: specialtySchema.optional(),
 		clerkship_type: clerkshipTypeSchema.optional(),
 		required_days: requiredDaysSchema.optional(),
 		description: z.string().optional()

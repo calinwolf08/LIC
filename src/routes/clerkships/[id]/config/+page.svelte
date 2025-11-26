@@ -4,263 +4,443 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Card } from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
 	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
-	let showAddRequirementModal = $state(false);
+	// Clerkship basic info (editable)
+	let name = $state(data.clerkship?.name || '');
+	let clerkshipType = $state(data.clerkship?.clerkship_type || 'outpatient');
+	let requiredDays = $state(data.clerkship?.required_days || 1);
+	let description = $state(data.clerkship?.description || '');
 
-	// Simplified form state for new requirement
-	let newRequirement = $state({
-		requirementType: 'outpatient' as 'outpatient' | 'inpatient' | 'elective',
-		requiredDays: 20
+	// Settings (from global defaults or overrides)
+	let settings = $state(data.settings || {
+		overrideMode: 'inherit',
+		assignmentStrategy: 'continuous_single',
+		healthSystemRule: 'no_preference',
+		maxStudentsPerDay: 1,
+		maxStudentsPerYear: 3,
+		allowTeams: false,
+		allowFallbacks: true,
+		fallbackRequiresApproval: false,
+		fallbackAllowCrossSystem: false
 	});
 
-	let isSubmitting = $state(false);
-	let error = $state<string | null>(null);
+	let isUsingDefaults = $derived(settings.overrideMode === 'inherit');
 
-	async function handleAddRequirement() {
-		showAddRequirementModal = true;
-	}
+	// Status messages
+	let basicInfoStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null);
+	let settingsStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null);
 
-	async function handleSubmitRequirement() {
-		isSubmitting = true;
-		error = null;
-
+	async function handleSaveBasicInfo() {
+		basicInfoStatus = null;
 		try {
-			const response = await fetch('/api/scheduling-config/requirements', {
-				method: 'POST',
+			const res = await fetch(`/api/clerkships/${data.clerkship.id}`, {
+				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					clerkshipId: data.configuration.clerkshipId,
-					requirementType: newRequirement.requirementType,
-					requiredDays: newRequirement.requiredDays,
-					allowCrossSystem: false,
-					overrideMode: 'inherit'
+					name,
+					clerkship_type: clerkshipType,
+					required_days: requiredDays,
+					description: description || undefined
 				})
 			});
 
-			const result = await response.json();
-
-			if (!response.ok) {
-				error = result.error?.message || 'Failed to create requirement';
-				return;
+			if (res.ok) {
+				basicInfoStatus = { type: 'success', message: 'Basic information saved successfully' };
+				setTimeout(() => basicInfoStatus = null, 3000);
+			} else {
+				const result = await res.json();
+				basicInfoStatus = { type: 'error', message: result.error?.message || 'Failed to save' };
 			}
-
-			// Reset form and close modal
-			showAddRequirementModal = false;
-			newRequirement = {
-				requirementType: 'outpatient',
-				requiredDays: 20
-			};
-
-			// Refresh data
-			await invalidateAll();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create requirement';
-		} finally {
-			isSubmitting = false;
+			basicInfoStatus = { type: 'error', message: 'Failed to save basic information' };
 		}
 	}
 
-	async function handleDeleteRequirement(requirementId: string) {
-		if (!confirm('Are you sure you want to delete this requirement?')) return;
-
+	async function handleSaveSettings() {
+		settingsStatus = null;
 		try {
-			const response = await fetch(`/api/scheduling-config/requirements/${requirementId}`, {
+			const res = await fetch(`/api/clerkships/${data.clerkship.id}/settings`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					...settings,
+					overrideMode: 'override'
+				})
+			});
+
+			if (res.ok) {
+				settings.overrideMode = 'override';
+				settingsStatus = { type: 'success', message: 'Settings saved successfully' };
+				setTimeout(() => settingsStatus = null, 3000);
+			} else {
+				settingsStatus = { type: 'error', message: 'Failed to save settings' };
+			}
+		} catch (err) {
+			settingsStatus = { type: 'error', message: 'Failed to save settings' };
+		}
+	}
+
+	async function handleReturnToDefaults() {
+		settingsStatus = null;
+		try {
+			const res = await fetch(`/api/clerkships/${data.clerkship.id}/settings`, {
 				method: 'DELETE'
 			});
 
-			if (!response.ok) {
-				const result = await response.json();
-				alert(result.error?.message || 'Failed to delete requirement');
-				return;
+			if (res.ok) {
+				// Reload settings (will get defaults for current type)
+				const settingsRes = await fetch(`/api/clerkships/${data.clerkship.id}/settings`);
+				if (settingsRes.ok) {
+					const newSettings = await settingsRes.json();
+					settings = newSettings.data;
+					settingsStatus = { type: 'success', message: 'Reset to global defaults' };
+					setTimeout(() => settingsStatus = null, 3000);
+				}
+			} else {
+				settingsStatus = { type: 'error', message: 'Failed to reset settings' };
 			}
-
-			await invalidateAll();
 		} catch (err) {
-			alert('Failed to delete requirement');
+			settingsStatus = { type: 'error', message: 'Failed to reset settings' };
 		}
-	}
-
-	function handleCancelRequirement() {
-		showAddRequirementModal = false;
-		error = null;
-	}
-
-	function formatRequirementType(type: string): string {
-		return type.charAt(0).toUpperCase() + type.slice(1);
 	}
 </script>
 
-<div class="container mx-auto py-8">
+<div class="container mx-auto py-8 max-w-4xl">
 	<!-- Header -->
 	<div class="mb-6">
 		<Button variant="ghost" onclick={() => goto('/clerkships')} class="mb-4">
 			← Back to Clerkships
 		</Button>
-		<h1 class="text-3xl font-bold">{data.configuration.clerkshipName}</h1>
-		<p class="mt-2 text-muted-foreground">
-			Configure scheduling requirements for this clerkship
-		</p>
+		<h1 class="text-3xl font-bold">Configure Clerkship</h1>
+		<p class="mt-2 text-muted-foreground">{data.clerkship?.name || 'Clerkship'}</p>
 	</div>
 
-	<!-- Summary Card -->
-	<Card class="mb-6 p-6">
-		<h2 class="text-xl font-semibold mb-4">Configuration Summary</h2>
-		<div class="grid gap-4 md:grid-cols-3">
-			<div>
-				<p class="text-sm text-muted-foreground">Total Required Days</p>
-				<p class="text-2xl font-bold">{data.configuration.totalRequiredDays}</p>
-			</div>
-			<div>
-				<p class="text-sm text-muted-foreground">Requirements</p>
-				<p class="text-2xl font-bold">{data.configuration.requirements.length}</p>
-			</div>
-			<div>
-				<p class="text-sm text-muted-foreground">Teams</p>
-				<p class="text-2xl font-bold">{data.configuration.teams?.length || 0}</p>
-			</div>
-		</div>
-	</Card>
+	<div class="space-y-8">
+		<!-- Section 1: Basic Information -->
+		<Card class="p-6">
+			<h2 class="text-xl font-semibold mb-4">Basic Information</h2>
 
-	<!-- Requirements Section -->
-	<div class="space-y-4">
-		<div class="flex items-center justify-between">
-			<h2 class="text-xl font-semibold">Requirements</h2>
-			<Button onclick={handleAddRequirement}>Add Requirement</Button>
-		</div>
-
-		{#if data.configuration.requirements.length === 0}
-			<Card class="p-12 text-center text-muted-foreground">
-				<p>No requirements configured yet.</p>
-				<p class="mt-2 text-sm">Add a requirement to specify how many days students need for this clerkship.</p>
-			</Card>
-		{:else}
-			<div class="space-y-3">
-				{#each data.configuration.requirements as req}
-					<Card class="p-4">
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-4">
-								<div class="rounded-full px-3 py-1 text-sm font-medium {
-									req.requirement.requirement_type === 'inpatient'
-										? 'bg-blue-100 text-blue-700'
-										: req.requirement.requirement_type === 'outpatient'
-											? 'bg-green-100 text-green-700'
-											: 'bg-purple-100 text-purple-700'
-								}">
-									{formatRequirementType(req.requirement.requirement_type)}
-								</div>
-								<div>
-									<p class="font-medium">{req.requirement.required_days} days required</p>
-									<p class="text-sm text-muted-foreground">
-										Strategy: {req.resolvedConfig.assignmentStrategy?.replace(/_/g, ' ') || 'Default'}
-									</p>
-								</div>
-							</div>
-							<Button
-								size="sm"
-								variant="destructive"
-								onclick={() => handleDeleteRequirement(req.requirement.id)}
-							>
-								Delete
-							</Button>
-						</div>
-
-						{#if req.electives && req.electives.length > 0}
-							<div class="mt-4 border-t pt-4">
-								<p class="text-sm font-medium mb-2">Electives ({req.electives.length})</p>
-								<div class="flex flex-wrap gap-2">
-									{#each req.electives as elective}
-										<span class="rounded-full bg-muted px-3 py-1 text-xs">
-											{elective.name} ({elective.minimum_days} days min)
-										</span>
-									{/each}
-								</div>
-							</div>
-						{/if}
-					</Card>
-				{/each}
-			</div>
-		{/if}
-	</div>
-
-	<!-- Teams Link -->
-	<Card class="mt-6 p-6">
-		<h2 class="text-xl font-semibold mb-2">Preceptor Teams</h2>
-		<p class="text-muted-foreground mb-4">
-			Manage preceptor teams for this clerkship from the Preceptors page.
-		</p>
-		<Button variant="outline" onclick={() => goto('/preceptors')}>
-			Manage Teams
-		</Button>
-	</Card>
-</div>
-
-<!-- Add Requirement Modal -->
-{#if showAddRequirementModal}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-		onclick={handleCancelRequirement}
-		role="presentation"
-	>
-		<div
-			class="w-full max-w-md rounded-lg bg-background p-6 shadow-lg"
-			onclick={(e) => e.stopPropagation()}
-			role="dialog"
-		>
-			<h2 class="mb-4 text-xl font-bold">Add Requirement</h2>
-
-			{#if error}
-				<div class="mb-4 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-					{error}
+			{#if basicInfoStatus}
+				<div class="mb-4 rounded border p-3 text-sm {basicInfoStatus.type === 'success' ? 'border-green-500 bg-green-50 text-green-700' : 'border-destructive bg-destructive/10 text-destructive'}">
+					{basicInfoStatus.message}
 				</div>
 			{/if}
 
-			<form onsubmit={(e) => { e.preventDefault(); handleSubmitRequirement(); }} class="space-y-4">
-				<!-- Requirement Type -->
+			<div class="grid gap-4">
 				<div class="space-y-2">
-					<Label for="requirementType">Type</Label>
-					<select
-						id="requirementType"
-						bind:value={newRequirement.requirementType}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-						required
-					>
-						<option value="outpatient">Outpatient</option>
-						<option value="inpatient">Inpatient</option>
-						<option value="elective">Elective</option>
-					</select>
+					<Label for="name">Name *</Label>
+					<Input id="name" bind:value={name} required />
 				</div>
 
-				<!-- Required Days -->
 				<div class="space-y-2">
-					<Label for="requiredDays">Required Days</Label>
+					<Label>Type *</Label>
+					<div class="flex gap-4">
+						<label class="flex items-center gap-2">
+							<input
+								type="radio"
+								name="type"
+								value="inpatient"
+								checked={clerkshipType === 'inpatient'}
+								onchange={() => clerkshipType = 'inpatient'}
+							/>
+							<span>Inpatient</span>
+						</label>
+						<label class="flex items-center gap-2">
+							<input
+								type="radio"
+								name="type"
+								value="outpatient"
+								checked={clerkshipType === 'outpatient'}
+								onchange={() => clerkshipType = 'outpatient'}
+							/>
+							<span>Outpatient</span>
+						</label>
+					</div>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="required-days">Required Days *</Label>
 					<Input
-						id="requiredDays"
+						id="required-days"
 						type="number"
-						bind:value={newRequirement.requiredDays}
 						min="1"
+						bind:value={requiredDays}
 						required
 					/>
 				</div>
 
-				<!-- Action Buttons -->
-				<div class="flex justify-end gap-2 pt-4">
-					<Button
-						type="button"
-						variant="outline"
-						onclick={handleCancelRequirement}
-						disabled={isSubmitting}
-					>
-						Cancel
-					</Button>
-					<Button type="submit" disabled={isSubmitting}>
-						{isSubmitting ? 'Creating...' : 'Add Requirement'}
-					</Button>
+				<div class="space-y-2">
+					<Label for="description">Description</Label>
+					<textarea
+						id="description"
+						bind:value={description}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]"
+					></textarea>
 				</div>
-			</form>
-		</div>
+
+				<div class="flex justify-end">
+					<Button onclick={handleSaveBasicInfo}>Save Basic Info</Button>
+				</div>
+			</div>
+		</Card>
+
+		<!-- Section 2: Scheduling Settings -->
+		<Card class="p-6">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold">Scheduling Settings</h2>
+				<div class="flex items-center gap-2">
+					{#if isUsingDefaults}
+						<Badge variant="secondary">Using Global Defaults</Badge>
+					{:else}
+						<Badge>Custom Settings</Badge>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={handleReturnToDefaults}
+						>
+							Return to Defaults
+						</Button>
+					{/if}
+				</div>
+			</div>
+
+			{#if settingsStatus}
+				<div class="mb-4 rounded border p-3 text-sm {settingsStatus.type === 'success' ? 'border-green-500 bg-green-50 text-green-700' : 'border-destructive bg-destructive/10 text-destructive'}">
+					{settingsStatus.message}
+				</div>
+			{/if}
+
+			<div class="grid gap-6">
+				<!-- Assignment Strategy -->
+				<div class="space-y-2">
+					<Label for="strategy">Assignment Strategy</Label>
+					<select
+						id="strategy"
+						bind:value={settings.assignmentStrategy}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="continuous_single">Continuous Single</option>
+						<option value="continuous_team">Continuous Team</option>
+						<option value="block_based">Block Based</option>
+						<option value="daily_rotation">Daily Rotation</option>
+					</select>
+				</div>
+
+				<!-- Health System Rule -->
+				<div class="space-y-2">
+					<Label for="health-rule">Health System Rule</Label>
+					<select
+						id="health-rule"
+						bind:value={settings.healthSystemRule}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="enforce_same_system">Enforce Same System</option>
+						<option value="prefer_same_system">Prefer Same System</option>
+						<option value="no_preference">No Preference</option>
+					</select>
+				</div>
+
+				<!-- Capacity Settings -->
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label for="max-day">Max Students Per Day</Label>
+						<Input
+							id="max-day"
+							type="number"
+							min="1"
+							bind:value={settings.maxStudentsPerDay}
+						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="max-year">Max Students Per Year</Label>
+						<Input
+							id="max-year"
+							type="number"
+							min="1"
+							bind:value={settings.maxStudentsPerYear}
+						/>
+					</div>
+				</div>
+
+				<!-- Inpatient-specific settings -->
+				{#if clerkshipType === 'inpatient'}
+					<div class="border-t pt-4">
+						<h4 class="font-medium mb-4">Inpatient Settings</h4>
+						<div class="grid grid-cols-2 gap-4">
+							<div class="space-y-2">
+								<Label for="block-size">Block Size (Days)</Label>
+								<Input
+									id="block-size"
+									type="number"
+									min="1"
+									bind:value={settings.blockSizeDays}
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="max-block">Max Students Per Block</Label>
+								<Input
+									id="max-block"
+									type="number"
+									min="1"
+									bind:value={settings.maxStudentsPerBlock}
+								/>
+							</div>
+						</div>
+						<div class="mt-4 space-y-2">
+							<label class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									bind:checked={settings.allowPartialBlocks}
+								/>
+								<span>Allow Partial Blocks</span>
+							</label>
+							<label class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									bind:checked={settings.preferContinuousBlocks}
+								/>
+								<span>Prefer Continuous Blocks</span>
+							</label>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Team Settings -->
+				<div class="border-t pt-4">
+					<h4 class="font-medium mb-4">Team Settings</h4>
+					<label class="flex items-center gap-2 mb-4">
+						<input
+							type="checkbox"
+							bind:checked={settings.allowTeams}
+						/>
+						<span>Allow Teams</span>
+					</label>
+					{#if settings.allowTeams}
+						<div class="grid grid-cols-2 gap-4">
+							<div class="space-y-2">
+								<Label for="team-min">Min Team Size</Label>
+								<Input
+									id="team-min"
+									type="number"
+									min="1"
+									bind:value={settings.teamSizeMin}
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="team-max">Max Team Size</Label>
+								<Input
+									id="team-max"
+									type="number"
+									min="1"
+									bind:value={settings.teamSizeMax}
+								/>
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Fallback Settings -->
+				<div class="border-t pt-4">
+					<h4 class="font-medium mb-4">Fallback Settings</h4>
+					<div class="space-y-2">
+						<label class="flex items-center gap-2">
+							<input
+								type="checkbox"
+								bind:checked={settings.allowFallbacks}
+							/>
+							<span>Allow Fallbacks</span>
+						</label>
+						{#if settings.allowFallbacks}
+							<label class="flex items-center gap-2 ml-6">
+								<input
+									type="checkbox"
+									bind:checked={settings.fallbackRequiresApproval}
+								/>
+								<span>Fallback Requires Approval</span>
+							</label>
+							<label class="flex items-center gap-2 ml-6">
+								<input
+									type="checkbox"
+									bind:checked={settings.fallbackAllowCrossSystem}
+								/>
+								<span>Allow Cross-System Fallbacks</span>
+							</label>
+						{/if}
+					</div>
+				</div>
+
+				<div class="flex justify-end">
+					<Button onclick={handleSaveSettings}>Save Settings</Button>
+				</div>
+			</div>
+		</Card>
+
+		<!-- Section 3: Associated Sites -->
+		<Card class="p-6">
+			<h2 class="text-xl font-semibold mb-4">Associated Sites</h2>
+			{#if data.sites?.length > 0}
+				<div class="space-y-2">
+					{#each data.sites as site}
+						<div class="flex items-center justify-between p-3 border rounded-md">
+							<a
+								href="/sites/{site.id}/edit"
+								class="text-blue-600 hover:underline"
+							>
+								{site.name}
+							</a>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-muted-foreground">No sites associated with this clerkship.</p>
+			{/if}
+			<div class="mt-4">
+				<Button variant="outline" onclick={() => goto('/sites')}>
+					Manage Sites
+				</Button>
+			</div>
+		</Card>
+
+		<!-- Section 4: Preceptor Teams -->
+		<Card class="p-6">
+			<h2 class="text-xl font-semibold mb-4">Preceptor Teams</h2>
+			{#if data.teams?.length > 0}
+				<div class="space-y-2">
+					{#each data.teams as team}
+						<div class="flex items-center justify-between p-3 border rounded-md">
+							<div>
+								<a
+									href="/preceptors/teams/{team.id}"
+									class="text-blue-600 hover:underline font-medium"
+								>
+									{team.name || 'Unnamed Team'}
+								</a>
+								<p class="text-sm text-muted-foreground">
+									{team.members?.length || 0} members
+								</p>
+							</div>
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => goto(`/preceptors/teams/${team.id}`)}
+							>
+								Configure
+							</Button>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-muted-foreground">No teams created for this clerkship.</p>
+			{/if}
+			<div class="mt-4">
+				<Button variant="outline" onclick={() => goto('/preceptors?tab=teams')}>
+					Manage Teams
+				</Button>
+			</div>
+		</Card>
 	</div>
-{/if}
+</div>

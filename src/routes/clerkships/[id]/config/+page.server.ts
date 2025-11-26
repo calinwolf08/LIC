@@ -1,24 +1,36 @@
 /**
  * Clerkship Configuration Page - Server Load
  *
- * Loads complete configuration for a specific clerkship
+ * Loads clerkship details, settings, sites, and teams
  */
 
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
-	// Fetch complete clerkship configuration from API
-	const response = await fetch(`/api/scheduling-config/clerkships/${params.id}`);
+	const clerkshipId = params.id;
 
-	if (!response.ok) {
-		throw error(404, 'Clerkship configuration not found');
+	// Fetch clerkship, settings, sites, and teams in parallel
+	const [clerkshipRes, settingsRes, sitesRes, teamsRes] = await Promise.all([
+		fetch(`/api/clerkships/${clerkshipId}`),
+		fetch(`/api/clerkships/${clerkshipId}/settings`),
+		fetch(`/api/clerkship-sites?clerkship_id=${clerkshipId}`),
+		fetch(`/api/preceptors/teams?clerkshipId=${clerkshipId}`)
+	]);
+
+	if (!clerkshipRes.ok) {
+		throw error(404, 'Clerkship not found');
 	}
 
-	const result = await response.json();
+	const clerkship = await clerkshipRes.json();
+	const settings = settingsRes.ok ? await settingsRes.json() : { data: null };
+	const sites = sitesRes.ok ? await sitesRes.json() : { data: [] };
+	const teams = teamsRes.ok ? await teamsRes.json() : { data: [] };
 
 	return {
-		clerkshipId: params.id,
-		configuration: result.data
+		clerkship: clerkship.data,
+		settings: settings.data,
+		sites: sites.data || [],
+		teams: teams.data || []
 	};
 };

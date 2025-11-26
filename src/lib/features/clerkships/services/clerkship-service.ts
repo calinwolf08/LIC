@@ -36,21 +36,6 @@ export async function getClerkshipById(
 }
 
 /**
- * Get all clerkships with a specific specialty
- */
-export async function getClerkshipsBySpecialty(
-	db: Kysely<DB>,
-	specialty: string
-): Promise<Selectable<Clerkships>[]> {
-	return await db
-		.selectFrom('clerkships')
-		.selectAll()
-		.where('specialty', '=', specialty)
-		.orderBy('name', 'asc')
-		.execute();
-}
-
-/**
  * Get a clerkship by name (case-insensitive)
  * @returns Clerkship or null if not found
  */
@@ -87,7 +72,6 @@ export async function createClerkship(
 	const newClerkship = {
 		id: clerkshipId,
 		name: data.name,
-		specialty: data.specialty || null,
 		clerkship_type: data.clerkship_type,
 		required_days: data.required_days,
 		description: data.description || null,

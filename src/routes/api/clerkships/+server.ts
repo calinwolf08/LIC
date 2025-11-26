@@ -1,7 +1,7 @@
 /**
  * Clerkships API - Collection Endpoints
  *
- * GET /api/clerkships - List all clerkships (optionally filter by specialty)
+ * GET /api/clerkships - List all clerkships
  * POST /api/clerkships - Create new clerkship
  */
 
@@ -15,7 +15,6 @@ import {
 import { ConflictError, handleApiError } from '$lib/api/errors';
 import {
 	getClerkships,
-	getClerkshipsBySpecialty,
 	createClerkship
 } from '$lib/features/clerkships/services/clerkship-service.js';
 import { createClerkshipSchema } from '$lib/features/clerkships/schemas.js';
@@ -23,15 +22,11 @@ import { ZodError } from 'zod';
 
 /**
  * GET /api/clerkships
- * Returns all clerkships, optionally filtered by specialty
+ * Returns all clerkships
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async () => {
 	try {
-		const specialty = url.searchParams.get('specialty');
-
-		const clerkships = specialty
-			? await getClerkshipsBySpecialty(db, specialty)
-			: await getClerkships(db);
+		const clerkships = await getClerkships(db);
 
 		return successResponse(clerkships);
 	} catch (error) {

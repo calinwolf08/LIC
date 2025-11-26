@@ -17,9 +17,8 @@
 
 	let formData = $state({
 		name: clerkship?.name || '',
-		specialty: clerkship?.specialty || '',
 		clerkship_type: (clerkship?.clerkship_type as 'inpatient' | 'outpatient') || 'inpatient',
-		required_days: clerkship?.required_days || 0,
+		required_days: clerkship?.required_days || 1,
 		description: clerkship?.description || ''
 	});
 
@@ -108,21 +107,6 @@
 				/>
 				{#if errors.name}
 					<p class="text-sm text-destructive">{errors.name}</p>
-				{/if}
-			</div>
-
-			<div class="space-y-2">
-				<Label for="specialty">Specialty (optional)</Label>
-				<Input
-					id="specialty"
-					type="text"
-					bind:value={formData.specialty}
-					placeholder="Internal Medicine"
-					disabled={isSubmitting}
-					class={errors.specialty ? 'border-destructive' : ''}
-				/>
-				{#if errors.specialty}
-					<p class="text-sm text-destructive">{errors.specialty}</p>
 				{/if}
 			</div>
 

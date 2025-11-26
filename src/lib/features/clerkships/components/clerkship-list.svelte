@@ -6,14 +6,13 @@
 	interface Props {
 		clerkships: Clerkships[];
 		loading?: boolean;
-		onEdit?: (clerkship: Clerkships) => void;
 		onDelete?: (clerkship: Clerkships) => void;
 		onConfigure?: (clerkship: Clerkships) => void;
 	}
 
-	let { clerkships, loading = false, onEdit, onDelete, onConfigure }: Props = $props();
+	let { clerkships, loading = false, onDelete, onConfigure }: Props = $props();
 
-	let sortColumn = $state<'name' | 'specialty' | 'required_days' | null>(null);
+	let sortColumn = $state<'name' | 'required_days' | null>(null);
 	let sortDirection = $state<'asc' | 'desc'>('asc');
 
 	let sortedClerkships = $derived(() => {
@@ -31,7 +30,7 @@
 		});
 	});
 
-	function handleSort(column: 'name' | 'specialty' | 'required_days') {
+	function handleSort(column: 'name' | 'required_days') {
 		if (sortColumn === column) {
 			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -70,19 +69,6 @@
 							{/if}
 						</div>
 					</th>
-					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
-						onclick={() => handleSort('specialty')}
-					>
-						<div class="flex items-center gap-2">
-							Specialty
-							{#if sortColumn === 'specialty'}
-								<span class="text-xs">
-									{sortDirection === 'asc' ? '↑' : '↓'}
-								</span>
-							{/if}
-						</div>
-					</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Type</th>
 					<th
 						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
@@ -105,13 +91,13 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="7" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
 							Loading...
 						</td>
 					</tr>
 				{:else if sortedClerkships().length === 0}
 					<tr>
-						<td colspan="7" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
 							No clerkships found
 						</td>
 					</tr>
@@ -119,13 +105,6 @@
 					{#each sortedClerkships() as clerkship}
 						<tr class="border-b transition-colors hover:bg-muted/50">
 							<td class="px-4 py-3 text-sm font-medium">{clerkship.name}</td>
-							<td class="px-4 py-3 text-sm">
-								{#if clerkship.specialty}
-									{clerkship.specialty}
-								{:else}
-									<span class="text-muted-foreground italic">Not specified</span>
-								{/if}
-							</td>
 							<td class="px-4 py-3 text-sm">
 								<span
 									class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium {clerkship.clerkship_type ===
@@ -150,11 +129,6 @@
 									{#if onConfigure}
 										<Button size="sm" variant="default" onclick={() => onConfigure?.(clerkship)}>
 											Configure
-										</Button>
-									{/if}
-									{#if onEdit}
-										<Button size="sm" variant="outline" onclick={() => onEdit?.(clerkship)}>
-											Edit
 										</Button>
 									{/if}
 									{#if onDelete}

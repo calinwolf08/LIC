@@ -37,6 +37,28 @@ export interface ClerkshipConfigurations {
   created_at: Generated<string>;
   id: string | null;
   updated_at: Generated<string>;
+  // Override mode: 'inherit' uses global defaults, 'override' uses custom values
+  override_mode: Generated<string>;
+  // Assignment settings
+  override_assignment_strategy: string | null;
+  override_health_system_rule: string | null;
+  // Capacity settings
+  override_max_students_per_day: number | null;
+  override_max_students_per_year: number | null;
+  // Inpatient-specific settings
+  override_block_size_days: number | null;
+  override_max_students_per_block: number | null;
+  override_max_blocks_per_year: number | null;
+  override_allow_partial_blocks: number | null;
+  override_prefer_continuous_blocks: number | null;
+  // Team settings
+  override_allow_teams: number | null;
+  override_team_size_min: number | null;
+  override_team_size_max: number | null;
+  // Fallback settings
+  override_allow_fallbacks: number | null;
+  override_fallback_requires_approval: number | null;
+  override_fallback_allow_cross_system: number | null;
 }
 
 export interface ClerkshipElectives {
