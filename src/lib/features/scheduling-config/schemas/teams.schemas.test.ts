@@ -40,7 +40,7 @@ describe('Teams Schemas', () => {
   });
 
   describe('preceptorTeamInputSchema', () => {
-    it('should validate team with minimum 2 members', () => {
+    it('should validate team with minimum 1 member', () => {
       const validTeam = {
         name: 'Internal Medicine Team A',
         requireSameHealthSystem: true,
@@ -49,7 +49,6 @@ describe('Teams Schemas', () => {
         requiresAdminApproval: false,
         members: [
           { preceptorId: 'prec-1', priority: 1 },
-          { preceptorId: 'prec-2', priority: 2 },
         ],
       };
 
@@ -57,11 +56,9 @@ describe('Teams Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject team with less than 2 members', () => {
+    it('should reject team with no members', () => {
       const invalidTeam = {
-        members: [
-          { preceptorId: 'prec-1', priority: 1 },
-        ],
+        members: [],
       };
 
       const result = preceptorTeamInputSchema.safeParse(invalidTeam);

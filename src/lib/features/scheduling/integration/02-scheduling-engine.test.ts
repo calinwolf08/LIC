@@ -54,7 +54,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
 			const studentIds = await createTestStudents(db, 3);
 			const preceptorIds = await createTestPreceptors(db, 2, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -86,7 +85,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			if (!result.success) return;
 
 			expect(result.statistics.totalAssignments).toBeGreaterThan(0);
-			expect(result.statistics.studentsScheduled).toBe(3);
+			expect(result.statistics.fullyScheduledStudents).toBe(3);
 
 			// Verify each student has complete assignments
 			for (const studentId of studentIds) {
@@ -109,7 +108,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine');
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
-				specialty: 'Internal Medicine',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -139,7 +137,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(2);
+			expect(result.statistics.fullyScheduledStudents).toBe(2);
 
 			// Verify each student has block-based assignments
 			for (const studentId of studentIds) {
@@ -157,7 +155,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Surgery', 'Surgery');
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 4, {
-				specialty: 'Surgery',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 4,
@@ -187,7 +184,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(2);
+			expect(result.statistics.fullyScheduledStudents).toBe(2);
 
 			// Verify each student has complete assignments
 			for (const studentId of studentIds) {
@@ -210,7 +207,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics');
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
-				specialty: 'Obstetrics',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -239,7 +235,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(2);
+			expect(result.statistics.fullyScheduledStudents).toBe(2);
 
 			// Verify each student assigned to team members
 			for (const studentId of studentIds) {
@@ -257,7 +253,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Psychiatry', 'Psychiatry');
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 4, {
-				specialty: 'Psychiatry',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -295,24 +290,16 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(2);
+			expect(result.statistics.fullyScheduledStudents).toBe(2);
 
 			// Verify each student has complete assignments for both requirements
 			for (const studentId of studentIds) {
 				const assignments = await getStudentAssignments(db, studentId);
 				expect(assignments.length).toBeGreaterThan(0);
 
-				// Calculate total days
-				let totalDays = 0;
-				for (const assignment of assignments) {
-					const start = new Date(assignment.start_date);
-					const end = new Date(assignment.end_date);
-					const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-					totalDays += days;
-				}
-
+				// Each assignment = 1 day, so total days = number of assignments
 				// Should have 28 (inpatient) + 14 (outpatient) = 42 days total
-				expect(totalDays).toBe(42);
+				expect(assignments.length).toBe(42);
 
 				await assertNoDateConflicts(db, studentId);
 			}
@@ -326,7 +313,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Cardiology', 'Cardiology');
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
-				specialty: 'Cardiology',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
@@ -364,7 +350,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 
-			expect(result.statistics.studentsScheduled).toBe(1);
+			expect(result.statistics.fullyScheduledStudents).toBe(1);
 
 			// Verify fallback was used
 			const studentId = studentIds[0];
@@ -379,7 +365,6 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const clerkshipId = await createTestClerkship(db, 'Dermatology', 'Dermatology');
 			const studentIds = await createTestStudents(db, 5); // Many students
 			const preceptorIds = await createTestPreceptors(db, 2, {
-				specialty: 'Dermatology',
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
@@ -410,7 +395,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			if (!result.success) return;
 
 			// Not all students may be scheduled due to capacity constraints
-			expect(result.statistics.studentsScheduled).toBeGreaterThan(0);
+			expect(result.statistics.fullyScheduledStudents).toBeGreaterThan(0);
 
 			// Verify no capacity violations
 			for (const preceptorId of preceptorIds) {

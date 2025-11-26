@@ -2,11 +2,15 @@
  * Assertion Helpers for Integration Tests
  *
  * Common assertion patterns for validating scheduling results.
+ * Note: schedule_assignments uses 'date' column (single date per assignment),
+ * not start_date/end_date ranges.
  */
 
 import { expect } from 'vitest';
-import type { Kysely } from 'kysely';
-import type { DB } from '$lib/db/types';
+import type { Kysely, Selectable } from 'kysely';
+import type { DB, ScheduleAssignments } from '$lib/db/types';
+
+type Assignment = Selectable<ScheduleAssignments>;
 
 /**
  * Asserts that a student has assignments covering all required days
@@ -18,7 +22,7 @@ export async function assertStudentHasCompleteAssignments(
 	expectedDays: number
 ) {
 	const assignments = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId)
@@ -26,16 +30,8 @@ export async function assertStudentHasCompleteAssignments(
 
 	expect(assignments.length).toBeGreaterThan(0);
 
-	// Calculate total days covered
-	let totalDays = 0;
-	for (const assignment of assignments) {
-		const start = new Date(assignment.start_date);
-		const end = new Date(assignment.end_date);
-		const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-		totalDays += days;
-	}
-
-	expect(totalDays).toBe(expectedDays);
+	// Each assignment represents one day
+	expect(assignments.length).toBe(expectedDays);
 }
 
 /**
@@ -47,7 +43,7 @@ export async function assertContinuousSingleStrategy(
 	clerkshipId: string
 ) {
 	const assignments = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId)
@@ -56,21 +52,22 @@ export async function assertContinuousSingleStrategy(
 	expect(assignments.length).toBeGreaterThan(0);
 
 	// All assignments should be to the same preceptor
-	const preceptorIds = new Set(assignments.map((a) => a.preceptor_id));
+	const preceptorIds = new Set(assignments.map((a: Assignment) => a.preceptor_id));
 	expect(preceptorIds.size).toBe(1);
 
 	// Assignments should be continuous (no gaps)
 	const sortedAssignments = assignments.sort(
-		(a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+		(a: Assignment, b: Assignment) => new Date(a.date).getTime() - new Date(b.date).getTime()
 	);
 
 	for (let i = 1; i < sortedAssignments.length; i++) {
-		const prevEnd = new Date(sortedAssignments[i - 1].end_date);
-		const currentStart = new Date(sortedAssignments[i].start_date);
+		const prevDate = new Date(sortedAssignments[i - 1].date);
+		const currentDate = new Date(sortedAssignments[i].date);
 		const daysDiff = Math.ceil(
-			(currentStart.getTime() - prevEnd.getTime()) / (1000 * 60 * 60 * 24)
+			(currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
 		);
-		expect(daysDiff).toBeLessThanOrEqual(1);
+		// Should be exactly 1 day apart (consecutive days)
+		expect(daysDiff).toBe(1);
 	}
 }
 
@@ -84,7 +81,7 @@ export async function assertBlockBasedStrategy(
 	blockSizeDays: number
 ) {
 	const assignments = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId)
@@ -92,12 +89,17 @@ export async function assertBlockBasedStrategy(
 
 	expect(assignments.length).toBeGreaterThan(0);
 
-	// Each assignment should be exactly blockSizeDays or less (for last block)
+	// Group assignments by preceptor to find blocks
+	const byPreceptor = new Map<string, Assignment[]>();
 	for (const assignment of assignments) {
-		const start = new Date(assignment.start_date);
-		const end = new Date(assignment.end_date);
-		const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-		expect(days).toBeLessThanOrEqual(blockSizeDays);
+		const list = byPreceptor.get(assignment.preceptor_id) || [];
+		list.push(assignment);
+		byPreceptor.set(assignment.preceptor_id, list);
+	}
+
+	// Each block (preceptor's assignments) should be <= blockSizeDays
+	for (const [, preceptorAssignments] of byPreceptor.entries()) {
+		expect(preceptorAssignments.length).toBeLessThanOrEqual(blockSizeDays);
 	}
 }
 
@@ -109,34 +111,18 @@ export async function assertNoCapacityViolations(
 	preceptorId: string,
 	maxStudentsPerDay: number
 ) {
-	// Get all assignments for this preceptor
-	const assignments = await db
-		.selectFrom('assignments')
-		.selectAll()
+	// Get all assignments for this preceptor, grouped by date
+	const result = await db
+		.selectFrom('schedule_assignments')
+		.select(['date'])
+		.select(({ fn }) => [fn.countAll<number>().as('student_count')])
 		.where('preceptor_id', '=', preceptorId)
+		.groupBy('date')
 		.execute();
 
-	// Build a map of date -> student count
-	const dateCountMap = new Map<string, number>();
-
-	for (const assignment of assignments) {
-		const start = new Date(assignment.start_date);
-		const end = new Date(assignment.end_date);
-
-		// Iterate through each day in the assignment
-		for (
-			let date = new Date(start);
-			date <= end;
-			date.setDate(date.getDate() + 1)
-		) {
-			const dateKey = date.toISOString().split('T')[0];
-			dateCountMap.set(dateKey, (dateCountMap.get(dateKey) || 0) + 1);
-		}
-	}
-
 	// Check that no day exceeds max capacity
-	for (const [date, count] of dateCountMap.entries()) {
-		expect(count).toBeLessThanOrEqual(maxStudentsPerDay);
+	for (const row of result) {
+		expect(row.student_count).toBeLessThanOrEqual(maxStudentsPerDay);
 	}
 }
 
@@ -149,11 +135,11 @@ export async function assertHealthSystemContinuity(
 	clerkshipId: string
 ) {
 	const assignments = await db
-		.selectFrom('assignments')
-		.innerJoin('preceptors', 'preceptors.id', 'assignments.preceptor_id')
-		.select(['assignments.id', 'preceptors.health_system_id'])
-		.where('assignments.student_id', '=', studentId)
-		.where('assignments.clerkship_id', '=', clerkshipId)
+		.selectFrom('schedule_assignments')
+		.innerJoin('preceptors', 'preceptors.id', 'schedule_assignments.preceptor_id')
+		.select(['schedule_assignments.id', 'preceptors.health_system_id'])
+		.where('schedule_assignments.student_id', '=', studentId)
+		.where('schedule_assignments.clerkship_id', '=', clerkshipId)
 		.execute();
 
 	expect(assignments.length).toBeGreaterThan(0);
@@ -169,25 +155,18 @@ export async function assertHealthSystemContinuity(
  * Asserts that no date conflicts exist for a student
  */
 export async function assertNoDateConflicts(db: Kysely<DB>, studentId: string) {
-	const assignments = await db
-		.selectFrom('assignments')
-		.selectAll()
+	// With single-date assignments, conflicts would be multiple assignments on same date
+	const result = await db
+		.selectFrom('schedule_assignments')
+		.select(['date'])
+		.select(({ fn }) => [fn.countAll<number>().as('count')])
 		.where('student_id', '=', studentId)
-		.orderBy('start_date', 'asc')
+		.groupBy('date')
 		.execute();
 
-	// Check for overlapping date ranges
-	for (let i = 0; i < assignments.length; i++) {
-		for (let j = i + 1; j < assignments.length; j++) {
-			const a1Start = new Date(assignments[i].start_date);
-			const a1End = new Date(assignments[i].end_date);
-			const a2Start = new Date(assignments[j].start_date);
-			const a2End = new Date(assignments[j].end_date);
-
-			// Check for overlap
-			const hasOverlap = a1Start <= a2End && a2Start <= a1End;
-			expect(hasOverlap).toBe(false);
-		}
+	// Each date should have at most one assignment per student
+	for (const row of result) {
+		expect(row.count).toBe(1);
 	}
 }
 
@@ -212,7 +191,7 @@ export async function assertTeamBalanced(
 	// Get assignments for this student to team members
 	const memberIds = teamMembers.map((m) => m.preceptor_id);
 	const assignments = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId)
@@ -220,18 +199,14 @@ export async function assertTeamBalanced(
 		.execute();
 
 	// Each team member should have at least one assignment
-	const assignedMemberIds = new Set(assignments.map((a) => a.preceptor_id));
+	const assignedMemberIds = new Set(assignments.map((a: Assignment) => a.preceptor_id));
 	expect(assignedMemberIds.size).toBeGreaterThan(0);
 
-	// Calculate days per team member
+	// Calculate days per team member (each assignment = 1 day)
 	const daysByMember = new Map<string, number>();
 	for (const assignment of assignments) {
-		const start = new Date(assignment.start_date);
-		const end = new Date(assignment.end_date);
-		const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
 		const currentDays = daysByMember.get(assignment.preceptor_id) || 0;
-		daysByMember.set(assignment.preceptor_id, currentDays + days);
+		daysByMember.set(assignment.preceptor_id, currentDays + 1);
 	}
 
 	// Check that distribution is reasonably balanced (within 50% variance)
@@ -254,7 +229,7 @@ export async function assertFallbackUsed(
 	fallbackPreceptorId: string
 ) {
 	const assignments = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId)
@@ -263,7 +238,7 @@ export async function assertFallbackUsed(
 	expect(assignments.length).toBeGreaterThan(0);
 
 	// Check that fallback preceptor was used
-	const preceptorIds = assignments.map((a) => a.preceptor_id);
+	const preceptorIds = assignments.map((a: Assignment) => a.preceptor_id);
 	expect(preceptorIds).toContain(fallbackPreceptorId);
 
 	// Primary preceptor should not be used
@@ -305,7 +280,7 @@ export async function assertNoOverAssignment(
 	maxStudentsPerYear: number
 ) {
 	const result = await db
-		.selectFrom('assignments')
+		.selectFrom('schedule_assignments')
 		.select(({ fn }) => [fn.countAll<number>().as('count')])
 		.where('preceptor_id', '=', preceptorId)
 		.executeTakeFirst();

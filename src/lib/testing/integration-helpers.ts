@@ -19,6 +19,7 @@ export async function createTestClerkship(db: Kysely<DB>, name: string, specialt
 			id,
 			name,
 			specialty,
+			clerkship_type: 'core',
 			required_days: 28,
 			description: `Test ${name} clerkship`,
 		})
@@ -57,7 +58,6 @@ export async function createTestPreceptors(
 	db: Kysely<DB>,
 	count: number,
 	options?: {
-		specialty?: string;
 		healthSystemId?: string;
 		siteId?: string;
 		maxStudents?: number;
@@ -71,7 +71,6 @@ export async function createTestPreceptors(
 			id,
 			name: `Dr. Test Preceptor ${i + 1}`,
 			email: `preceptor${i + 1}@test.edu`,
-			specialty: options?.specialty || 'General',
 		};
 
 		if (options?.maxStudents !== undefined) {
@@ -155,7 +154,7 @@ export async function createTestRequirement(
 			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_all' : undefined,
 			override_assignment_strategy: options.assignmentStrategy,
 			override_health_system_rule: options.healthSystemRule,
-			override_block_size_days: options.blockSizeDays,
+			override_block_length_days: options.blockSizeDays,
 					})
 		.execute();
 

@@ -159,7 +159,7 @@ export class RequirementService {
       if (input.overrideMaxBlocksPerYear !== undefined)
         updateData.override_max_blocks_per_year = input.overrideMaxBlocksPerYear || null;
       if (input.overrideBlockSizeDays !== undefined)
-        updateData.override_block_size_days = input.overrideBlockSizeDays || null;
+        updateData.override_block_length_days = input.overrideBlockSizeDays || null;
       if (input.overrideAllowPartialBlocks !== undefined)
         updateData.override_allow_partial_blocks = input.overrideAllowPartialBlocks;
       if (input.overridePreferContinuousBlocks !== undefined)
@@ -275,7 +275,7 @@ export class RequirementService {
       overrideMaxStudentsPerYear: row.override_max_students_per_year || undefined,
       overrideMaxStudentsPerBlock: row.override_max_students_per_block || undefined,
       overrideMaxBlocksPerYear: row.override_max_blocks_per_year || undefined,
-      overrideBlockSizeDays: row.override_block_size_days || undefined,
+      overrideBlockSizeDays: row.override_block_length_days || undefined,
       overrideAllowPartialBlocks: row.override_allow_partial_blocks ?? undefined,
       overridePreferContinuousBlocks: row.override_prefer_continuous_blocks ?? undefined,
       overrideAllowTeams: row.override_allow_teams ?? undefined,

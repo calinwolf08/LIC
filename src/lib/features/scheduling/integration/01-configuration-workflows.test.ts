@@ -71,7 +71,6 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 
 			// 3. Create preceptors
 			const preceptorIds = await createTestPreceptors(db, 3, {
-				specialty: 'Family Medicine',
 				healthSystemId,
 				siteId,
 				maxStudents: 3,
@@ -106,24 +105,20 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			});
 			expect(clerkshipRuleResult.success).toBe(true);
 
-			// 7. Create a team
+			// 7. Create a team with members
 			const teamResult = await teamService.createTeam(clerkshipId, {
 				name: 'Teaching Team A',
 				requireSameHealthSystem: true,
 				requireSameSite: false,
 				requireSameSpecialty: true,
+				requiresAdminApproval: false,
+				members: preceptorIds.map((id, i) => ({
+					preceptorId: id,
+					priority: i + 1,
+				})),
 			});
 			expect(teamResult.success).toBe(true);
 			if (!teamResult.success) return;
-
-			// Add team members
-			for (let i = 0; i < preceptorIds.length; i++) {
-				const memberResult = await teamService.addTeamMember(teamResult.data.id, {
-					preceptorId: preceptorIds[i],
-					priority: i + 1,
-				});
-				expect(memberResult.success).toBe(true);
-			}
 
 			// 8. Create fallback chain
 			const fallbackIds = await createFallbackChain(db, preceptorIds[0], [
@@ -137,9 +132,9 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			expect(configResult.success).toBe(true);
 			if (!configResult.success) return;
 
-			expect(configResult.data.requirements.length).toBe(1);
-			expect(configResult.data.requirements[0].requirementType).toBe('outpatient');
-			expect(configResult.data.requirements[0].requiredDays).toBe(20);
+			expect(configResult.data!.requirements.length).toBe(1);
+			expect(configResult.data!.requirements[0].requirement.requirementType).toBe('outpatient');
+			expect(configResult.data!.requirements[0].requirement.requiredDays).toBe(20);
 
 			// 10. Verify all relationships intact
 			const requirementsResult = await requirementService.getRequirementsByClerkship(clerkshipId);
@@ -182,7 +177,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			// Update requirement
 			const updateResult = await requirementService.updateRequirement(requirementId, {
 				overrideAssignmentStrategy: 'continuous_single',
-				overrideBlockSizeDays: null,
+				overrideBlockSizeDays: undefined,
 			});
 			expect(updateResult.success).toBe(true);
 
@@ -191,7 +186,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			expect(reqResult.success).toBe(true);
 			if (!reqResult.success) return;
 			expect(reqResult.data?.overrideAssignmentStrategy).toBe('continuous_single');
-			expect(reqResult.data?.overrideBlockSizeDays).toBeNull();
+			expect(reqResult.data?.overrideBlockSizeDays).toBeUndefined();
 		});
 	});
 
@@ -199,7 +194,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 		it('should delete configuration and cascade to child entities', async () => {
 			// Create complete configuration
 			const clerkshipId = await createTestClerkship(db, 'Surgery', 'Surgery');
-			const preceptorIds = await createTestPreceptors(db, 2, { specialty: 'Surgery' });
+			const preceptorIds = await createTestPreceptors(db, 2);
 
 			const requirementId = await createTestRequirement(db, clerkshipId, {
 				requirementType: 'inpatient',
@@ -213,11 +208,15 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			// Verify entities exist
 			let teamResult = await teamService.getTeam(teamId);
 			expect(teamResult.success).toBe(true);
-			expect(teamResult.data).not.toBeNull();
+			if (teamResult.success) {
+				expect(teamResult.data).not.toBeNull();
+			}
 
 			let reqResult = await requirementService.getRequirement(requirementId);
 			expect(reqResult.success).toBe(true);
-			expect(reqResult.data).not.toBeNull();
+			if (reqResult.success) {
+				expect(reqResult.data).not.toBeNull();
+			}
 
 			// Delete requirement
 			const deleteResult = await requirementService.deleteRequirement(requirementId);
@@ -226,53 +225,51 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			// Verify requirement deleted
 			reqResult = await requirementService.getRequirement(requirementId);
 			expect(reqResult.success).toBe(true);
-			expect(reqResult.data).toBeNull();
+			if (reqResult.success) {
+				expect(reqResult.data).toBeNull();
+			}
 
 			// Note: Team should still exist as it's associated with clerkship, not requirement
 			teamResult = await teamService.getTeam(teamId);
 			expect(teamResult.success).toBe(true);
-			expect(teamResult.data).not.toBeNull();
+			if (teamResult.success) {
+				expect(teamResult.data).not.toBeNull();
+			}
 		});
 	});
 
 	describe('Test 4: Configuration Validation', () => {
 		it('should validate configuration constraints', async () => {
 			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'Pediatrics');
-			const preceptorIds = await createTestPreceptors(db, 3, { specialty: 'Pediatrics' });
+			const preceptorIds = await createTestPreceptors(db, 3);
 
-			// Create a team with validation rules
+			// Create a team with validation rules and members
 			const teamResult = await teamService.createTeam(clerkshipId, {
 				name: 'Pediatrics Team',
 				requireSameHealthSystem: true,
 				requireSameSite: true,
 				requireSameSpecialty: true,
+				requiresAdminApproval: false,
+				members: preceptorIds.map((id, i) => ({
+					preceptorId: id,
+					priority: i + 1,
+				})),
 			});
 			expect(teamResult.success).toBe(true);
 			if (!teamResult.success) return;
 
-			// Try to add team members (should succeed - all same specialty, no health system)
-			for (const preceptorId of preceptorIds) {
-				const memberResult = await teamService.addTeamMember(teamResult.data.id, {
-					preceptorId,
-					priority: 1,
-				});
-				expect(memberResult.success).toBe(true);
-			}
-
-			// Verify team has members
-			const membersResult = await teamService.getTeamMembers(teamResult.data.id);
-			expect(membersResult.success).toBe(true);
-			if (!membersResult.success) return;
-			expect(membersResult.data.length).toBe(3);
+			// Verify team has members by fetching the team
+			const fetchedTeam = await teamService.getTeam(teamResult.data.id);
+			expect(fetchedTeam.success).toBe(true);
+			if (!fetchedTeam.success) return;
+			expect(fetchedTeam.data?.members.length).toBe(3);
 		});
 	});
 
 	describe('Test 5: Hierarchical Capacity Rules', () => {
 		it('should correctly resolve hierarchical capacity rules', async () => {
 			const clerkshipId = await createTestClerkship(db, 'Emergency Medicine', 'Emergency Medicine');
-			const preceptorIds = await createTestPreceptors(db, 1, {
-				specialty: 'Emergency Medicine',
-			});
+			const preceptorIds = await createTestPreceptors(db, 1);
 			const preceptorId = preceptorIds[0];
 
 			// Create rules at different hierarchy levels
@@ -309,7 +306,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 
 	describe('Test 6: Fallback Chain Validation', () => {
 		it('should prevent circular fallback chains', async () => {
-			const preceptorIds = await createTestPreceptors(db, 3, { specialty: 'General' });
+			const preceptorIds = await createTestPreceptors(db, 3);
 
 			// Create initial fallback chain: P1 -> P2 -> P3
 			await createFallbackChain(db, preceptorIds[0], [preceptorIds[1]]);

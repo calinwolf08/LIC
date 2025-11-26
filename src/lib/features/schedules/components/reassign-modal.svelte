@@ -20,10 +20,10 @@
 	let isSaving = $state(false);
 	let validationResult = $state<{ valid: boolean; errors: string[] } | null>(null);
 
-	// Filter preceptors by matching specialty
+	// Return all preceptors (specialty matching disabled since preceptors no longer have specialty)
 	let matchingPreceptors = $derived(() => {
 		if (!assignment) return [];
-		return preceptors.filter((p) => p.specialty === assignment.clerkship_specialty);
+		return preceptors;
 	});
 
 	// Reset form when modal opens
