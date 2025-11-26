@@ -39,7 +39,10 @@ const emailSchema = z
  */
 export const createSiteSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
-	health_system_id: cuid2Schema.optional(),
+	health_system_id: z
+		.string()
+		.transform((val) => (val === '' ? undefined : val))
+		.pipe(cuid2Schema.optional()),
 	address: z
 		.string()
 		.max(500, 'Address is too long')
@@ -60,7 +63,10 @@ export const createSiteSchema = z.object({
 export const updateSiteSchema = z
 	.object({
 		name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long').optional(),
-		health_system_id: cuid2Schema.optional(),
+		health_system_id: z
+			.string()
+			.transform((val) => (val === '' ? undefined : val))
+			.pipe(cuid2Schema.optional()),
 		address: z
 			.string()
 			.max(500, 'Address is too long')
