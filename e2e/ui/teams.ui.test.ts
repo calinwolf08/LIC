@@ -261,6 +261,23 @@ test.describe('Team Management UI', () => {
 			console.log(`[BROWSER] ${msg.type()}: ${msg.text()}`);
 		});
 
+		// Listen for network requests
+		page.on('request', request => {
+			if (request.url().includes('/api/')) {
+				console.log(`[NETWORK] Request: ${request.method()} ${request.url()}`);
+			}
+		});
+
+		page.on('response', response => {
+			if (response.url().includes('/api/')) {
+				console.log(`[NETWORK] Response: ${response.status()} ${response.url()}`);
+			}
+		});
+
+		page.on('requestfailed', request => {
+			console.log(`[NETWORK] Request FAILED: ${request.method()} ${request.url()} - ${request.failure()?.errorText}`);
+		});
+
 		// Create a team first via API
 		const teamId = `team_${Date.now()}`;
 		await executeWithRetry(() =>
