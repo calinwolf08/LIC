@@ -1,14 +1,14 @@
 <script lang="ts">
-	import type { Preceptors } from '$lib/db/types';
+	import type { PreceptorWithAssociations } from '$lib/features/preceptors/services/preceptor-service';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
-		preceptors: Preceptors[];
+		preceptors: PreceptorWithAssociations[];
 		loading?: boolean;
-		onEdit?: (preceptor: Preceptors) => void;
-		onDelete?: (preceptor: Preceptors) => void;
-		onManageAvailability?: (preceptor: Preceptors) => void;
+		onEdit?: (preceptor: PreceptorWithAssociations) => void;
+		onDelete?: (preceptor: PreceptorWithAssociations) => void;
+		onManageAvailability?: (preceptor: PreceptorWithAssociations) => void;
 	}
 
 	let { preceptors, loading = false, onEdit, onDelete, onManageAvailability }: Props = $props();
@@ -77,21 +77,24 @@
 							{/if}
 						</div>
 					</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Health System</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Sites</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Clerkships</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Teams</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Max Students</th>
-					<th class="px-4 py-3 text-left text-sm font-medium">Created</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Actions</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="5" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="8" class="px-4 py-8 text-center text-muted-foreground">
 							Loading...
 						</td>
 					</tr>
 				{:else if sortedPreceptors().length === 0}
 					<tr>
-						<td colspan="5" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="8" class="px-4 py-8 text-center text-muted-foreground">
 							No preceptors found
 						</td>
 					</tr>
@@ -100,10 +103,49 @@
 						<tr class="border-b transition-colors hover:bg-muted/50">
 							<td class="px-4 py-3 text-sm">{preceptor.name}</td>
 							<td class="px-4 py-3 text-sm">{preceptor.email}</td>
-							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
-							<td class="px-4 py-3 text-sm text-muted-foreground">
-								{formatDate(preceptor.created_at as unknown as string)}
+							<td class="px-4 py-3 text-sm">
+								{#if preceptor.health_system_name}
+									<a href="/health-systems" class="text-blue-600 hover:underline">
+										{preceptor.health_system_name}
+									</a>
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
 							</td>
+							<td class="px-4 py-3 text-sm">
+								{#if preceptor.sites && preceptor.sites.length > 0}
+									{#each preceptor.sites as site, i}
+										<a href="/sites/{site.id}/edit" class="text-blue-600 hover:underline">
+											{site.name}
+										</a>{i < preceptor.sites.length - 1 ? ', ' : ''}
+									{/each}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-sm">
+								{#if preceptor.clerkships && preceptor.clerkships.length > 0}
+									{#each preceptor.clerkships as clerkship, i}
+										<a href="/clerkships/{clerkship.id}/config" class="text-blue-600 hover:underline">
+											{clerkship.name}
+										</a>{i < preceptor.clerkships.length - 1 ? ', ' : ''}
+									{/each}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-sm">
+								{#if preceptor.teams && preceptor.teams.length > 0}
+									{#each preceptor.teams as team, i}
+										<a href="/preceptors/teams/{team.id}" class="text-blue-600 hover:underline">
+											{team.name || 'Unnamed'}
+										</a>{i < preceptor.teams.length - 1 ? ', ' : ''}
+									{/each}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
 									{#if onEdit}

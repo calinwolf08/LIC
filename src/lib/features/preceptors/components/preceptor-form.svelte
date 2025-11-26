@@ -9,8 +9,12 @@
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 	import SiteForm from '$lib/features/sites/components/site-form.svelte';
 
+	interface PreceptorWithSiteIds extends Preceptors {
+		site_ids?: string[];
+	}
+
 	interface Props {
-		preceptor?: Preceptors;
+		preceptor?: PreceptorWithSiteIds;
 		healthSystems: Array<{ id: string; name: string }>;
 		sites: Array<{ id: string; name: string; health_system_id: string | null }>;
 		onSuccess?: () => void;
@@ -24,9 +28,11 @@
 		email: preceptor?.email || '',
 		phone: preceptor?.phone || '',
 		health_system_id: preceptor?.health_system_id || '',
-		site_id: preceptor?.site_id || '',
 		max_students: preceptor?.max_students || 1
 	});
+
+	// Multi-site selection state
+	let selectedSiteIds = $state<string[]>(preceptor?.site_ids || []);
 
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
@@ -51,16 +57,16 @@
 		} else {
 			// Clear site selection if health system changed
 			if (formData.health_system_id !== target.value) {
-				formData.site_id = '';
+				selectedSiteIds = [];
 			}
 		}
 	}
 
-	function handleSiteChange(e: Event) {
-		const target = e.target as HTMLSelectElement;
-		if (target.value === '__create_new__') {
-			showSiteForm = true;
-			formData.site_id = '';
+	function toggleSite(siteId: string) {
+		if (selectedSiteIds.includes(siteId)) {
+			selectedSiteIds = selectedSiteIds.filter((id) => id !== siteId);
+		} else {
+			selectedSiteIds = [...selectedSiteIds, siteId];
 		}
 	}
 
@@ -91,7 +97,7 @@
 				// Auto-select the most recently created site
 				if (sitesList.length > 0) {
 					const newest = sitesList[sitesList.length - 1];
-					formData.site_id = newest.id;
+					selectedSiteIds = [...selectedSiteIds, newest.id];
 				}
 			}
 		} catch (error) {
@@ -117,7 +123,14 @@
 		try {
 			// Use appropriate schema for create vs update
 			const schema = preceptor ? updatePreceptorSchema : createPreceptorSchema;
-			const validatedData = schema.parse(formData);
+
+			// Include site_ids in the submission
+			const dataToValidate = {
+				...formData,
+				site_ids: selectedSiteIds.length > 0 ? selectedSiteIds : undefined
+			};
+
+			const validatedData = schema.parse(dataToValidate);
 
 			// Determine endpoint and method
 			const url = preceptor ? `/api/preceptors/${preceptor.id}` : '/api/preceptors';
@@ -251,30 +264,44 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="site_id">Site (Optional)</Label>
-				<select
-					id="site_id"
-					bind:value={formData.site_id}
-					onchange={handleSiteChange}
+				<Label>Sites (Optional)</Label>
+				<div class="max-h-40 overflow-y-auto rounded-md border border-input p-2">
+					{#if filteredSites.length === 0}
+						<p class="text-sm text-muted-foreground py-2">
+							{formData.health_system_id
+								? 'No sites for this health system.'
+								: 'No sites available.'}
+						</p>
+					{:else}
+						{#each filteredSites as site}
+							<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-1 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={selectedSiteIds.includes(site.id)}
+									onchange={() => toggleSite(site.id)}
+									disabled={isSubmitting}
+									class="h-4 w-4 rounded border-gray-300"
+								/>
+								<span class="text-sm">{site.name}</span>
+							</label>
+						{/each}
+					{/if}
+				</div>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={() => (showSiteForm = true)}
 					disabled={isSubmitting}
-					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.site_id
-						? 'border-destructive'
-						: ''}"
 				>
-					<option value="">Select a site...</option>
-					{#each filteredSites as site}
-						<option value={site.id}>{site.name}</option>
-					{/each}
-					<option value="__create_new__" class="font-semibold text-primary">
-						+ Create New Site
-					</option>
-				</select>
-				{#if errors.site_id}
-					<p class="text-sm text-destructive">{errors.site_id}</p>
+					+ Create New Site
+				</Button>
+				{#if errors.site_ids}
+					<p class="text-sm text-destructive">{errors.site_ids}</p>
 				{/if}
-				{#if formData.health_system_id && filteredSites.length === 0}
+				{#if selectedSiteIds.length > 0}
 					<p class="text-sm text-muted-foreground">
-						No sites for this health system. Create one below.
+						{selectedSiteIds.length} site{selectedSiteIds.length === 1 ? '' : 's'} selected
 					</p>
 				{/if}
 			</div>

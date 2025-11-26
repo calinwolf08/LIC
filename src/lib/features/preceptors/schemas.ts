@@ -40,7 +40,8 @@ export const createPreceptorSchema = z.object({
 	email: emailSchema,
 	phone: phoneSchema.optional(),
 	health_system_id: optionalIdSchema,
-	site_id: optionalIdSchema,
+	site_id: optionalIdSchema, // Deprecated: kept for backwards compatibility
+	site_ids: z.array(cuid2Schema).optional(), // New: array of site IDs
 	max_students: positiveIntSchema.default(1)
 });
 
@@ -53,7 +54,8 @@ export const updatePreceptorSchema = z
 		email: emailSchema.optional(),
 		phone: phoneSchema.optional(),
 		health_system_id: optionalIdSchema,
-		site_id: optionalIdSchema,
+		site_id: optionalIdSchema, // Deprecated: kept for backwards compatibility
+		site_ids: z.array(cuid2Schema).optional(), // New: array of site IDs
 		max_students: positiveIntSchema.optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {

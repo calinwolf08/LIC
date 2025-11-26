@@ -1,7 +1,7 @@
 /**
  * Teams API - Collection Endpoints
  *
- * GET /api/preceptors/teams - List teams (filtered by clerkship)
+ * GET /api/preceptors/teams - List teams (optionally filtered by clerkship)
  * POST /api/preceptors/teams - Create new team
  */
 
@@ -15,23 +15,20 @@ import {
 import { handleApiError } from '$lib/api/errors';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { preceptorTeamInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
-import { ZodError } from 'zod';
+import { ZodError, z } from 'zod';
 
 const service = new TeamService(db);
 
 /**
  * GET /api/preceptors/teams
- * Returns teams for a clerkship
+ * Returns all teams, or filtered by clerkship if clerkshipId provided
  */
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const clerkshipId = url.searchParams.get('clerkshipId');
 
-		if (!clerkshipId) {
-			return errorResponse('clerkshipId query parameter is required', 400);
-		}
-
-		const result = await service.getTeamsByClerkship(clerkshipId);
+		// Use getAllTeams which supports optional filtering
+		const result = await service.getAllTeams(clerkshipId || undefined);
 
 		if (!result.success) {
 			return errorResponse(result.error.message, 400);
@@ -43,22 +40,41 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 };
 
+// Schema for POST body with clerkshipId and siteIds
+const createTeamBodySchema = z.object({
+	clerkshipId: z.string().min(1, 'clerkshipId is required'),
+	siteIds: z.array(z.string()).optional().default([]),
+	...preceptorTeamInputSchema.shape
+});
+
 /**
  * POST /api/preceptors/teams
  * Creates a new team
+ * Accepts clerkshipId and siteIds in the request body
  */
 export const POST: RequestHandler = async ({ request, url }) => {
 	try {
-		const clerkshipId = url.searchParams.get('clerkshipId');
+		const body = await request.json();
 
-		if (!clerkshipId) {
-			return errorResponse('clerkshipId query parameter is required', 400);
+		// Support both query param (legacy) and body (new)
+		let clerkshipId = url.searchParams.get('clerkshipId');
+		let siteIds: string[] = [];
+
+		if (body.clerkshipId) {
+			clerkshipId = body.clerkshipId;
+		}
+		if (body.siteIds) {
+			siteIds = body.siteIds;
 		}
 
-		const body = await request.json();
+		if (!clerkshipId) {
+			return errorResponse('clerkshipId is required (in body or query param)', 400);
+		}
+
 		const validatedData = preceptorTeamInputSchema.parse(body);
 
-		const result = await service.createTeam(clerkshipId, validatedData);
+		// Use createTeamWithSites to handle site associations
+		const result = await service.createTeamWithSites(clerkshipId, validatedData, siteIds);
 
 		if (!result.success) {
 			return errorResponse(result.error.message, 400);

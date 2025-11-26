@@ -1,13 +1,14 @@
 /**
  * Team API - Individual Team Endpoints
  *
+ * GET /api/preceptors/teams/[id] - Get team
  * PATCH /api/preceptors/teams/[id] - Update team
  * DELETE /api/preceptors/teams/[id] - Delete team
  */
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { successResponse, errorResponse, handleApiError, validationErrorResponse } from '$lib/api';
+import { successResponse, errorResponse, handleApiError, validationErrorResponse, notFoundResponse } from '$lib/api';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { preceptorTeamInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
 import { ZodError, z } from 'zod';
@@ -15,34 +16,66 @@ import { ZodError, z } from 'zod';
 const service = new TeamService(db);
 
 /**
+ * GET /api/preceptors/teams/[id]
+ * Get a single team with members and sites
+ */
+export const GET: RequestHandler = async ({ params }) => {
+	try {
+		const result = await service.getTeam(params.id);
+
+		if (!result.success) {
+			return errorResponse(result.error.message, 400);
+		}
+
+		if (!result.data) {
+			return notFoundResponse('Team');
+		}
+
+		// Get sites for this team
+		const siteIds = await service.getTeamSites(params.id);
+
+		// Get site details
+		const sites = siteIds.length > 0
+			? await db
+					.selectFrom('sites')
+					.select(['id', 'name'])
+					.where('id', 'in', siteIds)
+					.execute()
+			: [];
+
+		return successResponse({
+			...result.data,
+			sites: sites.map((s) => ({ id: s.id as string, name: s.name }))
+		});
+	} catch (error) {
+		return handleApiError(error);
+	}
+};
+
+/**
  * PATCH /api/preceptors/teams/[id]
  * Update an existing team
+ * Accepts siteIds in the request body
  */
 export const PATCH: RequestHandler = async ({ params, request }) => {
-	console.log('[PATCH /teams/:id] START', { teamId: params.id });
 	try {
-		console.log('[PATCH /teams/:id] Parsing request body');
 		const body = await request.json();
-		console.log('[PATCH /teams/:id] Body parsed', { body });
+
+		// Extract siteIds if provided
+		const siteIds: string[] | undefined = body.siteIds;
 
 		// Validate members if provided
 		if (body.members) {
-			console.log('[PATCH /teams/:id] Validating with members');
 			// If members are included, validate the full schema
 			const validatedData = preceptorTeamInputSchema.parse(body);
-			console.log('[PATCH /teams/:id] Calling service.updateTeam with members');
-			const result = await service.updateTeam(params.id, validatedData);
-			console.log('[PATCH /teams/:id] Service returned', { success: result.success });
+			const result = await service.updateTeamWithSites(params.id, validatedData, siteIds);
 
 			if (!result.success) {
-				console.log('[PATCH /teams/:id] Update failed', result.error);
 				return errorResponse(result.error.message, 400);
 			}
 
-			console.log('[PATCH /teams/:id] Returning success response');
 			return successResponse(result.data);
 		} else {
-			console.log('[PATCH /teams/:id] Validating without members');
 			// If no members, only validate the team properties
 			const teamPropsSchema = z.object({
 				name: z.string().optional(),
@@ -53,26 +86,19 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 			});
 
 			const validatedData = teamPropsSchema.parse(body);
-			console.log('[PATCH /teams/:id] Calling service.updateTeam without members');
-			const result = await service.updateTeam(params.id, validatedData);
-			console.log('[PATCH /teams/:id] Service returned', { success: result.success });
+			const result = await service.updateTeamWithSites(params.id, validatedData, siteIds);
 
 			if (!result.success) {
-				console.log('[PATCH /teams/:id] Update failed', result.error);
 				return errorResponse(result.error.message, 400);
 			}
 
-			console.log('[PATCH /teams/:id] Returning success response');
 			return successResponse(result.data);
 		}
 	} catch (error) {
-		console.error('[PATCH /teams/:id] Caught error', error);
 		if (error instanceof ZodError) {
-			console.log('[PATCH /teams/:id] Zod validation error');
 			return validationErrorResponse(error);
 		}
 
-		console.log('[PATCH /teams/:id] Unhandled error');
 		return handleApiError(error);
 	}
 };

@@ -22,6 +22,8 @@ import { nanoid } from 'nanoid';
  */
 export interface TeamWithMembers extends PreceptorTeam {
   members: PreceptorTeamMember[];
+  sites?: Array<{ id: string; name: string }>;
+  clerkshipName?: string;
 }
 
 /**
@@ -507,5 +509,178 @@ export class TeamService {
       priority: row.priority,
       createdAt: new Date(row.created_at),
     };
+  }
+
+  // ============================================================================
+  // Multi-Site Management
+  // ============================================================================
+
+  /**
+   * Get site IDs for a team
+   */
+  async getTeamSites(teamId: string): Promise<string[]> {
+    const sites = await this.db
+      .selectFrom('team_sites')
+      .select('site_id')
+      .where('team_id', '=', teamId)
+      .execute();
+    return sites.map((s) => s.site_id);
+  }
+
+  /**
+   * Set sites for a team (replaces all existing)
+   */
+  async setTeamSites(teamId: string, siteIds: string[]): Promise<void> {
+    // Delete existing associations
+    await this.db.deleteFrom('team_sites').where('team_id', '=', teamId).execute();
+
+    // Add new associations
+    if (siteIds.length > 0) {
+      await this.db
+        .insertInto('team_sites')
+        .values(
+          siteIds.map((siteId) => ({
+            team_id: teamId,
+            site_id: siteId
+          }))
+        )
+        .execute();
+    }
+  }
+
+  /**
+   * Get all teams with members, sites, and clerkship info
+   * Optionally filter by clerkship
+   */
+  async getAllTeams(clerkshipId?: string): Promise<ServiceResult<TeamWithMembers[]>> {
+    try {
+      let query = this.db
+        .selectFrom('preceptor_teams')
+        .innerJoin('clerkships', 'clerkships.id', 'preceptor_teams.clerkship_id')
+        .select([
+          'preceptor_teams.id',
+          'preceptor_teams.clerkship_id',
+          'preceptor_teams.name',
+          'preceptor_teams.require_same_health_system',
+          'preceptor_teams.require_same_site',
+          'preceptor_teams.require_same_specialty',
+          'preceptor_teams.requires_admin_approval',
+          'preceptor_teams.created_at',
+          'preceptor_teams.updated_at',
+          'clerkships.name as clerkship_name'
+        ]);
+
+      if (clerkshipId) {
+        query = query.where('preceptor_teams.clerkship_id', '=', clerkshipId);
+      }
+
+      const teams = await query.execute();
+
+      const teamsWithMembers: TeamWithMembers[] = [];
+      for (const team of teams) {
+        // Get members
+        const members = await this.db
+          .selectFrom('preceptor_team_members')
+          .innerJoin('preceptors', 'preceptors.id', 'preceptor_team_members.preceptor_id')
+          .select([
+            'preceptor_team_members.id',
+            'preceptor_team_members.team_id',
+            'preceptor_team_members.preceptor_id',
+            'preceptor_team_members.role',
+            'preceptor_team_members.priority',
+            'preceptor_team_members.created_at',
+            'preceptors.name as preceptorName'
+          ])
+          .where('team_id', '=', team.id)
+          .orderBy('priority', 'asc')
+          .execute();
+
+        // Get sites
+        const sites = await this.db
+          .selectFrom('team_sites')
+          .innerJoin('sites', 'sites.id', 'team_sites.site_id')
+          .select(['sites.id', 'sites.name'])
+          .where('team_sites.team_id', '=', team.id)
+          .execute();
+
+        teamsWithMembers.push({
+          ...this.mapTeam(team),
+          clerkshipName: team.clerkship_name,
+          members: members.map((m: any) => ({
+            ...this.mapTeamMember(m),
+            preceptorName: m.preceptorName
+          })),
+          sites: sites.map((s) => ({ id: s.id as string, name: s.name }))
+        });
+      }
+
+      return Result.success(teamsWithMembers);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch teams', error));
+    }
+  }
+
+  /**
+   * Create team with site IDs
+   */
+  async createTeamWithSites(
+    clerkshipId: string,
+    input: PreceptorTeamInput,
+    siteIds: string[]
+  ): Promise<ServiceResult<TeamWithMembers>> {
+    const result = await this.createTeam(clerkshipId, input);
+    if (!result.success) {
+      return result;
+    }
+
+    // Set sites for the team
+    if (siteIds.length > 0) {
+      await this.setTeamSites(result.data.id, siteIds);
+    }
+
+    // Get sites to return
+    const sites = await this.db
+      .selectFrom('team_sites')
+      .innerJoin('sites', 'sites.id', 'team_sites.site_id')
+      .select(['sites.id', 'sites.name'])
+      .where('team_sites.team_id', '=', result.data.id)
+      .execute();
+
+    return Result.success({
+      ...result.data,
+      sites: sites.map((s) => ({ id: s.id as string, name: s.name }))
+    });
+  }
+
+  /**
+   * Update team with site IDs
+   */
+  async updateTeamWithSites(
+    teamId: string,
+    input: Partial<PreceptorTeamInput>,
+    siteIds?: string[]
+  ): Promise<ServiceResult<TeamWithMembers>> {
+    const result = await this.updateTeam(teamId, input);
+    if (!result.success) {
+      return result;
+    }
+
+    // Update sites if provided
+    if (siteIds !== undefined) {
+      await this.setTeamSites(teamId, siteIds);
+    }
+
+    // Get sites to return
+    const sites = await this.db
+      .selectFrom('team_sites')
+      .innerJoin('sites', 'sites.id', 'team_sites.site_id')
+      .select(['sites.id', 'sites.name'])
+      .where('team_sites.team_id', '=', teamId)
+      .execute();
+
+    return Result.success({
+      ...result.data,
+      sites: sites.map((s) => ({ id: s.id as string, name: s.name }))
+    });
   }
 }

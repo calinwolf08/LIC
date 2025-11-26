@@ -197,3 +197,168 @@ export async function isEmailTaken(
 	const preceptor = await query.executeTakeFirst();
 	return !!preceptor;
 }
+
+// ============================================================================
+// Multi-Site Management
+// ============================================================================
+
+/**
+ * Get site IDs for a preceptor
+ */
+export async function getPreceptorSites(db: Kysely<DB>, preceptorId: string): Promise<string[]> {
+	const sites = await db
+		.selectFrom('preceptor_sites')
+		.select('site_id')
+		.where('preceptor_id', '=', preceptorId)
+		.execute();
+	return sites.map((s) => s.site_id);
+}
+
+/**
+ * Set sites for a preceptor (replaces all existing)
+ */
+export async function setPreceptorSites(
+	db: Kysely<DB>,
+	preceptorId: string,
+	siteIds: string[]
+): Promise<void> {
+	// Delete existing associations
+	await db.deleteFrom('preceptor_sites').where('preceptor_id', '=', preceptorId).execute();
+
+	// Add new associations
+	if (siteIds.length > 0) {
+		await db
+			.insertInto('preceptor_sites')
+			.values(
+				siteIds.map((siteId) => ({
+					preceptor_id: preceptorId,
+					site_id: siteId
+				}))
+			)
+			.execute();
+	}
+}
+
+/**
+ * Preceptor with all associations (health system, sites, clerkships, teams)
+ */
+export interface PreceptorWithAssociations {
+	id: string;
+	name: string;
+	email: string;
+	phone: string | null;
+	max_students: number;
+	health_system_id: string | null;
+	health_system_name: string | null;
+	created_at: string;
+	updated_at: string;
+	sites: Array<{ id: string; name: string }>;
+	clerkships: Array<{ id: string; name: string }>;
+	teams: Array<{ id: string; name: string | null }>;
+}
+
+/**
+ * Get preceptors with their sites, clerkships, and teams
+ */
+export async function getPreceptorsWithAssociations(
+	db: Kysely<DB>
+): Promise<PreceptorWithAssociations[]> {
+	const preceptors = await db
+		.selectFrom('preceptors')
+		.leftJoin('health_systems', 'preceptors.health_system_id', 'health_systems.id')
+		.select([
+			'preceptors.id',
+			'preceptors.name',
+			'preceptors.email',
+			'preceptors.phone',
+			'preceptors.max_students',
+			'preceptors.health_system_id',
+			'health_systems.name as health_system_name',
+			'preceptors.created_at',
+			'preceptors.updated_at'
+		])
+		.orderBy('preceptors.name', 'asc')
+		.execute();
+
+	// For each preceptor, get their sites, clerkships (via teams), and teams
+	const result = await Promise.all(
+		preceptors.map(async (p) => {
+			// Get sites via preceptor_sites junction table
+			const sites = await db
+				.selectFrom('preceptor_sites')
+				.innerJoin('sites', 'preceptor_sites.site_id', 'sites.id')
+				.select(['sites.id', 'sites.name'])
+				.where('preceptor_sites.preceptor_id', '=', p.id as string)
+				.execute();
+
+			// Get teams and clerkships via preceptor_team_members
+			const teams = await db
+				.selectFrom('preceptor_team_members')
+				.innerJoin('preceptor_teams', 'preceptor_team_members.team_id', 'preceptor_teams.id')
+				.innerJoin('clerkships', 'preceptor_teams.clerkship_id', 'clerkships.id')
+				.select([
+					'preceptor_teams.id as team_id',
+					'preceptor_teams.name as team_name',
+					'clerkships.id as clerkship_id',
+					'clerkships.name as clerkship_name'
+				])
+				.where('preceptor_team_members.preceptor_id', '=', p.id as string)
+				.execute();
+
+			// Extract unique clerkships from teams
+			const clerkshipsMap = new Map<string, string>();
+			teams.forEach((t) => clerkshipsMap.set(t.clerkship_id, t.clerkship_name));
+			const clerkships = Array.from(clerkshipsMap.entries()).map(([id, name]) => ({ id, name }));
+
+			return {
+				id: p.id as string,
+				name: p.name,
+				email: p.email,
+				phone: p.phone,
+				max_students: p.max_students,
+				health_system_id: p.health_system_id,
+				health_system_name: p.health_system_name,
+				created_at: p.created_at as string,
+				updated_at: p.updated_at as string,
+				sites: sites.map((s) => ({ id: s.id as string, name: s.name })),
+				clerkships,
+				teams: teams.map((t) => ({ id: t.team_id as string, name: t.team_name }))
+			};
+		})
+	);
+
+	return result;
+}
+
+/**
+ * Get preceptors filtered by site IDs
+ * Returns preceptors who work at any of the specified sites, or all if no sites specified
+ */
+export async function getPreceptorsBySites(
+	db: Kysely<DB>,
+	siteIds: string[]
+): Promise<Selectable<Preceptors>[]> {
+	if (siteIds.length === 0) {
+		return getPreceptors(db);
+	}
+
+	// Get preceptors who work at any of the specified sites
+	const preceptorIds = await db
+		.selectFrom('preceptor_sites')
+		.select('preceptor_id')
+		.where('site_id', 'in', siteIds)
+		.execute();
+
+	const uniqueIds = [...new Set(preceptorIds.map((p) => p.preceptor_id))];
+
+	if (uniqueIds.length === 0) {
+		return [];
+	}
+
+	return db
+		.selectFrom('preceptors')
+		.selectAll()
+		.where('id', 'in', uniqueIds)
+		.orderBy('name', 'asc')
+		.execute();
+}

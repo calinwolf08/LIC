@@ -271,6 +271,18 @@ export interface PreceptorTeams {
   updated_at: Generated<string>;
 }
 
+export interface PreceptorSites {
+  preceptor_id: string;
+  site_id: string;
+  created_at: Generated<string>;
+}
+
+export interface TeamSites {
+  team_id: string;
+  site_id: string;
+  created_at: Generated<string>;
+}
+
 export interface ScheduleAssignments {
   clerkship_id: string;
   created_at: Generated<string>;
@@ -423,9 +435,11 @@ export interface DB {
   preceptor_capacity_rules: PreceptorCapacityRules;
   preceptor_fallbacks: PreceptorFallbacks;
   preceptor_site_clerkships: PreceptorSiteClerkships;
+  preceptor_sites: PreceptorSites;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
+  team_sites: TeamSites;
   schedule_assignments: ScheduleAssignments;
   scheduling_periods: SchedulingPeriods;
   session: Session;

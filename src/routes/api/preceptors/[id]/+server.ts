@@ -18,14 +18,16 @@ import { NotFoundError, ConflictError, handleApiError } from '$lib/api/errors';
 import {
 	getPreceptorById,
 	updatePreceptor,
-	deletePreceptor
+	deletePreceptor,
+	setPreceptorSites,
+	getPreceptorSites
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { updatePreceptorSchema, preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
 import { ZodError } from 'zod';
 
 /**
  * GET /api/preceptors/[id]
- * Returns a single preceptor
+ * Returns a single preceptor with their site IDs
  */
 export const GET: RequestHandler = async ({ params }) => {
 	try {
@@ -38,7 +40,13 @@ export const GET: RequestHandler = async ({ params }) => {
 			return notFoundResponse('Preceptor');
 		}
 
-		return successResponse(preceptor);
+		// Get site IDs for this preceptor
+		const siteIds = await getPreceptorSites(db, id);
+
+		return successResponse({
+			...preceptor,
+			site_ids: siteIds
+		});
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return validationErrorResponse(error);
@@ -63,7 +71,18 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
 		const updatedPreceptor = await updatePreceptor(db, id, validatedData);
 
-		return successResponse(updatedPreceptor);
+		// Handle site_ids if provided (new multi-site support)
+		if (validatedData.site_ids !== undefined) {
+			await setPreceptorSites(db, id, validatedData.site_ids);
+		}
+
+		// Get updated site IDs
+		const siteIds = await getPreceptorSites(db, id);
+
+		return successResponse({
+			...updatedPreceptor,
+			site_ids: siteIds
+		});
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return validationErrorResponse(error);
