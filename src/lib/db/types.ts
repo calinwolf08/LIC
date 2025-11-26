@@ -326,10 +326,13 @@ export interface SiteElectives {
 
 export interface Sites {
   address: string | null;
+  contact_email: string | null;
+  contact_person: string | null;
   created_at: Generated<string>;
-  health_system_id: string;
+  health_system_id: string | null;
   id: string | null;
   name: string;
+  office_phone: string | null;
   updated_at: Generated<string>;
 }
 
