@@ -6,7 +6,7 @@
 
 import { test, expect } from '@playwright/test';
 import { gotoAndWait } from '../helpers';
-import { getTestDb, clearTestData } from '../test-db';
+import { getTestDb, executeWithRetry } from '../test-db';
 import type { Kysely } from 'kysely';
 import type { DB } from '../../src/lib/db/types';
 
@@ -26,98 +26,108 @@ test.describe('Team Management UI', () => {
 	});
 
 	test.beforeEach(async () => {
-		// Don't clear data - tests use unique IDs (timestamps) so they don't conflict
-		// This avoids database locking issues with concurrent access
-
+		// No need to clear data - using unique timestamps for test isolation
 		// Create health system
 		healthSystemId = `hs_${Date.now()}`;
-		await db
-			.insertInto('health_systems')
-			.values({
-				id: healthSystemId,
-				name: 'Test Health System',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('health_systems')
+				.values({
+					id: healthSystemId,
+					name: 'Test Health System',
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
 		// Create site
 		siteId = `site_${Date.now()}`;
-		await db
-			.insertInto('sites')
-			.values({
-				id: siteId,
-				name: 'Test Site',
-				health_system_id: healthSystemId,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('sites')
+				.values({
+					id: siteId,
+					name: 'Test Site',
+					health_system_id: healthSystemId,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
 		// Create test clerkship
 		clerkshipId = `clerkship_${Date.now()}`;
 		const timestamp = Date.now();
-		await db
-			.insertInto('clerkships')
-			.values({
-				id: clerkshipId,
-				name: `Test Clerkship for Teams ${timestamp}`,
-				specialty: 'Internal Medicine',
-				clerkship_type: 'outpatient',
-				required_days: 20,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('clerkships')
+				.values({
+					id: clerkshipId,
+					name: `Test Clerkship for Teams ${timestamp}`,
+					specialty: 'Internal Medicine',
+					clerkship_type: 'outpatient',
+					required_days: 20,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
 		// Create test preceptors
 		preceptor1Id = `preceptor_${Date.now()}_1`;
-		await db
-			.insertInto('preceptors')
-			.values({
-				id: preceptor1Id,
-				name: 'Dr. Alice Johnson',
-				email: `alice.${Date.now()}@example.com`,
-				specialty: 'Cardiology',
-				health_system_id: healthSystemId,
-				site_id: siteId,
-				max_students: 2,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptors')
+				.values({
+					id: preceptor1Id,
+					name: 'Dr. Alice Johnson',
+					email: `alice.${Date.now()}@example.com`,
+					specialty: 'Cardiology',
+					health_system_id: healthSystemId,
+					site_id: siteId,
+					max_students: 2,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
 		preceptor2Id = `preceptor_${Date.now()}_2`;
-		await db
-			.insertInto('preceptors')
-			.values({
-				id: preceptor2Id,
-				name: 'Dr. Bob Smith',
-				email: `bob.${Date.now()}@example.com`,
-				specialty: 'Cardiology',
-				health_system_id: healthSystemId,
-				site_id: siteId,
-				max_students: 2,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptors')
+				.values({
+					id: preceptor2Id,
+					name: 'Dr. Bob Smith',
+					email: `bob.${Date.now()}@example.com`,
+					specialty: 'Cardiology',
+					health_system_id: healthSystemId,
+					site_id: siteId,
+					max_students: 2,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
 		preceptor3Id = `preceptor_${Date.now()}_3`;
-		await db
-			.insertInto('preceptors')
-			.values({
-				id: preceptor3Id,
-				name: 'Dr. Charlie Davis',
-				email: `charlie.${Date.now()}@example.com`,
-				specialty: 'Cardiology',
-				health_system_id: healthSystemId,
-				site_id: siteId,
-				max_students: 2,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptors')
+				.values({
+					id: preceptor3Id,
+					name: 'Dr. Charlie Davis',
+					email: `charlie.${Date.now()}@example.com`,
+					specialty: 'Cardiology',
+					health_system_id: healthSystemId,
+					site_id: siteId,
+					max_students: 2,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 	});
 
 	test.afterEach(async () => {
@@ -248,42 +258,46 @@ test.describe('Team Management UI', () => {
 	test('should edit an existing team', async ({ page }) => {
 		// Create a team first via API
 		const teamId = `team_${Date.now()}`;
-		await db
-			.insertInto('preceptor_teams')
-			.values({
-				id: teamId,
-				clerkship_id: clerkshipId,
-				name: 'Original Team Name',
-				require_same_health_system: 0,
-				require_same_site: 0,
-				require_same_specialty: 1,
-				requires_admin_approval: 0,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptor_teams')
+				.values({
+					id: teamId,
+					clerkship_id: clerkshipId,
+					name: 'Original Team Name',
+					require_same_health_system: 0,
+					require_same_site: 0,
+					require_same_specialty: 1,
+					requires_admin_approval: 0,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
-		await db
-			.insertInto('preceptor_team_members')
-			.values([
-				{
-					id: `member_1_${Date.now()}`,
-					team_id: teamId,
-					preceptor_id: preceptor1Id,
-					role: 'Lead',
-					priority: 1,
-					created_at: new Date().toISOString()
-				},
-				{
-					id: `member_2_${Date.now()}`,
-					team_id: teamId,
-					preceptor_id: preceptor2Id,
-					role: null,
-					priority: 2,
-					created_at: new Date().toISOString()
-				}
-			])
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptor_team_members')
+				.values([
+					{
+						id: `member_1_${Date.now()}`,
+						team_id: teamId,
+						preceptor_id: preceptor1Id,
+						role: 'Lead',
+						priority: 1,
+						created_at: new Date().toISOString()
+					},
+					{
+						id: `member_2_${Date.now()}`,
+						team_id: teamId,
+						preceptor_id: preceptor2Id,
+						role: null,
+						priority: 2,
+						created_at: new Date().toISOString()
+					}
+				])
+				.execute()
+		);
 
 		// Navigate to clerkship configuration
 		await gotoAndWait(page, `/scheduling-config/clerkships/${clerkshipId}`);
@@ -326,42 +340,46 @@ test.describe('Team Management UI', () => {
 	test('should delete a team', async ({ page }) => {
 		// Create a team first via API
 		const teamId = `team_${Date.now()}`;
-		await db
-			.insertInto('preceptor_teams')
-			.values({
-				id: teamId,
-				clerkship_id: clerkshipId,
-				name: 'Team to Delete',
-				require_same_health_system: 0,
-				require_same_site: 0,
-				require_same_specialty: 0,
-				requires_admin_approval: 0,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptor_teams')
+				.values({
+					id: teamId,
+					clerkship_id: clerkshipId,
+					name: 'Team to Delete',
+					require_same_health_system: 0,
+					require_same_site: 0,
+					require_same_specialty: 0,
+					requires_admin_approval: 0,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute()
+		);
 
-		await db
-			.insertInto('preceptor_team_members')
-			.values([
-				{
-					id: `member_1_${Date.now()}`,
-					team_id: teamId,
-					preceptor_id: preceptor1Id,
-					role: null,
-					priority: 1,
-					created_at: new Date().toISOString()
-				},
-				{
-					id: `member_2_${Date.now()}`,
-					team_id: teamId,
-					preceptor_id: preceptor2Id,
-					role: null,
-					priority: 2,
-					created_at: new Date().toISOString()
-				}
-			])
-			.execute();
+		await executeWithRetry(() =>
+			db
+				.insertInto('preceptor_team_members')
+				.values([
+					{
+						id: `member_1_${Date.now()}`,
+						team_id: teamId,
+						preceptor_id: preceptor1Id,
+						role: null,
+						priority: 1,
+						created_at: new Date().toISOString()
+					},
+					{
+						id: `member_2_${Date.now()}`,
+						team_id: teamId,
+						preceptor_id: preceptor2Id,
+						role: null,
+						priority: 2,
+						created_at: new Date().toISOString()
+					}
+				])
+				.execute()
+		);
 
 		// Navigate to clerkship configuration
 		await gotoAndWait(page, `/scheduling-config/clerkships/${clerkshipId}`);
