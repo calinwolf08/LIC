@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Schedule Assignments - Schema Validation Tests
  *
@@ -14,12 +13,21 @@ import {
 	assignmentFiltersSchema
 } from './schemas';
 
+// Valid CUID2-like test IDs (20-30 chars starting with letter)
+const validStudentId = 'clstudent00000000001';
+const validPreceptorId = 'clpreceptor000000001';
+const validClerkshipId = 'clclerkship000000001';
+const validStudentId2 = 'clstudent00000000002';
+const validPreceptorId2 = 'clpreceptor000000002';
+const validClerkshipId2 = 'clclerkship000000002';
+const validAssignmentId = 'classignment00000001';
+
 describe('createAssignmentSchema', () => {
 	it('validates valid assignment with all required fields', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			date: '2024-01-15'
 		};
 		const result = createAssignmentSchema.safeParse(data);
@@ -31,9 +39,9 @@ describe('createAssignmentSchema', () => {
 
 	it('validates assignment with explicit status', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			date: '2024-01-15',
 			status: 'completed'
 		};
@@ -46,8 +54,8 @@ describe('createAssignmentSchema', () => {
 
 	it('rejects assignment missing student_id', () => {
 		const data = {
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			date: '2024-01-15'
 		};
 		const result = createAssignmentSchema.safeParse(data);
@@ -56,8 +64,8 @@ describe('createAssignmentSchema', () => {
 
 	it('rejects assignment missing preceptor_id', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: validStudentId,
+			clerkship_id: validClerkshipId,
 			date: '2024-01-15'
 		};
 		const result = createAssignmentSchema.safeParse(data);
@@ -66,8 +74,8 @@ describe('createAssignmentSchema', () => {
 
 	it('rejects assignment missing clerkship_id', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
 			date: '2024-01-15'
 		};
 		const result = createAssignmentSchema.safeParse(data);
@@ -76,19 +84,19 @@ describe('createAssignmentSchema', () => {
 
 	it('rejects assignment missing date', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f'
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId
 		};
 		const result = createAssignmentSchema.safeParse(data);
 		expect(result.success).toBe(false);
 	});
 
-	it('rejects invalid UUID for student_id', () => {
+	it('rejects invalid ID format for student_id', () => {
 		const data = {
-			student_id: 'not-a-uuid',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: 'short', // too short for CUID2
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			date: '2024-01-15'
 		};
 		const result = createAssignmentSchema.safeParse(data);
@@ -97,9 +105,9 @@ describe('createAssignmentSchema', () => {
 
 	it('rejects invalid date format', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			date: '01/15/2024'
 		};
 		const result = createAssignmentSchema.safeParse(data);
@@ -116,7 +124,7 @@ describe('updateAssignmentSchema', () => {
 
 	it('validates update with multiple fields', () => {
 		const data = {
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
+			preceptor_id: validPreceptorId,
 			date: '2024-01-16',
 			status: 'rescheduled'
 		};
@@ -126,9 +134,9 @@ describe('updateAssignmentSchema', () => {
 
 	it('validates update with all fields', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			date: '2024-01-15',
 			status: 'scheduled'
 		};
@@ -141,13 +149,13 @@ describe('updateAssignmentSchema', () => {
 		const result = updateAssignmentSchema.safeParse(data);
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			const errorMessages = result.error.issues.map(issue => issue.message);
-			expect(errorMessages.some(msg => msg.includes('At least one field'))).toBe(true);
+			const errorMessages = result.error.issues.map((issue) => issue.message);
+			expect(errorMessages.some((msg) => msg.includes('At least one field'))).toBe(true);
 		}
 	});
 
-	it('rejects update with invalid UUID', () => {
-		const data = { student_id: 'not-a-uuid' };
+	it('rejects update with invalid ID format', () => {
+		const data = { student_id: 'short' };
 		const result = updateAssignmentSchema.safeParse(data);
 		expect(result.success).toBe(false);
 	});
@@ -164,15 +172,15 @@ describe('bulkAssignmentSchema', () => {
 		const data = {
 			assignments: [
 				{
-					student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-					preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-					clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+					student_id: validStudentId,
+					preceptor_id: validPreceptorId,
+					clerkship_id: validClerkshipId,
 					date: '2024-01-15'
 				},
 				{
-					student_id: 'd4e5f6a7-b8c9-4d5e-8f9a-0b1c2d3e4f5a',
-					preceptor_id: 'e5f6a7b8-c9d0-4e5f-8a9b-0c1d2e3f4a5b',
-					clerkship_id: 'f6a7b8c9-d0e1-4f5a-8b9c-0d1e2f3a4b5c',
+					student_id: validStudentId2,
+					preceptor_id: validPreceptorId2,
+					clerkship_id: validClerkshipId2,
 					date: '2024-01-16'
 				}
 			]
@@ -197,9 +205,9 @@ describe('bulkAssignmentSchema', () => {
 		const data = {
 			assignments: [
 				{
-					student_id: 'not-a-uuid',
-					preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-					clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+					student_id: 'short',
+					preceptor_id: validPreceptorId,
+					clerkship_id: validClerkshipId,
 					date: '2024-01-15'
 				}
 			]
@@ -210,14 +218,14 @@ describe('bulkAssignmentSchema', () => {
 });
 
 describe('assignmentIdSchema', () => {
-	it('validates valid UUID', () => {
-		const data = { id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d' };
+	it('validates valid ID', () => {
+		const data = { id: validAssignmentId };
 		const result = assignmentIdSchema.safeParse(data);
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects invalid UUID', () => {
-		const data = { id: 'not-a-uuid' };
+	it('rejects invalid ID format', () => {
+		const data = { id: 'short' };
 		const result = assignmentIdSchema.safeParse(data);
 		expect(result.success).toBe(false);
 	});
@@ -232,9 +240,9 @@ describe('assignmentIdSchema', () => {
 describe('assignmentFiltersSchema', () => {
 	it('validates filters with all fields', () => {
 		const data = {
-			student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-			preceptor_id: 'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-			clerkship_id: 'c3d4e5f6-a7b8-4c5d-8e9f-0a1b2c3d4e5f',
+			student_id: validStudentId,
+			preceptor_id: validPreceptorId,
+			clerkship_id: validClerkshipId,
 			start_date: '2024-01-01',
 			end_date: '2024-12-31'
 		};
@@ -249,7 +257,7 @@ describe('assignmentFiltersSchema', () => {
 	});
 
 	it('validates filters with only student_id', () => {
-		const data = { student_id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d' };
+		const data = { student_id: validStudentId };
 		const result = assignmentFiltersSchema.safeParse(data);
 		expect(result.success).toBe(true);
 	});
@@ -275,8 +283,8 @@ describe('assignmentFiltersSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects invalid UUID in student_id filter', () => {
-		const data = { student_id: 'not-a-uuid' };
+	it('rejects invalid ID format in student_id filter', () => {
+		const data = { student_id: 'short' };
 		const result = assignmentFiltersSchema.safeParse(data);
 		expect(result.success).toBe(false);
 	});

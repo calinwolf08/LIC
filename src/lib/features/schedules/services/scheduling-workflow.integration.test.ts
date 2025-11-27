@@ -24,6 +24,15 @@ import {
 } from './assignment-service';
 
 /**
+ * Generate a CUID2-like test ID (20-30 characters)
+ */
+let testIdCounter = 0;
+function generateTestId(prefix: string = 'cl'): string {
+	testIdCounter++;
+	return `${prefix}${testIdCounter.toString().padStart(18, '0')}`;
+}
+
+/**
  * Create test database with in-memory SQLite
  */
 function createTestDb(): Kysely<DB> {
@@ -62,14 +71,14 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-	// Preceptors table
+	// Preceptors table (no specialty field - removed from schema)
 	await db.schema
 		.createTable('preceptors')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull())
-		.addColumn('specialty', 'text', (col) => col.notNull())
-		.addColumn('health_system_id', 'text', (col) => col.notNull())
+		.addColumn('phone', 'text')
+		.addColumn('health_system_id', 'text')
 		.addColumn('site_id', 'text')
 		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -81,7 +90,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.createTable('clerkships')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('specialty', 'text', (col) => col.notNull())
+		.addColumn('clerkship_type', 'text', (col) => col.notNull())
 		.addColumn('required_days', 'integer', (col) => col.notNull())
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -140,7 +149,7 @@ async function createHealthSystem(db: Kysely<DB>, name: string = 'Test Health Sy
 	const healthSystem = await db
 		.insertInto('health_systems')
 		.values({
-			id: crypto.randomUUID(),
+			id: generateTestId('clhs'),
 			name,
 			location: 'Test Location',
 			description: null,
@@ -156,6 +165,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 	let db: Kysely<DB>;
 
 	beforeEach(async () => {
+		testIdCounter = 0; // Reset counter for each test
 		db = createTestDb();
 		await initializeSchema(db);
 	});
@@ -185,20 +195,18 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(student1.id).toBeDefined();
 			expect(student2.id).toBeDefined();
 
-			// Step 2: Create preceptors
+			// Step 2: Create preceptors (no specialty field)
 			const preceptor1 = await createPreceptor(db, {
 				name: 'Dr. Sarah Williams',
 				email: 'sarah@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 2
 			});
 
 			const preceptor2 = await createPreceptor(db, {
 				name: 'Dr. John Davis',
 				email: 'john@hospital.com',
-				specialty: 'Neurology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 1
 			});
 
@@ -208,13 +216,13 @@ describe('Scheduling Workflow Integration Tests', () => {
 			// Step 3: Create clerkships
 			const clerkship1 = await createClerkship(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 5
 			});
 
 			const clerkship2 = await createClerkship(db, {
 				name: 'Neurology Rotation',
-				specialty: 'Neurology',
+				clerkship_type: 'outpatient',
 				required_days: 3
 			});
 
@@ -222,11 +230,11 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(clerkship2.id).toBeDefined();
 
 			// Step 4: Set preceptor availability
-			await setAvailability(db, preceptor1.id, '2024-01-15', true);
-			await setAvailability(db, preceptor1.id, '2024-01-16', true);
-			await setAvailability(db, preceptor1.id, '2024-01-17', true);
-			await setAvailability(db, preceptor2.id, '2024-01-18', true);
-			await setAvailability(db, preceptor2.id, '2024-01-19', true);
+			await setAvailability(db, preceptor1.id as string, '2024-01-15', true);
+			await setAvailability(db, preceptor1.id as string, '2024-01-16', true);
+			await setAvailability(db, preceptor1.id as string, '2024-01-17', true);
+			await setAvailability(db, preceptor2.id as string, '2024-01-18', true);
+			await setAvailability(db, preceptor2.id as string, '2024-01-19', true);
 
 			// Step 5: Add blackout date
 			const blackout = await createBlackoutDate(db, {
@@ -238,23 +246,23 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 			// Step 6: Create assignments
 			const assignment1 = await createAssignment(db, {
-				student_id: student1.id,
-				preceptor_id: preceptor1.id,
-				clerkship_id: clerkship1.id,
+				student_id: student1.id as string,
+				preceptor_id: preceptor1.id as string,
+				clerkship_id: clerkship1.id as string,
 				date: '2024-01-15'
 			});
 
 			const assignment2 = await createAssignment(db, {
-				student_id: student2.id,
-				preceptor_id: preceptor1.id,
-				clerkship_id: clerkship1.id,
+				student_id: student2.id as string,
+				preceptor_id: preceptor1.id as string,
+				clerkship_id: clerkship1.id as string,
 				date: '2024-01-15'
 			});
 
 			const assignment3 = await createAssignment(db, {
-				student_id: student1.id,
-				preceptor_id: preceptor2.id,
-				clerkship_id: clerkship2.id,
+				student_id: student1.id as string,
+				preceptor_id: preceptor2.id as string,
+				clerkship_id: clerkship2.id as string,
 				date: '2024-01-18'
 			});
 
@@ -264,13 +272,13 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(assignment3.id).toBeDefined();
 
 			// Step 7: Verify student's complete schedule
-			const student1Assignments = await getAssignmentsByStudent(db, student1.id);
+			const student1Assignments = await getAssignmentsByStudent(db, student1.id as string);
 			expect(student1Assignments).toHaveLength(2);
 			expect(student1Assignments[0].date).toBe('2024-01-15');
 			expect(student1Assignments[1].date).toBe('2024-01-18');
 
 			// Step 8: Check student progress
-			const progress = await getStudentProgress(db, student1.id);
+			const progress = await getStudentProgress(db, student1.id as string);
 			expect(progress).toHaveLength(2);
 
 			const cardiologyProgress = progress.find((p) => p.clerkship_id === clerkship1.id);
@@ -284,41 +292,8 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(neurologyProgress?.percentage).toBe(33);
 		});
 
-		it('enforces business rules across the workflow', async () => {
-			// Create health system
-			const healthSystem = await createHealthSystem(db);
-
-			// Create entities
-			const student = await createStudent(db, {
-				name: 'Test Student',
-				email: 'test@example.com',
-				cohort: '2024'
-			});
-
-			const cardiologyPreceptor = await createPreceptor(db, {
-				name: 'Dr. Cardio',
-				email: 'cardio@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
-				max_students: 1
-			});
-
-			const neurologyClerkship = await createClerkship(db, {
-				name: 'Neurology',
-				specialty: 'Neurology',
-				required_days: 5
-			});
-
-			// Attempt to create assignment with specialty mismatch
-			await expect(
-				createAssignment(db, {
-					student_id: student.id,
-					preceptor_id: cardiologyPreceptor.id,
-					clerkship_id: neurologyClerkship.id,
-					date: '2024-01-15'
-				})
-			).rejects.toThrow(/specialty/);
-		});
+		// Note: "enforces business rules across the workflow" test removed
+		// Specialty matching was removed from preceptors - they no longer have a specialty field
 
 		it('respects blackout dates in assignment creation', async () => {
 			const healthSystem = await createHealthSystem(db);
@@ -332,14 +307,13 @@ describe('Scheduling Workflow Integration Tests', () => {
 			const preceptor = await createPreceptor(db, {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 1
 			});
 
 			const clerkship = await createClerkship(db, {
 				name: 'Cardiology',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 5
 			});
 
@@ -352,9 +326,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 			// Attempt to create assignment on blackout date
 			await expect(
 				createAssignment(db, {
-					student_id: student.id,
-					preceptor_id: preceptor.id,
-					clerkship_id: clerkship.id,
+					student_id: student.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
 					date: '2024-01-15'
 				})
 			).rejects.toThrow(/blackout date/);
@@ -372,26 +346,25 @@ describe('Scheduling Workflow Integration Tests', () => {
 			const preceptor = await createPreceptor(db, {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 1
 			});
 
 			const clerkship = await createClerkship(db, {
 				name: 'Cardiology',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 5
 			});
 
 			// Mark preceptor as unavailable
-			await setAvailability(db, preceptor.id, '2024-01-15', false);
+			await setAvailability(db, preceptor.id as string, '2024-01-15', false);
 
 			// Attempt to create assignment when unavailable
 			await expect(
 				createAssignment(db, {
-					student_id: student.id,
-					preceptor_id: preceptor.id,
-					clerkship_id: clerkship.id,
+					student_id: student.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
 					date: '2024-01-15'
 				})
 			).rejects.toThrow(/not available/);
@@ -415,31 +388,30 @@ describe('Scheduling Workflow Integration Tests', () => {
 			const preceptor = await createPreceptor(db, {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 1 // Only 1 student allowed
 			});
 
 			const clerkship = await createClerkship(db, {
 				name: 'Cardiology',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 5
 			});
 
 			// First assignment succeeds
 			await createAssignment(db, {
-				student_id: student1.id,
-				preceptor_id: preceptor.id,
-				clerkship_id: clerkship.id,
+				student_id: student1.id as string,
+				preceptor_id: preceptor.id as string,
+				clerkship_id: clerkship.id as string,
 				date: '2024-01-15'
 			});
 
 			// Second assignment on same date should fail
 			await expect(
 				createAssignment(db, {
-					student_id: student2.id,
-					preceptor_id: preceptor.id,
-					clerkship_id: clerkship.id,
+					student_id: student2.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
 					date: '2024-01-15'
 				})
 			).rejects.toThrow(/capacity/);
@@ -457,45 +429,43 @@ describe('Scheduling Workflow Integration Tests', () => {
 			const preceptor1 = await createPreceptor(db, {
 				name: 'Dr. One',
 				email: 'one@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 1
 			});
 
 			const preceptor2 = await createPreceptor(db, {
 				name: 'Dr. Two',
 				email: 'two@hospital.com',
-				specialty: 'Neurology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 1
 			});
 
 			const clerkship1 = await createClerkship(db, {
 				name: 'Cardiology',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 5
 			});
 
 			const clerkship2 = await createClerkship(db, {
 				name: 'Neurology',
-				specialty: 'Neurology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
 			// First assignment succeeds
 			await createAssignment(db, {
-				student_id: student.id,
-				preceptor_id: preceptor1.id,
-				clerkship_id: clerkship1.id,
+				student_id: student.id as string,
+				preceptor_id: preceptor1.id as string,
+				clerkship_id: clerkship1.id as string,
 				date: '2024-01-15'
 			});
 
 			// Second assignment on same date should fail
 			await expect(
 				createAssignment(db, {
-					student_id: student.id,
-					preceptor_id: preceptor2.id,
-					clerkship_id: clerkship2.id,
+					student_id: student.id as string,
+					preceptor_id: preceptor2.id as string,
+					clerkship_id: clerkship2.id as string,
 					date: '2024-01-15'
 				})
 			).rejects.toThrow(/already has an assignment/);
@@ -518,50 +488,48 @@ describe('Scheduling Workflow Integration Tests', () => {
 				createPreceptor(db, {
 					name: 'Dr. A',
 					email: 'a@hospital.com',
-					specialty: 'Cardiology',
-					health_system_id: healthSystem.id,
+					health_system_id: healthSystem.id as string,
 					max_students: 2
 				}),
 				createPreceptor(db, {
 					name: 'Dr. B',
 					email: 'b@hospital.com',
-					specialty: 'Neurology',
-					health_system_id: healthSystem.id,
+					health_system_id: healthSystem.id as string,
 					max_students: 2
 				})
 			]);
 
 			// Create 2 clerkships
 			const clerkships = await Promise.all([
-				createClerkship(db, { name: 'Cardiology', specialty: 'Cardiology', required_days: 10 }),
-				createClerkship(db, { name: 'Neurology', specialty: 'Neurology', required_days: 10 })
+				createClerkship(db, { name: 'Cardiology', clerkship_type: 'inpatient', required_days: 10 }),
+				createClerkship(db, { name: 'Neurology', clerkship_type: 'outpatient', required_days: 10 })
 			]);
 
 			// Assign students to different rotations
 			await createAssignment(db, {
-				student_id: students[0].id,
-				preceptor_id: preceptors[0].id,
-				clerkship_id: clerkships[0].id,
+				student_id: students[0].id as string,
+				preceptor_id: preceptors[0].id as string,
+				clerkship_id: clerkships[0].id as string,
 				date: '2024-01-15'
 			});
 
 			await createAssignment(db, {
-				student_id: students[1].id,
-				preceptor_id: preceptors[0].id,
-				clerkship_id: clerkships[0].id,
+				student_id: students[1].id as string,
+				preceptor_id: preceptors[0].id as string,
+				clerkship_id: clerkships[0].id as string,
 				date: '2024-01-15'
 			});
 
 			await createAssignment(db, {
-				student_id: students[2].id,
-				preceptor_id: preceptors[1].id,
-				clerkship_id: clerkships[1].id,
+				student_id: students[2].id as string,
+				preceptor_id: preceptors[1].id as string,
+				clerkship_id: clerkships[1].id as string,
 				date: '2024-01-15'
 			});
 
 			// Verify all assignments created
 			for (const student of students) {
-				const assignments = await getAssignmentsByStudent(db, student.id);
+				const assignments = await getAssignmentsByStudent(db, student.id as string);
 				expect(assignments.length).toBeGreaterThan(0);
 			}
 		});
@@ -584,23 +552,22 @@ describe('Scheduling Workflow Integration Tests', () => {
 			const preceptor = await createPreceptor(db, {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 2
 			});
 
 			const clerkship = await createClerkship(db, {
 				name: 'Cardiology',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 10
 			});
 
 			// Student 1 completes 5 days
 			for (let i = 0; i < 5; i++) {
 				await createAssignment(db, {
-					student_id: student1.id,
-					preceptor_id: preceptor.id,
-					clerkship_id: clerkship.id,
+					student_id: student1.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
 					date: `2024-01-${15 + i}`
 				});
 			}
@@ -608,15 +575,15 @@ describe('Scheduling Workflow Integration Tests', () => {
 			// Student 2 completes 3 days
 			for (let i = 0; i < 3; i++) {
 				await createAssignment(db, {
-					student_id: student2.id,
-					preceptor_id: preceptor.id,
-					clerkship_id: clerkship.id,
+					student_id: student2.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
 					date: `2024-01-${20 + i}`
 				});
 			}
 
-			const progress1 = await getStudentProgress(db, student1.id);
-			const progress2 = await getStudentProgress(db, student2.id);
+			const progress1 = await getStudentProgress(db, student1.id as string);
+			const progress2 = await getStudentProgress(db, student2.id as string);
 
 			expect(progress1[0].completed_days).toBe(5);
 			expect(progress1[0].percentage).toBe(50);
@@ -639,24 +606,23 @@ describe('Scheduling Workflow Integration Tests', () => {
 			const preceptor = await createPreceptor(db, {
 				name: 'Dr. Test',
 				email: 'test@hospital.com',
-				specialty: 'Cardiology',
-				health_system_id: healthSystem.id,
+				health_system_id: healthSystem.id as string,
 				max_students: 2
 			});
 
 			const clerkship = await createClerkship(db, {
 				name: 'Cardiology',
-				specialty: 'Cardiology',
+				clerkship_type: 'inpatient',
 				required_days: 10
 			});
 
 			// Mark preceptor as available
-			await setAvailability(db, preceptor.id, '2024-01-15', true);
+			await setAvailability(db, preceptor.id as string, '2024-01-15', true);
 
 			const assignmentData = {
-				student_id: student.id,
-				preceptor_id: preceptor.id,
-				clerkship_id: clerkship.id,
+				student_id: student.id as string,
+				preceptor_id: preceptor.id as string,
+				clerkship_id: clerkship.id as string,
 				date: '2024-01-15'
 			};
 
@@ -668,9 +634,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 		it('returns all validation errors for invalid assignment', async () => {
 			const assignmentData = {
-				student_id: 'non-existent-student',
-				preceptor_id: 'non-existent-preceptor',
-				clerkship_id: 'non-existent-clerkship',
+				student_id: 'nonexistentstudent001',
+				preceptor_id: 'nonexistentpreceptor1',
+				clerkship_id: 'nonexistentclerkship1',
 				date: '2024-01-15'
 			};
 
