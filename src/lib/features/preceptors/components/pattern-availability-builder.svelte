@@ -4,15 +4,20 @@
 	import PatternForm from './pattern-form.svelte';
 	import PatternList from './pattern-list.svelte';
 	import CalendarPreview from './calendar-preview.svelte';
-	import type { Preceptors } from '$lib/db/types';
 	import type {
 		Pattern,
 		CreatePattern,
 		PatternGenerationResult
 	} from '$lib/features/preceptors/pattern-schemas';
 
+	// Accept any preceptor-like object with id
+	interface PreceptorLike {
+		id: string;
+		name: string;
+	}
+
 	interface Props {
-		preceptor: Preceptors;
+		preceptor: PreceptorLike;
 		onSuccess?: () => void;
 		onCancel?: () => void;
 	}

@@ -41,10 +41,21 @@ export const GET: RequestHandler = async ({ url }) => {
 };
 
 // Schema for POST body with clerkshipId and siteIds
+// Note: We manually define fields instead of spreading preceptorTeamInputSchema.shape
+// because the schema has .refine() which converts it to ZodEffects
 const createTeamBodySchema = z.object({
 	clerkshipId: z.string().min(1, 'clerkshipId is required'),
 	siteIds: z.array(z.string()).optional().default([]),
-	...preceptorTeamInputSchema.shape
+	name: z.string().optional(),
+	requireSameHealthSystem: z.boolean().default(false),
+	requireSameSite: z.boolean().default(false),
+	requireSameSpecialty: z.boolean().default(false),
+	requiresAdminApproval: z.boolean().default(false),
+	members: z.array(z.object({
+		preceptorId: z.string().min(1, 'Preceptor ID is required'),
+		role: z.string().optional(),
+		priority: z.number().int().min(1, 'Priority must be at least 1'),
+	})).min(1, 'Team must have at least 1 member'),
 });
 
 /**

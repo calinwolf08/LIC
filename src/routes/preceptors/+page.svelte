@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Preceptors } from '$lib/db/types';
+	import type { PreceptorWithAssociations } from '$lib/features/preceptors/services/preceptor-service';
 	import PreceptorList from '$lib/features/preceptors/components/preceptor-list.svelte';
 	import PreceptorForm from '$lib/features/preceptors/components/preceptor-form.svelte';
 	import PatternAvailabilityBuilder from '$lib/features/preceptors/components/pattern-availability-builder.svelte';
@@ -21,7 +21,7 @@
 	let showForm = $state(false);
 	let showAvailability = $state(false);
 	let showDeleteDialog = $state(false);
-	let selectedPreceptor = $state<Preceptors | undefined>(undefined);
+	let selectedPreceptor = $state<PreceptorWithAssociations | undefined>(undefined);
 
 	// Teams state
 	let selectedClerkshipId = $state('');
@@ -80,17 +80,17 @@
 		showForm = true;
 	}
 
-	function handleEdit(preceptor: Preceptors) {
+	function handleEdit(preceptor: PreceptorWithAssociations) {
 		selectedPreceptor = preceptor;
 		showForm = true;
 	}
 
-	function handleManageAvailability(preceptor: Preceptors) {
+	function handleManageAvailability(preceptor: PreceptorWithAssociations) {
 		selectedPreceptor = preceptor;
 		showAvailability = true;
 	}
 
-	function handleDelete(preceptor: Preceptors) {
+	function handleDelete(preceptor: PreceptorWithAssociations) {
 		selectedPreceptor = preceptor;
 		showDeleteDialog = true;
 	}
@@ -117,7 +117,7 @@
 		selectedPreceptor = undefined;
 	}
 
-	async function handleDeleteConfirm(preceptor: Preceptors) {
+	async function handleDeleteConfirm(preceptor: { id: string; name: string }) {
 		const response = await fetch(`/api/preceptors/${preceptor.id}`, {
 			method: 'DELETE'
 		});
@@ -245,7 +245,7 @@
 			{:else}
 				<TeamList
 					{teams}
-					clerkshipName={selectedClerkshipName}
+					clerkships={data.clerkships}
 					onEdit={handleEditTeam}
 					onDelete={handleTeamDeleted}
 				/>

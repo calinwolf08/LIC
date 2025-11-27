@@ -34,14 +34,14 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// Find teams that:
 		// 1. Belong to this clerkship
-		// 2. Have members (preceptors) who work at this site
+		// 2. Have members (preceptors) who work at this site (via preceptor_sites junction table)
 		const dependentTeams = await db
 			.selectFrom('preceptor_teams')
 			.innerJoin('preceptor_team_members', 'preceptor_teams.id', 'preceptor_team_members.team_id')
-			.innerJoin('preceptors', 'preceptor_team_members.preceptor_id', 'preceptors.id')
+			.innerJoin('preceptor_sites', 'preceptor_team_members.preceptor_id', 'preceptor_sites.preceptor_id')
 			.select(['preceptor_teams.id as teamId', 'preceptor_teams.name as teamName'])
 			.where('preceptor_teams.clerkship_id', '=', clerkshipId)
-			.where('preceptors.site_id', '=', siteId)
+			.where('preceptor_sites.site_id', '=', siteId)
 			.groupBy('preceptor_teams.id')
 			.execute();
 

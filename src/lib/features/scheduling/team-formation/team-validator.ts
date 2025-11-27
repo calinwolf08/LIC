@@ -231,24 +231,49 @@ export class TeamValidator {
   }
 
   /**
-   * Validate site consistency
+   * Validate site consistency (via preceptor_sites junction table)
    */
   private async validateSiteConsistency(members: TeamMember[]): Promise<ValidationError[]> {
     const errors: ValidationError[] = [];
 
-    const preceptors = await this.db
-      .selectFrom('preceptors')
-      .select(['id', 'site_id'])
-      .where(
-        'id',
-        'in',
-        members.map(m => m.preceptorId)
-      )
+    const preceptorIds = members.map(m => m.preceptorId);
+
+    // Get all sites for all team preceptors
+    const preceptorSites = await this.db
+      .selectFrom('preceptor_sites')
+      .select(['preceptor_id', 'site_id'])
+      .where('preceptor_id', 'in', preceptorIds)
       .execute();
 
-    const sites = new Set(preceptors.map(p => p.site_id));
+    // Group sites by preceptor
+    const sitesByPreceptor = new Map<string, Set<string>>();
+    for (const ps of preceptorSites) {
+      if (!sitesByPreceptor.has(ps.preceptor_id)) {
+        sitesByPreceptor.set(ps.preceptor_id, new Set());
+      }
+      sitesByPreceptor.get(ps.preceptor_id)!.add(ps.site_id);
+    }
 
-    if (sites.size > 1 || sites.has(null)) {
+    // Check if all preceptors share at least one common site
+    const allPreceptorSiteSets = preceptorIds.map(id => sitesByPreceptor.get(id) || new Set<string>());
+
+    // If any preceptor has no sites, they can't share a site
+    if (allPreceptorSiteSets.some(sites => sites.size === 0)) {
+      errors.push({
+        field: 'site',
+        message: 'All team members must be at the same site',
+        severity: 'error',
+      });
+      return errors;
+    }
+
+    // Find intersection of all site sets
+    let commonSites = allPreceptorSiteSets[0];
+    for (let i = 1; i < allPreceptorSiteSets.length; i++) {
+      commonSites = new Set([...commonSites].filter(site => allPreceptorSiteSets[i].has(site)));
+    }
+
+    if (commonSites.size === 0) {
       errors.push({
         field: 'site',
         message: 'All team members must be at the same site',

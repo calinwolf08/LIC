@@ -1,12 +1,17 @@
 <script lang="ts">
-	import type { Preceptors } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 
+	// Accept any preceptor-like object with id and name
+	interface PreceptorLike {
+		id: string;
+		name: string;
+	}
+
 	interface Props {
 		open: boolean;
-		preceptor: Preceptors | null | undefined;
-		onConfirm: (preceptor: Preceptors) => Promise<void>;
+		preceptor: PreceptorLike | null | undefined;
+		onConfirm: (preceptor: PreceptorLike) => Promise<void>;
 		onCancel: () => void;
 	}
 

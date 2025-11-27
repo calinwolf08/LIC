@@ -40,8 +40,11 @@ async function initializeSchema(db: Kysely<DB>) {
 		.createTable('sites')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('health_system_id', 'text', (col) => col.notNull().references('health_systems.id'))
+		.addColumn('health_system_id', 'text', (col) => col.references('health_systems.id'))
 		.addColumn('address', 'text')
+		.addColumn('office_phone', 'text')
+		.addColumn('contact_person', 'text')
+		.addColumn('contact_email', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -96,6 +99,15 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id'))
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Create preceptor_sites junction table (for multi-site support)
+	await db.schema
+		.createTable('preceptor_sites')
+		.addColumn('preceptor_id', 'text', (col) => col.notNull().references('preceptors.id'))
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id'))
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addPrimaryKeyConstraint('preceptor_sites_pk', ['preceptor_id', 'site_id'])
 		.execute();
 }
 

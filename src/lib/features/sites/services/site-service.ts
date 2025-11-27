@@ -219,10 +219,10 @@ export class SiteService {
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 
-		// Check preceptors with this as their primary site
+		// Check preceptors associated with this site (via junction table)
 		const preceptorCount = await this.db
-			.selectFrom('preceptors')
-			.select(({ fn }) => [fn.count<number>('id').as('count')])
+			.selectFrom('preceptor_sites')
+			.select(({ fn }) => [fn.count<number>('preceptor_id').as('count')])
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 

@@ -5,7 +5,7 @@
  */
 
 import type { PageLoad } from './$types';
-import type { Preceptors } from '$lib/db/types';
+import type { PreceptorWithAssociations } from '$lib/features/preceptors/services/preceptor-service';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
@@ -22,7 +22,7 @@ export const load: PageLoad = async ({ fetch }) => {
 		const clerkshipsResult = clerkshipsRes.ok ? await clerkshipsRes.json() : { data: [] };
 
 		return {
-			preceptors: (preceptorsResult.data || []) as Preceptors[],
+			preceptors: (preceptorsResult.data || []) as PreceptorWithAssociations[],
 			healthSystems: (healthSystemsResult.data || []) as Array<{ id: string; name: string }>,
 			sites: (sitesResult.data || []) as Array<{ id: string; name: string; health_system_id: string | null }>,
 			clerkships: (clerkshipsResult.data || []) as Array<{ id: string; name: string }>
@@ -30,7 +30,7 @@ export const load: PageLoad = async ({ fetch }) => {
 	} catch (error) {
 		console.error('Error loading preceptors page data:', error);
 		return {
-			preceptors: [] as Preceptors[],
+			preceptors: [] as PreceptorWithAssociations[],
 			healthSystems: [] as Array<{ id: string; name: string }>,
 			sites: [] as Array<{ id: string; name: string; health_system_id: string | null }>,
 			clerkships: [] as Array<{ id: string; name: string }>

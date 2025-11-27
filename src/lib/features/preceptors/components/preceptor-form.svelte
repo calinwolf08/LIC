@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { Preceptors } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -9,12 +8,20 @@
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 	import SiteForm from '$lib/features/sites/components/site-form.svelte';
 
-	interface PreceptorWithSiteIds extends Preceptors {
+	// Accept preceptor in either format (with site_ids or sites array)
+	interface PreceptorInput {
+		id?: string;
+		name: string;
+		email: string;
+		phone?: string | null;
+		health_system_id?: string | null;
+		max_students?: number;
 		site_ids?: string[];
+		sites?: Array<{ id: string; name: string }>;
 	}
 
 	interface Props {
-		preceptor?: PreceptorWithSiteIds;
+		preceptor?: PreceptorInput;
 		healthSystems: Array<{ id: string; name: string }>;
 		sites: Array<{ id: string; name: string; health_system_id: string | null }>;
 		onSuccess?: () => void;
@@ -31,8 +38,10 @@
 		max_students: preceptor?.max_students || 1
 	});
 
-	// Multi-site selection state
-	let selectedSiteIds = $state<string[]>(preceptor?.site_ids || []);
+	// Multi-site selection state - handle both site_ids array and sites object array
+	let selectedSiteIds = $state<string[]>(
+		preceptor?.site_ids || preceptor?.sites?.map(s => s.id) || []
+	);
 
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
