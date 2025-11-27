@@ -82,16 +82,6 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-	// Create preceptor_site_clerkships table
-	await db.schema
-		.createTable('preceptor_site_clerkships')
-		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('preceptor_id', 'text', (col) => col.notNull().references('preceptors.id'))
-		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id'))
-		.addColumn('clerkship_id', 'text', (col) => col.notNull().references('clerkships.id'))
-		.addColumn('created_at', 'text', (col) => col.notNull())
-		.execute();
-
 	// Create site_electives table
 	await db.schema
 		.createTable('site_electives')
@@ -477,7 +467,6 @@ describe('SiteService', () => {
 
 		it('throws ConflictError when site has preceptor associations', async () => {
 			const site = await createSiteDirect(db);
-			const clerkship = await createClerkshipDirect(db);
 
 			const preceptor = await db
 				.insertInto('preceptors')
@@ -493,12 +482,10 @@ describe('SiteService', () => {
 				.executeTakeFirstOrThrow();
 
 			await db
-				.insertInto('preceptor_site_clerkships')
+				.insertInto('preceptor_sites')
 				.values({
-					id: nanoid(),
 					preceptor_id: preceptor.id,
 					site_id: site.id,
-					clerkship_id: clerkship.id,
 					created_at: new Date().toISOString()
 				})
 				.execute();
@@ -549,7 +536,6 @@ describe('SiteService', () => {
 
 		it('returns false when site has preceptor associations', async () => {
 			const site = await createSiteDirect(db);
-			const clerkship = await createClerkshipDirect(db);
 
 			const preceptor = await db
 				.insertInto('preceptors')
@@ -565,12 +551,10 @@ describe('SiteService', () => {
 				.executeTakeFirstOrThrow();
 
 			await db
-				.insertInto('preceptor_site_clerkships')
+				.insertInto('preceptor_sites')
 				.values({
-					id: nanoid(),
 					preceptor_id: preceptor.id,
 					site_id: site.id,
-					clerkship_id: clerkship.id,
 					created_at: new Date().toISOString()
 				})
 				.execute();

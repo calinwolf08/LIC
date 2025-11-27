@@ -92,7 +92,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			healthSystems,
 			teams,
 			studentOnboarding,
-			preceptorClerkships,
 			siteElectives
 		] = await Promise.all([
 			// Required data
@@ -114,10 +113,6 @@ export const POST: RequestHandler = async ({ request }) => {
 				.select(['student_id', 'health_system_id', 'is_completed'])
 				.execute(),
 			db
-				.selectFrom('preceptor_site_clerkships')
-				.select(['preceptor_id', 'clerkship_id', 'site_id'])
-				.execute(),
-			db
 				.selectFrom('site_electives')
 				.select(['site_id', 'elective_requirement_id'])
 				.execute()
@@ -128,7 +123,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			healthSystems,
 			teams,
 			studentOnboarding,
-			preceptorClerkships,
 			siteElectives
 		};
 

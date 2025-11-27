@@ -25,11 +25,6 @@ export interface OptionalContextData {
 		health_system_id: string;
 		is_completed: number;
 	}>;
-	preceptorClerkships?: Array<{
-		preceptor_id: string;
-		site_id: string;
-		clerkship_id: string;
-	}>;
 	preceptorElectives?: Array<{
 		preceptor_id: string;
 		elective_requirement_id: string;
@@ -146,22 +141,6 @@ export function buildSchedulingContext(
 				}
 			}
 			context.studentOnboarding = studentOnboarding;
-		}
-
-		// Build preceptor-clerkship associations map (three-way: preceptor -> site -> clerkships)
-		if (optionalData.preceptorClerkships) {
-			const preceptorClerkshipAssociations = new Map<string, Map<string, Set<string>>>();
-			for (const record of optionalData.preceptorClerkships) {
-				if (!preceptorClerkshipAssociations.has(record.preceptor_id)) {
-					preceptorClerkshipAssociations.set(record.preceptor_id, new Map());
-				}
-				const preceptorMap = preceptorClerkshipAssociations.get(record.preceptor_id)!;
-				if (!preceptorMap.has(record.site_id)) {
-					preceptorMap.set(record.site_id, new Set());
-				}
-				preceptorMap.get(record.site_id)!.add(record.clerkship_id);
-			}
-			context.preceptorClerkshipAssociations = preceptorClerkshipAssociations;
 		}
 
 		// Build preceptor-elective associations map (DEPRECATED - kept for backward compatibility)

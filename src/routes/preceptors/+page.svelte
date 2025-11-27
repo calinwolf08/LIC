@@ -6,8 +6,6 @@
 	import PatternAvailabilityBuilder from '$lib/features/preceptors/components/pattern-availability-builder.svelte';
 	import DeletePreceptorDialog from '$lib/features/preceptors/components/delete-preceptor-dialog.svelte';
 	import TeamList from '$lib/features/teams/components/team-list.svelte';
-	import TeamFormDialog from '$lib/features/teams/components/team-form-dialog.svelte';
-	import PreceptorAssociationsForm from '$lib/features/scheduling-config/components/preceptor-associations-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
@@ -15,7 +13,7 @@
 	let { data }: { data: PageData } = $props();
 
 	// Tab state
-	let activeTab = $state<'preceptors' | 'teams' | 'associations'>('preceptors');
+	let activeTab = $state<'preceptors' | 'teams'>('preceptors');
 
 	// Preceptor state
 	let showForm = $state(false);
@@ -24,35 +22,14 @@
 	let selectedPreceptor = $state<PreceptorWithAssociations | undefined>(undefined);
 
 	// Teams state
-	let selectedClerkshipId = $state('');
 	let teams = $state<any[]>([]);
 	let loadingTeams = $state(false);
-	let showTeamForm = $state(false);
-	let teamToEdit = $state<any>(null);
 
-	// Preceptors formatted for team form
-	let preceptorsForTeamForm = $derived(
-		data.preceptors.map((p) => ({
-			id: p.id!,
-			name: p.name
-		}))
-	);
-
-	// Selected clerkship name
-	let selectedClerkshipName = $derived(
-		data.clerkships.find((c) => c.id === selectedClerkshipId)?.name
-	);
-
-	// Load teams when clerkship changes
+	// Load all teams on mount
 	async function loadTeams() {
-		if (!selectedClerkshipId) {
-			teams = [];
-			return;
-		}
-
 		loadingTeams = true;
 		try {
-			const response = await fetch(`/api/preceptors/teams?clerkshipId=${selectedClerkshipId}`);
+			const response = await fetch('/api/preceptors/teams');
 			const result = await response.json();
 			if (result.success && result.data) {
 				teams = result.data;
@@ -67,12 +44,12 @@
 		}
 	}
 
-	// Handle clerkship selection change
-	function handleClerkshipChange(e: Event) {
-		const target = e.target as HTMLSelectElement;
-		selectedClerkshipId = target.value;
-		loadTeams();
-	}
+	// Load teams when switching to teams tab
+	$effect(() => {
+		if (activeTab === 'teams' && teams.length === 0) {
+			loadTeams();
+		}
+	});
 
 	// Preceptor handlers
 	function handleAdd() {
@@ -139,19 +116,11 @@
 
 	// Team handlers
 	function handleAddTeam() {
-		teamToEdit = null;
-		showTeamForm = true;
+		goto('/preceptors/teams/new');
 	}
 
 	function handleEditTeam(team: any) {
-		teamToEdit = team;
-		showTeamForm = true;
-	}
-
-	function handleCloseTeamForm() {
-		showTeamForm = false;
-		teamToEdit = null;
-		loadTeams();
+		goto(`/preceptors/teams/${team.id}`);
 	}
 
 	function handleTeamDeleted() {
@@ -187,16 +156,6 @@
 			>
 				Teams
 			</button>
-			<button
-				onclick={() => (activeTab = 'associations')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'associations'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Site Associations
-			</button>
 		</nav>
 	</div>
 
@@ -214,31 +173,11 @@
 		/>
 	{:else if activeTab === 'teams'}
 		<div class="space-y-6">
-			<div class="flex items-center justify-between gap-4">
-				<div class="flex items-center gap-4">
-					<label for="clerkship-select" class="text-sm font-medium">Clerkship:</label>
-					<select
-						id="clerkship-select"
-						value={selectedClerkshipId}
-						onchange={handleClerkshipChange}
-						class="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
-					>
-						<option value="">Select a clerkship...</option>
-						{#each data.clerkships as clerkship}
-							<option value={clerkship.id}>{clerkship.name}</option>
-						{/each}
-					</select>
-				</div>
-				{#if selectedClerkshipId}
-					<Button onclick={handleAddTeam}>Add Team</Button>
-				{/if}
+			<div class="flex items-center justify-end">
+				<Button onclick={handleAddTeam}>Add Team</Button>
 			</div>
 
-			{#if !selectedClerkshipId}
-				<div class="rounded-lg border p-12 text-center text-muted-foreground">
-					<p>Select a clerkship to view and manage teams.</p>
-				</div>
-			{:else if loadingTeams}
+			{#if loadingTeams}
 				<div class="rounded-lg border p-12 text-center text-muted-foreground">
 					<p>Loading teams...</p>
 				</div>
@@ -251,8 +190,6 @@
 				/>
 			{/if}
 		</div>
-	{:else if activeTab === 'associations'}
-		<PreceptorAssociationsForm />
 	{/if}
 </div>
 
@@ -294,13 +231,4 @@
 	preceptor={selectedPreceptor}
 	onConfirm={handleDeleteConfirm}
 	onCancel={handleDeleteCancel}
-/>
-
-<!-- Team Form Dialog -->
-<TeamFormDialog
-	open={showTeamForm}
-	clerkshipId={selectedClerkshipId}
-	team={teamToEdit}
-	preceptors={preceptorsForTeamForm}
-	onClose={handleCloseTeamForm}
 />

@@ -16,6 +16,7 @@
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
 		"db:migrate": "tsx src/lib/db/migrations/run.ts",
+		"db:seed": "tsx src/lib/db/scripts/seed.ts",
 		"db:types": "kysely-codegen --dialect=sqlite --out-file=src/lib/db/types.ts"
 	},
 	"devDependencies": {

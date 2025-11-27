@@ -193,7 +193,6 @@ export class SiteService {
 	 */
 	async getSiteDependencies(id: string): Promise<{
 		clerkships: number;
-		preceptorClerkships: number;
 		electives: number;
 		preceptors: number;
 		total: number;
@@ -202,13 +201,6 @@ export class SiteService {
 		const clerkshipCount = await this.db
 			.selectFrom('clerkship_sites')
 			.select(({ fn }) => [fn.count<number>('clerkship_id').as('count')])
-			.where('site_id', '=', id)
-			.executeTakeFirst();
-
-		// Check preceptor-site-clerkship associations
-		const preceptorClerkshipCount = await this.db
-			.selectFrom('preceptor_site_clerkships')
-			.select(({ fn }) => [fn.count<number>('preceptor_id').as('count')])
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 
@@ -227,16 +219,14 @@ export class SiteService {
 			.executeTakeFirst();
 
 		const clerkships = clerkshipCount?.count ?? 0;
-		const preceptorClerkships = preceptorClerkshipCount?.count ?? 0;
 		const electives = electiveCount?.count ?? 0;
 		const preceptors = preceptorCount?.count ?? 0;
 
 		return {
 			clerkships,
-			preceptorClerkships,
 			electives,
 			preceptors,
-			total: clerkships + preceptorClerkships + electives + preceptors
+			total: clerkships + electives + preceptors
 		};
 	}
 
