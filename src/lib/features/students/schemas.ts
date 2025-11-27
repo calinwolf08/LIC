@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { emailSchema, nameSchema, uuidSchema } from '$lib/validation/common-schemas';
+import { emailSchema, nameSchema, cuid2Schema } from '$lib/validation/common-schemas';
 
 /**
  * Schema for creating a new student
@@ -31,7 +31,7 @@ export const updateStudentSchema = z
  * Schema for validating student ID
  */
 export const studentIdSchema = z.object({
-	id: uuidSchema
+	id: cuid2Schema
 });
 
 // Export inferred types

@@ -24,9 +24,7 @@
 	let formData = $state({
 		name: data.team?.name || '',
 		requireSameHealthSystem: data.team?.requireSameHealthSystem || false,
-		requireSameSite: data.team?.requireSameSite || false,
-		requireSameSpecialty: data.team?.requireSameSpecialty || false,
-		requiresAdminApproval: data.team?.requiresAdminApproval || false
+		requireSameSite: data.team?.requireSameSite || false
 	});
 
 	let selectedSiteIds = $state<string[]>(data.team?.sites?.map((s: any) => s.id) || []);
@@ -56,7 +54,12 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					...formData,
-					siteIds: selectedSiteIds
+					siteIds: selectedSiteIds,
+					members: members.map((m: any) => ({
+						preceptorId: m.preceptorId,
+						role: m.role || undefined,
+						priority: m.priority
+					}))
 				})
 			});
 
@@ -102,14 +105,73 @@
 		formData = {
 			name: data.team?.name || '',
 			requireSameHealthSystem: data.team?.requireSameHealthSystem || false,
-			requireSameSite: data.team?.requireSameSite || false,
-			requireSameSpecialty: data.team?.requireSameSpecialty || false,
-			requiresAdminApproval: data.team?.requiresAdminApproval || false
+			requireSameSite: data.team?.requireSameSite || false
 		};
 		selectedSiteIds = data.team?.sites?.map((s: any) => s.id) || [];
+		members = [...(data.team?.members || [])];
 		isEditing = false;
 		error = null;
 	}
+
+	// Member management
+	let selectedPreceptorId = $state('');
+	let newMemberRole = $state('');
+
+	function addMember() {
+		if (!selectedPreceptorId) return;
+
+		if (members.find((m: any) => m.preceptorId === selectedPreceptorId)) {
+			error = 'This preceptor is already in the team';
+			return;
+		}
+
+		const preceptor = data.preceptors.find((p) => p.id === selectedPreceptorId);
+		const maxPriority = members.reduce((max: number, m: any) => Math.max(max, m.priority || 0), 0);
+
+		members = [
+			...members,
+			{
+				preceptorId: selectedPreceptorId,
+				preceptorName: preceptor?.name || 'Unknown',
+				role: newMemberRole || undefined,
+				priority: maxPriority + 1
+			}
+		];
+
+		selectedPreceptorId = '';
+		newMemberRole = '';
+		error = null;
+	}
+
+	function removeMember(preceptorId: string) {
+		members = members.filter((m: any) => m.preceptorId !== preceptorId);
+	}
+
+	function moveMemberUp(index: number) {
+		if (index === 0) return;
+		const temp = members[index - 1].priority;
+		members[index - 1].priority = members[index].priority;
+		members[index].priority = temp;
+		members = [...members].sort((a: any, b: any) => a.priority - b.priority);
+	}
+
+	function moveMemberDown(index: number) {
+		if (index === members.length - 1) return;
+		const temp = members[index + 1].priority;
+		members[index + 1].priority = members[index].priority;
+		members[index].priority = temp;
+		members = [...members].sort((a: any, b: any) => a.priority - b.priority);
+	}
+
+	// Preceptors at selected sites, not already in team
+	let filteredPreceptors = $derived(
+		data.preceptors.filter((p) => {
+			const preceptorSites = p.sites?.map((s) => s.id) || [];
+			const atSelectedSite = selectedSiteIds.some((siteId) => preceptorSites.includes(siteId));
+			const inTeam = members.some((m: any) => m.preceptorId === p.id);
+			return atSelectedSite && !inTeam;
+		})
+	);
 </script>
 
 <svelte:head>
@@ -200,24 +262,6 @@
 									/>
 									<span class="text-sm">Require Same Site</span>
 								</label>
-								<label class="flex items-center gap-2">
-									<input
-										type="checkbox"
-										bind:checked={formData.requireSameSpecialty}
-										disabled={isSaving}
-										class="h-4 w-4"
-									/>
-									<span class="text-sm">Require Same Specialty</span>
-								</label>
-								<label class="flex items-center gap-2">
-									<input
-										type="checkbox"
-										bind:checked={formData.requiresAdminApproval}
-										disabled={isSaving}
-										class="h-4 w-4"
-									/>
-									<span class="text-sm">Requires Admin Approval</span>
-								</label>
 							</div>
 						</div>
 					</div>
@@ -236,13 +280,7 @@
 								{#if data.team.requireSameSite}
 									<li>Same site required</li>
 								{/if}
-								{#if data.team.requireSameSpecialty}
-									<li>Same specialty required</li>
-								{/if}
-								{#if data.team.requiresAdminApproval}
-									<li>Requires admin approval</li>
-								{/if}
-								{#if !data.team.requireSameHealthSystem && !data.team.requireSameSite && !data.team.requireSameSpecialty && !data.team.requiresAdminApproval}
+								{#if !data.team.requireSameHealthSystem && !data.team.requireSameSite}
 									<li class="text-muted-foreground">No special rules</li>
 								{/if}
 							</ul>
@@ -290,7 +328,91 @@
 			<Card class="p-6">
 				<h2 class="mb-4 text-xl font-semibold">Team Members</h2>
 
-				{#if members.length > 0}
+				{#if isEditing}
+					<!-- Add Member -->
+					{#if selectedSiteIds.length > 0}
+						<div class="flex gap-2 mb-4">
+							<div class="flex-1">
+								<select
+									bind:value={selectedPreceptorId}
+									class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+									disabled={isSaving}
+								>
+									<option value="">Select preceptor to add...</option>
+									{#each filteredPreceptors as preceptor}
+										<option value={preceptor.id}>{preceptor.name}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="w-48">
+								<Input
+									type="text"
+									bind:value={newMemberRole}
+									placeholder="Role (optional)"
+									disabled={isSaving}
+								/>
+							</div>
+							<Button type="button" variant="outline" onclick={addMember} disabled={isSaving || !selectedPreceptorId}>
+								Add
+							</Button>
+						</div>
+					{:else}
+						<p class="text-sm text-muted-foreground mb-4">Select sites first to see available preceptors.</p>
+					{/if}
+
+					<!-- Editable Member List -->
+					{#if members.length > 0}
+						<div class="space-y-2">
+							{#each members as member, index}
+								<div class="flex items-center justify-between rounded border p-3">
+									<div class="flex-1">
+										<p class="font-medium">
+											{index + 1}. {member.preceptorName || getPreceptorName(member.preceptorId)}
+										</p>
+										<div class="text-xs text-muted-foreground">
+											{#if member.role}
+												<span>Role: {member.role}</span>
+												<span class="mx-1">•</span>
+											{/if}
+											<span>Priority: {member.priority}</span>
+										</div>
+									</div>
+									<div class="flex gap-1">
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											onclick={() => moveMemberUp(index)}
+											disabled={index === 0 || isSaving}
+										>
+											&uarr;
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											onclick={() => moveMemberDown(index)}
+											disabled={index === members.length - 1 || isSaving}
+										>
+											&darr;
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant="destructive"
+											onclick={() => removeMember(member.preceptorId)}
+											disabled={isSaving}
+										>
+											Remove
+										</Button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-sm text-muted-foreground">No members. Add at least one member.</p>
+					{/if}
+				{:else if members.length > 0}
 					<div class="space-y-2">
 						{#each members as member, index}
 							<div class="flex items-center justify-between rounded border p-3">
@@ -306,12 +428,6 @@
 										<span>Priority: {member.priority}</span>
 									</div>
 								</div>
-								<a
-									href="/preceptors"
-									class="text-sm text-blue-600 hover:underline"
-								>
-									View
-								</a>
 							</div>
 						{/each}
 					</div>

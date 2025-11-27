@@ -32,9 +32,7 @@
 	let formData = $state({
 		name: '',
 		requireSameHealthSystem: false,
-		requireSameSite: false,
-		requireSameSpecialty: false,
-		requiresAdminApproval: false
+		requireSameSite: false
 	});
 
 	let selectedPreceptorId = $state('');
@@ -528,19 +526,6 @@
 						/>
 						<Label for="requireSameSite" class="cursor-pointer">
 							Require Same Site
-						</Label>
-					</div>
-
-					<div class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							id="requiresAdminApproval"
-							bind:checked={formData.requiresAdminApproval}
-							class="h-4 w-4 rounded border-gray-300"
-							disabled={isSubmitting}
-						/>
-						<Label for="requiresAdminApproval" class="cursor-pointer">
-							Requires Admin Approval
 						</Label>
 					</div>
 				</div>

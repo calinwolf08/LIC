@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cuid2Schema, uuidSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 
 /**
  * Phone schema for validation
@@ -95,8 +95,8 @@ export const siteIdSchema = z.object({
  * Schema for clerkship-site association
  */
 export const clerkshipSiteSchema = z.object({
-	clerkship_id: uuidSchema, // Clerkships use crypto.randomUUID()
-	site_id: cuid2Schema // Sites use nanoid()
+	clerkship_id: cuid2Schema,
+	site_id: cuid2Schema
 });
 
 /**
@@ -111,8 +111,8 @@ export const siteElectiveSchema = z.object({
  * Schema for site capacity rule
  */
 export const siteCapacityRuleSchema = z.object({
-	site_id: z.string().uuid('Invalid site ID'),
-	clerkship_id: z.string().uuid('Invalid clerkship ID').optional().nullable(),
+	site_id: cuid2Schema,
+	clerkship_id: cuid2Schema.optional().nullable(),
 	requirement_type: z.enum(['inpatient', 'outpatient', 'elective']).optional().nullable(),
 	max_students_per_day: z.number().int().positive('Must be a positive number'),
 	max_students_per_year: z.number().int().positive('Must be a positive number').optional().nullable(),
