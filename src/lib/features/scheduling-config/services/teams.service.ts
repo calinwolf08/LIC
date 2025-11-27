@@ -218,6 +218,22 @@ export class TeamService {
       if (input.requiresAdminApproval !== undefined)
         updateData.requires_admin_approval = input.requiresAdminApproval ? 1 : 0;
 
+      // Validate team rules BEFORE starting transaction to avoid SQLite deadlock
+      // (validateTeamRules uses this.db, not trx)
+      if (input.members) {
+        const validationResult = await this.validateTeamRules({
+          ...input,
+          members: input.members,
+          requireSameHealthSystem: Boolean(updateData.require_same_health_system ?? existing.require_same_health_system),
+          requireSameSite: Boolean(updateData.require_same_site ?? existing.require_same_site),
+          requireSameSpecialty: Boolean(updateData.require_same_specialty ?? existing.require_same_specialty),
+        } as PreceptorTeamInput);
+
+        if (!validationResult.success) {
+          return Result.failure(validationResult.error);
+        }
+      }
+
       return this.db.transaction().execute(async (trx) => {
         const updated = await trx
           .updateTable('preceptor_teams')
@@ -229,19 +245,6 @@ export class TeamService {
         // If members provided, update them
         let members: any[] = [];
         if (input.members) {
-          // Validate team rules
-          const validationResult = await this.validateTeamRules({
-            ...input,
-            members: input.members,
-            requireSameHealthSystem: updateData.require_same_health_system ?? existing.require_same_health_system,
-            requireSameSite: updateData.require_same_site ?? existing.require_same_site,
-            requireSameSpecialty: updateData.require_same_specialty ?? existing.require_same_specialty,
-          } as PreceptorTeamInput);
-
-          if (!validationResult.success) {
-            throw new Error(validationResult.error.message);
-          }
-
           // Delete existing members
           await trx.deleteFrom('preceptor_team_members').where('team_id', '=', teamId).execute();
 

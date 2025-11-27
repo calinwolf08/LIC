@@ -5,6 +5,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Card } from '$lib/components/ui/card';
+	import { teamsClient, formatApiError } from '$lib/features/scheduling-config/clients/teams-client';
+	import { createClientLogger } from '$lib/utils/logger.client';
+
+	const log = createClientLogger('team-new');
 
 	let { data }: { data: PageData } = $props();
 
@@ -235,16 +239,19 @@
 		error = null;
 
 		if (!selectedClerkshipId) {
+			log.warn('Attempted to create team without clerkship');
 			error = 'Please select a clerkship';
 			return;
 		}
 
 		if (members.length < 1) {
+			log.warn('Attempted to create team with no members');
 			error = 'Team must have at least 1 member';
 			return;
 		}
 
 		isSubmitting = true;
+		log.debug('Creating team', { clerkshipId: selectedClerkshipId, memberCount: members.length });
 
 		try {
 			const payload = {
@@ -258,23 +265,22 @@
 				}))
 			};
 
-			const response = await fetch('/api/preceptors/teams', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
+			log.trace('Create payload', { payload });
 
-			const result = await response.json();
+			const result = await teamsClient.create(payload);
 
-			if (!response.ok) {
-				error = result.error?.message || 'Failed to create team';
+			if (!result.success) {
+				log.error('Failed to create team', { error: result.error });
+				error = formatApiError(result.error);
 				isSubmitting = false;
 				return;
 			}
 
+			log.info('Team created successfully', { teamId: result.data.id });
 			// Navigate back to teams list
 			goto('/preceptors?tab=teams');
 		} catch (err) {
+			log.error('Unexpected create error', { error: err });
 			error = err instanceof Error ? err.message : 'Failed to create team';
 			isSubmitting = false;
 		}

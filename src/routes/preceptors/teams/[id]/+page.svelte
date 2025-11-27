@@ -4,6 +4,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { teamsClient, formatApiError } from '$lib/features/scheduling-config/clients/teams-client';
+	import { createClientLogger } from '$lib/utils/logger.client';
+
+	const log = createClientLogger('team-edit');
 
 	interface Props {
 		data: {
@@ -49,11 +53,13 @@
 
 		// Validate before saving
 		if (members.length === 0) {
+			log.warn('Attempted to save team with no members');
 			error = 'Team must have at least 1 member';
 			return;
 		}
 
 		isSaving = true;
+		log.debug('Saving team', { teamId: data.teamId, memberCount: members.length });
 
 		try {
 			// Prepare payload - extract only needed fields from members
@@ -67,31 +73,21 @@
 				}))
 			};
 
-			const response = await fetch(`/api/preceptors/teams/${data.teamId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
+			log.trace('Update payload', { payload });
 
-			const result = await response.json();
+			const result = await teamsClient.update(data.teamId, payload);
 
-			if (!response.ok) {
-				// Show detailed validation errors if available
-				if (result.error?.details && Array.isArray(result.error.details)) {
-					const fieldErrors = result.error.details
-						.map((d: any) => `${d.field}: ${d.message}`)
-						.join(', ');
-					error = `Validation failed: ${fieldErrors}`;
-				} else {
-					error = result.error?.message || 'Failed to save team';
-				}
+			if (!result.success) {
+				log.error('Failed to save team', { error: result.error });
+				error = formatApiError(result.error);
 				return;
 			}
 
+			log.info('Team saved successfully', { teamId: data.teamId });
 			isEditing = false;
 			await invalidateAll();
 		} catch (err) {
-			console.error('Save error:', err);
+			log.error('Unexpected save error', { error: err });
 			error = err instanceof Error ? err.message : 'Failed to save team';
 		} finally {
 			isSaving = false;
@@ -103,19 +99,21 @@
 			return;
 		}
 
-		try {
-			const response = await fetch(`/api/preceptors/teams/${data.teamId}`, {
-				method: 'DELETE'
-			});
+		log.debug('Deleting team', { teamId: data.teamId });
 
-			if (!response.ok) {
-				const result = await response.json();
-				error = result.error?.message || 'Failed to delete team';
+		try {
+			const result = await teamsClient.delete(data.teamId);
+
+			if (!result.success) {
+				log.error('Failed to delete team', { error: result.error });
+				error = formatApiError(result.error);
 				return;
 			}
 
+			log.info('Team deleted successfully', { teamId: data.teamId });
 			goto('/preceptors');
 		} catch (err) {
+			log.error('Unexpected delete error', { error: err });
 			error = err instanceof Error ? err.message : 'Failed to delete team';
 		}
 	}
