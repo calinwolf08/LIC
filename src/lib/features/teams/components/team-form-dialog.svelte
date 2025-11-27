@@ -10,15 +10,21 @@
 		priority: number;
 	}
 
+	interface Site {
+		id: string;
+		name: string;
+	}
+
 	interface Props {
 		open: boolean;
 		clerkshipId: string;
 		team?: any; // Existing team for editing
-		preceptors: Array<{ id: string; name: string }>;
+		preceptors: Array<{ id: string; name: string; sites?: Site[] }>;
+		sites?: Site[]; // Available sites
 		onClose: () => void;
 	}
 
-	let { open, clerkshipId, team, preceptors, onClose }: Props = $props();
+	let { open, clerkshipId, team, preceptors, sites = [], onClose }: Props = $props();
 
 	let formData = $state({
 		name: team?.name || '',
@@ -27,6 +33,9 @@
 		requireSameSpecialty: team?.requireSameSpecialty || false,
 		requiresAdminApproval: team?.requiresAdminApproval || false
 	});
+
+	// Site selection state
+	let selectedSiteIds = $state<string[]>(team?.sites?.map((s: Site) => s.id) || []);
 
 	let members = $state<TeamMember[]>(
 		team?.members?.map((m: any) => ({
@@ -41,6 +50,27 @@
 	let isSubmitting = $state(false);
 	let error = $state<string | null>(null);
 
+	// Filter preceptors by selected sites if sites are selected
+	let availablePreceptors = $derived(() => {
+		if (selectedSiteIds.length === 0) {
+			return preceptors;
+		}
+		// Filter preceptors who work at any of the selected sites
+		return preceptors.filter(
+			(p) =>
+				p.sites && p.sites.some((s) => selectedSiteIds.includes(s.id)) &&
+				!members.find((m) => m.preceptorId === p.id)
+		);
+	});
+
+	function toggleSite(siteId: string) {
+		if (selectedSiteIds.includes(siteId)) {
+			selectedSiteIds = selectedSiteIds.filter((id) => id !== siteId);
+		} else {
+			selectedSiteIds = [...selectedSiteIds, siteId];
+		}
+	}
+
 	// Reset form when team or open changes
 	$effect(() => {
 		if (open) {
@@ -51,6 +81,7 @@
 				requireSameSpecialty: team?.requireSameSpecialty || false,
 				requiresAdminApproval: team?.requiresAdminApproval || false
 			};
+			selectedSiteIds = team?.sites?.map((s: Site) => s.id) || [];
 			members =
 				team?.members?.map((m: any) => ({
 					preceptorId: m.preceptor_id || m.preceptorId,
@@ -137,11 +168,13 @@
 		try {
 			const url = team
 				? `/api/preceptors/teams/${team.id}`
-				: `/api/preceptors/teams?clerkshipId=${clerkshipId}`;
+				: `/api/preceptors/teams`;
 			const method = team ? 'PATCH' : 'POST';
 
 			const payload = {
 				...formData,
+				clerkshipId: team ? undefined : clerkshipId, // Only include for create
+				siteIds: selectedSiteIds,
 				members: members.map((m) => ({
 					preceptorId: m.preceptorId,
 					role: m.role || undefined,
@@ -292,6 +325,35 @@
 					</div>
 				</div>
 
+				<!-- Site Selection -->
+				{#if sites.length > 0}
+					<div class="space-y-3 rounded-lg border p-4">
+						<h3 class="font-semibold">Team Sites (Optional)</h3>
+						<p class="text-xs text-muted-foreground">
+							Select sites where this team operates. Preceptor selection will be filtered by these sites.
+						</p>
+						<div class="max-h-32 overflow-y-auto space-y-1">
+							{#each sites as site}
+								<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-1 cursor-pointer">
+									<input
+										type="checkbox"
+										checked={selectedSiteIds.includes(site.id)}
+										onchange={() => toggleSite(site.id)}
+										disabled={isSubmitting}
+										class="h-4 w-4 rounded border-gray-300"
+									/>
+									<span class="text-sm">{site.name}</span>
+								</label>
+							{/each}
+						</div>
+						{#if selectedSiteIds.length > 0}
+							<p class="text-xs text-muted-foreground">
+								{selectedSiteIds.length} site{selectedSiteIds.length === 1 ? '' : 's'} selected
+							</p>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Team Members -->
 				<div class="space-y-3 rounded-lg border p-4">
 					<h3 class="font-semibold">Team Members (minimum 1 required)</h3>
@@ -305,7 +367,7 @@
 								disabled={isSubmitting}
 							>
 								<option value="">Select preceptor...</option>
-								{#each preceptors.filter((p) => !members.find((m) => m.preceptorId === p.id)) as preceptor}
+								{#each availablePreceptors().filter((p) => !members.find((m) => m.preceptorId === p.id)) as preceptor}
 									<option value={preceptor.id}>{preceptor.name}</option>
 								{/each}
 							</select>
