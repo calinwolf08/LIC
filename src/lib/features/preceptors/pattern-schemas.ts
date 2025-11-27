@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
+import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
 
 // ========================================
 // Pattern Configuration Schemas
@@ -104,7 +104,7 @@ export const patternTypeSchema = z.enum(['weekly', 'monthly', 'block', 'individu
  * Base pattern fields (used for composition, not refined)
  */
 const basePatternFields = {
-	preceptor_id: uuidSchema,
+	preceptor_id: cuid2Schema,
 	is_available: z.boolean(),
 	date_range_start: dateStringSchema,
 	date_range_end: dateStringSchema,
@@ -206,7 +206,7 @@ export const updatePatternSchema = z.object({
  */
 export const patternSchema = createPatternSchema.and(
 	z.object({
-		id: uuidSchema,
+		id: cuid2Schema,
 		created_at: z.string(),
 		updated_at: z.string()
 	})
@@ -222,7 +222,7 @@ export const patternSchema = createPatternSchema.and(
 export const generatedDateSchema = z.object({
 	date: dateStringSchema,
 	is_available: z.boolean(),
-	source_pattern_id: uuidSchema.optional(),
+	source_pattern_id: cuid2Schema.optional(),
 	source_pattern_type: patternTypeSchema.optional()
 });
 
@@ -240,7 +240,7 @@ export const patternGenerationResultSchema = z.object({
  * Schema for saving generated patterns
  */
 export const savePatternDatesSchema = z.object({
-	preceptor_id: uuidSchema,
+	preceptor_id: cuid2Schema,
 	clear_existing: z.boolean().default(true)
 });
 
@@ -291,7 +291,7 @@ export const updateSchedulingPeriodSchema = z.object({
  */
 export const schedulingPeriodSchema = createSchedulingPeriodSchema.and(
 	z.object({
-		id: uuidSchema,
+		id: cuid2Schema,
 		created_at: z.string(),
 		updated_at: z.string()
 	})

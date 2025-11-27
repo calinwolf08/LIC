@@ -13,15 +13,15 @@ import {
 } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { swapAssignments } from '$lib/features/schedules/services/editing-service.js';
-import { uuidSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 import { z, ZodError } from 'zod';
 
 /**
  * Schema for swap request
  */
 const swapSchema = z.object({
-	assignment_id_1: uuidSchema,
-	assignment_id_2: uuidSchema,
+	assignment_id_1: cuid2Schema,
+	assignment_id_2: cuid2Schema,
 	dry_run: z.boolean().optional().default(false)
 });
 

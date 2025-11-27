@@ -10,7 +10,7 @@ import { errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { generateScheduleExcel } from '$lib/features/schedules/services/export-service.js';
 import type { CalendarFilters } from '$lib/features/schedules/types';
-import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
+import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
 import { z, ZodError } from 'zod';
 
 /**
@@ -19,9 +19,9 @@ import { z, ZodError } from 'zod';
 const exportQuerySchema = z.object({
 	start_date: dateStringSchema,
 	end_date: dateStringSchema,
-	student_id: uuidSchema.optional(),
-	preceptor_id: uuidSchema.optional(),
-	clerkship_id: uuidSchema.optional()
+	student_id: cuid2Schema.optional(),
+	preceptor_id: cuid2Schema.optional(),
+	clerkship_id: cuid2Schema.optional()
 });
 
 /**

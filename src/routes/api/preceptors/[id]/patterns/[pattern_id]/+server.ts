@@ -21,7 +21,7 @@ import {
 } from '$lib/features/preceptors/services/pattern-service';
 import { updatePatternSchema } from '$lib/features/preceptors/pattern-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
-import { uuidSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 import { ZodError } from 'zod';
 
 /**
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	try {
 		// Validate IDs
 		const { id: preceptorId } = preceptorIdSchema.parse({ id: params.id });
-		const patternId = uuidSchema.parse(params.pattern_id);
+		const patternId = cuid2Schema.parse(params.pattern_id);
 
 		const pattern = await getPatternById(db, patternId);
 
@@ -69,7 +69,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
 		// Validate IDs
 		const { id: preceptorId } = preceptorIdSchema.parse({ id: params.id });
-		const patternId = uuidSchema.parse(params.pattern_id);
+		const patternId = cuid2Schema.parse(params.pattern_id);
 
 		// Verify pattern exists and belongs to preceptor
 		const existing = await getPatternById(db, patternId);
@@ -114,7 +114,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	try {
 		// Validate IDs
 		const { id: preceptorId } = preceptorIdSchema.parse({ id: params.id });
-		const patternId = uuidSchema.parse(params.pattern_id);
+		const patternId = cuid2Schema.parse(params.pattern_id);
 
 		// Verify pattern exists and belongs to preceptor
 		const existing = await getPatternById(db, patternId);

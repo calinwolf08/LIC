@@ -10,7 +10,7 @@ import { successResponse, validationErrorResponse, errorResponse } from '$lib/ap
 import { handleApiError } from '$lib/api/errors';
 import { getCalendarEvents } from '$lib/features/schedules/services/calendar-service.js';
 import { z, ZodError } from 'zod';
-import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
+import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
 
 /**
  * Schema for calendar query parameters
@@ -18,9 +18,9 @@ import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
 const calendarQuerySchema = z.object({
 	start_date: dateStringSchema,
 	end_date: dateStringSchema,
-	student_id: uuidSchema.optional(),
-	preceptor_id: uuidSchema.optional(),
-	clerkship_id: uuidSchema.optional()
+	student_id: cuid2Schema.optional(),
+	preceptor_id: cuid2Schema.optional(),
+	clerkship_id: cuid2Schema.optional()
 });
 
 /**

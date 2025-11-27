@@ -46,33 +46,52 @@
 
 	async function handleSave() {
 		error = null;
+
+		// Validate before saving
+		if (members.length === 0) {
+			error = 'Team must have at least 1 member';
+			return;
+		}
+
 		isSaving = true;
 
 		try {
+			// Prepare payload - extract only needed fields from members
+			const payload = {
+				...formData,
+				siteIds: [...selectedSiteIds],
+				members: members.map((m: any) => ({
+					preceptorId: m.preceptorId,
+					role: m.role || undefined,
+					priority: m.priority
+				}))
+			};
+
 			const response = await fetch(`/api/preceptors/teams/${data.teamId}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					...formData,
-					siteIds: selectedSiteIds,
-					members: members.map((m: any) => ({
-						preceptorId: m.preceptorId,
-						role: m.role || undefined,
-						priority: m.priority
-					}))
-				})
+				body: JSON.stringify(payload)
 			});
 
 			const result = await response.json();
 
 			if (!response.ok) {
-				error = result.error?.message || 'Failed to save team';
+				// Show detailed validation errors if available
+				if (result.error?.details && Array.isArray(result.error.details)) {
+					const fieldErrors = result.error.details
+						.map((d: any) => `${d.field}: ${d.message}`)
+						.join(', ');
+					error = `Validation failed: ${fieldErrors}`;
+				} else {
+					error = result.error?.message || 'Failed to save team';
+				}
 				return;
 			}
 
 			isEditing = false;
 			await invalidateAll();
 		} catch (err) {
+			console.error('Save error:', err);
 			error = err instanceof Error ? err.message : 'Failed to save team';
 		} finally {
 			isSaving = false;

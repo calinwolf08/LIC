@@ -13,7 +13,7 @@ import {
 } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { activateSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
-import { uuidSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 import { ZodError } from 'zod';
 
 /**
@@ -22,7 +22,7 @@ import { ZodError } from 'zod';
  */
 export const POST: RequestHandler = async ({ params }) => {
 	try {
-		const id = uuidSchema.parse(params.id);
+		const id = cuid2Schema.parse(params.id);
 
 		const period = await activateSchedulingPeriod(db, id);
 

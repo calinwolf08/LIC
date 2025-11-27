@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { uuidSchema, dateStringSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema, dateStringSchema } from '$lib/validation/common-schemas';
 
 /**
  * Schema for creating a new blackout date
@@ -19,7 +19,7 @@ export const createBlackoutDateSchema = z.object({
  * Schema for validating blackout date ID
  */
 export const blackoutDateIdSchema = z.object({
-	id: uuidSchema
+	id: cuid2Schema
 });
 
 /**

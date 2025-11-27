@@ -5,15 +5,15 @@
  */
 
 import { z } from 'zod';
-import { uuidSchema, dateStringSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema, dateStringSchema } from '$lib/validation/common-schemas';
 
 /**
  * Schema for creating a new assignment
  */
 export const createAssignmentSchema = z.object({
-	student_id: uuidSchema,
-	preceptor_id: uuidSchema,
-	clerkship_id: uuidSchema,
+	student_id: cuid2Schema,
+	preceptor_id: cuid2Schema,
+	clerkship_id: cuid2Schema,
 	date: dateStringSchema,
 	status: z.string().optional().default('scheduled')
 });
@@ -23,9 +23,9 @@ export const createAssignmentSchema = z.object({
  */
 export const updateAssignmentSchema = z
 	.object({
-		student_id: uuidSchema.optional(),
-		preceptor_id: uuidSchema.optional(),
-		clerkship_id: uuidSchema.optional(),
+		student_id: cuid2Schema.optional(),
+		preceptor_id: cuid2Schema.optional(),
+		clerkship_id: cuid2Schema.optional(),
 		date: dateStringSchema.optional(),
 		status: z.string().optional()
 	})
@@ -44,16 +44,16 @@ export const bulkAssignmentSchema = z.object({
  * Schema for validating assignment ID
  */
 export const assignmentIdSchema = z.object({
-	id: uuidSchema
+	id: cuid2Schema
 });
 
 /**
  * Schema for filtering assignments
  */
 export const assignmentFiltersSchema = z.object({
-	student_id: uuidSchema.optional(),
-	preceptor_id: uuidSchema.optional(),
-	clerkship_id: uuidSchema.optional(),
+	student_id: cuid2Schema.optional(),
+	preceptor_id: cuid2Schema.optional(),
+	clerkship_id: cuid2Schema.optional(),
 	start_date: dateStringSchema.optional(),
 	end_date: dateStringSchema.optional()
 });

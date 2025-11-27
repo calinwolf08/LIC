@@ -20,7 +20,7 @@ import {
 	deleteSchedulingPeriod
 } from '$lib/features/scheduling/services/scheduling-period-service';
 import { updateSchedulingPeriodSchema } from '$lib/features/preceptors/pattern-schemas';
-import { uuidSchema } from '$lib/validation/common-schemas';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 import { ZodError } from 'zod';
 
 /**
@@ -29,7 +29,7 @@ import { ZodError } from 'zod';
  */
 export const GET: RequestHandler = async ({ params }) => {
 	try {
-		const id = uuidSchema.parse(params.id);
+		const id = cuid2Schema.parse(params.id);
 
 		const period = await getSchedulingPeriodById(db, id);
 
@@ -53,7 +53,7 @@ export const GET: RequestHandler = async ({ params }) => {
  */
 export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
-		const id = uuidSchema.parse(params.id);
+		const id = cuid2Schema.parse(params.id);
 
 		// Parse and validate request body
 		const body = await request.json();
@@ -85,7 +85,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
  */
 export const DELETE: RequestHandler = async ({ params }) => {
 	try {
-		const id = uuidSchema.parse(params.id);
+		const id = cuid2Schema.parse(params.id);
 
 		await deleteSchedulingPeriod(db, id);
 
