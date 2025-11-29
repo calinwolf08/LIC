@@ -534,10 +534,12 @@ describe('Assignment Service', () => {
 			await expect(createAssignment(db, assignmentData)).rejects.toThrow('Clerkship not found');
 		});
 
-		it('throws ValidationError when specialty mismatch', async () => {
+		// NOTE: Specialty matching was removed - preceptors no longer have specialty field
+		// This test is kept as a placeholder to document the change in behavior
+		it('allows assignment regardless of clerkship type (specialty matching removed)', async () => {
 			const student = createMockStudent();
-			const preceptor = createMockPreceptor({ specialty: 'Cardiology' });
-			const clerkship = createMockClerkship({ specialty: 'Neurology' });
+			const preceptor = createMockPreceptor();
+			const clerkship = createMockClerkship();
 
 			await db.insertInto('students').values(student).execute();
 			await db.insertInto('preceptors').values(preceptor).execute();
@@ -550,8 +552,10 @@ describe('Assignment Service', () => {
 				date: '2024-01-15'
 			};
 
-			await expect(createAssignment(db, assignmentData)).rejects.toThrow(ValidationError);
-			await expect(createAssignment(db, assignmentData)).rejects.toThrow('specialty');
+			// Assignment should succeed - no specialty matching is performed
+			const result = await createAssignment(db, assignmentData);
+			expect(result).toBeDefined();
+			expect(result.student_id).toBe(student.id);
 		});
 
 		it('throws ValidationError when student has conflict on same date', async () => {
