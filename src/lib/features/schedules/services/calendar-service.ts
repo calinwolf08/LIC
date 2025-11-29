@@ -202,7 +202,7 @@ export async function getScheduleSummary(
 /**
  * Get color for clerkship specialty (simple color mapping)
  */
-function getClerkshipColor(specialty: string): string {
+function getClerkshipColor(specialty: string | null | undefined): string {
 	// Simple hash-based color assignment
 	const colors = [
 		'#3b82f6', // blue
@@ -215,9 +215,12 @@ function getClerkshipColor(specialty: string): string {
 		'#84cc16' // lime
 	];
 
+	// Handle null/undefined specialty - use default color
+	const value = specialty ?? 'default';
+
 	let hash = 0;
-	for (let i = 0; i < specialty.length; i++) {
-		hash = specialty.charCodeAt(i) + ((hash << 5) - hash);
+	for (let i = 0; i < value.length; i++) {
+		hash = value.charCodeAt(i) + ((hash << 5) - hash);
 	}
 
 	return colors[Math.abs(hash) % colors.length];

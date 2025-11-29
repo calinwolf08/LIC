@@ -17,8 +17,6 @@ import type { DB } from '$lib/db/types';
 
 // Import services
 import { createStudent } from '$lib/features/students/services/student-service';
-import { createPreceptor } from '$lib/features/preceptors/services/preceptor-service';
-import { createClerkship } from '$lib/features/clerkships/services/clerkship-service';
 import { setAvailability } from '$lib/features/preceptors/services/availability-service';
 import {
 	createAssignment,
@@ -33,6 +31,7 @@ import {
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
 import type { Selectable } from 'kysely';
 import type { Students, Preceptors, Clerkships, ScheduleAssignments } from '$lib/db/types';
+import { nanoid } from 'nanoid';
 
 /**
  * Create test database with in-memory SQLite
@@ -51,6 +50,17 @@ function createTestDb(): Kysely<DB> {
  * Initialize complete database schema
  */
 async function initializeSchema(db: Kysely<DB>) {
+	// Health systems table
+	await db.schema
+		.createTable('health_systems')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('location', 'text')
+		.addColumn('description', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
 	// Students
 	await db.schema
 		.createTable('students')
@@ -62,25 +72,27 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-	// Preceptors
+	// Preceptors (updated schema with phone and health_system_id)
 	await db.schema
 		.createTable('preceptors')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull())
-		.addColumn('specialty', 'text', (col) => col.notNull())
-		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
+		.addColumn('phone', 'text')
+		.addColumn('health_system_id', 'text')
 		.addColumn('site_id', 'text')
+		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-	// Clerkships
+	// Clerkships (with clerkship_type)
 	await db.schema
 		.createTable('clerkships')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('specialty', 'text', (col) => col.notNull())
+		.addColumn('clerkship_type', 'text', (col) => col.notNull())
+		.addColumn('specialty', 'text')
 		.addColumn('required_days', 'integer', (col) => col.notNull())
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -132,6 +144,70 @@ async function initializeSchema(db: Kysely<DB>) {
 }
 
 /**
+ * Create health system directly in database
+ */
+async function createHealthSystem(db: Kysely<DB>): Promise<{ id: string }> {
+	const timestamp = new Date().toISOString();
+	const id = nanoid();
+	await db.insertInto('health_systems').values({
+		id,
+		name: 'Test Health System',
+		location: 'Test Location',
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
+	return { id };
+}
+
+/**
+ * Create preceptor directly in database (bypasses service validation)
+ */
+async function createPreceptorDirect(
+	db: Kysely<DB>,
+	data: { name: string; email: string; health_system_id: string; max_students?: number }
+): Promise<{ id: string; name: string }> {
+	const timestamp = new Date().toISOString();
+	const id = nanoid();
+	await db.insertInto('preceptors').values({
+		id,
+		name: data.name,
+		email: data.email,
+		health_system_id: data.health_system_id,
+		max_students: data.max_students ?? 2,
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
+	return { id, name: data.name };
+}
+
+/**
+ * Create clerkship directly in database (bypasses service validation)
+ */
+async function createClerkshipDirect(
+	db: Kysely<DB>,
+	data: { name: string; clerkship_type: string; required_days: number }
+): Promise<{ id: string }> {
+	const timestamp = new Date().toISOString();
+	const clerkshipId = nanoid();
+	await db.insertInto('clerkships').values({
+		id: clerkshipId,
+		name: data.name,
+		clerkship_type: data.clerkship_type,
+		required_days: data.required_days,
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
+	// Also create clerkship configuration
+	await db.insertInto('clerkship_configurations').values({
+		id: nanoid(),
+		clerkship_id: clerkshipId,
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
+	return { id: clerkshipId };
+}
+
+/**
  * Helper to get future date N days from now
  */
 function getFutureDate(daysFromNow: number): string {
@@ -166,22 +242,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 	describe('Batch 1: Basic Regeneration Scenarios', () => {
 		it('preserves past assignments and clears future with full-reoptimize', async () => {
 			// Setup: Create entities
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor = await createPreceptor(db, {
+			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Test',
 				email: 'preceptor@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
@@ -243,22 +320,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 
 		it('credits past assignments toward student requirements', async () => {
 			// Setup entities
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor = await createPreceptor(db, {
+			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Test',
 				email: 'preceptor@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5 // Requires 5 days total
 			});
 
@@ -330,29 +408,30 @@ describe('Schedule Regeneration Integration Tests', () => {
 
 		it('analyzes impact in preview mode without making changes', async () => {
 			// Setup entities
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor1 = await createPreceptor(db, {
+			const preceptor1 = await createPreceptorDirect(db, {
 				name: 'Dr. Available',
 				email: 'available@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const preceptor2 = await createPreceptor(db, {
+			const preceptor2 = await createPreceptorDirect(db, {
 				name: 'Dr. Replacement',
 				email: 'replacement@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 10
 			});
 
@@ -444,29 +523,30 @@ describe('Schedule Regeneration Integration Tests', () => {
 			// We want to preserve valid assignments and only change what's necessary
 
 			// Setup: Two preceptors in same specialty
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor1 = await createPreceptor(db, {
+			const preceptor1 = await createPreceptorDirect(db, {
 				name: 'Dr. Original',
 				email: 'original@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const preceptor2 = await createPreceptor(db, {
+			const preceptor2 = await createPreceptorDirect(db, {
 				name: 'Dr. Replacement',
 				email: 'replacement@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 10
 			});
 
@@ -572,35 +652,36 @@ describe('Schedule Regeneration Integration Tests', () => {
 			// Scenario: Two preceptors, one becomes unavailable for only some dates
 			// We should preserve assignments with the still-available preceptor
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptorCardio = await createPreceptor(db, {
+			const preceptorCardio = await createPreceptorDirect(db, {
 				name: 'Dr. Cardio',
 				email: 'cardio@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const preceptorNeuro = await createPreceptor(db, {
+			const preceptorNeuro = await createPreceptorDirect(db, {
 				name: 'Dr. Neuro',
 				email: 'neuro@test.com',
-				specialty: 'Neurology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkshipCardio = await createClerkship(db, {
+			const clerkshipCardio = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
-			const clerkshipNeuro = await createClerkship(db, {
+			const clerkshipNeuro = await createClerkshipDirect(db, {
 				name: 'Neurology Rotation',
-				specialty: 'Neurology',
+				clerkship_type: 'inpatient',
 				required_days: 5
 			});
 
@@ -674,22 +755,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 		it('compares full-reoptimize vs minimal-change impact', async () => {
 			// Same scenario analyzed with both strategies to show the difference
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor1 = await createPreceptor(db, {
+			const preceptor1 = await createPreceptorDirect(db, {
 				name: 'Dr. Original',
 				email: 'original@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
@@ -786,24 +868,25 @@ describe('Schedule Regeneration Integration Tests', () => {
 		it('handles no replacement preceptor available', async () => {
 			// Edge case: Preceptor becomes unavailable but no other preceptor in same specialty
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor1 = await createPreceptor(db, {
+			const preceptor1 = await createPreceptorDirect(db, {
 				name: 'Dr. Only Cardio',
 				email: 'onlycardio@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			// No other Cardiology preceptors!
+			// No other preceptors!
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
@@ -863,22 +946,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 		it('handles empty schedule (no assignments)', async () => {
 			// Edge case: Analyze regeneration when there are no existing assignments
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor = await createPreceptor(db, {
+			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Test',
 				email: 'test@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
@@ -930,22 +1014,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 		it('handles all assignments in the past', async () => {
 			// Edge case: Regenerate when all assignments are in the past (should preserve all)
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor = await createPreceptor(db, {
+			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Test',
 				email: 'test@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
@@ -1027,22 +1112,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 		it('handles regenerating from specific future date', async () => {
 			// Test regenerating from a specific date in the future (not today)
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor = await createPreceptor(db, {
+			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Test',
 				email: 'test@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 10
 			});
 
@@ -1113,22 +1199,23 @@ describe('Schedule Regeneration Integration Tests', () => {
 		it('handles clearAllAssignments with specific date correctly', async () => {
 			// Integration test for clearing assignments from a specific date
 
+			const healthSystem = await createHealthSystem(db);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
 				cohort: '2025'
 			});
 
-			const preceptor = await createPreceptor(db, {
+			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Test',
 				email: 'test@test.com',
-				specialty: 'Cardiology',
+				health_system_id: healthSystem.id,
 				max_students: 2
 			});
 
-			const clerkship = await createClerkship(db, {
+			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
-				specialty: 'Cardiology',
+				clerkship_type: 'outpatient',
 				required_days: 5
 			});
 
