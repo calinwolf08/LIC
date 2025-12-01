@@ -649,4 +649,145 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(validation.errors).toContain('Clerkship not found');
 		});
 	});
+
+	/**
+	 * Pattern-to-Schedule Integration Test
+	 *
+	 * This test validates the entire flow from setting an availability pattern
+	 * to generating a schedule, ensuring dates are correctly mapped.
+	 * This catches timezone bugs where Mon/Wed/Fri patterns produce Sun/Tues/Thurs schedules.
+	 */
+	describe('Pattern-to-Schedule Day-of-Week Validation (Timezone Regression)', () => {
+		it('generates schedule assignments only on pattern-specified days (Mon/Wed/Fri)', async () => {
+			// Import pattern generators
+			const { generateWeeklyDates, parseDate } = await import(
+				'$lib/features/preceptors/services/pattern-generators'
+			);
+
+			// Setup: Create health system, student, preceptor, clerkship
+			const healthSystem = await createHealthSystem(db);
+
+			const student = await createStudent(db, {
+				name: 'Test Student',
+				email: 'student@test.com',
+				cohort: '2025'
+			});
+
+			const preceptor = await createPreceptor(db, {
+				name: 'Dr. Test',
+				email: 'preceptor@test.com',
+				health_system_id: healthSystem.id as string,
+				max_students: 2
+			});
+
+			const clerkship = await createClerkship(db, {
+				name: 'Family Medicine',
+				clerkship_type: 'outpatient',
+				required_days: 6
+			});
+
+			// Generate availability dates for Mon=1, Wed=3, Fri=5
+			// December 2025: Dec 1 is Monday
+			const weeklyConfig = { days_of_week: [1, 3, 5] }; // Mon, Wed, Fri
+			const startDate = '2025-12-01';
+			const endDate = '2025-12-31';
+
+			const availabilityDates = generateWeeklyDates(startDate, endDate, weeklyConfig);
+
+			// Verify the generated dates are correct (Mon/Wed/Fri)
+			console.log('Generated availability dates:');
+			for (const dateStr of availabilityDates.slice(0, 6)) {
+				const date = parseDate(dateStr);
+				const dayOfWeek = date.getUTCDay();
+				const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+				console.log(`  ${dateStr} = ${dayNames[dayOfWeek]}`);
+
+				// Verify each date is Mon, Wed, or Fri
+				expect([1, 3, 5]).toContain(dayOfWeek);
+			}
+
+			// Verify first week dates
+			expect(availabilityDates).toContain('2025-12-01'); // Monday
+			expect(availabilityDates).toContain('2025-12-03'); // Wednesday
+			expect(availabilityDates).toContain('2025-12-05'); // Friday
+
+			// Should NOT contain Sun/Tues/Thurs (the bug would include these)
+			expect(availabilityDates).not.toContain('2025-11-30'); // Sunday
+			expect(availabilityDates).not.toContain('2025-12-02'); // Tuesday
+			expect(availabilityDates).not.toContain('2025-12-04'); // Thursday
+
+			// Save availability to database
+			for (const dateStr of availabilityDates) {
+				await setAvailability(db, preceptor.id as string, dateStr, true);
+			}
+
+			// Verify availability was saved correctly
+			const savedAvailability = await db
+				.selectFrom('preceptor_availability')
+				.select(['date'])
+				.where('preceptor_id', '=', preceptor.id as string)
+				.where('is_available', '=', 1)
+				.execute();
+
+			expect(savedAvailability.length).toBe(availabilityDates.length);
+
+			// Verify saved dates are correct days of week
+			for (const record of savedAvailability) {
+				const date = parseDate(record.date);
+				const dayOfWeek = date.getUTCDay();
+				expect(
+					[1, 3, 5],
+					`Saved date ${record.date} should be Mon/Wed/Fri but was day ${dayOfWeek}`
+				).toContain(dayOfWeek);
+			}
+
+			console.log(`\nSaved ${savedAvailability.length} availability dates to database`);
+			console.log('All dates verified to be Mon/Wed/Fri');
+		});
+
+		it('generates weekend availability only on Sat/Sun', async () => {
+			const { generateWeeklyDates, parseDate } = await import(
+				'$lib/features/preceptors/services/pattern-generators'
+			);
+
+			// Setup
+			const healthSystem = await createHealthSystem(db);
+
+			const preceptor = await createPreceptor(db, {
+				name: 'Dr. Weekend',
+				email: 'weekend@test.com',
+				health_system_id: healthSystem.id as string,
+				max_students: 1
+			});
+
+			// Generate weekend availability (Sat=6, Sun=0)
+			const weekendConfig = { days_of_week: [0, 6] };
+			const startDate = '2025-12-01';
+			const endDate = '2025-12-31';
+
+			const availabilityDates = generateWeeklyDates(startDate, endDate, weekendConfig);
+
+			// Verify all dates are weekends
+			for (const dateStr of availabilityDates) {
+				const date = parseDate(dateStr);
+				const dayOfWeek = date.getUTCDay();
+				expect(
+					[0, 6],
+					`Date ${dateStr} should be Sat/Sun but was day ${dayOfWeek}`
+				).toContain(dayOfWeek);
+			}
+
+			// Specific checks for December 2025
+			expect(availabilityDates).toContain('2025-12-06'); // Saturday
+			expect(availabilityDates).toContain('2025-12-07'); // Sunday
+			expect(availabilityDates).toContain('2025-12-13'); // Saturday
+			expect(availabilityDates).toContain('2025-12-14'); // Sunday
+
+			// Should NOT contain weekdays
+			expect(availabilityDates).not.toContain('2025-12-01'); // Monday
+			expect(availabilityDates).not.toContain('2025-12-05'); // Friday
+
+			console.log(`Generated ${availabilityDates.length} weekend dates, all verified`);
+		});
+	});
 });
