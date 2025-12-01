@@ -91,9 +91,13 @@ export class StrategyContextBuilder {
 
     const blackoutSet = new Set(blackouts.map(b => b.date));
 
-    // Generate date range
-    const start = startDate ? new Date(startDate) : new Date();
-    const end = endDate ? new Date(endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+    // Generate date range using UTC to avoid timezone issues
+    const start = startDate
+      ? new Date(startDate + 'T00:00:00.000Z')
+      : new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+    const end = endDate
+      ? new Date(endDate + 'T00:00:00.000Z')
+      : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
     const dates: string[] = [];
     const current = new Date(start);
@@ -103,7 +107,7 @@ export class StrategyContextBuilder {
       if (!blackoutSet.has(dateStr)) {
         dates.push(dateStr);
       }
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     return dates;

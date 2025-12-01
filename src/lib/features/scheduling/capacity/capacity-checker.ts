@@ -69,8 +69,8 @@ export class CapacityChecker {
       return dailyCheck;
     }
 
-    // Check yearly capacity
-    const year = options.academicYear || new Date(date).getFullYear();
+    // Check yearly capacity (parse as UTC to avoid timezone issues)
+    const year = options.academicYear || new Date(date + 'T00:00:00.000Z').getUTCFullYear();
     const yearlyCheck = await this.checkYearlyCapacity(preceptorId, year, rule.maxStudentsPerYear);
     if (!yearlyCheck.hasCapacity) {
       return yearlyCheck;
