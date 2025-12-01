@@ -8,16 +8,21 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import { invalidateAll, goto } from '$app/navigation';
+	import {
+		formatDisplayDate as formatDateDisplay,
+		formatMonthYear,
+		formatUTCDate
+	} from '$lib/features/scheduling/utils/date-utils';
 
 	let { data }: { data: PageData } = $props();
 
 	// Current date range (default to current month)
 	const today = new Date();
-	const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-	const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+	const firstDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+	const lastDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
 
-	let startDate = $state(formatDateForInput(firstDayOfMonth));
-	let endDate = $state(formatDateForInput(lastDayOfMonth));
+	let startDate = $state(formatUTCDate(firstDayOfMonth));
+	let endDate = $state(formatUTCDate(lastDayOfMonth));
 
 	// Filters
 	let selectedStudent = $state<string>('');
@@ -70,11 +75,6 @@
 		loadCalendar();
 	});
 
-	// Helper to format date for input
-	function formatDateForInput(date: Date): string {
-		return date.toISOString().split('T')[0];
-	}
-
 	// Group events by date
 	let groupedEvents = $derived(() => {
 		const grouped = new Map<string, CalendarEvent[]>();
@@ -92,33 +92,23 @@
 			.map(([date, events]) => ({ date, events }));
 	});
 
-	// Navigate months
+	// Navigate months - use UTC to avoid timezone shifts
 	function previousMonth() {
-		const date = new Date(startDate);
-		date.setMonth(date.getMonth() - 1);
-		const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-		const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-		startDate = formatDateForInput(firstDay);
-		endDate = formatDateForInput(lastDay);
+		const date = new Date(startDate + 'T00:00:00.000Z');
+		date.setUTCMonth(date.getUTCMonth() - 1);
+		const firstDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+		const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+		startDate = formatUTCDate(firstDay);
+		endDate = formatUTCDate(lastDay);
 	}
 
 	function nextMonth() {
-		const date = new Date(startDate);
-		date.setMonth(date.getMonth() + 1);
-		const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-		const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-		startDate = formatDateForInput(firstDay);
-		endDate = formatDateForInput(lastDay);
-	}
-
-	function formatDisplayDate(dateString: string): string {
-		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			weekday: 'short',
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
+		const date = new Date(startDate + 'T00:00:00.000Z');
+		date.setUTCMonth(date.getUTCMonth() + 1);
+		const firstDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+		const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+		startDate = formatUTCDate(firstDay);
+		endDate = formatUTCDate(lastDay);
 	}
 
 	function clearFilters() {
@@ -320,7 +310,7 @@
 	<div class="flex items-center justify-between mb-6">
 		<Button variant="outline" onclick={previousMonth}>&larr; Previous Month</Button>
 		<h2 class="text-xl font-semibold">
-			{new Date(startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+			{formatMonthYear(startDate)}
 		</h2>
 		<Button variant="outline" onclick={nextMonth}>Next Month &rarr;</Button>
 	</div>
@@ -342,7 +332,7 @@
 		<div class="space-y-4">
 			{#each groupedEvents() as { date, events }}
 				<Card class="p-6">
-					<h3 class="text-lg font-semibold mb-4">{formatDisplayDate(date)}</h3>
+					<h3 class="text-lg font-semibold mb-4">{formatDateDisplay(date)}</h3>
 					<div class="space-y-3">
 						{#each events as event}
 							<div

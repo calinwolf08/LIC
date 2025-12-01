@@ -21,6 +21,13 @@ import type {
 	StudentWithUnmetRequirements
 } from '../types/schedule-views';
 import { getActiveSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
+import {
+	parseUTCDate,
+	formatUTCDate,
+	getMonthsBetween,
+	getTodayUTC,
+	getDaysBetween
+} from '$lib/features/scheduling/utils/date-utils';
 
 // ============================================================================
 // Student Schedule
@@ -265,12 +272,12 @@ export async function getPreceptorScheduleData(
 		let available = 0;
 		let assigned = 0;
 
-		// Count days
-		const current = new Date(monthStart);
-		const end = new Date(monthEnd);
+		// Count days - use UTC to avoid timezone shifts
+		const current = parseUTCDate(monthStart);
+		const end = parseUTCDate(monthEnd);
 
 		while (current <= end) {
-			const dateStr = current.toISOString().split('T')[0];
+			const dateStr = formatUTCDate(current);
 
 			// Only count if within period bounds
 			if (dateStr >= startDate && dateStr <= endDate) {
@@ -283,7 +290,7 @@ export async function getPreceptorScheduleData(
 				}
 			}
 
-			current.setDate(current.getDate() + 1);
+			current.setUTCDate(current.getUTCDate() + 1);
 		}
 
 		totalAvailable += available;
@@ -300,14 +307,14 @@ export async function getPreceptorScheduleData(
 		});
 	}
 
-	// Build calendar with availability and assignments
+	// Build calendar with availability and assignments - use UTC to avoid timezone shifts
 	const calendarData: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; assignedStudent?: any; assignment?: any }> = [];
 
-	const current = new Date(startDate);
-	const end = new Date(endDate);
+	const current = parseUTCDate(startDate);
+	const end = parseUTCDate(endDate);
 
 	while (current <= end) {
-		const dateStr = current.toISOString().split('T')[0];
+		const dateStr = formatUTCDate(current);
 		const isAvailable = availabilityMap.get(dateStr);
 		const assignment = assignmentByDate.get(dateStr);
 
@@ -329,7 +336,7 @@ export async function getPreceptorScheduleData(
 			} : undefined
 		});
 
-		current.setDate(current.getDate() + 1);
+		current.setUTCDate(current.getUTCDate() + 1);
 	}
 
 	const calendar = buildCalendarMonthsWithAvailability(startDate, endDate, calendarData);
@@ -577,28 +584,6 @@ function getInitials(name: string): string {
 	return name.split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function getMonthsBetween(startDate: string, endDate: string): Array<{ year: number; month: number; name: string }> {
-	const months: Array<{ year: number; month: number; name: string }> = [];
-	const start = new Date(startDate);
-	const end = new Date(endDate);
-
-	const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-		'July', 'August', 'September', 'October', 'November', 'December'];
-
-	let current = new Date(start.getFullYear(), start.getMonth(), 1);
-
-	while (current <= end) {
-		months.push({
-			year: current.getFullYear(),
-			month: current.getMonth() + 1,
-			name: `${monthNames[current.getMonth()]} ${current.getFullYear()}`
-		});
-		current.setMonth(current.getMonth() + 1);
-	}
-
-	return months;
-}
-
 function buildCalendarMonths(
 	startDate: string,
 	endDate: string,
@@ -611,28 +596,29 @@ function buildCalendarMonths(
 
 	const months = getMonthsBetween(startDate, endDate);
 	const result: CalendarMonth[] = [];
-	const today = new Date().toISOString().split('T')[0];
+	const today = getTodayUTC();
 
 	for (const { year, month, name } of months) {
 		const weeks: CalendarWeek[] = [];
-		const firstDay = new Date(year, month - 1, 1);
-		const lastDay = new Date(year, month, 0);
+		// Use UTC to avoid timezone shifts
+		const firstDay = new Date(Date.UTC(year, month - 1, 1));
+		const lastDay = new Date(Date.UTC(year, month, 0));
 
 		// Start from Sunday of the week containing the 1st
 		const weekStart = new Date(firstDay);
-		weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+		weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
 
 		let weekNumber = 1;
 		let currentDate = new Date(weekStart);
 
-		while (currentDate <= lastDay || currentDate.getDay() !== 0) {
+		while (currentDate <= lastDay || currentDate.getUTCDay() !== 0) {
 			const days: CalendarDay[] = [];
 
 			for (let i = 0; i < 7; i++) {
-				const dateStr = currentDate.toISOString().split('T')[0];
-				const dayOfMonth = currentDate.getDate();
-				const isCurrentMonth = currentDate.getMonth() === month - 1;
-				const dayOfWeek = currentDate.getDay();
+				const dateStr = formatUTCDate(currentDate);
+				const dayOfMonth = currentDate.getUTCDate();
+				const isCurrentMonth = currentDate.getUTCMonth() === month - 1;
+				const dayOfWeek = currentDate.getUTCDay();
 
 				days.push({
 					date: dateStr,
@@ -644,13 +630,13 @@ function buildCalendarMonths(
 					assignment: assignmentMap.get(dateStr)
 				});
 
-				currentDate.setDate(currentDate.getDate() + 1);
+				currentDate.setUTCDate(currentDate.getUTCDate() + 1);
 			}
 
 			weeks.push({ weekNumber, days });
 			weekNumber++;
 
-			if (currentDate > lastDay && currentDate.getDay() === 0) break;
+			if (currentDate > lastDay && currentDate.getUTCDay() === 0) break;
 		}
 
 		result.push({ year, month, monthName: name, weeks });
@@ -671,27 +657,28 @@ function buildCalendarMonthsWithAvailability(
 
 	const months = getMonthsBetween(startDate, endDate);
 	const result: CalendarMonth[] = [];
-	const today = new Date().toISOString().split('T')[0];
+	const today = getTodayUTC();
 
 	for (const { year, month, name } of months) {
 		const weeks: CalendarWeek[] = [];
-		const firstDay = new Date(year, month - 1, 1);
-		const lastDay = new Date(year, month, 0);
+		// Use UTC to avoid timezone shifts
+		const firstDay = new Date(Date.UTC(year, month - 1, 1));
+		const lastDay = new Date(Date.UTC(year, month, 0));
 
 		const weekStart = new Date(firstDay);
-		weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+		weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
 
 		let weekNumber = 1;
 		let currentDate = new Date(weekStart);
 
-		while (currentDate <= lastDay || currentDate.getDay() !== 0) {
+		while (currentDate <= lastDay || currentDate.getUTCDay() !== 0) {
 			const days: CalendarDay[] = [];
 
 			for (let i = 0; i < 7; i++) {
-				const dateStr = currentDate.toISOString().split('T')[0];
-				const dayOfMonth = currentDate.getDate();
-				const isCurrentMonth = currentDate.getMonth() === month - 1;
-				const dayOfWeek = currentDate.getDay();
+				const dateStr = formatUTCDate(currentDate);
+				const dayOfMonth = currentDate.getUTCDate();
+				const isCurrentMonth = currentDate.getUTCMonth() === month - 1;
+				const dayOfWeek = currentDate.getUTCDay();
 				const dayData = dataMap.get(dateStr);
 
 				days.push({
@@ -706,13 +693,13 @@ function buildCalendarMonthsWithAvailability(
 					assignedStudent: dayData?.assignedStudent
 				});
 
-				currentDate.setDate(currentDate.getDate() + 1);
+				currentDate.setUTCDate(currentDate.getUTCDate() + 1);
 			}
 
 			weeks.push({ weekNumber, days });
 			weekNumber++;
 
-			if (currentDate > lastDay && currentDate.getDay() === 0) break;
+			if (currentDate > lastDay && currentDate.getUTCDay() === 0) break;
 		}
 
 		result.push({ year, month, monthName: name, weeks });
