@@ -21,9 +21,9 @@ import type {
  * Format a Date object as YYYY-MM-DD string
  */
 export function formatDate(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
+	const year = date.getUTCFullYear();
+	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(date.getUTCDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
 }
 
@@ -38,7 +38,7 @@ export function parseDate(dateString: string): Date {
  * Check if a date is a weekend (Saturday or Sunday)
  */
 export function isWeekend(date: Date): boolean {
-	const day = date.getDay();
+	const day = date.getUTCDay();
 	return day === 0 || day === 6;
 }
 
@@ -107,7 +107,7 @@ export function generateWeeklyDates(
 
 	const current = new Date(start);
 	while (current <= end) {
-		const dayOfWeek = current.getDay();
+		const dayOfWeek = current.getUTCDay();
 		if (daysSet.has(dayOfWeek)) {
 			dates.push(formatDate(current));
 		}
@@ -168,7 +168,7 @@ function getFirstCalendarWeek(year: number, month: number): string[] {
 
 	// Find the first Sunday (or start of month if it starts later in the week)
 	const current = new Date(firstDay);
-	const firstDayOfWeek = current.getDay();
+	const firstDayOfWeek = current.getUTCDay();
 
 	// If month doesn't start on Sunday, find the first Sunday
 	if (firstDayOfWeek !== 0) {
@@ -196,7 +196,7 @@ function getLastCalendarWeek(year: number, month: number): string[] {
 
 	// Find the last Saturday of the month
 	const current = new Date(lastDay);
-	const lastDayOfWeek = current.getDay();
+	const lastDayOfWeek = current.getUTCDay();
 
 	// If month doesn't end on Saturday, go back to last Saturday
 	if (lastDayOfWeek !== 6) {

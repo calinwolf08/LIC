@@ -548,4 +548,190 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(p2Assignments).toBeGreaterThan(0);
 		});
 	});
+
+	// =========================================================================
+	// Day-of-Week Validation (Timezone Regression Tests)
+	// =========================================================================
+	// These tests ensure that availability patterns produce schedules on the
+	// correct days of the week. This catches timezone bugs where UTC/local
+	// timezone mismatches cause dates to shift by one day.
+
+	describe('Day-of-Week Validation (Timezone Regression)', () => {
+		/**
+		 * Helper to create availability records for specific days of week
+		 * Uses UTC consistently to avoid timezone issues
+		 */
+		function createWeeklyAvailability(
+			preceptorId: string,
+			startDate: string,
+			endDate: string,
+			daysOfWeek: number[] // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+		): PreceptorAvailability[] {
+			const availability: PreceptorAvailability[] = [];
+			// Parse as UTC
+			const start = new Date(startDate + 'T00:00:00.000Z');
+			const end = new Date(endDate + 'T00:00:00.000Z');
+
+			const current = new Date(start);
+			while (current <= end) {
+				const dayOfWeek = current.getUTCDay();
+				if (daysOfWeek.includes(dayOfWeek)) {
+					availability.push({
+						id: crypto.randomUUID(),
+						preceptor_id: preceptorId,
+						date: current.toISOString().split('T')[0],
+						is_available: 1,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
+					});
+				}
+				current.setUTCDate(current.getUTCDate() + 1);
+			}
+
+			return availability;
+		}
+
+		/**
+		 * Helper to get UTC day of week from date string
+		 */
+		function getUTCDayOfWeek(dateStr: string): number {
+			return new Date(dateStr + 'T00:00:00.000Z').getUTCDay();
+		}
+
+		it('generates schedule only on Mon/Wed/Fri when preceptor availability is Mon/Wed/Fri (timezone regression)', async () => {
+			// This test catches the bug where Mon/Wed/Fri availability produced Sun/Tues/Thurs schedules
+			// due to UTC/local timezone mismatch
+			const student = createMockStudent({ id: 'student-1' });
+			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
+			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 6 });
+
+			// Create availability for Mon=1, Wed=3, Fri=5 only
+			// December 2025: Dec 1 is Monday
+			const availability = createWeeklyAvailability(
+				'preceptor-1',
+				'2025-12-01', // Monday Dec 1, 2025
+				'2025-12-31',
+				[1, 3, 5] // Mon, Wed, Fri
+			);
+
+			const result = await engineWithAvailability.generateSchedule(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2025-12-01',
+				'2025-12-31'
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBeGreaterThan(0);
+
+			// Verify EVERY assignment falls on Mon, Wed, or Fri
+			for (const assignment of result.assignments) {
+				const dayOfWeek = getUTCDayOfWeek(assignment.date);
+				expect(
+					[1, 3, 5],
+					`Expected date ${assignment.date} to be Mon/Wed/Fri but was day ${dayOfWeek}`
+				).toContain(dayOfWeek);
+			}
+
+			// Verify NO assignments on Sun/Tues/Thurs (the bug would produce these)
+			for (const assignment of result.assignments) {
+				const dayOfWeek = getUTCDayOfWeek(assignment.date);
+				expect(
+					[0, 2, 4],
+					`Date ${assignment.date} should NOT be Sun/Tues/Thurs`
+				).not.toContain(dayOfWeek);
+			}
+
+			// Verify specific expected dates are included (first week)
+			const dates = result.assignments.map(a => a.date);
+			expect(dates).toContain('2025-12-01'); // Monday
+			expect(dates).toContain('2025-12-03'); // Wednesday
+			expect(dates).toContain('2025-12-05'); // Friday
+		});
+
+		it('generates schedule only on weekends when preceptor availability is Sat/Sun (timezone regression)', async () => {
+			const student = createMockStudent({ id: 'student-1' });
+			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
+			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 4 });
+
+			// Create availability for Sat=6, Sun=0 only
+			const availability = createWeeklyAvailability(
+				'preceptor-1',
+				'2025-12-01',
+				'2025-12-31',
+				[0, 6] // Sun, Sat
+			);
+
+			const result = await engineWithAvailability.generateSchedule(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2025-12-01',
+				'2025-12-31'
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBeGreaterThan(0);
+
+			// Verify EVERY assignment falls on Sat or Sun
+			for (const assignment of result.assignments) {
+				const dayOfWeek = getUTCDayOfWeek(assignment.date);
+				expect(
+					[0, 6],
+					`Expected date ${assignment.date} to be Sat/Sun but was day ${dayOfWeek}`
+				).toContain(dayOfWeek);
+			}
+
+			// Verify specific expected dates
+			const dates = result.assignments.map(a => a.date);
+			expect(dates).toContain('2025-12-06'); // Saturday
+			expect(dates).toContain('2025-12-07'); // Sunday
+		});
+
+		it('generates schedule only on Tues/Thurs when preceptor availability is Tues/Thurs (timezone regression)', async () => {
+			const student = createMockStudent({ id: 'student-1' });
+			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
+			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 4 });
+
+			// Create availability for Tue=2, Thu=4 only
+			const availability = createWeeklyAvailability(
+				'preceptor-1',
+				'2025-12-01',
+				'2025-12-31',
+				[2, 4] // Tue, Thu
+			);
+
+			const result = await engineWithAvailability.generateSchedule(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2025-12-01',
+				'2025-12-31'
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBeGreaterThan(0);
+
+			// Verify EVERY assignment falls on Tue or Thu
+			for (const assignment of result.assignments) {
+				const dayOfWeek = getUTCDayOfWeek(assignment.date);
+				expect(
+					[2, 4],
+					`Expected date ${assignment.date} to be Tue/Thu but was day ${dayOfWeek}`
+				).toContain(dayOfWeek);
+			}
+
+			// Verify specific expected dates (first week of Dec 2025)
+			const dates = result.assignments.map(a => a.date);
+			expect(dates).toContain('2025-12-02'); // Tuesday
+			expect(dates).toContain('2025-12-04'); // Thursday
+		});
+	});
 });

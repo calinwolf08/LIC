@@ -7,14 +7,15 @@
  */
 export function getDaysBetween(startDate: string, endDate: string): string[] {
 	const dates: string[] = [];
-	const start = new Date(startDate);
-	const end = new Date(endDate);
+	// Parse as UTC to avoid timezone issues
+	const start = new Date(startDate + 'T00:00:00.000Z');
+	const end = new Date(endDate + 'T00:00:00.000Z');
 
-	// Iterate through each day
+	// Iterate through each day using UTC methods
 	const current = new Date(start);
 	while (current <= end) {
 		dates.push(formatToISODate(current));
-		current.setDate(current.getDate() + 1);
+		current.setUTCDate(current.getUTCDate() + 1);
 	}
 
 	return dates;

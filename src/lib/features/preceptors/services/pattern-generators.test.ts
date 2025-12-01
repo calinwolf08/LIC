@@ -509,6 +509,59 @@ describe('edge cases', () => {
 		expect(dates).toContain('2025-01-06');
 	});
 
+	it('should generate correct day-of-week for Mon/Wed/Fri pattern (timezone regression test)', () => {
+		// This test catches the timezone bug where dates were shifted by one day
+		// Bug: Mon/Wed/Fri pattern produced Sun/Tues/Thurs due to UTC/local timezone mismatch
+		const dates = generateWeeklyDates(
+			'2025-12-01', // Monday Dec 1, 2025
+			'2025-12-31',
+			{ days_of_week: [1, 3, 5] } // Mon=1, Wed=3, Fri=5
+		);
+
+		// Verify each generated date actually falls on Mon, Wed, or Fri
+		for (const dateStr of dates) {
+			const date = parseDate(dateStr);
+			const dayOfWeek = date.getUTCDay();
+			expect([1, 3, 5]).toContain(dayOfWeek);
+		}
+
+		// Verify specific dates are correct day of week
+		expect(dates).toContain('2025-12-01'); // Monday
+		expect(dates).toContain('2025-12-03'); // Wednesday
+		expect(dates).toContain('2025-12-05'); // Friday
+
+		// Verify Sunday/Tuesday/Thursday are NOT included (the bug would include these)
+		expect(dates).not.toContain('2025-11-30'); // Sunday Nov 30
+		expect(dates).not.toContain('2025-12-02'); // Tuesday
+		expect(dates).not.toContain('2025-12-04'); // Thursday
+	});
+
+	it('should generate weekend dates on actual weekends (timezone regression test)', () => {
+		// Another timezone regression test: verify Sat/Sun pattern produces actual weekends
+		const dates = generateWeeklyDates(
+			'2025-12-01',
+			'2025-12-14',
+			{ days_of_week: [0, 6] } // Sun=0, Sat=6
+		);
+
+		// Verify each generated date is actually a weekend
+		for (const dateStr of dates) {
+			const date = parseDate(dateStr);
+			const dayOfWeek = date.getUTCDay();
+			expect([0, 6]).toContain(dayOfWeek);
+		}
+
+		// December 2025 weekends
+		expect(dates).toContain('2025-12-06'); // Saturday
+		expect(dates).toContain('2025-12-07'); // Sunday
+		expect(dates).toContain('2025-12-13'); // Saturday
+		expect(dates).toContain('2025-12-14'); // Sunday
+
+		// Verify weekdays are NOT included
+		expect(dates).not.toContain('2025-12-01'); // Monday
+		expect(dates).not.toContain('2025-12-05'); // Friday
+	});
+
 	it('should handle complex multi-pattern scenario', () => {
 		const patterns: CreatePattern[] = [
 			// Available Mon-Fri all year
