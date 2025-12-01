@@ -3,6 +3,7 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
+	import { goto } from '$app/navigation';
 
 	interface StudentWithOnboarding extends Students {
 		completed_onboarding?: number;
@@ -17,6 +18,10 @@
 	}
 
 	let { students, loading = false, onEdit, onDelete }: Props = $props();
+
+	function handleView(student: StudentWithOnboarding) {
+		goto(`/students/${student.id}`);
+	}
 
 	let sortColumn = $state<'name' | 'email' | null>(null);
 	let sortDirection = $state<'asc' | 'desc'>('asc');
@@ -103,7 +108,14 @@
 				{:else}
 					{#each sortedStudents() as student}
 						<tr class="border-b transition-colors hover:bg-muted/50">
-							<td class="px-4 py-3 text-sm">{student.name}</td>
+							<td class="px-4 py-3 text-sm">
+								<button
+									onclick={() => handleView(student)}
+									class="font-medium text-primary hover:underline text-left"
+								>
+									{student.name}
+								</button>
+							</td>
 							<td class="px-4 py-3 text-sm">{student.email}</td>
 							<td class="px-4 py-3 text-sm">
 								{#if student.total_health_systems !== undefined && student.total_health_systems > 0}
@@ -123,6 +135,9 @@
 							</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
+									<Button size="sm" variant="ghost" onclick={() => handleView(student)}>
+										View
+									</Button>
 									{#if onEdit}
 										<Button size="sm" variant="outline" onclick={() => onEdit?.(student)}>
 											Edit
