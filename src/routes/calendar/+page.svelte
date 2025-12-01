@@ -1,20 +1,28 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { CalendarEvent, EnrichedAssignment } from '$lib/features/schedules/types';
+	import type { CalendarMonth, CalendarDay } from '$lib/features/schedules/types/schedule-views';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import EditAssignmentModal from '$lib/features/schedules/components/edit-assignment-modal.svelte';
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
+	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
 	import { invalidateAll, goto } from '$app/navigation';
 	import {
 		formatDisplayDate as formatDateDisplay,
 		formatMonthYear,
-		formatUTCDate
+		formatUTCDate,
+		parseUTCDate,
+		getMonthsBetween,
+		getTodayUTC
 	} from '$lib/features/scheduling/utils/date-utils';
 
 	let { data }: { data: PageData } = $props();
+
+	// View mode toggle
+	let viewMode = $state<'list' | 'calendar'>('list');
 
 	// Current date range (default to current month)
 	const today = new Date();
@@ -215,12 +223,129 @@
 			isExporting = false;
 		}
 	}
+
+	// Build calendar months for grid view
+	let calendarMonths = $derived(() => {
+		const todayStr = getTodayUTC();
+		const months = getMonthsBetween(startDate, endDate);
+		const result: CalendarMonth[] = [];
+
+		// Build assignment map
+		const assignmentMap = new Map<string, CalendarEvent>();
+		for (const event of events) {
+			assignmentMap.set(event.date, event);
+		}
+
+		for (const { year, month, name } of months) {
+			const weeks: Array<{ weekNumber: number; days: CalendarDay[] }> = [];
+			const firstDay = new Date(Date.UTC(year, month - 1, 1));
+			const lastDay = new Date(Date.UTC(year, month, 0));
+
+			// Start from Sunday of the week containing the 1st
+			const weekStart = new Date(firstDay);
+			weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+
+			let weekNumber = 1;
+			let currentDate = new Date(weekStart);
+
+			while (currentDate <= lastDay || currentDate.getUTCDay() !== 0) {
+				const days: CalendarDay[] = [];
+
+				for (let i = 0; i < 7; i++) {
+					const dateStr = formatUTCDate(currentDate);
+					const dayOfMonth = currentDate.getUTCDate();
+					const isCurrentMonth = currentDate.getUTCMonth() === month - 1;
+					const dayOfWeek = currentDate.getUTCDay();
+					const event = assignmentMap.get(dateStr);
+
+					days.push({
+						date: dateStr,
+						dayOfMonth,
+						dayOfWeek,
+						isCurrentMonth,
+						isToday: dateStr === todayStr,
+						isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+						assignment: event
+							? {
+									id: event.assignment.id,
+									clerkshipId: event.assignment.clerkship_id,
+									clerkshipName: event.assignment.clerkship_name,
+									preceptorId: event.assignment.preceptor_id,
+									preceptorName: event.assignment.preceptor_name,
+									color: event.color
+								}
+							: undefined
+					});
+
+					currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+				}
+
+				weeks.push({ weekNumber, days });
+				weekNumber++;
+
+				if (currentDate > lastDay && currentDate.getUTCDay() === 0) break;
+			}
+
+			result.push({ year, month, monthName: name, weeks });
+		}
+
+		return result;
+	});
+
+	// Handle day click in calendar grid
+	function handleDayClick(day: CalendarDay) {
+		if (day.assignment) {
+			// Find the full event to get the enriched assignment
+			const event = events.find((e) => e.date === day.date);
+			if (event) {
+				handleEditClick(event.assignment);
+			}
+		}
+	}
 </script>
 
 <div class="container mx-auto py-8">
-	<div class="mb-6 flex items-center justify-between">
+	<!-- Schedule completeness banner -->
+	{#if data.scheduleSummary && !data.scheduleSummary.isComplete}
+		<Card class="p-4 mb-6 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<div class="text-amber-600 dark:text-amber-400">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+					</div>
+					<div>
+						<p class="font-medium text-amber-800 dark:text-amber-200">Schedule Incomplete</p>
+						<p class="text-sm text-amber-700 dark:text-amber-300">
+							{data.scheduleSummary.studentsWithUnmetRequirements.length} student{data.scheduleSummary.studentsWithUnmetRequirements.length === 1 ? '' : 's'} with unmet requirements
+						</p>
+					</div>
+				</div>
+				<Button variant="outline" size="sm" onclick={() => goto('/schedule/results')}>
+					View Details
+				</Button>
+			</div>
+		</Card>
+	{/if}
+
+	<div class="mb-6 flex items-center justify-between flex-wrap gap-4">
 		<h1 class="text-3xl font-bold">Schedule Calendar</h1>
-		<div class="flex gap-3">
+		<div class="flex gap-3 flex-wrap">
+			<Button variant="outline" onclick={() => goto('/schedule/results')}>
+				Schedule Results
+			</Button>
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
@@ -306,12 +431,35 @@
 		</div>
 	</Card>
 
-	<!-- Month Navigation -->
-	<div class="flex items-center justify-between mb-6">
+	<!-- Month Navigation and View Toggle -->
+	<div class="flex items-center justify-between mb-6 flex-wrap gap-4">
 		<Button variant="outline" onclick={previousMonth}>&larr; Previous Month</Button>
-		<h2 class="text-xl font-semibold">
-			{formatMonthYear(startDate)}
-		</h2>
+		<div class="flex items-center gap-4">
+			<h2 class="text-xl font-semibold">
+				{formatMonthYear(startDate)}
+			</h2>
+			<!-- View Toggle -->
+			<div class="flex rounded-md border">
+				<button
+					type="button"
+					class="px-3 py-1.5 text-sm font-medium rounded-l-md transition-colors {viewMode === 'list'
+						? 'bg-primary text-primary-foreground'
+						: 'hover:bg-muted'}"
+					onclick={() => (viewMode = 'list')}
+				>
+					List
+				</button>
+				<button
+					type="button"
+					class="px-3 py-1.5 text-sm font-medium rounded-r-md transition-colors {viewMode === 'calendar'
+						? 'bg-primary text-primary-foreground'
+						: 'hover:bg-muted'}"
+					onclick={() => (viewMode = 'calendar')}
+				>
+					Calendar
+				</button>
+			</div>
+		</div>
 		<Button variant="outline" onclick={nextMonth}>Next Month &rarr;</Button>
 	</div>
 
@@ -324,11 +472,21 @@
 		<Card class="p-8">
 			<p class="text-destructive">{error}</p>
 		</Card>
+	{:else if viewMode === 'calendar'}
+		<!-- Calendar Grid View -->
+		{#if calendarMonths().length > 0}
+			<ScheduleCalendarGrid months={calendarMonths()} mode="student" onDayClick={handleDayClick} />
+		{:else}
+			<Card class="p-8 text-center">
+				<p class="text-muted-foreground">No data to display</p>
+			</Card>
+		{/if}
 	{:else if groupedEvents().length === 0}
 		<Card class="p-8 text-center">
 			<p class="text-muted-foreground">No assignments found for this date range</p>
 		</Card>
 	{:else}
+		<!-- List View -->
 		<div class="space-y-4">
 			{#each groupedEvents() as { date, events }}
 				<Card class="p-6">
@@ -339,7 +497,7 @@
 								class="p-4 rounded-lg border-l-4"
 								style="border-left-color: {event.color}; background-color: {event.color}10;"
 							>
-								<div class="flex items-start justify-between">
+								<div class="flex items-start justify-between flex-wrap gap-2">
 									<div>
 										<p class="font-medium">
 											<button
@@ -360,12 +518,12 @@
 												{event.assignment.preceptor_name}
 											</button>
 										</p>
-										<div class="flex gap-4 mt-2 text-xs text-muted-foreground">
+										<div class="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
 											<span>Status: {event.assignment.status}</span>
 											<span>Specialty: {event.assignment.clerkship_specialty}</span>
 										</div>
 									</div>
-									<div class="flex gap-2">
+									<div class="flex gap-2 flex-wrap">
 										<Button
 											size="sm"
 											variant="ghost"
