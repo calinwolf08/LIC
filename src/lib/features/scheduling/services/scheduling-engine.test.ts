@@ -68,11 +68,13 @@ function createAvailabilityForDateRange(
 	isAvailable = true
 ): PreceptorAvailability[] {
 	const availability: PreceptorAvailability[] = [];
-	const start = new Date(startDate);
-	const end = new Date(endDate);
+	// Parse as UTC to avoid timezone issues
+	const start = new Date(startDate + 'T00:00:00.000Z');
+	const end = new Date(endDate + 'T00:00:00.000Z');
 
-	for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-		const dateStr = d.toISOString().split('T')[0];
+	const current = new Date(start);
+	while (current <= end) {
+		const dateStr = current.toISOString().split('T')[0];
 		availability.push({
 			id: crypto.randomUUID(),
 			preceptor_id: preceptorId,
@@ -81,6 +83,7 @@ function createAvailabilityForDateRange(
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
 		});
+		current.setUTCDate(current.getUTCDate() + 1);
 	}
 
 	return availability;
