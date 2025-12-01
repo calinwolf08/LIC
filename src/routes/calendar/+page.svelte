@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { CalendarEvent, EnrichedAssignment } from '$lib/features/schedules/types';
-	import type { CalendarMonth, CalendarDay } from '$lib/features/schedules/types/schedule-views';
+	import type { CalendarMonth, CalendarDay, CalendarDayAssignment } from '$lib/features/schedules/types/schedule-views';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
@@ -230,10 +230,13 @@
 		const months = getMonthsBetween(startDate, endDate);
 		const result: CalendarMonth[] = [];
 
-		// Build assignment map
-		const assignmentMap = new Map<string, CalendarEvent>();
+		// Build assignment map - collect all events per date
+		const assignmentMap = new Map<string, CalendarEvent[]>();
 		for (const event of events) {
-			assignmentMap.set(event.date, event);
+			if (!assignmentMap.has(event.date)) {
+				assignmentMap.set(event.date, []);
+			}
+			assignmentMap.get(event.date)!.push(event);
 		}
 
 		for (const { year, month, name } of months) {
@@ -256,7 +259,19 @@
 					const dayOfMonth = currentDate.getUTCDate();
 					const isCurrentMonth = currentDate.getUTCMonth() === month - 1;
 					const dayOfWeek = currentDate.getUTCDay();
-					const event = assignmentMap.get(dateStr);
+					const dayEvents = assignmentMap.get(dateStr) || [];
+
+					// Convert events to CalendarDayAssignment array
+					const assignments: CalendarDayAssignment[] = dayEvents.map((event) => ({
+						id: event.assignment.id,
+						clerkshipId: event.assignment.clerkship_id,
+						clerkshipName: event.assignment.clerkship_name,
+						preceptorId: event.assignment.preceptor_id,
+						preceptorName: event.assignment.preceptor_name,
+						studentId: event.assignment.student_id,
+						studentName: event.assignment.student_name,
+						color: event.color
+					}));
 
 					days.push({
 						date: dateStr,
@@ -265,16 +280,9 @@
 						isCurrentMonth,
 						isToday: dateStr === todayStr,
 						isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
-						assignment: event
-							? {
-									id: event.assignment.id,
-									clerkshipId: event.assignment.clerkship_id,
-									clerkshipName: event.assignment.clerkship_name,
-									preceptorId: event.assignment.preceptor_id,
-									preceptorName: event.assignment.preceptor_name,
-									color: event.color
-								}
-							: undefined
+						assignments,
+						// Keep assignment for backward compatibility
+						assignment: assignments[0]
 					});
 
 					currentDate.setUTCDate(currentDate.getUTCDate() + 1);
@@ -292,14 +300,22 @@
 		return result;
 	});
 
-	// Handle day click in calendar grid
+	// Handle day click in calendar grid (opens first assignment if any)
 	function handleDayClick(day: CalendarDay) {
-		if (day.assignment) {
+		if (day.assignments && day.assignments.length > 0) {
 			// Find the full event to get the enriched assignment
-			const event = events.find((e) => e.date === day.date);
+			const event = events.find((e) => e.assignment.id === day.assignments[0].id);
 			if (event) {
 				handleEditClick(event.assignment);
 			}
+		}
+	}
+
+	// Handle clicking on a specific assignment in the calendar grid
+	function handleAssignmentClick(_day: CalendarDay, assignment: CalendarDayAssignment) {
+		const event = events.find((e) => e.assignment.id === assignment.id);
+		if (event) {
+			handleEditClick(event.assignment);
 		}
 	}
 </script>
@@ -475,7 +491,7 @@
 	{:else if viewMode === 'calendar'}
 		<!-- Calendar Grid View -->
 		{#if calendarMonths().length > 0}
-			<ScheduleCalendarGrid months={calendarMonths()} mode="student" onDayClick={handleDayClick} />
+			<ScheduleCalendarGrid months={calendarMonths()} mode="student" onDayClick={handleDayClick} onAssignmentClick={handleAssignmentClick} />
 		{:else}
 			<Card class="p-8 text-center">
 				<p class="text-muted-foreground">No data to display</p>

@@ -1,13 +1,14 @@
 <script lang="ts">
-	import type { CalendarMonth, CalendarDay } from '../types/schedule-views';
+	import type { CalendarMonth, CalendarDay, CalendarDayAssignment } from '../types/schedule-views';
 
 	interface Props {
 		months: CalendarMonth[];
 		mode?: 'student' | 'preceptor';
 		onDayClick?: (day: CalendarDay) => void;
+		onAssignmentClick?: (day: CalendarDay, assignment: CalendarDayAssignment) => void;
 	}
 
-	let { months, mode = 'student', onDayClick }: Props = $props();
+	let { months, mode = 'student', onDayClick, onAssignmentClick }: Props = $props();
 
 	function getDayClasses(day: CalendarDay): string {
 		const classes = ['calendar-day'];
@@ -16,7 +17,8 @@
 		if (day.isToday) classes.push('ring-2 ring-primary');
 		if (day.isWeekend) classes.push('bg-muted/30');
 
-		if (day.assignment) {
+		const hasAssignments = day.assignments && day.assignments.length > 0;
+		if (hasAssignments) {
 			classes.push('has-assignment');
 		} else if (mode === 'preceptor') {
 			if (day.availability === 'available') {
@@ -31,6 +33,15 @@
 
 	function handleDayClick(day: CalendarDay) {
 		if (onDayClick) {
+			onDayClick(day);
+		}
+	}
+
+	function handleAssignmentClick(event: MouseEvent, day: CalendarDay, assignment: CalendarDayAssignment) {
+		event.stopPropagation();
+		if (onAssignmentClick) {
+			onAssignmentClick(day, assignment);
+		} else if (onDayClick) {
 			onDayClick(day);
 		}
 	}
@@ -65,16 +76,27 @@
 									{day.dayOfMonth}
 								</span>
 
-								{#if day.assignment}
-									<div
-										class="mt-1 text-[10px] leading-tight px-1 py-0.5 rounded truncate"
-										style="background-color: {day.assignment.color}20; color: {day.assignment.color}; border-left: 2px solid {day.assignment.color};"
-										title="{day.assignment.clerkshipName} - {day.assignment.preceptorName}"
-									>
-										{#if mode === 'student'}
-											{day.assignment.clerkshipAbbrev || day.assignment.clerkshipName.slice(0, 3)}
-										{:else if day.assignedStudent}
-											{day.assignedStudent.initials}
+								{#if day.assignments && day.assignments.length > 0}
+									<div class="mt-1 space-y-0.5 overflow-hidden" style="max-height: calc(100% - 20px);">
+										{#each day.assignments.slice(0, 3) as assignment}
+											<button
+												type="button"
+												class="w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded truncate hover:opacity-80 transition-opacity"
+												style="background-color: {assignment.color}20; color: {assignment.color}; border-left: 2px solid {assignment.color};"
+												title="{assignment.clerkshipName} - {assignment.preceptorName}{assignment.studentName ? ' (' + assignment.studentName + ')' : ''}"
+												onclick={(e) => handleAssignmentClick(e, day, assignment)}
+											>
+												{#if mode === 'student'}
+													{assignment.clerkshipAbbrev || assignment.clerkshipName.slice(0, 3)}
+												{:else}
+													{assignment.studentInitials || assignment.studentName?.split(' ').map(n => n[0]).join('') || assignment.clerkshipName.slice(0, 3)}
+												{/if}
+											</button>
+										{/each}
+										{#if day.assignments.length > 3}
+											<div class="text-[9px] text-muted-foreground text-center">
+												+{day.assignments.length - 3} more
+											</div>
 										{/if}
 									</div>
 								{:else if mode === 'preceptor' && day.availability === 'available' && day.isCurrentMonth}

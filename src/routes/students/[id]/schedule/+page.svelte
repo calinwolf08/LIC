@@ -23,9 +23,11 @@
 	let selectedDay = $state<CalendarDay | null>(null);
 
 	function handleDayClick(day: CalendarDay) {
-		if (day.assignment) {
+		const hasAssignments = day.assignments && day.assignments.length > 0;
+		if (hasAssignments || day.assignment) {
 			selectedDay = day;
-			log.debug('Day selected', { date: day.date, clerkship: day.assignment.clerkshipName });
+			const firstAssignment = day.assignments?.[0] || day.assignment;
+			log.debug('Day selected', { date: day.date, clerkship: firstAssignment?.clerkshipName });
 		}
 	}
 
@@ -108,11 +110,14 @@
 				</div>
 
 				<!-- Day Detail Modal -->
-				{#if selectedDay && selectedDay.assignment}
+				{#if selectedDay && (selectedDay.assignments?.length > 0 || selectedDay.assignment)}
+					{@const displayAssignments = selectedDay.assignments?.length > 0 ? selectedDay.assignments : (selectedDay.assignment ? [selectedDay.assignment] : [])}
 					<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
 						<div class="bg-background rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
 							<div class="flex items-start justify-between mb-4">
-								<h3 class="text-lg font-semibold">Assignment Details</h3>
+								<h3 class="text-lg font-semibold">
+									{displayAssignments.length === 1 ? 'Assignment Details' : `${displayAssignments.length} Assignments`}
+								</h3>
 								<button
 									type="button"
 									onclick={closeDetail}
@@ -126,19 +131,23 @@
 									<span class="text-sm text-muted-foreground">Date:</span>
 									<span class="ml-2 font-medium">{selectedDay.date}</span>
 								</div>
-								<div>
-									<span class="text-sm text-muted-foreground">Clerkship:</span>
-									<span
-										class="ml-2 font-medium"
-										style="color: {selectedDay.assignment.color};"
-									>
-										{selectedDay.assignment.clerkshipName}
-									</span>
-								</div>
-								<div>
-									<span class="text-sm text-muted-foreground">Preceptor:</span>
-									<span class="ml-2 font-medium">{selectedDay.assignment.preceptorName}</span>
-								</div>
+								{#each displayAssignments as assignment, i}
+									<div class="p-3 border rounded-lg" style="border-left: 3px solid {assignment.color};">
+										<div>
+											<span class="text-sm text-muted-foreground">Clerkship:</span>
+											<span
+												class="ml-2 font-medium"
+												style="color: {assignment.color};"
+											>
+												{assignment.clerkshipName}
+											</span>
+										</div>
+										<div>
+											<span class="text-sm text-muted-foreground">Preceptor:</span>
+											<span class="ml-2 font-medium">{assignment.preceptorName}</span>
+										</div>
+									</div>
+								{/each}
 							</div>
 							<div class="mt-6 flex justify-end">
 								<Button variant="outline" onclick={closeDetail}>Close</Button>

@@ -22,11 +22,12 @@
 	let selectedDay = $state<CalendarDay | null>(null);
 
 	function handleDayClick(day: CalendarDay) {
-		if (day.assignment || day.availability) {
+		const hasAssignments = (day.assignments && day.assignments.length > 0) || day.assignment;
+		if (hasAssignments || day.availability) {
 			selectedDay = day;
 			log.debug('Day selected', {
 				date: day.date,
-				hasAssignment: !!day.assignment,
+				assignmentCount: day.assignments?.length || (day.assignment ? 1 : 0),
 				availability: day.availability
 			});
 		}
@@ -161,10 +162,14 @@
 
 				<!-- Day Detail Modal -->
 				{#if selectedDay}
+					{@const displayAssignments = selectedDay.assignments?.length > 0 ? selectedDay.assignments : (selectedDay.assignment ? [selectedDay.assignment] : [])}
+					{@const hasAssignments = displayAssignments.length > 0}
 					<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
 						<div class="bg-background rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
 							<div class="flex items-start justify-between mb-4">
-								<h3 class="text-lg font-semibold">Day Details</h3>
+								<h3 class="text-lg font-semibold">
+									{hasAssignments && displayAssignments.length > 1 ? `${displayAssignments.length} Assignments` : 'Day Details'}
+								</h3>
 								<button
 									type="button"
 									onclick={closeDetail}
@@ -181,8 +186,8 @@
 								<div>
 									<span class="text-sm text-muted-foreground">Status:</span>
 									<span class="ml-2 font-medium capitalize">
-										{#if selectedDay.assignment}
-											Assigned
+										{#if hasAssignments}
+											Assigned ({displayAssignments.length})
 										{:else if selectedDay.availability === 'available'}
 											Available
 										{:else if selectedDay.availability === 'unavailable'}
@@ -192,29 +197,33 @@
 										{/if}
 									</span>
 								</div>
-								{#if selectedDay.assignment}
-									<div>
-										<span class="text-sm text-muted-foreground">Student:</span>
-										<span class="ml-2 font-medium">
-											{selectedDay.assignedStudent?.name || 'Unknown'}
-										</span>
-									</div>
-									<div>
-										<span class="text-sm text-muted-foreground">Clerkship:</span>
-										<span
-											class="ml-2 font-medium"
-											style="color: {selectedDay.assignment.color};"
-										>
-											{selectedDay.assignment.clerkshipName}
-										</span>
-									</div>
+								{#if hasAssignments}
+									{#each displayAssignments as assignment}
+										<div class="p-3 border rounded-lg" style="border-left: 3px solid {assignment.color};">
+											<div>
+												<span class="text-sm text-muted-foreground">Student:</span>
+												<span class="ml-2 font-medium">
+													{assignment.studentName || selectedDay.assignedStudent?.name || 'Unknown'}
+												</span>
+											</div>
+											<div>
+												<span class="text-sm text-muted-foreground">Clerkship:</span>
+												<span
+													class="ml-2 font-medium"
+													style="color: {assignment.color};"
+												>
+													{assignment.clerkshipName}
+												</span>
+											</div>
+										</div>
+									{/each}
 								{/if}
 							</div>
 							<div class="mt-6 flex justify-end gap-2">
-								{#if selectedDay.assignedStudent}
+								{#if displayAssignments.length === 1 && (displayAssignments[0].studentId || selectedDay.assignedStudent)}
 									<Button
 										variant="outline"
-										onclick={() => handleStudentClick(selectedDay?.assignedStudent?.id || '')}
+										onclick={() => handleStudentClick(displayAssignments[0].studentId || selectedDay?.assignedStudent?.id || '')}
 									>
 										View Student
 									</Button>

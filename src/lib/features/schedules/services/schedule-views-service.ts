@@ -589,9 +589,13 @@ function buildCalendarMonths(
 	endDate: string,
 	assignments: Array<{ date: string; assignment: any }>
 ): CalendarMonth[] {
-	const assignmentMap = new Map<string, any>();
+	// Build map that collects all assignments per date
+	const assignmentMap = new Map<string, any[]>();
 	for (const a of assignments) {
-		assignmentMap.set(a.date, a.assignment);
+		if (!assignmentMap.has(a.date)) {
+			assignmentMap.set(a.date, []);
+		}
+		assignmentMap.get(a.date)!.push(a.assignment);
 	}
 
 	const months = getMonthsBetween(startDate, endDate);
@@ -619,6 +623,7 @@ function buildCalendarMonths(
 				const dayOfMonth = currentDate.getUTCDate();
 				const isCurrentMonth = currentDate.getUTCMonth() === month - 1;
 				const dayOfWeek = currentDate.getUTCDay();
+				const dayAssignments = assignmentMap.get(dateStr) || [];
 
 				days.push({
 					date: dateStr,
@@ -627,7 +632,9 @@ function buildCalendarMonths(
 					isCurrentMonth,
 					isToday: dateStr === today,
 					isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
-					assignment: assignmentMap.get(dateStr)
+					assignments: dayAssignments,
+					// Keep assignment for backward compatibility
+					assignment: dayAssignments[0]
 				});
 
 				currentDate.setUTCDate(currentDate.getUTCDate() + 1);
@@ -650,9 +657,13 @@ function buildCalendarMonthsWithAvailability(
 	endDate: string,
 	data: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; assignedStudent?: any; assignment?: any }>
 ): CalendarMonth[] {
-	const dataMap = new Map<string, typeof data[0]>();
+	// Collect all data per date (supports multiple assignments per day)
+	const dataMap = new Map<string, Array<typeof data[0]>>();
 	for (const d of data) {
-		dataMap.set(d.date, d);
+		if (!dataMap.has(d.date)) {
+			dataMap.set(d.date, []);
+		}
+		dataMap.get(d.date)!.push(d);
 	}
 
 	const months = getMonthsBetween(startDate, endDate);
@@ -679,7 +690,13 @@ function buildCalendarMonthsWithAvailability(
 				const dayOfMonth = currentDate.getUTCDate();
 				const isCurrentMonth = currentDate.getUTCMonth() === month - 1;
 				const dayOfWeek = currentDate.getUTCDay();
-				const dayData = dataMap.get(dateStr);
+				const dayDataList = dataMap.get(dateStr) || [];
+				const firstDayData = dayDataList[0];
+
+				// Collect all assignments for the day
+				const dayAssignments = dayDataList
+					.filter(d => d.assignment)
+					.map(d => d.assignment);
 
 				days.push({
 					date: dateStr,
@@ -688,9 +705,11 @@ function buildCalendarMonthsWithAvailability(
 					isCurrentMonth,
 					isToday: dateStr === today,
 					isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
-					assignment: dayData?.assignment,
-					availability: dayData?.availability,
-					assignedStudent: dayData?.assignedStudent
+					assignments: dayAssignments,
+					// Keep assignment for backward compatibility
+					assignment: firstDayData?.assignment,
+					availability: firstDayData?.availability,
+					assignedStudent: firstDayData?.assignedStudent
 				});
 
 				currentDate.setUTCDate(currentDate.getUTCDate() + 1);

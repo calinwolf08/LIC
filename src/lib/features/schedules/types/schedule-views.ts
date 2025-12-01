@@ -37,6 +37,22 @@ export interface ClerkshipProgress {
 }
 
 /**
+ * Single assignment within a calendar day
+ */
+export interface CalendarDayAssignment {
+	id: string;
+	clerkshipId: string;
+	clerkshipName: string;
+	clerkshipAbbrev?: string;
+	preceptorId: string;
+	preceptorName: string;
+	studentId?: string;
+	studentName?: string;
+	studentInitials?: string;
+	color: string;
+}
+
+/**
  * A single day in the calendar grid
  */
 export interface CalendarDay {
@@ -46,16 +62,10 @@ export interface CalendarDay {
 	isCurrentMonth: boolean;
 	isToday: boolean;
 	isWeekend: boolean;
-	/** Assignment info if assigned */
-	assignment?: {
-		id: string;
-		clerkshipId: string;
-		clerkshipName: string;
-		clerkshipAbbrev?: string;
-		preceptorId: string;
-		preceptorName: string;
-		color: string;
-	};
+	/** All assignments for this day */
+	assignments: CalendarDayAssignment[];
+	/** @deprecated Use assignments array instead */
+	assignment?: CalendarDayAssignment;
 	/** For preceptor view: availability status */
 	availability?: 'available' | 'unavailable' | 'unset';
 	/** For preceptor view: student assigned */
