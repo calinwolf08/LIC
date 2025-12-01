@@ -7,7 +7,7 @@
 	import EditAssignmentModal from '$lib/features/schedules/components/edit-assignment-modal.svelte';
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
@@ -351,14 +351,38 @@
 							>
 								<div class="flex items-start justify-between">
 									<div>
-										<p class="font-medium">{event.title}</p>
-										<p class="text-sm text-muted-foreground mt-1">{event.description}</p>
+										<p class="font-medium">
+											<button
+												onclick={() => goto(`/students/${event.assignment.student_id}`)}
+												class="text-primary hover:underline text-left"
+											>
+												{event.assignment.student_name}
+											</button>
+											<span class="text-muted-foreground mx-1">-</span>
+											<span>{event.assignment.clerkship_name}</span>
+										</p>
+										<p class="text-sm text-muted-foreground mt-1">
+											Preceptor:
+											<button
+												onclick={() => goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
+												class="text-primary hover:underline"
+											>
+												{event.assignment.preceptor_name}
+											</button>
+										</p>
 										<div class="flex gap-4 mt-2 text-xs text-muted-foreground">
 											<span>Status: {event.assignment.status}</span>
 											<span>Specialty: {event.assignment.clerkship_specialty}</span>
 										</div>
 									</div>
-									<div>
+									<div class="flex gap-2">
+										<Button
+											size="sm"
+											variant="ghost"
+											onclick={() => goto(`/students/${event.assignment.student_id}/schedule`)}
+										>
+											View Schedule
+										</Button>
 										<Button
 											size="sm"
 											variant="outline"
