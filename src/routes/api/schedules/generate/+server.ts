@@ -25,6 +25,12 @@ import {
 	createRegenerationAuditLog
 } from '$lib/features/scheduling/services/audit-service';
 import { bulkCreateAssignments } from '$lib/features/schedules/services/assignment-service';
+import {
+	getActiveSchedulingPeriod,
+	getOverlappingPeriods,
+	createSchedulingPeriod,
+	activateSchedulingPeriod
+} from '$lib/features/scheduling/services/scheduling-period-service';
 import { ZodError } from 'zod';
 
 /**
@@ -245,6 +251,37 @@ export const POST: RequestHandler = async ({ request }) => {
 			await bulkCreateAssignments(db, { assignments: assignmentsToSave });
 		}
 
+		// Auto-create and activate scheduling period if none exists
+		let schedulingPeriodId: string | null = null;
+		const activePeriod = await getActiveSchedulingPeriod(db);
+
+		if (!activePeriod) {
+			// Check if there's an existing period covering this date range
+			const overlappingPeriods = await getOverlappingPeriods(
+				db,
+				validatedData.startDate,
+				validatedData.endDate
+			);
+
+			if (overlappingPeriods.length > 0) {
+				// Activate the first overlapping period
+				const period = await activateSchedulingPeriod(db, overlappingPeriods[0].id!);
+				schedulingPeriodId = period.id;
+			} else {
+				// Create a new scheduling period
+				const periodName = `Schedule ${validatedData.startDate} to ${validatedData.endDate}`;
+				const newPeriod = await createSchedulingPeriod(db, {
+					name: periodName,
+					start_date: validatedData.startDate,
+					end_date: validatedData.endDate,
+					is_active: true
+				});
+				schedulingPeriodId = newPeriod.id;
+			}
+		} else {
+			schedulingPeriodId = activePeriod.id;
+		}
+
 		// Return result (exclude violationTracker from response as it's not serializable)
 		const { violationTracker, ...serializable } = result;
 
@@ -276,7 +313,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				preservedPastAssignments: true,
 				preservedFutureAssignments: regenerationResult.preservedAssignments,
 				deletedFutureAssignments: deletedCount,
-				totalPastAssignments: regenerationResult.creditResult.totalPastAssignments
+				totalPastAssignments: regenerationResult.creditResult.totalPastAssignments,
+				schedulingPeriodId
 			},
 			200
 		);
