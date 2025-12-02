@@ -165,18 +165,18 @@ describe('updateStudentSchema', () => {
 });
 
 describe('studentIdSchema', () => {
-	it('validates UUID format', () => {
+	it('validates CUID2 format', () => {
 		const validInput = {
-			id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+			id: 'clq1234567890123456789'
 		};
 
 		const result = studentIdSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects invalid UUID format', () => {
+	it('rejects invalid CUID2 format', () => {
 		const invalidInput = {
-			id: 'not-a-uuid'
+			id: 'not-a-cuid'
 		};
 
 		const result = studentIdSchema.safeParse(invalidInput);

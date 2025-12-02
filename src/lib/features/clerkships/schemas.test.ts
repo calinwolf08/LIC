@@ -282,18 +282,18 @@ describe('updateClerkshipSchema', () => {
 });
 
 describe('clerkshipIdSchema', () => {
-	it('validates valid UUID', () => {
+	it('validates valid CUID2', () => {
 		const validInput = {
-			id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+			id: 'clq1234567890123456789'
 		};
 
 		const result = clerkshipIdSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects invalid UUID format', () => {
+	it('rejects invalid CUID2 format', () => {
 		const invalidInput = {
-			id: 'not-a-uuid'
+			id: 'not-a-cuid'
 		};
 
 		const result = clerkshipIdSchema.safeParse(invalidInput);
