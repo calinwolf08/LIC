@@ -737,4 +737,150 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(dates).toContain('2025-12-04'); // Thursday
 		});
 	});
+
+	// =========================================================================
+	// Existing Context Usage Tests
+	// =========================================================================
+	// These tests verify that the engine properly uses an existing context when
+	// provided, including respecting pre-credited requirements and existing
+	// assignments in the context.
+
+	describe('Existing Context Usage', () => {
+		it('should use existingContext when provided', async () => {
+			const student = createMockStudent({ id: 'student-1' });
+			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 5
+			});
+
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-10');
+
+			// Build a context manually with pre-credited requirements (2 days already done)
+			const { buildSchedulingContext } = await import('./context-builder');
+			const existingContext = buildSchedulingContext(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2024-01-01',
+				'2024-01-10'
+			);
+
+			// Manually credit 2 days towards requirement
+			const studentReqs = existingContext.studentRequirements.get('student-1');
+			if (studentReqs) {
+				studentReqs.set('clerkship-1', 3); // 5 required - 2 credited = 3 remaining
+			}
+
+			const result = await engine.generateSchedule(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2024-01-01',
+				'2024-01-10',
+				new Set(),
+				existingContext // Pass the pre-built context
+			);
+
+			expect(result.success).toBe(true);
+			// Should only generate 3 assignments (the remaining 3, not 5)
+			expect(result.assignments).toHaveLength(3);
+		});
+
+		it('should respect existing assignments in context (NoDoubleBooking)', async () => {
+			const student = createMockStudent({ id: 'student-1' });
+			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 5
+			});
+
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-10');
+
+			// Build context with an existing assignment
+			const { buildSchedulingContext } = await import('./context-builder');
+			const existingContext = buildSchedulingContext(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2024-01-01',
+				'2024-01-10'
+			);
+
+			// Add an existing assignment to the context
+			const existingAssignment = {
+				studentId: 'student-1',
+				preceptorId: 'preceptor-1',
+				clerkshipId: 'clerkship-1',
+				date: '2024-01-01'
+			};
+			existingContext.assignments.push(existingAssignment);
+			existingContext.assignmentsByDate.set('2024-01-01', [existingAssignment]);
+			existingContext.assignmentsByStudent.set('student-1', [existingAssignment]);
+
+			// Credit this assignment
+			const studentReqs = existingContext.studentRequirements.get('student-1');
+			if (studentReqs) {
+				studentReqs.set('clerkship-1', 4); // 5 required - 1 = 4 remaining
+			}
+
+			const result = await engine.generateSchedule(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2024-01-01',
+				'2024-01-10',
+				new Set(),
+				existingContext
+			);
+
+			expect(result.success).toBe(true);
+			// Should include the existing assignment plus 4 new ones
+			expect(result.assignments.length).toBeGreaterThanOrEqual(4);
+
+			// Should NOT have created a duplicate on 2024-01-01
+			const jan1Assignments = result.assignments.filter(a => a.date === '2024-01-01' && a.studentId === 'student-1');
+			expect(jan1Assignments.length).toBeLessThanOrEqual(1);
+		});
+
+		it('should not generate duplicates for same student on same date', async () => {
+			const student = createMockStudent({ id: 'student-1' });
+			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 5
+			});
+
+			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-10');
+
+			const result = await engine.generateSchedule(
+				[student],
+				[preceptor],
+				[clerkship],
+				[],
+				availability,
+				'2024-01-01',
+				'2024-01-10'
+			);
+
+			expect(result.success).toBe(true);
+
+			// Check for duplicate (studentId, date) combinations
+			const keys = result.assignments.map(a => `${a.studentId}:${a.date}`);
+			const uniqueKeys = new Set(keys);
+
+			expect(keys.length).toBe(uniqueKeys.size);
+		});
+	});
 });
