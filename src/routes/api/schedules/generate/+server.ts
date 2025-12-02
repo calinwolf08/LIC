@@ -226,7 +226,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Create scheduling engine with constraints
 		const engine = new SchedulingEngine(allConstraints);
 
-		// Generate schedule
+		// Generate schedule using the prepared context (with credited past assignments)
 		const result = await engine.generateSchedule(
 			students,
 			preceptors,
@@ -235,7 +235,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			availabilityRecords,
 			validatedData.startDate,
 			validatedData.endDate,
-			new Set(validatedData.bypassedConstraints || [])
+			new Set(validatedData.bypassedConstraints || []),
+			context // Pass the prepared context with credited requirements
 		);
 
 		// Save generated assignments to database

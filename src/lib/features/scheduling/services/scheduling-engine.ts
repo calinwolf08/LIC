@@ -48,6 +48,7 @@ export class SchedulingEngine {
 	 * @param startDate - Academic year start date (ISO format)
 	 * @param endDate - Academic year end date (ISO format)
 	 * @param bypassedConstraints - Set of constraint names to bypass (future feature)
+	 * @param existingContext - Optional pre-built context (for regeneration with credited requirements)
 	 * @returns Complete schedule result with assignments and violation analysis
 	 */
 	async generateSchedule(
@@ -58,13 +59,14 @@ export class SchedulingEngine {
 		preceptorAvailabilityRecords: Selectable<PreceptorAvailability>[],
 		startDate: string,
 		endDate: string,
-		bypassedConstraints: Set<string> = new Set()
+		bypassedConstraints: Set<string> = new Set(),
+		existingContext?: SchedulingContext
 	): Promise<ScheduleResult> {
 		// Clear violations from previous run
 		this.violationTracker.clear();
 
-		// Build scheduling context
-		const context = buildSchedulingContext(
+		// Use existing context if provided, otherwise build new one
+		const context = existingContext || buildSchedulingContext(
 			students,
 			preceptors,
 			clerkships,

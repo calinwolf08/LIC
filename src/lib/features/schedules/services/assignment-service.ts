@@ -227,6 +227,7 @@ export async function deleteAssignment(
 
 /**
  * Bulk create assignments (for algorithm output)
+ * De-duplicates by (student_id, date) - only keeps last assignment per student per date
  */
 export async function bulkCreateAssignments(
 	db: Kysely<DB>,
@@ -237,8 +238,17 @@ export async function bulkCreateAssignments(
 		return [];
 	}
 
+	// De-duplicate by (student_id, date) - keep only the last occurrence
+	// This prevents constraint violations and duplicate bookings
+	const assignmentMap = new Map<string, (typeof data.assignments)[0]>();
+	for (const assignment of data.assignments) {
+		const key = `${assignment.student_id}:${assignment.date}`;
+		assignmentMap.set(key, assignment);
+	}
+	const dedupedAssignments = Array.from(assignmentMap.values());
+
 	const timestamp = new Date().toISOString();
-	const assignments = data.assignments.map((assignment) => ({
+	const assignments = dedupedAssignments.map((assignment) => ({
 		id: crypto.randomUUID(),
 		student_id: assignment.student_id,
 		preceptor_id: assignment.preceptor_id,
