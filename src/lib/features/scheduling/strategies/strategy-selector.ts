@@ -6,6 +6,7 @@
 
 import type { SchedulingStrategy } from './base-strategy';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
+import { TeamContinuityStrategy } from './team-continuity.strategy';
 import { ContinuousSingleStrategy } from './continuous-single.strategy';
 import { BlockBasedStrategy } from './block-based.strategy';
 import { DailyRotationStrategy } from './daily-rotation.strategy';
@@ -19,13 +20,12 @@ export class StrategySelector {
   private strategies: SchedulingStrategy[];
 
   constructor() {
+    // Order matters - first matching strategy is selected
     this.strategies = [
+      new TeamContinuityStrategy(), // Default strategy (handles undefined)
       new ContinuousSingleStrategy(),
       new BlockBasedStrategy(),
       new DailyRotationStrategy(),
-      // Add more strategies as implemented:
-      // new ContinuousTeamStrategy(),
-      // new HybridStrategy(),
     ];
   }
 
@@ -39,8 +39,8 @@ export class StrategySelector {
       }
     }
 
-    // Default to continuous single if no strategy matches
-    return new ContinuousSingleStrategy();
+    // Default to team continuity if no strategy matches
+    return new TeamContinuityStrategy();
   }
 
   /**

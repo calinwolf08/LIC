@@ -193,6 +193,7 @@
 											bind:value={outpatientDefaults.assignmentStrategy}
 											class="w-full rounded-md border px-3 py-2"
 										>
+											<option value="team_continuity">Team Continuity (Default)</option>
 											<option value="continuous_single">Continuous Single</option>
 											<option value="continuous_team">Continuous Team</option>
 											<option value="block_based">Block Based</option>
@@ -256,6 +257,7 @@
 											bind:value={inpatientDefaults.assignmentStrategy}
 											class="w-full rounded-md border px-3 py-2"
 										>
+											<option value="team_continuity">Team Continuity (Default)</option>
 											<option value="continuous_single">Continuous Single</option>
 											<option value="continuous_team">Continuous Team</option>
 											<option value="block_based">Block Based</option>
@@ -335,6 +337,7 @@
 											bind:value={electiveDefaults.assignmentStrategy}
 											class="w-full rounded-md border px-3 py-2"
 										>
+											<option value="team_continuity">Team Continuity (Default)</option>
 											<option value="continuous_single">Continuous Single</option>
 											<option value="continuous_team">Continuous Team</option>
 											<option value="block_based">Block Based</option>

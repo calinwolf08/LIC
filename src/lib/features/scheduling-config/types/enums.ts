@@ -9,6 +9,12 @@
  */
 export const AssignmentStrategy = {
   /**
+   * Maximize continuity with primary preceptor, fallback to team members.
+   * This is the default strategy.
+   */
+  TEAM_CONTINUITY: 'team_continuity',
+
+  /**
    * One preceptor for the entire duration
    */
   CONTINUOUS_SINGLE: 'continuous_single',

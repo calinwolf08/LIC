@@ -27,10 +27,7 @@ export class ContinuousSingleStrategy extends BaseStrategy {
   }
 
   canHandle(config: ResolvedRequirementConfiguration): boolean {
-    return (
-      config.assignmentStrategy === 'continuous_single' ||
-      config.assignmentStrategy === undefined
-    );
+    return config.assignmentStrategy === 'continuous_single';
   }
 
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {

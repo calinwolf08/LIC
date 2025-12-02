@@ -135,7 +135,7 @@ export class ConfigurableSchedulingEngine {
     try {
       // Build strategy context
       const config: any = {
-        assignmentStrategy: 'continuous_single',
+        assignmentStrategy: 'team_continuity',
         healthSystemRule: 'prefer_same_system',
         requirementType: 'outpatient',
       };

@@ -21,7 +21,7 @@
 	// Settings (from global defaults or overrides)
 	let settings = $state(data.settings || {
 		overrideMode: 'inherit',
-		assignmentStrategy: 'continuous_single',
+		assignmentStrategy: 'team_continuity',
 		healthSystemRule: 'no_preference',
 		maxStudentsPerDay: 1,
 		maxStudentsPerYear: 3,
@@ -374,6 +374,7 @@
 						bind:value={settings.assignmentStrategy}
 						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 					>
+						<option value="team_continuity">Team Continuity (Default)</option>
 						<option value="continuous_single">Continuous Single</option>
 						<option value="continuous_team">Continuous Team</option>
 						<option value="block_based">Block Based</option>

@@ -12,14 +12,14 @@ import type {
 
 /**
  * School A: Traditional Conservative
- * - Continuous single preceptor
+ * - Team continuity (prefer same preceptor, fallback to team)
  * - Enforce same health system
  * - Low capacity (1 per day)
  */
 export const schoolAOutpatientDefaults: GlobalOutpatientDefaults = {
   id: 'school-a-outpatient-defaults',
   schoolId: 'school-a',
-  assignmentStrategy: 'continuous_single',
+  assignmentStrategy: 'team_continuity',
   healthSystemRule: 'enforce_same_system',
   defaultMaxStudentsPerDay: 1,
   defaultMaxStudentsPerYear: 10,
@@ -38,7 +38,7 @@ export const schoolAOutpatientDefaults: GlobalOutpatientDefaults = {
 export const schoolAInpatientDefaults: GlobalInpatientDefaults = {
   id: 'school-a-inpatient-defaults',
   schoolId: 'school-a',
-  assignmentStrategy: 'continuous_single',
+  assignmentStrategy: 'team_continuity',
   healthSystemRule: 'enforce_same_system',
   defaultMaxStudentsPerDay: 1,
   defaultMaxStudentsPerYear: 10,
@@ -148,7 +148,7 @@ export const schoolBElectiveDefaults: GlobalElectiveDefaults = {
 export const schoolCOutpatientDefaults: GlobalOutpatientDefaults = {
   id: 'school-c-outpatient-defaults',
   schoolId: 'school-c',
-  assignmentStrategy: 'continuous_single',
+  assignmentStrategy: 'team_continuity',
   healthSystemRule: 'prefer_same_system',
   defaultMaxStudentsPerDay: 1,
   defaultMaxStudentsPerYear: 15,
