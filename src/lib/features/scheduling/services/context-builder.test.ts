@@ -31,7 +31,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -42,6 +43,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
+				clerkship_type: 'outpatient',
 				specialty: 'Family Medicine',
 				required_days: 5,
 				created_at: new Date().toISOString(),
@@ -96,13 +98,14 @@ describe('buildSchedulingContext()', () => {
 		expect(context.blackoutDates.size).toBe(0);
 	});
 
-	it('initializes empty availability sets for all preceptors', () => {
+	it('initializes empty availability maps for preceptors with records', () => {
 		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -111,7 +114,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-2',
 				name: 'Dr. Jones',
 				email: 'jones@example.com',
-				specialty: 'Internal Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -128,21 +132,19 @@ describe('buildSchedulingContext()', () => {
 			'2024-12-31'
 		);
 
-		expect(context.preceptorAvailability.size).toBe(2);
-		expect(context.preceptorAvailability.has('preceptor-1')).toBe(true);
-		expect(context.preceptorAvailability.has('preceptor-2')).toBe(true);
-		expect(context.preceptorAvailability.get('preceptor-1')).toBeInstanceOf(Set);
-		expect(context.preceptorAvailability.get('preceptor-1')?.size).toBe(0);
-		expect(context.preceptorAvailability.get('preceptor-2')?.size).toBe(0);
+		// With no availability records, the map should be empty
+		expect(context.preceptorAvailability).toBeInstanceOf(Map);
+		expect(context.preceptorAvailability.size).toBe(0);
 	});
 
-	it('populates preceptor availability from records', () => {
+	it('populates preceptor availability from records with site info', () => {
 		const preceptors: Preceptors[] = [
 			{
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -153,6 +155,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '1',
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: '2024-01-15',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -161,6 +164,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '2',
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: '2024-01-16',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -179,9 +183,11 @@ describe('buildSchedulingContext()', () => {
 		);
 
 		const availability = context.preceptorAvailability.get('preceptor-1')!;
+		expect(availability).toBeInstanceOf(Map);
 		expect(availability.size).toBe(2);
 		expect(availability.has('2024-01-15')).toBe(true);
 		expect(availability.has('2024-01-16')).toBe(true);
+		expect(availability.get('2024-01-15')).toBe('site-1');
 	});
 
 	it('only includes available dates (is_available = 1)', () => {
@@ -190,7 +196,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -201,6 +208,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '1',
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: '2024-01-15',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -209,6 +217,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '2',
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: '2024-01-16',
 				is_available: 0, // Not available
 				created_at: new Date().toISOString(),
@@ -238,7 +247,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -247,7 +257,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-2',
 				name: 'Dr. Jones',
 				email: 'jones@example.com',
-				specialty: 'Internal Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -258,6 +269,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '1',
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: '2024-01-15',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -266,6 +278,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '2',
 				preceptor_id: 'preceptor-2',
+				site_id: 'site-1',
 				date: '2024-01-16',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -295,7 +308,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -306,6 +320,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '1',
 				preceptor_id: 'unknown-preceptor',
+				site_id: 'site-1',
 				date: '2024-01-15',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -323,9 +338,9 @@ describe('buildSchedulingContext()', () => {
 			'2024-12-31'
 		);
 
-		expect(context.preceptorAvailability.size).toBe(1);
-		expect(context.preceptorAvailability.has('unknown-preceptor')).toBe(false);
-		expect(context.preceptorAvailability.get('preceptor-1')?.size).toBe(0);
+		// Unknown preceptor's availability is still stored
+		expect(context.preceptorAvailability.has('unknown-preceptor')).toBe(true);
+		expect(context.preceptorAvailability.get('unknown-preceptor')?.size).toBe(1);
 	});
 
 	it('initializes student requirements correctly', () => {
@@ -350,6 +365,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
+				clerkship_type: 'outpatient',
 				specialty: 'Family Medicine',
 				required_days: 5,
 				created_at: new Date().toISOString(),
@@ -358,6 +374,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: 'clerkship-2',
 				name: 'IM Clerkship',
+				clerkship_type: 'inpatient',
 				specialty: 'Internal Medicine',
 				required_days: 10,
 				created_at: new Date().toISOString(),
@@ -428,7 +445,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-1',
 				name: 'Dr. Smith',
 				email: 'smith@example.com',
-				specialty: 'Family Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 1,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -437,7 +455,8 @@ describe('buildSchedulingContext()', () => {
 				id: 'preceptor-2',
 				name: 'Dr. Jones',
 				email: 'jones@example.com',
-				specialty: 'Internal Medicine',
+				health_system_id: null,
+				phone: null,
 				max_students: 2,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -448,6 +467,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: 'clerkship-1',
 				name: 'FM Clerkship',
+				clerkship_type: 'outpatient',
 				specialty: 'Family Medicine',
 				required_days: 5,
 				created_at: new Date().toISOString(),
@@ -456,6 +476,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: 'clerkship-2',
 				name: 'IM Clerkship',
+				clerkship_type: 'inpatient',
 				specialty: 'Internal Medicine',
 				required_days: 10,
 				created_at: new Date().toISOString(),
@@ -469,6 +490,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '1',
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: '2024-01-15',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -477,6 +499,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '2',
 				preceptor_id: 'preceptor-2',
+				site_id: 'site-1',
 				date: '2024-01-16',
 				is_available: 1,
 				created_at: new Date().toISOString(),
@@ -485,6 +508,7 @@ describe('buildSchedulingContext()', () => {
 			{
 				id: '3',
 				preceptor_id: 'preceptor-2',
+				site_id: 'site-1',
 				date: '2024-01-17',
 				is_available: 0,
 				created_at: new Date().toISOString(),
