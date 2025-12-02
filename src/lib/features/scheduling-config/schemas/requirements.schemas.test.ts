@@ -11,6 +11,7 @@ describe('Requirements Schemas', () => {
     describe('inherit mode', () => {
       it('should validate requirement with inherit mode', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient' as const,
           requiredDays: 40,
           overrideMode: 'inherit' as const,
@@ -22,6 +23,7 @@ describe('Requirements Schemas', () => {
 
       it('should allow override fields in inherit mode (ignored)', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient' as const,
           requiredDays: 40,
           overrideMode: 'inherit' as const,
@@ -36,6 +38,7 @@ describe('Requirements Schemas', () => {
     describe('override_section mode', () => {
       it('should require assignment strategy and health system rule', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient',
           requiredDays: 40,
           overrideMode: 'override_section',
@@ -48,6 +51,7 @@ describe('Requirements Schemas', () => {
 
       it('should validate with required override fields', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient' as const,
           requiredDays: 40,
           overrideMode: 'override_section' as const,
@@ -61,6 +65,7 @@ describe('Requirements Schemas', () => {
 
       it('should validate with all override fields', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'inpatient' as const,
           requiredDays: 20,
           overrideMode: 'override_section' as const,
@@ -81,6 +86,7 @@ describe('Requirements Schemas', () => {
     describe('override_fields mode', () => {
       it('should require at least one override field', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient',
           requiredDays: 40,
           overrideMode: 'override_fields',
@@ -93,6 +99,7 @@ describe('Requirements Schemas', () => {
 
       it('should validate with single override field', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient' as const,
           requiredDays: 40,
           overrideMode: 'override_fields' as const,
@@ -105,6 +112,7 @@ describe('Requirements Schemas', () => {
 
       it('should validate with multiple override fields', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient' as const,
           requiredDays: 40,
           overrideMode: 'override_fields' as const,
@@ -121,6 +129,7 @@ describe('Requirements Schemas', () => {
     describe('validation rules', () => {
       it('should reject zero or negative required days', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient',
           requiredDays: 0,
           overrideMode: 'inherit',
@@ -132,6 +141,7 @@ describe('Requirements Schemas', () => {
 
       it('should reject when max per year < max per day', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient',
           requiredDays: 40,
           overrideMode: 'override_fields',
@@ -145,6 +155,7 @@ describe('Requirements Schemas', () => {
 
       it('should require block size when using block-based strategy', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'inpatient',
           requiredDays: 20,
           overrideMode: 'override_fields',
@@ -158,6 +169,7 @@ describe('Requirements Schemas', () => {
 
       it('should validate block-based with block size', () => {
         const validRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'inpatient' as const,
           requiredDays: 20,
           overrideMode: 'override_fields' as const,
@@ -171,6 +183,7 @@ describe('Requirements Schemas', () => {
 
       it('should reject invalid requirement types', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'invalid_type',
           requiredDays: 40,
           overrideMode: 'inherit',
@@ -182,6 +195,7 @@ describe('Requirements Schemas', () => {
 
       it('should reject invalid override modes', () => {
         const invalidRequirement = {
+          clerkshipId: 'test-clerkship-id',
           requirementType: 'outpatient',
           requiredDays: 40,
           overrideMode: 'invalid_mode',
@@ -277,29 +291,26 @@ describe('Requirements Schemas', () => {
         name: 'Rural Medicine',
         minimumDays: 5,
         specialty: 'Family Medicine',
-        availablePreceptorIds: ['prec-1', 'prec-2'],
       };
 
       const result = clerkshipElectiveInputSchema.safeParse(validElective);
       expect(result.success).toBe(true);
     });
 
-    it('should require at least one preceptor', () => {
-      const invalidElective = {
+    it('should validate elective without optional specialty', () => {
+      const validElective = {
         name: 'Rural Medicine',
         minimumDays: 5,
-        availablePreceptorIds: [],
       };
 
-      const result = clerkshipElectiveInputSchema.safeParse(invalidElective);
-      expect(result.success).toBe(false);
+      const result = clerkshipElectiveInputSchema.safeParse(validElective);
+      expect(result.success).toBe(true);
     });
 
     it('should reject empty name', () => {
       const invalidElective = {
         name: '',
         minimumDays: 5,
-        availablePreceptorIds: ['prec-1'],
       };
 
       const result = clerkshipElectiveInputSchema.safeParse(invalidElective);
@@ -310,7 +321,6 @@ describe('Requirements Schemas', () => {
       const invalidElective = {
         name: 'Rural Medicine',
         minimumDays: 0,
-        availablePreceptorIds: ['prec-1'],
       };
 
       const result = clerkshipElectiveInputSchema.safeParse(invalidElective);
@@ -321,7 +331,6 @@ describe('Requirements Schemas', () => {
       const validElective = {
         name: 'Rural Medicine',
         minimumDays: 5,
-        availablePreceptorIds: ['prec-1'],
       };
 
       const result = clerkshipElectiveInputSchema.safeParse(validElective);

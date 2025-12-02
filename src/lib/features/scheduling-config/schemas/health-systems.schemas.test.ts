@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   healthSystemInputSchema,
   siteInputSchema,
+  siteValidationSchema,
 } from './health-systems.schemas';
 
 describe('Health Systems Schemas', () => {
@@ -68,7 +69,6 @@ describe('Health Systems Schemas', () => {
   describe('siteInputSchema', () => {
     it('should validate site with all fields', () => {
       const validSite = {
-        healthSystemId: 'hs-1',
         name: 'Memorial Main Hospital',
         address: '123 Health St, Downtown',
       };
@@ -79,7 +79,6 @@ describe('Health Systems Schemas', () => {
 
     it('should validate with only required fields', () => {
       const minimalSite = {
-        healthSystemId: 'hs-1',
         name: 'Memorial Main Hospital',
       };
 
@@ -87,19 +86,8 @@ describe('Health Systems Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty health system ID', () => {
-      const invalidSite = {
-        healthSystemId: '',
-        name: 'Memorial Main Hospital',
-      };
-
-      const result = siteInputSchema.safeParse(invalidSite);
-      expect(result.success).toBe(false);
-    });
-
     it('should reject empty name', () => {
       const invalidSite = {
-        healthSystemId: 'hs-1',
         name: '',
       };
 
@@ -109,9 +97,7 @@ describe('Health Systems Schemas', () => {
 
     it('should reject missing required fields', () => {
       const invalidSites = [
-        { name: 'Memorial Main Hospital' }, // Missing healthSystemId
-        { healthSystemId: 'hs-1' }, // Missing name
-        {}, // Missing both
+        {}, // Missing name
       ];
 
       invalidSites.forEach(site => {
@@ -122,13 +108,44 @@ describe('Health Systems Schemas', () => {
 
     it('should allow optional address', () => {
       const siteWithAddress = {
-        healthSystemId: 'hs-1',
         name: 'Memorial Main Hospital',
         address: '123 Health St',
       };
 
       const result = siteInputSchema.safeParse(siteWithAddress);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('siteValidationSchema', () => {
+    it('should validate site with health system ID', () => {
+      const validSite = {
+        healthSystemId: 'hs-1',
+        name: 'Memorial Main Hospital',
+        address: '123 Health St',
+      };
+
+      const result = siteValidationSchema.safeParse(validSite);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject empty health system ID', () => {
+      const invalidSite = {
+        healthSystemId: '',
+        name: 'Memorial Main Hospital',
+      };
+
+      const result = siteValidationSchema.safeParse(invalidSite);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing health system ID', () => {
+      const invalidSite = {
+        name: 'Memorial Main Hospital',
+      };
+
+      const result = siteValidationSchema.safeParse(invalidSite);
+      expect(result.success).toBe(false);
     });
   });
 });

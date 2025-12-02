@@ -183,6 +183,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.createTable('preceptor_availability')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -208,6 +209,42 @@ async function createHealthSystem(db: Kysely<DB>, name: string = 'Test Health Sy
 		.returningAll()
 		.executeTakeFirstOrThrow();
 	return healthSystem;
+}
+
+/**
+ * Helper to create a site
+ */
+async function createSiteDirect(db: Kysely<DB>, healthSystemId: string) {
+	const timestamp = new Date().toISOString();
+	const site = await db
+		.insertInto('sites')
+		.values({
+			id: generateTestId('clsite'),
+			name: 'Test Site',
+			health_system_id: healthSystemId,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+	return site;
+}
+
+/**
+ * Helper to link preceptor to site
+ */
+async function linkPreceptorToSite(db: Kysely<DB>, preceptorId: string, siteId: string) {
+	const timestamp = new Date().toISOString();
+	await db
+		.insertInto('preceptor_sites')
+		.values({
+			id: generateTestId('clps'),
+			preceptor_id: preceptorId,
+			site_id: siteId,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 }
 
 /**
@@ -560,17 +597,19 @@ describe('Schedules API Integration Tests', () => {
 
 		it('calculates capacity correctly with availability', async () => {
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSiteDirect(db, healthSystem.id as string);
 			const preceptor = await createPreceptorDirect(db, {
 				name: 'Dr. Smith',
 				email: 'smith@hospital.com',
 				health_system_id: healthSystem.id as string
 			});
+			await linkPreceptorToSite(db, preceptor.id as string, site.id as string);
 
 			// Set availability for some days
-			await setAvailability(db, preceptor.id as string, '2024-06-15', true);
-			await setAvailability(db, preceptor.id as string, '2024-06-16', true);
-			await setAvailability(db, preceptor.id as string, '2024-06-17', false);
-			await setAvailability(db, preceptor.id as string, '2024-06-18', true);
+			await setAvailability(db, preceptor.id as string, site.id as string, '2024-06-15', true);
+			await setAvailability(db, preceptor.id as string, site.id as string, '2024-06-16', true);
+			await setAvailability(db, preceptor.id as string, site.id as string, '2024-06-17', false);
+			await setAvailability(db, preceptor.id as string, site.id as string, '2024-06-18', true);
 
 			const schedule = await getPreceptorScheduleData(db, preceptor.id as string);
 

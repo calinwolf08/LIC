@@ -121,11 +121,33 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
+	// Sites table
+	await db.schema
+		.createTable('sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('address', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Preceptor sites junction table
+	await db.schema
+		.createTable('preceptor_sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
 	// Preceptor availability
 	await db.schema
 		.createTable('preceptor_availability')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -157,6 +179,36 @@ async function createHealthSystem(db: Kysely<DB>): Promise<{ id: string }> {
 		updated_at: timestamp
 	}).execute();
 	return { id };
+}
+
+/**
+ * Create site directly in database
+ */
+async function createSite(db: Kysely<DB>, healthSystemId: string): Promise<{ id: string }> {
+	const timestamp = new Date().toISOString();
+	const id = nanoid();
+	await db.insertInto('sites').values({
+		id,
+		name: 'Test Site',
+		health_system_id: healthSystemId,
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
+	return { id };
+}
+
+/**
+ * Link preceptor to site
+ */
+async function linkPreceptorToSite(db: Kysely<DB>, preceptorId: string, siteId: string): Promise<void> {
+	const timestamp = new Date().toISOString();
+	await db.insertInto('preceptor_sites').values({
+		id: nanoid(),
+		preceptor_id: preceptorId,
+		site_id: siteId,
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
 }
 
 /**
@@ -524,6 +576,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 
 			// Setup: Two preceptors in same specialty
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
@@ -536,6 +589,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 				health_system_id: healthSystem.id,
 				max_students: 2
 			});
+			await linkPreceptorToSite(db, preceptor1.id, site.id);
 
 			const preceptor2 = await createPreceptorDirect(db, {
 				name: 'Dr. Replacement',
@@ -543,6 +597,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 				health_system_id: healthSystem.id,
 				max_students: 2
 			});
+			await linkPreceptorToSite(db, preceptor2.id, site.id);
 
 			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
@@ -588,13 +643,13 @@ describe('Schedule Regeneration Integration Tests', () => {
 
 			// Set availability: preceptor1 is no longer available for future dates
 			// but preceptor2 is available
-			await setAvailability(db, preceptor1.id, futureDate1, false);
-			await setAvailability(db, preceptor1.id, futureDate2, false);
-			await setAvailability(db, preceptor1.id, futureDate3, false);
+			await setAvailability(db, preceptor1.id, site.id, futureDate1, false);
+			await setAvailability(db, preceptor1.id, site.id, futureDate2, false);
+			await setAvailability(db, preceptor1.id, site.id, futureDate3, false);
 
-			await setAvailability(db, preceptor2.id, futureDate1, true);
-			await setAvailability(db, preceptor2.id, futureDate2, true);
-			await setAvailability(db, preceptor2.id, futureDate3, true);
+			await setAvailability(db, preceptor2.id, site.id, futureDate1, true);
+			await setAvailability(db, preceptor2.id, site.id, futureDate2, true);
+			await setAvailability(db, preceptor2.id, site.id, futureDate3, true);
 
 			// Build context for regeneration
 			const students = await db.selectFrom('students').selectAll().execute();
@@ -653,6 +708,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 			// We should preserve assignments with the still-available preceptor
 
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
@@ -665,6 +721,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 				health_system_id: healthSystem.id,
 				max_students: 2
 			});
+			await linkPreceptorToSite(db, preceptorCardio.id, site.id);
 
 			const preceptorNeuro = await createPreceptorDirect(db, {
 				name: 'Dr. Neuro',
@@ -672,6 +729,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 				health_system_id: healthSystem.id,
 				max_students: 2
 			});
+			await linkPreceptorToSite(db, preceptorNeuro.id, site.id);
 
 			const clerkshipCardio = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
@@ -706,8 +764,8 @@ describe('Schedule Regeneration Integration Tests', () => {
 			});
 
 			// Set availability: cardio stays available, neuro becomes unavailable
-			await setAvailability(db, preceptorCardio.id, futureDate1, true);
-			await setAvailability(db, preceptorNeuro.id, futureDate2, false);
+			await setAvailability(db, preceptorCardio.id, site.id, futureDate1, true);
+			await setAvailability(db, preceptorNeuro.id, site.id, futureDate2, false);
 
 			// Build context
 			const students = await db.selectFrom('students').selectAll().execute();
@@ -756,6 +814,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 			// Same scenario analyzed with both strategies to show the difference
 
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
@@ -768,6 +827,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 				health_system_id: healthSystem.id,
 				max_students: 2
 			});
+			await linkPreceptorToSite(db, preceptor1.id, site.id);
 
 			const clerkship = await createClerkshipDirect(db, {
 				name: 'Cardiology Rotation',
@@ -802,9 +862,9 @@ describe('Schedule Regeneration Integration Tests', () => {
 			});
 
 			// Preceptor stays available
-			await setAvailability(db, preceptor1.id, futureDate1, true);
-			await setAvailability(db, preceptor1.id, futureDate2, true);
-			await setAvailability(db, preceptor1.id, futureDate3, true);
+			await setAvailability(db, preceptor1.id, site.id, futureDate1, true);
+			await setAvailability(db, preceptor1.id, site.id, futureDate2, true);
+			await setAvailability(db, preceptor1.id, site.id, futureDate3, true);
 
 			// Build context
 			const students = await db.selectFrom('students').selectAll().execute();
@@ -869,6 +929,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 			// Edge case: Preceptor becomes unavailable but no other preceptor in same specialty
 
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id);
 			const student = await createStudent(db, {
 				name: 'Test Student',
 				email: 'student@test.com',
@@ -881,6 +942,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 				health_system_id: healthSystem.id,
 				max_students: 2
 			});
+			await linkPreceptorToSite(db, preceptor1.id, site.id);
 
 			// No other preceptors!
 
@@ -900,7 +962,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 			});
 
 			// Preceptor becomes unavailable
-			await setAvailability(db, preceptor1.id, futureDate, false);
+			await setAvailability(db, preceptor1.id, site.id, futureDate, false);
 
 			// Build context
 			const students = await db.selectFrom('students').selectAll().execute();

@@ -13,21 +13,54 @@ describe('createPreceptorSchema', () => {
 		const validInput = {
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
-			specialty: 'Family Medicine',
 			max_students: 2
 		};
 
 		const result = createPreceptorSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
 		if (result.success) {
-			expect(result.data).toEqual(validInput);
+			expect(result.data.name).toBe('Dr. Smith');
+			expect(result.data.email).toBe('smith@example.com');
+			expect(result.data.max_students).toBe(2);
 		}
+	});
+
+	it('validates with phone number', () => {
+		const validInput = {
+			name: 'Dr. Smith',
+			email: 'smith@example.com',
+			phone: '123-456-7890'
+		};
+
+		const result = createPreceptorSchema.safeParse(validInput);
+		expect(result.success).toBe(true);
+	});
+
+	it('validates with health_system_id', () => {
+		const validInput = {
+			name: 'Dr. Smith',
+			email: 'smith@example.com',
+			health_system_id: 'clq1234567890123456789'
+		};
+
+		const result = createPreceptorSchema.safeParse(validInput);
+		expect(result.success).toBe(true);
+	});
+
+	it('validates with site_ids array', () => {
+		const validInput = {
+			name: 'Dr. Smith',
+			email: 'smith@example.com',
+			site_ids: ['clq1234567890123456789', 'clq9876543210987654321']
+		};
+
+		const result = createPreceptorSchema.safeParse(validInput);
+		expect(result.success).toBe(true);
 	});
 
 	it('requires name', () => {
 		const invalidInput = {
-			email: 'smith@example.com',
-			specialty: 'Family Medicine'
+			email: 'smith@example.com'
 		};
 
 		const result = createPreceptorSchema.safeParse(invalidInput);
@@ -39,8 +72,7 @@ describe('createPreceptorSchema', () => {
 
 	it('requires email', () => {
 		const invalidInput = {
-			name: 'Dr. Smith',
-			specialty: 'Family Medicine'
+			name: 'Dr. Smith'
 		};
 
 		const result = createPreceptorSchema.safeParse(invalidInput);
@@ -50,24 +82,10 @@ describe('createPreceptorSchema', () => {
 		}
 	});
 
-	it('requires specialty', () => {
-		const invalidInput = {
-			name: 'Dr. Smith',
-			email: 'smith@example.com'
-		};
-
-		const result = createPreceptorSchema.safeParse(invalidInput);
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.issues[0].path).toContain('specialty');
-		}
-	});
-
 	it('validates email format', () => {
 		const invalidInput = {
 			name: 'Dr. Smith',
-			email: 'not-an-email',
-			specialty: 'Family Medicine'
+			email: 'not-an-email'
 		};
 
 		const result = createPreceptorSchema.safeParse(invalidInput);
@@ -80,8 +98,7 @@ describe('createPreceptorSchema', () => {
 	it('validates name length (min 2 chars)', () => {
 		const invalidInput = {
 			name: 'D',
-			email: 'smith@example.com',
-			specialty: 'Family Medicine'
+			email: 'smith@example.com'
 		};
 
 		const result = createPreceptorSchema.safeParse(invalidInput);
@@ -91,25 +108,10 @@ describe('createPreceptorSchema', () => {
 		}
 	});
 
-	it('rejects empty specialty', () => {
-		const invalidInput = {
-			name: 'Dr. Smith',
-			email: 'smith@example.com',
-			specialty: ''
-		};
-
-		const result = createPreceptorSchema.safeParse(invalidInput);
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.issues[0].path).toContain('specialty');
-		}
-	});
-
 	it('defaults max_students to 1 if not provided', () => {
 		const input = {
 			name: 'Dr. Smith',
-			email: 'smith@example.com',
-			specialty: 'Family Medicine'
+			email: 'smith@example.com'
 		};
 
 		const result = createPreceptorSchema.safeParse(input);
@@ -123,7 +125,6 @@ describe('createPreceptorSchema', () => {
 		const input = {
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
-			specialty: 'Family Medicine',
 			max_students: 5
 		};
 
@@ -138,7 +139,6 @@ describe('createPreceptorSchema', () => {
 		const invalidInput = {
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
-			specialty: 'Family Medicine',
 			max_students: -1
 		};
 
@@ -150,7 +150,6 @@ describe('createPreceptorSchema', () => {
 		const invalidInput = {
 			name: 'Dr. Smith',
 			email: 'smith@example.com',
-			specialty: 'Family Medicine',
 			max_students: 0
 		};
 
@@ -184,16 +183,13 @@ describe('updatePreceptorSchema', () => {
 		}
 	});
 
-	it('allows optional specialty', () => {
+	it('allows optional phone', () => {
 		const validInput = {
-			specialty: 'Internal Medicine'
+			phone: '123-456-7890'
 		};
 
 		const result = updatePreceptorSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.specialty).toBe('Internal Medicine');
-		}
 	});
 
 	it('allows optional max_students', () => {
@@ -212,14 +208,15 @@ describe('updatePreceptorSchema', () => {
 		const validInput = {
 			name: 'Dr. Johnson',
 			email: 'johnson@example.com',
-			specialty: 'Internal Medicine',
 			max_students: 3
 		};
 
 		const result = updatePreceptorSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
 		if (result.success) {
-			expect(result.data).toEqual(validInput);
+			expect(result.data.name).toBe('Dr. Johnson');
+			expect(result.data.email).toBe('johnson@example.com');
+			expect(result.data.max_students).toBe(3);
 		}
 	});
 
@@ -264,18 +261,6 @@ describe('updatePreceptorSchema', () => {
 		}
 	});
 
-	it('validates specialty when provided', () => {
-		const invalidInput = {
-			specialty: ''
-		};
-
-		const result = updatePreceptorSchema.safeParse(invalidInput);
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.issues[0].path).toContain('specialty');
-		}
-	});
-
 	it('validates max_students when provided', () => {
 		const invalidInput = {
 			max_students: -1
@@ -287,18 +272,18 @@ describe('updatePreceptorSchema', () => {
 });
 
 describe('preceptorIdSchema', () => {
-	it('validates UUID format', () => {
+	it('validates CUID2 format', () => {
 		const validInput = {
-			id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+			id: 'clq1234567890123456789'
 		};
 
 		const result = preceptorIdSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects invalid UUID format', () => {
+	it('rejects invalid CUID2 format', () => {
 		const invalidInput = {
-			id: 'not-a-uuid'
+			id: 'not-a-cuid'
 		};
 
 		const result = preceptorIdSchema.safeParse(invalidInput);
