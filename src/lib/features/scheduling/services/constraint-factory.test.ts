@@ -65,7 +65,8 @@ describe('ConstraintFactory', () => {
 			mockDb.selectFrom = vi.fn((table) => ({
 				selectAll: () => ({
 					where: () => ({
-						execute: async () => []
+						execute: async () => [],
+						executeTakeFirst: async () => null
 					})
 				}),
 				select: () => ({
@@ -253,7 +254,8 @@ describe('ConstraintFactory', () => {
 			mockDb.selectFrom = vi.fn((table) => ({
 				selectAll: () => ({
 					where: () => ({
-						execute: async () => []
+						execute: async () => [],
+						executeTakeFirst: async () => null
 					})
 				}),
 				select: () => ({

@@ -29,6 +29,10 @@ export interface OptionalContextData {
 		preceptor_id: string;
 		elective_requirement_id: string;
 	}>;
+	preceptorClerkships?: Array<{
+		preceptor_id: string;
+		clerkship_id: string;
+	}>;
 	clerkshipSites?: Array<{
 		clerkship_id: string;
 		site_id: string;
@@ -155,6 +159,18 @@ export function buildSchedulingContext(
 					.add(record.elective_requirement_id);
 			}
 			context.preceptorElectiveAssociations = preceptorElectiveAssociations;
+		}
+
+		// Build preceptor-clerkship associations map
+		if (optionalData.preceptorClerkships) {
+			const preceptorClerkshipAssociations = new Map<string, Set<string>>();
+			for (const record of optionalData.preceptorClerkships) {
+				if (!preceptorClerkshipAssociations.has(record.preceptor_id)) {
+					preceptorClerkshipAssociations.set(record.preceptor_id, new Set());
+				}
+				preceptorClerkshipAssociations.get(record.preceptor_id)!.add(record.clerkship_id);
+			}
+			context.preceptorClerkshipAssociations = preceptorClerkshipAssociations;
 		}
 
 		// Build clerkship-site associations map

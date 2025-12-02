@@ -177,9 +177,9 @@ describe('SiteContinuityConstraint', () => {
 
 		const violations = tracker.exportViolations();
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('must stay at');
-		expect(violations[0].message).toContain('City Hospital');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('must stay at');
+		expect(violations[0].reason).toContain('City Hospital');
 	});
 
 	it('allows assignment at different site when require_same_site is false', () => {
@@ -343,9 +343,9 @@ describe('SiteAvailabilityConstraint', () => {
 
 		const violations = tracker.exportViolations();
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('not available');
-		expect(violations[0].message).toContain('City Hospital');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('not available');
+		expect(violations[0].reason).toContain('City Hospital');
 	});
 
 	it('allows assignment when availability data is not present', () => {
@@ -550,8 +550,8 @@ describe('SiteCapacityConstraint', () => {
 
 		const violations = tracker.exportViolations();
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('daily capacity');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('daily capacity');
 	});
 
 	it('allows assignment when capacity rules are not defined', () => {
@@ -707,8 +707,8 @@ describe('ValidSiteForClerkshipConstraint', () => {
 
 		const violations = tracker.exportViolations();
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('not authorized');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('not authorized');
 	});
 
 	it('allows assignment when association data is not present', () => {
@@ -889,8 +889,8 @@ describe('SamePreceptorTeamConstraint', () => {
 
 		const violations = tracker.exportViolations();
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('must stay with');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('must stay with');
 	});
 
 	it('allows assignment with preceptor from different team when require_same_team is false', () => {

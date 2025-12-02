@@ -214,11 +214,11 @@ describe('Regeneration Service', () => {
 	});
 
 	describe('findReplacementPreceptor()', () => {
-		it('finds replacement preceptor with matching specialty', () => {
+		it('finds replacement preceptor when original is unavailable', () => {
 			const context = createMockContext();
 			const assignment = createMockAssignment({
-				preceptor_id: 'preceptor-1', // Cardiology
-				clerkship_id: 'clerkship-1', // Cardiology
+				preceptor_id: 'preceptor-1',
+				clerkship_id: 'clerkship-1',
 				date: '2025-01-15'
 			});
 
@@ -227,20 +227,20 @@ describe('Regeneration Service', () => {
 
 			const replacementId = findReplacementPreceptor(assignment, context, unavailablePreceptorIds);
 
-			// Should find preceptor-3 (also Cardiology)
-			expect(replacementId).toBe('preceptor-3');
+			// Should find any available preceptor (preceptor-2 or preceptor-3)
+			expect(['preceptor-2', 'preceptor-3']).toContain(replacementId);
 		});
 
-		it('returns null when no replacement available', () => {
+		it('returns null when all preceptors unavailable', () => {
 			const context = createMockContext();
 			const assignment = createMockAssignment({
-				preceptor_id: 'preceptor-1', // Cardiology
-				clerkship_id: 'clerkship-1', // Cardiology
+				preceptor_id: 'preceptor-1',
+				clerkship_id: 'clerkship-1',
 				date: '2025-01-15'
 			});
 
-			// All cardiology preceptors unavailable
-			const unavailablePreceptorIds = new Set(['preceptor-1', 'preceptor-3']);
+			// All preceptors unavailable
+			const unavailablePreceptorIds = new Set(['preceptor-1', 'preceptor-2', 'preceptor-3']);
 
 			const replacementId = findReplacementPreceptor(assignment, context, unavailablePreceptorIds);
 
@@ -249,34 +249,9 @@ describe('Regeneration Service', () => {
 
 		it('checks preceptor availability for the date', () => {
 			const context = createMockContext();
-			context.preceptorAvailability.set('preceptor-3', new Set(['2025-01-20'])); // Not available on 2025-01-15
-
-			const assignment = createMockAssignment({
-				preceptor_id: 'preceptor-1', // Cardiology
-				clerkship_id: 'clerkship-1', // Cardiology
-				date: '2025-01-15'
-			});
-
-			const unavailablePreceptorIds = new Set(['preceptor-1']);
-
-			const replacementId = findReplacementPreceptor(assignment, context, unavailablePreceptorIds);
-
-			// Should return null because preceptor-3 is not available on 2025-01-15
-			expect(replacementId).toBeNull();
-		});
-
-		it('checks preceptor capacity on the date', () => {
-			const context = createMockContext();
-
-			// Preceptor 3 has max_students = 1 and already has an assignment on 2025-01-15
-			// Add an existing assignment to the context for preceptor-3 on that date
-			const existingAssignment = {
-				studentId: 'other-student',
-				preceptorId: 'preceptor-3',
-				clerkshipId: 'clerkship-1',
-				date: '2025-01-15'
-			};
-			context.assignmentsByDate.set('2025-01-15', [existingAssignment]);
+			// Set preceptor-2 and preceptor-3 to not be available on 2025-01-15
+			context.preceptorAvailability.set('preceptor-2', new Set(['2025-01-20']));
+			context.preceptorAvailability.set('preceptor-3', new Set(['2025-01-20']));
 
 			const assignment = createMockAssignment({
 				preceptor_id: 'preceptor-1',
@@ -288,7 +263,48 @@ describe('Regeneration Service', () => {
 
 			const replacementId = findReplacementPreceptor(assignment, context, unavailablePreceptorIds);
 
-			// Should return null because preceptor-3 is at capacity (max_students=1, already has 1)
+			// Should return null because no other preceptor is available on 2025-01-15
+			expect(replacementId).toBeNull();
+		});
+
+		it('checks preceptor capacity on the date', () => {
+			const context = createMockContext();
+
+			// Preceptor-2 and preceptor-3 both have existing assignments
+			// Preceptor-3 has max_students = 1, preceptor-2 has max_students = 2
+			const existingAssignments = [
+				{
+					studentId: 'other-student-1',
+					preceptorId: 'preceptor-2',
+					clerkshipId: 'clerkship-1',
+					date: '2025-01-15'
+				},
+				{
+					studentId: 'other-student-2',
+					preceptorId: 'preceptor-2',
+					clerkshipId: 'clerkship-1',
+					date: '2025-01-15'
+				},
+				{
+					studentId: 'other-student-3',
+					preceptorId: 'preceptor-3',
+					clerkshipId: 'clerkship-1',
+					date: '2025-01-15'
+				}
+			];
+			context.assignmentsByDate.set('2025-01-15', existingAssignments);
+
+			const assignment = createMockAssignment({
+				preceptor_id: 'preceptor-1',
+				clerkship_id: 'clerkship-1',
+				date: '2025-01-15'
+			});
+
+			const unavailablePreceptorIds = new Set(['preceptor-1']);
+
+			const replacementId = findReplacementPreceptor(assignment, context, unavailablePreceptorIds);
+
+			// Should return null because both preceptor-2 and preceptor-3 are at capacity
 			expect(replacementId).toBeNull();
 		});
 	});
@@ -335,7 +351,7 @@ describe('Regeneration Service', () => {
 			const affectedAssignments = [
 				createMockAssignment({
 					student_id: 'student-1',
-					preceptor_id: 'preceptor-1', // Cardiology, now unavailable
+					preceptor_id: 'preceptor-1', // now unavailable
 					clerkship_id: 'clerkship-1',
 					date: '2025-01-15'
 				})
@@ -350,9 +366,9 @@ describe('Regeneration Service', () => {
 				unavailablePreceptorIds
 			);
 
-			// Should find replacement (preceptor-3) - result uses camelCase
+			// Should find replacement (preceptor-2 or preceptor-3) - result uses camelCase
 			expect(result).toHaveLength(1);
-			expect(result[0].preceptorId).toBe('preceptor-3');
+			expect(['preceptor-2', 'preceptor-3']).toContain(result[0].preceptorId);
 		});
 
 		it('does not include affected assignments when no replacement found', () => {
@@ -362,14 +378,14 @@ describe('Regeneration Service', () => {
 			const affectedAssignments = [
 				createMockAssignment({
 					student_id: 'student-1',
-					preceptor_id: 'preceptor-1', // Cardiology
+					preceptor_id: 'preceptor-1',
 					clerkship_id: 'clerkship-1',
 					date: '2025-01-15'
 				})
 			];
 
-			// All cardiology preceptors unavailable
-			const unavailablePreceptorIds = new Set(['preceptor-1', 'preceptor-3']);
+			// All preceptors unavailable
+			const unavailablePreceptorIds = new Set(['preceptor-1', 'preceptor-2', 'preceptor-3']);
 
 			const result = applyMinimalChangeStrategy(
 				context,

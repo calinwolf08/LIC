@@ -486,7 +486,7 @@ describe('SpecialtyMatchConstraint', () => {
 	it('has correct properties', () => {
 		expect(constraint.name).toBe('SpecialtyMatch');
 		expect(constraint.priority).toBe(1);
-		expect(constraint.bypassable).toBe(false);
+		expect(constraint.bypassable).toBe(true); // Specialty matching is disabled
 	});
 
 	it('allows assignment when preceptor specialty matches clerkship', () => {
@@ -503,7 +503,7 @@ describe('SpecialtyMatchConstraint', () => {
 		expect(tracker.getTotalViolations()).toBe(0);
 	});
 
-	it('blocks assignment when preceptor specialty does not match clerkship', () => {
+	it('allows assignment even when specialty does not match (specialty matching disabled)', () => {
 		const assignment: Assignment = {
 			studentId: 'student-1',
 			preceptorId: 'preceptor-1', // Family Medicine
@@ -513,11 +513,12 @@ describe('SpecialtyMatchConstraint', () => {
 
 		const result = constraint.validate(assignment, context, tracker);
 
-		expect(result).toBe(false);
-		expect(tracker.getTotalViolations()).toBe(1);
+		// Specialty matching is disabled, so all assignments are allowed
+		expect(result).toBe(true);
+		expect(tracker.getTotalViolations()).toBe(0);
 	});
 
-	it('records violation with correct metadata', () => {
+	it('does not record violations when disabled', () => {
 		const assignment: Assignment = {
 			studentId: 'student-1',
 			preceptorId: 'preceptor-1',
@@ -527,18 +528,12 @@ describe('SpecialtyMatchConstraint', () => {
 
 		constraint.validate(assignment, context, tracker);
 
+		// Specialty matching is disabled, so no violations are recorded
 		const violations = tracker.exportViolations();
-		expect(violations).toHaveLength(1);
-		expect(violations[0].constraintName).toBe('SpecialtyMatch');
-		expect(violations[0].metadata).toHaveProperty('preceptorName', 'Dr. Smith');
-		expect(violations[0].metadata).toHaveProperty('preceptorSpecialty', 'Family Medicine');
-		expect(violations[0].metadata).toHaveProperty('clerkshipName', 'IM Clerkship');
-		expect(violations[0].metadata).toHaveProperty('clerkshipSpecialty', 'Internal Medicine');
-		expect(violations[0].metadata).toHaveProperty('studentName', 'John Doe');
-		expect(violations[0].metadata).toHaveProperty('date', '2024-01-15');
+		expect(violations).toHaveLength(0);
 	});
 
-	it('generates correct violation message', () => {
+	it('generates correct violation message (disabled message)', () => {
 		const assignment: Assignment = {
 			studentId: 'student-1',
 			preceptorId: 'preceptor-1',
@@ -547,12 +542,10 @@ describe('SpecialtyMatchConstraint', () => {
 		};
 
 		const message = constraint.getViolationMessage(assignment, context);
-		expect(message).toBe(
-			'Preceptor Dr. Smith (Family Medicine) cannot teach IM Clerkship (requires Internal Medicine)'
-		);
+		expect(message).toBe('Specialty matching is currently disabled');
 	});
 
-	it('returns false when preceptor not found', () => {
+	it('returns true when preceptor not found (matching disabled)', () => {
 		const assignment: Assignment = {
 			studentId: 'student-1',
 			preceptorId: 'nonexistent-preceptor',
@@ -562,10 +555,11 @@ describe('SpecialtyMatchConstraint', () => {
 
 		const result = constraint.validate(assignment, context, tracker);
 
-		expect(result).toBe(false);
+		// Specialty matching is disabled, always returns true
+		expect(result).toBe(true);
 	});
 
-	it('returns false when clerkship not found', () => {
+	it('returns true when clerkship not found (matching disabled)', () => {
 		const assignment: Assignment = {
 			studentId: 'student-1',
 			preceptorId: 'preceptor-1',
@@ -575,7 +569,8 @@ describe('SpecialtyMatchConstraint', () => {
 
 		const result = constraint.validate(assignment, context, tracker);
 
-		expect(result).toBe(false);
+		// Specialty matching is disabled, always returns true
+		expect(result).toBe(true);
 	});
 
 	it('allows different preceptors with same specialty', () => {
@@ -1228,11 +1223,11 @@ describe('HealthSystemContinuityConstraint', () => {
 		const violations = tracker.exportViolations();
 		expect(violations).toHaveLength(1);
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('City Hospital');
-		expect(violations[0].message).toContain('County Medical Center');
-		expect(violations[0].message).toContain('John Doe');
-		expect(violations[0].message).toContain('FM Clerkship');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('City Hospital');
+		expect(violations[0].reason).toContain('County Medical Center');
+		expect(violations[0].reason).toContain('John Doe');
+		expect(violations[0].reason).toContain('FM Clerkship');
 	});
 });
 
@@ -1444,12 +1439,12 @@ describe('StudentOnboardingConstraint', () => {
 		const violations = tracker.exportViolations();
 		expect(violations).toHaveLength(1);
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('John Doe');
-		expect(violations[0].message).toContain('County Medical Center');
-		expect(violations[0].message).toContain('Dr. Jones');
-		expect(violations[0].message).toContain('FM Clerkship');
-		expect(violations[0].message).toContain('not completed onboarding');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('John Doe');
+		expect(violations[0].reason).toContain('County Medical Center');
+		expect(violations[0].reason).toContain('Dr. Jones');
+		expect(violations[0].reason).toContain('FM Clerkship');
+		expect(violations[0].reason).toContain('not completed onboarding');
 	});
 });
 
@@ -1641,11 +1636,11 @@ describe('PreceptorClerkshipAssociationConstraint', () => {
 		const violations = tracker.exportViolations();
 		expect(violations).toHaveLength(1);
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('Dr. Jones');
-		expect(violations[0].message).toContain('not associated');
-		expect(violations[0].message).toContain('clerkship');
-		expect(violations[0].message).toContain('FM Inpatient');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('Dr. Jones');
+		expect(violations[0].reason).toContain('not associated');
+		expect(violations[0].reason).toContain('clerkship');
+		expect(violations[0].reason).toContain('FM Inpatient');
 	});
 
 	it('generates correct violation message for electives', () => {
@@ -1661,11 +1656,11 @@ describe('PreceptorClerkshipAssociationConstraint', () => {
 		const violations = tracker.exportViolations();
 		expect(violations).toHaveLength(1);
 		expect(violations[0]).toBeDefined();
-		expect(violations[0].message).toBeDefined();
-		expect(violations[0].message).toContain('Dr. Jones');
-		expect(violations[0].message).toContain('not associated');
-		expect(violations[0].message).toContain('elective');
-		expect(violations[0].message).toContain('ER Elective');
+		expect(violations[0].reason).toBeDefined();
+		expect(violations[0].reason).toContain('Dr. Jones');
+		expect(violations[0].reason).toContain('not associated');
+		expect(violations[0].reason).toContain('elective');
+		expect(violations[0].reason).toContain('ER Elective');
 	});
 
 	it('allows multiple preceptors with different associations', () => {
