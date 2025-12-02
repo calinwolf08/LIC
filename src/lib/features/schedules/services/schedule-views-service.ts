@@ -63,12 +63,12 @@ export async function getStudentScheduleData(
 		.execute();
 
 	// Get all assignments for this student in the period
+	// Note: We don't join preceptor_sites here to avoid row multiplication
+	// when a preceptor works at multiple sites
 	const assignments = await db
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
-		.leftJoin('preceptor_sites as ps', 'ps.preceptor_id', 'p.id')
-		.leftJoin('sites as s', 's.id', 'ps.site_id')
 		.select([
 			'sa.id',
 			'sa.date',
@@ -77,9 +77,7 @@ export async function getStudentScheduleData(
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
 			'sa.preceptor_id',
-			'p.name as preceptor_name',
-			's.id as site_id',
-			's.name as site_name'
+			'p.name as preceptor_name'
 		])
 		.where('sa.student_id', '=', studentId)
 		.where('sa.date', '>=', startDate)
@@ -87,11 +85,42 @@ export async function getStudentScheduleData(
 		.orderBy('sa.date', 'asc')
 		.execute();
 
+	// Get unique preceptor IDs to fetch their sites separately
+	const preceptorIds = [...new Set(assignments.map((a) => a.preceptor_id))];
+
+	// Fetch preceptor sites separately (one query, no multiplication)
+	const preceptorSitesData = preceptorIds.length > 0
+		? await db
+				.selectFrom('preceptor_sites as ps')
+				.innerJoin('sites as s', 's.id', 'ps.site_id')
+				.select(['ps.preceptor_id', 's.id as site_id', 's.name as site_name'])
+				.where('ps.preceptor_id', 'in', preceptorIds)
+				.execute()
+		: [];
+
+	// Build a map of preceptor_id -> first site (for display purposes)
+	const preceptorSiteMap = new Map<string, { site_id: string; site_name: string }>();
+	for (const ps of preceptorSitesData) {
+		if (!preceptorSiteMap.has(ps.preceptor_id)) {
+			preceptorSiteMap.set(ps.preceptor_id, { site_id: ps.site_id, site_name: ps.site_name });
+		}
+	}
+
+	// Enrich assignments with site info
+	const enrichedAssignments = assignments.map((a) => {
+		const site = preceptorSiteMap.get(a.preceptor_id);
+		return {
+			...a,
+			site_id: site?.site_id ?? null,
+			site_name: site?.site_name ?? null
+		};
+	});
+
 	// Calculate progress per clerkship
 	const clerkshipProgress: ClerkshipProgress[] = [];
 
 	for (const clerkship of clerkships) {
-		const clerkshipAssignments = assignments.filter((a) => a.clerkship_id === clerkship.id);
+		const clerkshipAssignments = enrichedAssignments.filter((a) => a.clerkship_id === clerkship.id);
 		const assignedDays = clerkshipAssignments.length;
 		const requiredDays = clerkship.required_days;
 		const remainingDays = Math.max(0, requiredDays - assignedDays);
@@ -137,7 +166,7 @@ export async function getStudentScheduleData(
 	const clerkshipsWithNoAssignments = clerkshipProgress.filter((c) => c.assignedDays === 0).length;
 
 	// Build calendar
-	const calendar = buildCalendarMonths(startDate, endDate, assignments.map((a) => ({
+	const calendar = buildCalendarMonths(startDate, endDate, enrichedAssignments.map((a) => ({
 		date: a.date,
 		assignment: {
 			id: a.id as string,
@@ -150,7 +179,7 @@ export async function getStudentScheduleData(
 	})));
 
 	// Format assignments list
-	const formattedAssignments: StudentAssignment[] = assignments.map((a) => ({
+	const formattedAssignments: StudentAssignment[] = enrichedAssignments.map((a) => ({
 		id: a.id as string,
 		date: a.date,
 		clerkshipId: a.clerkship_id,
