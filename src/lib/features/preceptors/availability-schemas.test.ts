@@ -17,6 +17,7 @@ describe('createAvailabilitySchema', () => {
 	it('validates valid input', () => {
 		const validInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15',
 			is_available: 1
 		};
@@ -27,6 +28,18 @@ describe('createAvailabilitySchema', () => {
 
 	it('requires preceptor_id', () => {
 		const invalidInput = {
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
+			date: '2024-01-15',
+			is_available: 1
+		};
+
+		const result = createAvailabilitySchema.safeParse(invalidInput);
+		expect(result.success).toBe(false);
+	});
+
+	it('requires site_id', () => {
+		const invalidInput = {
+			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
 			date: '2024-01-15',
 			is_available: 1
 		};
@@ -38,6 +51,7 @@ describe('createAvailabilitySchema', () => {
 	it('requires date', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			is_available: 1
 		};
 
@@ -48,6 +62,7 @@ describe('createAvailabilitySchema', () => {
 	it('requires is_available', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15'
 		};
 
@@ -58,6 +73,7 @@ describe('createAvailabilitySchema', () => {
 	it('validates UUID format for preceptor_id', () => {
 		const invalidInput = {
 			preceptor_id: 'not-a-uuid',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15',
 			is_available: 1
 		};
@@ -69,6 +85,7 @@ describe('createAvailabilitySchema', () => {
 	it('validates date format', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: 'invalid-date',
 			is_available: 1
 		};
@@ -80,6 +97,7 @@ describe('createAvailabilitySchema', () => {
 	it('accepts is_available as 0', () => {
 		const validInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15',
 			is_available: 0
 		};
@@ -91,6 +109,7 @@ describe('createAvailabilitySchema', () => {
 	it('accepts is_available as 1', () => {
 		const validInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15',
 			is_available: 1
 		};
@@ -102,6 +121,7 @@ describe('createAvailabilitySchema', () => {
 	it('rejects is_available greater than 1', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15',
 			is_available: 2
 		};
@@ -113,6 +133,7 @@ describe('createAvailabilitySchema', () => {
 	it('rejects negative is_available', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			date: '2024-01-15',
 			is_available: -1
 		};
@@ -244,6 +265,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('validates valid bulk input', () => {
 		const validInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			availability: [
 				{ date: '2024-01-01', is_available: true },
 				{ date: '2024-01-02', is_available: false }
@@ -256,6 +278,19 @@ describe('bulkAvailabilitySchema', () => {
 
 	it('requires preceptor_id', () => {
 		const invalidInput = {
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
+			availability: [
+				{ date: '2024-01-01', is_available: true }
+			]
+		};
+
+		const result = bulkAvailabilitySchema.safeParse(invalidInput);
+		expect(result.success).toBe(false);
+	});
+
+	it('requires site_id', () => {
+		const invalidInput = {
+			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
 			availability: [
 				{ date: '2024-01-01', is_available: true }
 			]
@@ -267,7 +302,8 @@ describe('bulkAvailabilitySchema', () => {
 
 	it('requires availability array', () => {
 		const invalidInput = {
-			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22'
 		};
 
 		const result = bulkAvailabilitySchema.safeParse(invalidInput);
@@ -277,6 +313,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('accepts empty availability array', () => {
 		const validInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			availability: []
 		};
 
@@ -287,6 +324,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('validates each availability entry', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			availability: [
 				{ date: 'invalid-date', is_available: true }
 			]
@@ -299,6 +337,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('requires date in each availability entry', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			availability: [
 				{ is_available: true }
 			]
@@ -311,6 +350,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('requires is_available in each entry', () => {
 		const invalidInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			availability: [
 				{ date: '2024-01-01' }
 			]
@@ -323,6 +363,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('accepts boolean is_available in bulk entries', () => {
 		const validInput = {
 			preceptor_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+			site_id: 'b1ffcd00-0d1c-5fg9-cc7e-7cc0ce491b22',
 			availability: [
 				{ date: '2024-01-01', is_available: true },
 				{ date: '2024-01-02', is_available: false }
