@@ -809,7 +809,14 @@ describe('PreceptorAvailabilityConstraint', () => {
 			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 5]])]]),
 			blackoutDates: new Set(),
 			preceptorAvailability: new Map([
-				['preceptor-1', new Set(['2024-01-15', '2024-01-16', '2024-01-17'])]
+				[
+					'preceptor-1',
+					new Map([
+						['2024-01-15', 'site-1'],
+						['2024-01-16', 'site-1'],
+						['2024-01-17', 'site-1']
+					])
+				]
 			])
 		};
 	});
@@ -943,7 +950,13 @@ describe('PreceptorAvailabilityConstraint', () => {
 		};
 
 		context.preceptors.push(preceptor2);
-		context.preceptorAvailability.set('preceptor-2', new Set(['2024-01-20', '2024-01-21']));
+		context.preceptorAvailability.set(
+			'preceptor-2',
+			new Map([
+				['2024-01-20', 'site-2'],
+				['2024-01-21', 'site-2']
+			])
+		);
 
 		const assignment1: Assignment = {
 			studentId: 'student-1',

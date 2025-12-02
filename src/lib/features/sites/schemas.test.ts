@@ -46,13 +46,17 @@ describe('createSiteSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('allows missing health_system_id (optional)', () => {
+	it('transforms empty health_system_id to undefined', () => {
 		const validInput = {
-			name: 'Main Hospital'
+			name: 'Main Hospital',
+			health_system_id: ''
 		};
 
 		const result = createSiteSchema.safeParse(validInput);
 		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.health_system_id).toBeUndefined();
+		}
 	});
 
 	it('rejects name shorter than 2 characters', () => {
@@ -156,9 +160,10 @@ describe('createSiteSchema', () => {
 });
 
 describe('updateSiteSchema', () => {
-	it('allows updating name only', () => {
+	it('allows updating name with empty health_system_id', () => {
 		const validInput = {
-			name: 'Updated Hospital'
+			name: 'Updated Hospital',
+			health_system_id: ''
 		};
 
 		const result = updateSiteSchema.safeParse(validInput);
@@ -174,9 +179,10 @@ describe('updateSiteSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('allows updating address only', () => {
+	it('allows updating address with empty health_system_id', () => {
 		const validInput = {
-			address: '456 New Ave'
+			address: '456 New Ave',
+			health_system_id: ''
 		};
 
 		const result = updateSiteSchema.safeParse(validInput);
@@ -194,19 +200,20 @@ describe('updateSiteSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects empty object', () => {
-		const invalidInput = {};
+	it('requires health_system_id field', () => {
+		const invalidInput = {
+			name: 'Updated Hospital'
+		};
 
 		const result = updateSiteSchema.safeParse(invalidInput);
+		// health_system_id is required as a string input (even if empty)
 		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.issues[0].message).toContain('At least one field');
-		}
 	});
 
 	it('validates name format when provided', () => {
 		const invalidInput = {
-			name: 'A'
+			name: 'A',
+			health_system_id: ''
 		};
 
 		const result = updateSiteSchema.safeParse(invalidInput);
@@ -225,6 +232,7 @@ describe('updateSiteSchema', () => {
 	it('transforms empty address to undefined', () => {
 		const validInput = {
 			name: 'Test Site',
+			health_system_id: '',
 			address: ''
 		};
 
@@ -235,9 +243,10 @@ describe('updateSiteSchema', () => {
 		}
 	});
 
-	it('allows partial updates with multiple fields', () => {
+	it('allows partial updates with name and address', () => {
 		const validInput = {
 			name: 'Updated Name',
+			health_system_id: '',
 			address: 'Updated Address'
 		};
 

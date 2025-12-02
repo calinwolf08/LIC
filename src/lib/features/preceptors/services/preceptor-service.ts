@@ -72,7 +72,6 @@ export async function createPreceptor(
 		email: data.email,
 		phone: data.phone || null,
 		health_system_id: data.health_system_id || null,
-		site_id: data.site_id || null,
 		max_students: data.max_students ?? 1,
 		created_at: timestamp,
 		updated_at: timestamp
@@ -121,7 +120,6 @@ export async function updatePreceptor(
 	if (data.max_students !== undefined) updateData.max_students = data.max_students;
 	if (data.phone !== undefined) updateData.phone = data.phone || null;
 	if ('health_system_id' in data) updateData.health_system_id = data.health_system_id || null;
-	if ('site_id' in data) updateData.site_id = data.site_id || null;
 
 	const updated = await db
 		.updateTable('preceptors')

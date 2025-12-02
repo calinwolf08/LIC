@@ -61,7 +61,6 @@ describe('SiteContinuityConstraint', () => {
 			email: 'smith@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -73,7 +72,6 @@ describe('SiteContinuityConstraint', () => {
 			email: 'jones@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-2',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -89,6 +87,23 @@ describe('SiteContinuityConstraint', () => {
 			updated_at: new Date().toISOString()
 		};
 
+		// Set up preceptor availability with site info (Map<preceptorId, Map<date, siteId>>)
+		const preceptorAvailability = new Map<string, Map<string, string>>();
+		preceptorAvailability.set(
+			'preceptor-1',
+			new Map([
+				['2024-01-15', 'site-1'],
+				['2024-01-16', 'site-1']
+			])
+		);
+		preceptorAvailability.set(
+			'preceptor-2',
+			new Map([
+				['2024-01-15', 'site-2'],
+				['2024-01-16', 'site-2']
+			])
+		);
+
 		context = {
 			students: [student],
 			preceptors: [preceptor1, preceptor2],
@@ -100,7 +115,7 @@ describe('SiteContinuityConstraint', () => {
 			assignmentsByPreceptor: new Map(),
 			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 10]])]]),
 			blackoutDates: new Set(),
-			preceptorAvailability: new Map(),
+			preceptorAvailability,
 			startDate: '2024-01-01',
 			endDate: '2024-12-31'
 		};
@@ -267,7 +282,6 @@ describe('SiteAvailabilityConstraint', () => {
 			email: 'smith@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -290,6 +304,17 @@ describe('SiteAvailabilityConstraint', () => {
 		site1Availability.set('2024-01-16', false); // Unavailable on this date
 		siteAvailability.set('site-1', site1Availability);
 
+		// Set up preceptor availability with site info (Map<preceptorId, Map<date, siteId>>)
+		const preceptorAvailability = new Map<string, Map<string, string>>();
+		preceptorAvailability.set(
+			'preceptor-1',
+			new Map([
+				['2024-01-15', 'site-1'],
+				['2024-01-16', 'site-1'],
+				['2024-01-20', 'site-1']
+			])
+		);
+
 		context = {
 			students: [student],
 			preceptors: [preceptor1],
@@ -302,7 +327,7 @@ describe('SiteAvailabilityConstraint', () => {
 			assignmentsByPreceptor: new Map(),
 			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 10]])]]),
 			blackoutDates: new Set(),
-			preceptorAvailability: new Map(),
+			preceptorAvailability,
 			startDate: '2024-01-01',
 			endDate: '2024-12-31'
 		};
@@ -310,7 +335,7 @@ describe('SiteAvailabilityConstraint', () => {
 
 	it('has correct properties', () => {
 		expect(constraint.name).toBe('SiteAvailability');
-		expect(constraint.priority).toBe(2);
+		expect(constraint.priority).toBe(3);
 		expect(constraint.bypassable).toBe(false);
 	});
 
@@ -422,7 +447,6 @@ describe('SiteCapacityConstraint', () => {
 			email: 'smith@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -455,6 +479,15 @@ describe('SiteCapacityConstraint', () => {
 		const siteCapacityRules = new Map<string, SiteCapacityRules[]>();
 		siteCapacityRules.set('site-1', [capacityRule]);
 
+		// Set up preceptor availability with site info (Map<preceptorId, Map<date, siteId>>)
+		const preceptorAvailability = new Map<string, Map<string, string>>();
+		preceptorAvailability.set(
+			'preceptor-1',
+			new Map([
+				['2024-01-15', 'site-1']
+			])
+		);
+
 		context = {
 			students: [student1, student2],
 			preceptors: [preceptor1],
@@ -470,7 +503,7 @@ describe('SiteCapacityConstraint', () => {
 				['student-2', new Map([['clerkship-1', 10]])]
 			]),
 			blackoutDates: new Set(),
-			preceptorAvailability: new Map(),
+			preceptorAvailability,
 			startDate: '2024-01-01',
 			endDate: '2024-12-31'
 		};
@@ -615,7 +648,6 @@ describe('ValidSiteForClerkshipConstraint', () => {
 			email: 'smith@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -627,7 +659,6 @@ describe('ValidSiteForClerkshipConstraint', () => {
 			email: 'jones@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-2',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -654,6 +685,21 @@ describe('ValidSiteForClerkshipConstraint', () => {
 		preceptor2Associations.set('site-2', new Set([])); // Empty set - no associations
 		preceptorClerkshipAssociations.set('preceptor-2', preceptor2Associations);
 
+		// Set up preceptor availability with site info (Map<preceptorId, Map<date, siteId>>)
+		const preceptorAvailability = new Map<string, Map<string, string>>();
+		preceptorAvailability.set(
+			'preceptor-1',
+			new Map([
+				['2024-01-15', 'site-1']
+			])
+		);
+		preceptorAvailability.set(
+			'preceptor-2',
+			new Map([
+				['2024-01-15', 'site-2']
+			])
+		);
+
 		context = {
 			students: [student],
 			preceptors: [preceptor1, preceptor2],
@@ -666,7 +712,7 @@ describe('ValidSiteForClerkshipConstraint', () => {
 			assignmentsByPreceptor: new Map(),
 			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 10]])]]),
 			blackoutDates: new Set(),
-			preceptorAvailability: new Map(),
+			preceptorAvailability,
 			startDate: '2024-01-01',
 			endDate: '2024-12-31'
 		};
@@ -674,7 +720,7 @@ describe('ValidSiteForClerkshipConstraint', () => {
 
 	it('has correct properties', () => {
 		expect(constraint.name).toBe('ValidSiteForClerkship');
-		expect(constraint.priority).toBe(1);
+		expect(constraint.priority).toBe(2);
 		expect(constraint.bypassable).toBe(false);
 	});
 
@@ -755,7 +801,6 @@ describe('SamePreceptorTeamConstraint', () => {
 			email: 'smith@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -767,7 +812,6 @@ describe('SamePreceptorTeamConstraint', () => {
 			email: 'jones@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -779,7 +823,6 @@ describe('SamePreceptorTeamConstraint', () => {
 			email: 'brown@example.com',
 			specialty: 'Family Medicine',
 			max_students: 2,
-			site_id: 'site-1',
 			health_system_id: 'hs-1',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()

@@ -132,9 +132,11 @@ describe('buildSchedulingContext()', () => {
 			'2024-12-31'
 		);
 
-		// With no availability records, the map should be empty
+		// With no availability records, each preceptor has an empty date->site map
 		expect(context.preceptorAvailability).toBeInstanceOf(Map);
-		expect(context.preceptorAvailability.size).toBe(0);
+		expect(context.preceptorAvailability.size).toBe(2);
+		expect(context.preceptorAvailability.get('preceptor-1')?.size).toBe(0);
+		expect(context.preceptorAvailability.get('preceptor-2')?.size).toBe(0);
 	});
 
 	it('populates preceptor availability from records with site info', () => {
@@ -338,9 +340,11 @@ describe('buildSchedulingContext()', () => {
 			'2024-12-31'
 		);
 
-		// Unknown preceptor's availability is still stored
-		expect(context.preceptorAvailability.has('unknown-preceptor')).toBe(true);
-		expect(context.preceptorAvailability.get('unknown-preceptor')?.size).toBe(1);
+		// Unknown preceptor's availability is filtered out
+		expect(context.preceptorAvailability.has('unknown-preceptor')).toBe(false);
+		// Only known preceptors have entries
+		expect(context.preceptorAvailability.size).toBe(1);
+		expect(context.preceptorAvailability.has('preceptor-1')).toBe(true);
 	});
 
 	it('initializes student requirements correctly', () => {
@@ -598,18 +602,22 @@ describe('buildSchedulingContext()', () => {
 		});
 
 		it('builds preceptor clerkship associations map from optional data', () => {
+			// New three-way association: preceptor -> site -> clerkships
 			const optionalData = {
-				preceptorClerkships: [
+				preceptorSiteClerkships: [
 					{
 						preceptor_id: 'preceptor-1',
+						site_id: 'site-1',
 						clerkship_id: 'clerkship-1'
 					},
 					{
 						preceptor_id: 'preceptor-1',
+						site_id: 'site-1',
 						clerkship_id: 'clerkship-2'
 					},
 					{
 						preceptor_id: 'preceptor-2',
+						site_id: 'site-2',
 						clerkship_id: 'clerkship-1'
 					}
 				]
@@ -629,15 +637,19 @@ describe('buildSchedulingContext()', () => {
 			expect(context.preceptorClerkshipAssociations).toBeInstanceOf(Map);
 			expect(context.preceptorClerkshipAssociations?.size).toBe(2);
 
-			const preceptor1Clerkships = context.preceptorClerkshipAssociations?.get('preceptor-1');
-			expect(preceptor1Clerkships).toBeInstanceOf(Set);
-			expect(preceptor1Clerkships?.size).toBe(2);
-			expect(preceptor1Clerkships?.has('clerkship-1')).toBe(true);
-			expect(preceptor1Clerkships?.has('clerkship-2')).toBe(true);
+			// preceptorClerkshipAssociations is now Map<preceptorId, Map<siteId, Set<clerkshipIds>>>
+			const preceptor1SiteMap = context.preceptorClerkshipAssociations?.get('preceptor-1');
+			expect(preceptor1SiteMap).toBeInstanceOf(Map);
+			const preceptor1Site1Clerkships = preceptor1SiteMap?.get('site-1');
+			expect(preceptor1Site1Clerkships).toBeInstanceOf(Set);
+			expect(preceptor1Site1Clerkships?.size).toBe(2);
+			expect(preceptor1Site1Clerkships?.has('clerkship-1')).toBe(true);
+			expect(preceptor1Site1Clerkships?.has('clerkship-2')).toBe(true);
 
-			const preceptor2Clerkships = context.preceptorClerkshipAssociations?.get('preceptor-2');
-			expect(preceptor2Clerkships?.size).toBe(1);
-			expect(preceptor2Clerkships?.has('clerkship-1')).toBe(true);
+			const preceptor2SiteMap = context.preceptorClerkshipAssociations?.get('preceptor-2');
+			const preceptor2Site2Clerkships = preceptor2SiteMap?.get('site-2');
+			expect(preceptor2Site2Clerkships?.size).toBe(1);
+			expect(preceptor2Site2Clerkships?.has('clerkship-1')).toBe(true);
 		});
 
 		it('builds preceptor elective associations map from optional data', () => {
@@ -790,9 +802,10 @@ describe('buildSchedulingContext()', () => {
 						is_completed: 1
 					}
 				],
-				preceptorClerkships: [
+				preceptorSiteClerkships: [
 					{
 						preceptor_id: 'preceptor-1',
+						site_id: 'site-1',
 						clerkship_id: 'clerkship-1'
 					}
 				],

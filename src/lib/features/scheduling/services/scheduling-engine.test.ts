@@ -65,7 +65,8 @@ function createAvailabilityForDateRange(
 	preceptorId: string,
 	startDate: string,
 	endDate: string,
-	isAvailable = true
+	isAvailable = true,
+	siteId = 'site-1'
 ): PreceptorAvailability[] {
 	const availability: PreceptorAvailability[] = [];
 	// Parse as UTC to avoid timezone issues
@@ -78,6 +79,7 @@ function createAvailabilityForDateRange(
 		availability.push({
 			id: crypto.randomUUID(),
 			preceptor_id: preceptorId,
+			site_id: siteId,
 			date: dateStr,
 			is_available: isAvailable ? 1 : 0,
 			created_at: new Date().toISOString(),
@@ -336,6 +338,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 				{
 					id: crypto.randomUUID(),
 					preceptor_id: 'preceptor-1',
+					site_id: 'site-1',
 					date: '2024-01-01',
 					is_available: 1,
 					created_at: new Date().toISOString(),
@@ -344,6 +347,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 				{
 					id: crypto.randomUUID(),
 					preceptor_id: 'preceptor-1',
+					site_id: 'site-1',
 					date: '2024-01-03',
 					is_available: 1,
 					created_at: new Date().toISOString(),
@@ -568,7 +572,8 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			preceptorId: string,
 			startDate: string,
 			endDate: string,
-			daysOfWeek: number[] // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+			daysOfWeek: number[], // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+			siteId = 'site-1'
 		): PreceptorAvailability[] {
 			const availability: PreceptorAvailability[] = [];
 			// Parse as UTC
@@ -582,6 +587,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 					availability.push({
 						id: crypto.randomUUID(),
 						preceptor_id: preceptorId,
+						site_id: siteId,
 						date: current.toISOString().split('T')[0],
 						is_available: 1,
 						created_at: new Date().toISOString(),
