@@ -13,6 +13,7 @@ import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
 export const createAvailabilitySchema = z
 	.object({
 		preceptor_id: cuid2Schema,
+		site_id: cuid2Schema,
 		date: dateStringSchema,
 		is_available: z.number().int().min(0).max(1)
 	});
@@ -42,6 +43,7 @@ export const dateRangeSchema = z
  */
 export const bulkAvailabilitySchema = z.object({
 	preceptor_id: cuid2Schema,
+	site_id: cuid2Schema,
 	availability: z.array(
 		z.object({
 			date: dateStringSchema,

@@ -188,6 +188,7 @@ export interface PreceptorAvailability {
   id: string | null;
   is_available: Generated<number>;
   preceptor_id: string;
+  site_id: string;
   updated_at: Generated<string>;
 }
 
@@ -202,6 +203,7 @@ export interface PreceptorAvailabilityPatterns {
   pattern_type: string;
   preceptor_id: string;
   reason: string | null;
+  site_id: string;
   specificity: number;
   updated_at: Generated<string>;
 }
@@ -239,7 +241,6 @@ export interface Preceptors {
   max_students: Generated<number>;
   name: string;
   phone: string | null;
-  site_id: string | null;
   updated_at: Generated<string>;
 }
 
@@ -289,6 +290,7 @@ export interface ScheduleAssignments {
   date: string;
   id: string | null;
   preceptor_id: string;
+  site_id: string | null;
   status: Generated<string>;
   student_id: string;
   updated_at: Generated<string>;

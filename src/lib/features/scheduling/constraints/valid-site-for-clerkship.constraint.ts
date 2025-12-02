@@ -1,5 +1,6 @@
 import type { Constraint, Assignment, SchedulingContext } from '../types';
 import type { ViolationTracker } from '../services/violation-tracker';
+import { PreceptorAvailabilityConstraint } from './preceptor-availability.constraint';
 
 /**
  * Ensures assignments are only made to valid sites for the clerkship
@@ -7,11 +8,14 @@ import type { ViolationTracker } from '../services/violation-tracker';
  * Clerkships are offered at specific sites through the clerkship_sites table.
  * Preceptors must be associated with a clerkship at a specific site through
  * the preceptor_site_clerkships table. This constraint ensures students are
- * only assigned to preceptors at valid sites for the clerkship.
+ * only assigned to preceptors at sites where the clerkship is offered.
+ *
+ * The preceptor's site for a given date is determined by their availability
+ * schedule (preceptor_availability table with site_id).
  */
 export class ValidSiteForClerkshipConstraint implements Constraint {
 	name = 'ValidSiteForClerkship';
-	priority = 1; // Check very early
+	priority = 2; // Check after availability (need to know which site)
 	bypassable = false; // Cannot bypass - must be at valid site
 
 	validate(
@@ -24,27 +28,32 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 			return true; // Skip check if site associations not loaded
 		}
 
-		// Get the preceptor being assigned
-		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
-		if (!preceptor || !preceptor.site_id) {
-			// If preceptor doesn't have a site, we can't enforce this
+		// Get the site the preceptor is at on this date
+		const siteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			assignment.preceptorId,
+			assignment.date
+		);
+
+		if (!siteId) {
+			// Preceptor has no site on this date - let PreceptorAvailabilityConstraint handle this
 			return true;
 		}
 
 		// For electives, check site-elective associations
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 		if (clerkship?.clerkship_type === 'elective') {
-			return this.validateElectiveSite(assignment, context, preceptor, violationTracker);
+			return this.validateElectiveSite(assignment, context, siteId, violationTracker);
 		}
 
-		// For inpatient/outpatient, check preceptor-site-clerkship associations
-		return this.validateClerkshipSite(assignment, context, preceptor, violationTracker);
+		// For inpatient/outpatient, check if the clerkship is offered at this site
+		return this.validateClerkshipSite(assignment, context, siteId, violationTracker);
 	}
 
 	private validateElectiveSite(
 		assignment: Assignment,
 		context: SchedulingContext,
-		preceptor: any,
+		siteId: string,
 		violationTracker: ViolationTracker
 	): boolean {
 		// Check if site is associated with this elective
@@ -52,30 +61,13 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 			return true; // No association data available
 		}
 
-		const siteElectives = context.siteElectiveAssociations.get(preceptor.site_id);
+		const siteElectives = context.siteElectiveAssociations.get(siteId);
 		const isValid = !!(
 			siteElectives && Array.from(siteElectives).some((req) => req === assignment.clerkshipId)
 		);
 
 		if (!isValid) {
-			const student = context.students.find((s) => s.id === assignment.studentId);
-			const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
-
-			const siteName =
-				context.sites?.find((s) => s.id === preceptor.site_id)?.name || preceptor.site_id;
-
-			violationTracker.recordViolation(
-				this.name,
-				assignment,
-				this.getElectiveViolationMessage(assignment, context),
-				{
-					studentName: student?.name,
-					clerkshipName: clerkship?.name,
-					preceptorName: preceptor.name,
-					siteName,
-					date: assignment.date
-				}
-			);
+			this.recordViolation(assignment, context, siteId, violationTracker, true);
 		}
 
 		return isValid;
@@ -84,7 +76,7 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 	private validateClerkshipSite(
 		assignment: Assignment,
 		context: SchedulingContext,
-		preceptor: any,
+		siteId: string,
 		violationTracker: ViolationTracker
 	): boolean {
 		// Check if preceptor is associated with this clerkship at this site
@@ -92,10 +84,10 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 			// Fallback to checking if site is valid for clerkship
 			if (context.clerkshipSites) {
 				const clerkshipSites = context.clerkshipSites.get(assignment.clerkshipId);
-				const isValid = !!(clerkshipSites && clerkshipSites.has(preceptor.site_id));
+				const isValid = !!(clerkshipSites && clerkshipSites.has(siteId));
 
 				if (!isValid) {
-					this.recordViolation(assignment, context, preceptor, violationTracker);
+					this.recordViolation(assignment, context, siteId, violationTracker, false);
 				}
 
 				return isValid;
@@ -109,15 +101,15 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		);
 
 		if (!preceptorAssociations) {
-			this.recordViolation(assignment, context, preceptor, violationTracker);
+			this.recordViolation(assignment, context, siteId, violationTracker, false);
 			return false;
 		}
 
-		const siteClerkships = preceptorAssociations.get(preceptor.site_id);
+		const siteClerkships = preceptorAssociations.get(siteId);
 		const isValid = !!(siteClerkships && siteClerkships.has(assignment.clerkshipId));
 
 		if (!isValid) {
-			this.recordViolation(assignment, context, preceptor, violationTracker);
+			this.recordViolation(assignment, context, siteId, violationTracker, false);
 		}
 
 		return isValid;
@@ -126,51 +118,53 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 	private recordViolation(
 		assignment: Assignment,
 		context: SchedulingContext,
-		preceptor: any,
-		violationTracker: ViolationTracker
+		siteId: string,
+		violationTracker: ViolationTracker,
+		isElective: boolean
 	): void {
+		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 		const student = context.students.find((s) => s.id === assignment.studentId);
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
-
-		const siteName =
-			context.sites?.find((s) => s.id === preceptor.site_id)?.name || preceptor.site_id;
+		const siteName = context.sites?.find((s) => s.id === siteId)?.name || siteId;
 
 		violationTracker.recordViolation(
 			this.name,
 			assignment,
-			this.getViolationMessage(assignment, context),
+			isElective
+				? this.getElectiveViolationMessage(assignment, context, siteId)
+				: this.getViolationMessage(assignment, context, siteId),
 			{
 				studentName: student?.name,
 				clerkshipName: clerkship?.name,
-				preceptorName: preceptor.name,
+				preceptorName: preceptor?.name,
 				siteName,
+				siteId,
 				date: assignment.date
 			}
 		);
 	}
 
-	getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
+	getViolationMessage(assignment: Assignment, context: SchedulingContext, siteId?: string): string {
 		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 		const student = context.students.find((s) => s.id === assignment.studentId);
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
-		const siteName =
-			context.sites?.find((s) => s.id === preceptor?.site_id)?.name ||
-			preceptor?.site_id ||
-			'Unknown';
+		// If siteId not provided, look it up from availability
+		const effectiveSiteId = siteId || PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			assignment.preceptorId,
+			assignment.date
+		);
+		const siteName = context.sites?.find((s) => s.id === effectiveSiteId)?.name || effectiveSiteId || 'Unknown';
 
 		return `${preceptor?.name} at ${siteName} is not authorized for ${clerkship?.name}. Cannot assign ${student?.name}.`;
 	}
 
-	private getElectiveViolationMessage(assignment: Assignment, context: SchedulingContext): string {
+	private getElectiveViolationMessage(assignment: Assignment, context: SchedulingContext, siteId: string): string {
 		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 		const student = context.students.find((s) => s.id === assignment.studentId);
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
-
-		const siteName =
-			context.sites?.find((s) => s.id === preceptor?.site_id)?.name ||
-			preceptor?.site_id ||
-			'Unknown';
+		const siteName = context.sites?.find((s) => s.id === siteId)?.name || siteId;
 
 		return `Elective ${clerkship?.name} is not offered at ${siteName}. Cannot assign ${student?.name} to ${preceptor?.name}.`;
 	}

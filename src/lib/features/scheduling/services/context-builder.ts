@@ -29,8 +29,9 @@ export interface OptionalContextData {
 		preceptor_id: string;
 		elective_requirement_id: string;
 	}>;
-	preceptorClerkships?: Array<{
+	preceptorSiteClerkships?: Array<{
 		preceptor_id: string;
+		site_id: string;
 		clerkship_id: string;
 	}>;
 	clerkshipSites?: Array<{
@@ -77,17 +78,19 @@ export function buildSchedulingContext(
 	// Convert blackout dates array to Set for O(1) lookup
 	const blackoutDatesSet = new Set(blackoutDates);
 
-	// Build preceptor availability map
-	const preceptorAvailability = new Map<string, Set<string>>();
+	// Build preceptor site-based availability map
+	// Map: preceptorId -> Map(date -> siteId)
+	// A preceptor is available at exactly one site per day
+	const preceptorAvailability = new Map<string, Map<string, string>>();
 	for (const preceptor of preceptors) {
-		preceptorAvailability.set(preceptor.id!, new Set());
+		preceptorAvailability.set(preceptor.id!, new Map());
 	}
 
 	for (const record of preceptorAvailabilityRecords) {
-		if (record.is_available) {
-			const dates = preceptorAvailability.get(record.preceptor_id);
-			if (dates) {
-				dates.add(record.date);
+		if (record.is_available && record.site_id) {
+			const dateToSite = preceptorAvailability.get(record.preceptor_id);
+			if (dateToSite) {
+				dateToSite.set(record.date, record.site_id);
 			}
 		}
 	}
@@ -161,14 +164,19 @@ export function buildSchedulingContext(
 			context.preceptorElectiveAssociations = preceptorElectiveAssociations;
 		}
 
-		// Build preceptor-clerkship associations map
-		if (optionalData.preceptorClerkships) {
-			const preceptorClerkshipAssociations = new Map<string, Set<string>>();
-			for (const record of optionalData.preceptorClerkships) {
+		// Build preceptor-site-clerkship associations map (three-way)
+		// Map: preceptorId -> Map(siteId -> Set of clerkship IDs)
+		if (optionalData.preceptorSiteClerkships) {
+			const preceptorClerkshipAssociations = new Map<string, Map<string, Set<string>>>();
+			for (const record of optionalData.preceptorSiteClerkships) {
 				if (!preceptorClerkshipAssociations.has(record.preceptor_id)) {
-					preceptorClerkshipAssociations.set(record.preceptor_id, new Set());
+					preceptorClerkshipAssociations.set(record.preceptor_id, new Map());
 				}
-				preceptorClerkshipAssociations.get(record.preceptor_id)!.add(record.clerkship_id);
+				const siteMap = preceptorClerkshipAssociations.get(record.preceptor_id)!;
+				if (!siteMap.has(record.site_id)) {
+					siteMap.set(record.site_id, new Set());
+				}
+				siteMap.get(record.site_id)!.add(record.clerkship_id);
 			}
 			context.preceptorClerkshipAssociations = preceptorClerkshipAssociations;
 		}

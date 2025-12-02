@@ -1,5 +1,6 @@
 import type { Constraint, Assignment, SchedulingContext } from '../types';
 import type { ViolationTracker } from '../services/violation-tracker';
+import { PreceptorAvailabilityConstraint } from './preceptor-availability.constraint';
 
 /**
  * Ensures students stay at the same site throughout a clerkship requirement
@@ -7,6 +8,8 @@ import type { ViolationTracker } from '../services/violation-tracker';
  * When a clerkship requirement has `require_same_site = true`, students must
  * complete all days of that requirement at the same site. This prevents
  * students from switching between sites mid-clerkship.
+ *
+ * The site is determined by the preceptor's availability on each assignment date.
  */
 export class SiteContinuityConstraint implements Constraint {
 	name = 'SiteContinuity';
@@ -34,10 +37,15 @@ export class SiteContinuityConstraint implements Constraint {
 			return true;
 		}
 
-		// Get the preceptor being assigned
-		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
-		if (!preceptor || !preceptor.site_id) {
-			// If preceptor doesn't have a site, we can't enforce this
+		// Get the site the preceptor is at on this date
+		const currentSiteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			assignment.preceptorId,
+			assignment.date
+		);
+
+		if (!currentSiteId) {
+			// Preceptor has no site on this date - let PreceptorAvailabilityConstraint handle this
 			return true;
 		}
 
@@ -54,30 +62,27 @@ export class SiteContinuityConstraint implements Constraint {
 
 		// Get site of first assignment
 		const firstAssignment = clerkshipAssignments[0];
-		const firstPreceptor = context.preceptors.find((p) => p.id === firstAssignment.preceptorId);
+		const firstSiteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			firstAssignment.preceptorId,
+			firstAssignment.date
+		);
 
-		if (!firstPreceptor || !firstPreceptor.site_id) {
+		if (!firstSiteId) {
 			// Can't determine site of first assignment
 			return true;
 		}
 
 		// Check if sites match
-		const isValid = preceptor.site_id === firstPreceptor.site_id;
+		const isValid = currentSiteId === firstSiteId;
 
 		if (!isValid) {
+			const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 			const student = context.students.find((s) => s.id === assignment.studentId);
 			const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
-			// Get site names if available
-			let currentSiteName = preceptor.site_id;
-			let firstSiteName = firstPreceptor.site_id;
-
-			if (context.sites) {
-				const currentSite = context.sites.find((s) => s.id === preceptor.site_id);
-				const firstSite = context.sites.find((s) => s.id === firstPreceptor.site_id);
-				if (currentSite) currentSiteName = currentSite.name;
-				if (firstSite) firstSiteName = firstSite.name;
-			}
+			const currentSiteName = context.sites?.find((s) => s.id === currentSiteId)?.name || currentSiteId;
+			const firstSiteName = context.sites?.find((s) => s.id === firstSiteId)?.name || firstSiteId;
 
 			violationTracker.recordViolation(
 				this.name,
@@ -86,9 +91,11 @@ export class SiteContinuityConstraint implements Constraint {
 				{
 					studentName: student?.name,
 					clerkshipName: clerkship?.name,
-					preceptorName: preceptor.name,
+					preceptorName: preceptor?.name,
 					currentSite: currentSiteName,
+					currentSiteId,
 					firstSite: firstSiteName,
+					firstSiteId,
 					date: assignment.date
 				}
 			);
@@ -102,6 +109,13 @@ export class SiteContinuityConstraint implements Constraint {
 		const student = context.students.find((s) => s.id === assignment.studentId);
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
+		// Get the site the preceptor is at on this date
+		const currentSiteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			assignment.preceptorId,
+			assignment.date
+		);
+
 		// Get student's existing assignments for this clerkship
 		const studentAssignments = context.assignmentsByStudent.get(assignment.studentId) || [];
 		const clerkshipAssignments = studentAssignments.filter(
@@ -110,17 +124,14 @@ export class SiteContinuityConstraint implements Constraint {
 
 		if (clerkshipAssignments.length > 0) {
 			const firstAssignment = clerkshipAssignments[0];
-			const firstPreceptor = context.preceptors.find((p) => p.id === firstAssignment.preceptorId);
+			const firstSiteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+				context,
+				firstAssignment.preceptorId,
+				firstAssignment.date
+			);
 
-			let currentSiteName = preceptor?.site_id || 'Unknown';
-			let firstSiteName = firstPreceptor?.site_id || 'Unknown';
-
-			if (context.sites) {
-				const currentSite = context.sites.find((s) => s.id === preceptor?.site_id);
-				const firstSite = context.sites.find((s) => s.id === firstPreceptor?.site_id);
-				if (currentSite) currentSiteName = currentSite.name;
-				if (firstSite) firstSiteName = firstSite.name;
-			}
+			const currentSiteName = context.sites?.find((s) => s.id === currentSiteId)?.name || currentSiteId || 'Unknown';
+			const firstSiteName = context.sites?.find((s) => s.id === firstSiteId)?.name || firstSiteId || 'Unknown';
 
 			return `Student ${student?.name} must stay at ${firstSiteName} for ${clerkship?.name}. Cannot assign to ${preceptor?.name} at ${currentSiteName}.`;
 		}

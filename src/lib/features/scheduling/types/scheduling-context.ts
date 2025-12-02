@@ -75,10 +75,11 @@ export interface SchedulingContext {
 	// ===== Precomputed Lookups (for performance) =====
 
 	/**
-	 * Preceptor availability lookup
-	 * Map: preceptorId -> Set of available dates (ISO strings)
+	 * Preceptor site-based availability lookup
+	 * Map: preceptorId -> Map(date -> siteId)
+	 * A preceptor is available at exactly one site per day
 	 */
-	preceptorAvailability: Map<string, Set<string>>;
+	preceptorAvailability: Map<string, Map<string, string>>;
 
 	/**
 	 * Site availability lookup (optional)

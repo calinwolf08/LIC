@@ -2,9 +2,10 @@ import type { Constraint, Assignment, SchedulingContext } from '../types';
 import type { ViolationTracker } from '../services/violation-tracker';
 
 /**
- * Ensures preceptors are only assigned on days they marked as available
+ * Ensures preceptors are only assigned on days they have site-based availability
  *
- * Preceptors set their availability in the preceptor_availability table.
+ * Preceptors set their availability per site in the preceptor_availability table.
+ * A preceptor is available on a date if they have a site assigned for that date.
  * This constraint can be bypassed (ask preceptor to work on day off).
  */
 export class PreceptorAvailabilityConstraint implements Constraint {
@@ -17,8 +18,10 @@ export class PreceptorAvailabilityConstraint implements Constraint {
 		context: SchedulingContext,
 		violationTracker: ViolationTracker
 	): boolean {
-		const availableDates = context.preceptorAvailability.get(assignment.preceptorId);
-		const isValid = availableDates?.has(assignment.date) || false;
+		// preceptorAvailability is now Map<preceptorId, Map<date, siteId>>
+		const dateToSite = context.preceptorAvailability.get(assignment.preceptorId);
+		const siteOnDate = dateToSite?.get(assignment.date);
+		const isValid = !!siteOnDate;
 
 		if (!isValid) {
 			const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
@@ -35,7 +38,7 @@ export class PreceptorAvailabilityConstraint implements Constraint {
 					studentName: student?.name,
 					clerkshipName: clerkship?.name,
 					date: assignment.date,
-					totalAvailableDates: availableDates?.size || 0,
+					totalAvailableDates: dateToSite?.size || 0,
 				}
 			);
 		}
@@ -46,5 +49,17 @@ export class PreceptorAvailabilityConstraint implements Constraint {
 	getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
 		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 		return `Preceptor ${preceptor?.name} is not available on ${assignment.date}`;
+	}
+
+	/**
+	 * Helper to get the site a preceptor is at on a specific date
+	 * Returns undefined if the preceptor is not available on that date
+	 */
+	static getPreceptorSiteOnDate(
+		context: SchedulingContext,
+		preceptorId: string,
+		date: string
+	): string | undefined {
+		return context.preceptorAvailability.get(preceptorId)?.get(date);
 	}
 }

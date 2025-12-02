@@ -1,5 +1,6 @@
 import type { Constraint, Assignment, SchedulingContext } from '../types';
 import type { ViolationTracker } from '../services/violation-tracker';
+import { PreceptorAvailabilityConstraint } from './preceptor-availability.constraint';
 
 /**
  * Enforces site capacity limits
@@ -11,6 +12,9 @@ import type { ViolationTracker } from '../services/violation-tracker';
  * - Maximum blocks per year (for inpatient)
  *
  * These limits can be global or specific to a clerkship/requirement type.
+ *
+ * The preceptor's site for a given date is determined by their availability
+ * schedule (preceptor_availability table with site_id).
  */
 export class SiteCapacityConstraint implements Constraint {
 	name = 'SiteCapacity';
@@ -27,14 +31,17 @@ export class SiteCapacityConstraint implements Constraint {
 			return true; // Skip check if capacity tracking not enabled
 		}
 
-		// Get the preceptor being assigned
-		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
-		if (!preceptor || !preceptor.site_id) {
-			// If preceptor doesn't have a site, we can't enforce this
+		// Get the site the preceptor is at on this date
+		const siteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			assignment.preceptorId,
+			assignment.date
+		);
+
+		if (!siteId) {
+			// Preceptor has no site on this date - let PreceptorAvailabilityConstraint handle this
 			return true;
 		}
-
-		const siteId = preceptor.site_id;
 
 		// Get applicable capacity rules for this site
 		const siteRules = context.siteCapacityRules.get(siteId);
@@ -45,6 +52,7 @@ export class SiteCapacityConstraint implements Constraint {
 		// Find most specific rule: clerkship-specific > requirement-type-specific > global
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 		const requirementType = clerkship?.clerkship_type;
+		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 
 		const applicableRule =
 			siteRules.find((r) => r.clerkship_id === assignment.clerkshipId) ||
@@ -70,8 +78,9 @@ export class SiteCapacityConstraint implements Constraint {
 				{
 					studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
 					clerkshipName: clerkship?.name,
-					preceptorName: preceptor.name,
+					preceptorName: preceptor?.name,
 					siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
+					siteId,
 					date: assignment.date,
 					violationType: 'daily_capacity'
 				}
@@ -94,8 +103,9 @@ export class SiteCapacityConstraint implements Constraint {
 				{
 					studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
 					clerkshipName: clerkship?.name,
-					preceptorName: preceptor.name,
+					preceptorName: preceptor?.name,
 					siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
+					siteId,
 					date: assignment.date,
 					violationType: 'yearly_capacity'
 				}
@@ -120,8 +130,9 @@ export class SiteCapacityConstraint implements Constraint {
 					{
 						studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
 						clerkshipName: clerkship?.name,
-						preceptorName: preceptor.name,
+						preceptorName: preceptor?.name,
 						siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
+						siteId,
 						date: assignment.date,
 						violationType: 'block_capacity'
 					}
@@ -140,12 +151,18 @@ export class SiteCapacityConstraint implements Constraint {
 		maxStudentsPerDay: number
 	): string | null {
 		// Count students already assigned to this site on this date
+		// We check each assignment's preceptor's site on that assignment's date
 		const assignmentsOnDate = Array.from(context.assignmentsByStudent.values())
 			.flat()
 			.filter((a) => {
 				if (a.date !== assignment.date) return false;
-				const p = context.preceptors.find((pr) => pr.id === a.preceptorId);
-				return p?.site_id === siteId;
+				// Get the site the assignment's preceptor was at on that date
+				const assignmentSiteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+					context,
+					a.preceptorId,
+					a.date
+				);
+				return assignmentSiteId === siteId;
 			});
 
 		const currentCount = assignmentsOnDate.length;
@@ -169,8 +186,13 @@ export class SiteCapacityConstraint implements Constraint {
 
 		for (const [studentId, assignments] of context.assignmentsByStudent.entries()) {
 			const hasAssignmentAtSite = assignments.some((a) => {
-				const p = context.preceptors.find((pr) => pr.id === a.preceptorId);
-				return p?.site_id === siteId;
+				// Get the site the assignment's preceptor was at on that date
+				const assignmentSiteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+					context,
+					a.preceptorId,
+					a.date
+				);
+				return assignmentSiteId === siteId;
 			});
 
 			if (hasAssignmentAtSite) {
@@ -217,10 +239,12 @@ export class SiteCapacityConstraint implements Constraint {
 		const student = context.students.find((s) => s.id === assignment.studentId);
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
-		const siteName =
-			context.sites?.find((s) => s.id === preceptor?.site_id)?.name ||
-			preceptor?.site_id ||
-			'Unknown';
+		const siteId = PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+			context,
+			assignment.preceptorId,
+			assignment.date
+		);
+		const siteName = context.sites?.find((s) => s.id === siteId)?.name || siteId || 'Unknown';
 
 		return `Site ${siteName} capacity exceeded. Cannot assign ${student?.name} to ${preceptor?.name} for ${clerkship?.name} on ${assignment.date}.`;
 	}

@@ -78,12 +78,13 @@ export async function getAvailabilityByDate(
 }
 
 /**
- * Set availability for a specific date
+ * Set availability for a specific date at a specific site
  * Creates new record or updates existing one
  */
 export async function setAvailability(
 	db: Kysely<DB>,
 	preceptorId: string,
+	siteId: string,
 	date: string,
 	isAvailable: boolean
 ): Promise<Selectable<PreceptorAvailability>> {
@@ -93,8 +94,14 @@ export async function setAvailability(
 		throw new NotFoundError('Preceptor');
 	}
 
-	// Check if availability already exists for this date
-	const existing = await getAvailabilityByDate(db, preceptorId, date);
+	// Check if availability already exists for this date and site
+	const existing = await db
+		.selectFrom('preceptor_availability')
+		.selectAll()
+		.where('preceptor_id', '=', preceptorId)
+		.where('site_id', '=', siteId)
+		.where('date', '=', date)
+		.executeTakeFirst();
 
 	const timestamp = new Date().toISOString();
 
@@ -116,6 +123,7 @@ export async function setAvailability(
 		const newAvailability = {
 			id: crypto.randomUUID(),
 			preceptor_id: preceptorId,
+			site_id: siteId,
 			date,
 			is_available: isAvailable ? 1 : 0,
 			created_at: timestamp,
@@ -154,7 +162,7 @@ export async function deleteAvailability(db: Kysely<DB>, id: string): Promise<vo
 }
 
 /**
- * Bulk update availability for a preceptor
+ * Bulk update availability for a preceptor at a specific site
  * Replaces all availability records for the given dates
  */
 export async function bulkUpdateAvailability(
@@ -169,9 +177,9 @@ export async function bulkUpdateAvailability(
 
 	const results: Selectable<PreceptorAvailability>[] = [];
 
-	// Set availability for each date
+	// Set availability for each date at the specified site
 	for (const item of data.availability) {
-		const result = await setAvailability(db, data.preceptor_id, item.date, item.is_available);
+		const result = await setAvailability(db, data.preceptor_id, data.site_id, item.date, item.is_available);
 		results.push(result);
 	}
 
