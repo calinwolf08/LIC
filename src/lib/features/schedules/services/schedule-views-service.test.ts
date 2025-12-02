@@ -151,6 +151,8 @@ async function insertTestData(
 		students?: Array<{ id: string; name: string; email: string }>;
 		preceptors?: Array<{ id: string; name: string; email: string; health_system_id?: string }>;
 		healthSystems?: Array<{ id: string; name: string }>;
+		sites?: Array<{ id: string; name: string; health_system_id?: string }>;
+		preceptorSites?: Array<{ id: string; preceptor_id: string; site_id: string }>;
 		clerkships?: Array<{ id: string; name: string; specialty: string; required_days: number }>;
 		assignments?: Array<{ id: string; student_id: string; preceptor_id: string; clerkship_id: string; date: string; status: string }>;
 		availability?: Array<{ id: string; preceptor_id: string; date: string; is_available: number }>;
@@ -190,6 +192,29 @@ async function insertTestData(
 				health_system_id: p.health_system_id || null,
 				site_id: null,
 				max_students: 2,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).execute();
+		}
+	}
+
+	if (data.sites) {
+		for (const s of data.sites) {
+			await db.insertInto('sites').values({
+				id: s.id,
+				name: s.name,
+				health_system_id: s.health_system_id || null,
+				address: null,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).execute();
+		}
+	}
+
+	if (data.preceptorSites) {
+		for (const ps of data.preceptorSites) {
+			await db.insertInto('preceptor_sites').values({
+				...ps,
 				created_at: timestamp,
 				updated_at: timestamp
 			}).execute();
@@ -314,6 +339,42 @@ describe('Schedule Views Service', () => {
 			expect(fmProgress.remainingDays).toBe(7);
 			expect(fmProgress.percentComplete).toBe(30);
 			expect(fmProgress.isComplete).toBe(false);
+		});
+
+		it('does not duplicate assignments when preceptor has multiple sites', async () => {
+			// BUG: LEFT JOIN on preceptor_sites causes row multiplication
+			// If a preceptor works at 2 sites, each assignment appears twice
+			const studentId = generateTestId('clstudent');
+			const preceptorId = generateTestId('clpreceptor');
+			const clerkshipId = generateTestId('clclerkship');
+			const siteId1 = generateTestId('clsite');
+			const siteId2 = generateTestId('clsite');
+
+			await insertTestData(db, {
+				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
+				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
+				sites: [
+					{ id: siteId1, name: 'Main Hospital' },
+					{ id: siteId2, name: 'Downtown Clinic' }
+				],
+				preceptorSites: [
+					{ id: generateTestId('clps'), preceptor_id: preceptorId, site_id: siteId1 },
+					{ id: generateTestId('clps'), preceptor_id: preceptorId, site_id: siteId2 }
+				],
+				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				assignments: [
+					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
+					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
+					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+				]
+			});
+
+			const result = await getStudentScheduleData(db, studentId);
+
+			// Should be 3 assignments, NOT 6 (which would happen with row multiplication)
+			expect(result!.summary.totalAssignedDays).toBe(3);
+			expect(result!.assignments).toHaveLength(3);
+			expect(result!.clerkshipProgress[0].assignedDays).toBe(3);
 		});
 
 		it('tracks preceptors per clerkship', async () => {
