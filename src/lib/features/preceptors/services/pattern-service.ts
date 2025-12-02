@@ -89,6 +89,7 @@ export async function createPattern(
 	const newPattern = {
 		id,
 		preceptor_id: data.preceptor_id,
+		site_id: data.site_id,
 		pattern_type: data.pattern_type,
 		is_available: data.is_available ? 1 : 0,
 		specificity: data.specificity,
@@ -214,6 +215,7 @@ function dbPatternToCreatePattern(
 
 	return {
 		preceptor_id: dbPattern.preceptor_id,
+		site_id: dbPattern.site_id,
 		pattern_type: dbPattern.pattern_type as any,
 		is_available: dbPattern.is_available === 1,
 		specificity: dbPattern.specificity as 1 | 2 | 3,
@@ -306,6 +308,7 @@ export async function saveGeneratedDates(
 		await setAvailability(
 			db,
 			data.preceptor_id,
+			data.site_id,
 			generatedDate.date,
 			generatedDate.is_available
 		);

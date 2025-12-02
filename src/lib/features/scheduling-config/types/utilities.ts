@@ -54,6 +54,7 @@ export function allowsFallbacks(config: ResolvedRequirementConfiguration): boole
  * Display label mappings for enums
  */
 export const AssignmentStrategyLabels: Record<AssignmentStrategy, string> = {
+  team_continuity: 'Team Continuity',
   continuous_single: 'Continuous Single Preceptor',
   continuous_team: 'Continuous Team',
   block_based: 'Block-Based Scheduling',

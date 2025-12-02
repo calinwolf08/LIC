@@ -322,7 +322,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-31',
 				config: { days_of_week: [1, 3, 5] }, // Mon, Wed, Fri
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			},
 			{
 				pattern_type: 'block',
@@ -332,7 +333,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-10', // Friday
 				config: { exclude_weekends: false },
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			}
 		];
 
@@ -361,7 +363,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-31',
 				config: { days_of_week: [1, 3, 5] }, // Mon, Wed, Fri
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			},
 			{
 				pattern_type: 'block',
@@ -371,7 +374,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-10',
 				config: { exclude_weekends: false },
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			},
 			{
 				pattern_type: 'individual',
@@ -381,7 +385,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-08',
 				config: null,
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			}
 		];
 
@@ -403,7 +408,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-07',
 				config: { days_of_week: [1] }, // Monday
 				enabled: false, // Disabled
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			}
 		];
 
@@ -422,7 +428,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-20',
 				config: null,
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			},
 			{
 				pattern_type: 'individual',
@@ -432,7 +439,8 @@ describe('applyPatternsBySpecificity', () => {
 				date_range_end: '2025-01-10',
 				config: null,
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			}
 		];
 
@@ -453,7 +461,8 @@ describe('generateDatesFromPattern', () => {
 			date_range_end: '2025-01-07',
 			config: { days_of_week: [1] }, // Monday
 			enabled: true,
-			preceptor_id: 'test-preceptor'
+			preceptor_id: 'test-preceptor',
+			site_id: 'test-site'
 		};
 
 		const dates = generateDatesFromPattern(pattern);
@@ -471,7 +480,8 @@ describe('generateDatesFromPattern', () => {
 			date_range_end: '2025-01-07',
 			config: { days_of_week: [1] },
 			enabled: false,
-			preceptor_id: 'test-preceptor'
+			preceptor_id: 'test-preceptor',
+			site_id: 'test-site'
 		};
 
 		const dates = generateDatesFromPattern(pattern);
@@ -573,7 +583,8 @@ describe('edge cases', () => {
 				date_range_end: '2025-12-31',
 				config: { days_of_week: [1, 2, 3, 4, 5] },
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			},
 			// Unavailable for 2 weeks in July
 			{
@@ -584,7 +595,8 @@ describe('edge cases', () => {
 				date_range_end: '2025-07-14',
 				config: { exclude_weekends: false },
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			},
 			// Available on July 4th (individual override)
 			{
@@ -595,7 +607,8 @@ describe('edge cases', () => {
 				date_range_end: '2025-07-04',
 				config: null,
 				enabled: true,
-				preceptor_id: 'test-preceptor'
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
 			}
 		];
 

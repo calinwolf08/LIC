@@ -105,6 +105,7 @@ export const patternTypeSchema = z.enum(['weekly', 'monthly', 'block', 'individu
  */
 const basePatternFields = {
 	preceptor_id: cuid2Schema,
+	site_id: cuid2Schema,
 	is_available: z.boolean(),
 	date_range_start: dateStringSchema,
 	date_range_end: dateStringSchema,
@@ -241,6 +242,7 @@ export const patternGenerationResultSchema = z.object({
  */
 export const savePatternDatesSchema = z.object({
 	preceptor_id: cuid2Schema,
+	site_id: cuid2Schema,
 	clear_existing: z.boolean().default(true)
 });
 

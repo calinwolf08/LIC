@@ -101,7 +101,7 @@ export async function getStudentScheduleData(
 	// Build a map of preceptor_id -> first site (for display purposes)
 	const preceptorSiteMap = new Map<string, { site_id: string; site_name: string }>();
 	for (const ps of preceptorSitesData) {
-		if (!preceptorSiteMap.has(ps.preceptor_id)) {
+		if (!preceptorSiteMap.has(ps.preceptor_id) && ps.site_id && ps.site_name) {
 			preceptorSiteMap.set(ps.preceptor_id, { site_id: ps.site_id, site_name: ps.site_name });
 		}
 	}

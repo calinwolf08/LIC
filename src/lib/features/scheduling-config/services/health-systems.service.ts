@@ -358,10 +358,10 @@ export class HealthSystemService {
    */
   async deleteSite(id: string): Promise<ServiceResult<boolean>> {
     try {
-      // Check for dependent preceptors
+      // Check for dependent preceptors (via preceptor_sites table)
       const preceptorCount = await this.db
-        .selectFrom('preceptors')
-        .select(({ fn }) => [fn.count<number>('id').as('count')])
+        .selectFrom('preceptor_sites')
+        .select(({ fn }) => [fn.count<number>('preceptor_id').as('count')])
         .where('site_id', '=', id)
         .executeTakeFirst();
 

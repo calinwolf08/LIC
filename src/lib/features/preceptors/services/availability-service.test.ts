@@ -32,20 +32,38 @@ function createTestDb(): Kysely<DB> {
 
 async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
+		.createTable('sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
 		.createTable('preceptors')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull().unique())
-		.addColumn('specialty', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('phone', 'text')
 		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
 	await db.schema
+		.createTable('preceptor_sites')
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
 		.createTable('preceptor_availability')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -59,9 +77,23 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
+}
+
+const DEFAULT_SITE_ID = 'test-site-1';
+
+async function createSiteDirect(db: Kysely<DB>, id: string = DEFAULT_SITE_ID): Promise<void> {
+	const timestamp = new Date().toISOString();
+	await db.insertInto('sites').values({
+		id,
+		name: 'Test Site',
+		health_system_id: null,
+		created_at: timestamp,
+		updated_at: timestamp
+	}).execute();
 }
 
 async function createPreceptorDirect(
@@ -73,7 +105,8 @@ async function createPreceptorDirect(
 		id: crypto.randomUUID(),
 		name: 'Dr. Test',
 		email: 'test@example.com',
-		specialty: 'Family Medicine',
+		health_system_id: null,
+		phone: null,
 		max_students: 2,
 		created_at: timestamp,
 		updated_at: timestamp,
@@ -91,6 +124,7 @@ async function createAvailabilityDirect(
 	const availability: PreceptorAvailability = {
 		id: crypto.randomUUID(),
 		preceptor_id: 'preceptor-1',
+		site_id: DEFAULT_SITE_ID,
 		date: '2024-01-15',
 		is_available: 1,
 		created_at: timestamp,
@@ -112,6 +146,7 @@ describe('Availability Service', () => {
 	beforeEach(async () => {
 		db = createTestDb();
 		await initializeSchema(db);
+		await createSiteDirect(db);
 		preceptor = await createPreceptorDirect(db, { id: 'preceptor-1' });
 	});
 
@@ -299,16 +334,17 @@ describe('Availability Service', () => {
 
 	describe('setAvailability()', () => {
 		it('creates new availability record', async () => {
-			const created = await setAvailability(db, preceptor.id, '2024-01-15', true);
+			const created = await setAvailability(db, preceptor.id, DEFAULT_SITE_ID, '2024-01-15', true);
 
 			expect(created.id).toBeDefined();
 			expect(created.preceptor_id).toBe(preceptor.id);
+			expect(created.site_id).toBe(DEFAULT_SITE_ID);
 			expect(created.date).toBe('2024-01-15');
 			expect(created.is_available).toBe(1);
 		});
 
 		it('creates unavailability record', async () => {
-			const created = await setAvailability(db, preceptor.id, '2024-01-15', false);
+			const created = await setAvailability(db, preceptor.id, DEFAULT_SITE_ID, '2024-01-15', false);
 
 			expect(created.is_available).toBe(0);
 		});
@@ -316,24 +352,25 @@ describe('Availability Service', () => {
 		it('updates existing availability record', async () => {
 			const existing = await createAvailabilityDirect(db, {
 				preceptor_id: preceptor.id,
+				site_id: DEFAULT_SITE_ID,
 				date: '2024-01-15',
 				is_available: 1
 			});
 
-			const updated = await setAvailability(db, preceptor.id, '2024-01-15', false);
+			const updated = await setAvailability(db, preceptor.id, DEFAULT_SITE_ID, '2024-01-15', false);
 
 			expect(updated.id).toBe(existing.id);
 			expect(updated.is_available).toBe(0);
 		});
 
 		it('throws NotFoundError when preceptor does not exist', async () => {
-			await expect(setAvailability(db, 'nonexistent-id', '2024-01-15', true)).rejects.toThrow(
+			await expect(setAvailability(db, 'nonexistent-id', DEFAULT_SITE_ID, '2024-01-15', true)).rejects.toThrow(
 				NotFoundError
 			);
 		});
 
 		it('sets created_at and updated_at for new record', async () => {
-			const created = await setAvailability(db, preceptor.id, '2024-01-15', true);
+			const created = await setAvailability(db, preceptor.id, DEFAULT_SITE_ID, '2024-01-15', true);
 
 			expect(created.created_at).toBeDefined();
 			expect(created.updated_at).toBeDefined();
@@ -343,13 +380,14 @@ describe('Availability Service', () => {
 		it('updates updated_at when updating existing record', async () => {
 			const existing = await createAvailabilityDirect(db, {
 				preceptor_id: preceptor.id,
+				site_id: DEFAULT_SITE_ID,
 				date: '2024-01-15',
 				is_available: 1
 			});
 
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
-			const updated = await setAvailability(db, preceptor.id, '2024-01-15', false);
+			const updated = await setAvailability(db, preceptor.id, DEFAULT_SITE_ID, '2024-01-15', false);
 
 			expect(updated.updated_at).not.toBe(existing.updated_at);
 			expect(new Date(updated.updated_at).getTime()).toBeGreaterThan(
@@ -400,6 +438,7 @@ describe('Availability Service', () => {
 		it('creates multiple availability records', async () => {
 			const data = {
 				preceptor_id: preceptor.id,
+				site_id: DEFAULT_SITE_ID,
 				availability: [
 					{ date: '2024-01-15', is_available: true },
 					{ date: '2024-01-16', is_available: false },
@@ -412,6 +451,7 @@ describe('Availability Service', () => {
 			expect(results).toHaveLength(3);
 			expect(results[0].date).toBe('2024-01-15');
 			expect(results[0].is_available).toBe(1);
+			expect(results[0].site_id).toBe(DEFAULT_SITE_ID);
 			expect(results[1].is_available).toBe(0);
 			expect(results[2].is_available).toBe(1);
 		});
@@ -419,12 +459,14 @@ describe('Availability Service', () => {
 		it('updates existing records and creates new ones', async () => {
 			await createAvailabilityDirect(db, {
 				preceptor_id: preceptor.id,
+				site_id: DEFAULT_SITE_ID,
 				date: '2024-01-15',
 				is_available: 0
 			});
 
 			const data = {
 				preceptor_id: preceptor.id,
+				site_id: DEFAULT_SITE_ID,
 				availability: [
 					{ date: '2024-01-15', is_available: true }, // Update existing
 					{ date: '2024-01-16', is_available: true } // Create new
@@ -441,6 +483,7 @@ describe('Availability Service', () => {
 		it('throws NotFoundError when preceptor does not exist', async () => {
 			const data = {
 				preceptor_id: 'nonexistent-id',
+				site_id: DEFAULT_SITE_ID,
 				availability: [{ date: '2024-01-15', is_available: true }]
 			};
 
@@ -450,6 +493,7 @@ describe('Availability Service', () => {
 		it('handles empty availability array', async () => {
 			const data = {
 				preceptor_id: preceptor.id,
+				site_id: DEFAULT_SITE_ID,
 				availability: []
 			};
 

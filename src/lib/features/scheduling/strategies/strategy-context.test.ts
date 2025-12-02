@@ -33,7 +33,6 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('reason', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
-		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 }
 
@@ -126,8 +125,7 @@ describe('StrategyContextBuilder', () => {
 				id: 'blackout-1',
 				date: '2025-12-03',
 				reason: 'Holiday',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+				created_at: new Date().toISOString()
 			}).execute();
 
 			const buildAvailableDates = (builder as any).buildAvailableDates.bind(builder);

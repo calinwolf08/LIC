@@ -307,7 +307,11 @@ export async function getPreceptorsWithAssociations(
 
 			// Extract unique clerkships from teams
 			const clerkshipsMap = new Map<string, string>();
-			teams.forEach((t) => clerkshipsMap.set(t.clerkship_id, t.clerkship_name || 'Unknown'));
+			teams.forEach((t) => {
+				if (t.clerkship_id) {
+					clerkshipsMap.set(t.clerkship_id, t.clerkship_name || 'Unknown');
+				}
+			});
 			const clerkships = Array.from(clerkshipsMap.entries()).map(([id, name]) => ({ id, name }));
 
 			return {

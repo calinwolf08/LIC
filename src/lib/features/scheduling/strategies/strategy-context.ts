@@ -133,10 +133,10 @@ export class StrategyContextBuilder {
     const result: StrategyContext['availablePreceptors'] = [];
 
     for (const preceptor of preceptors) {
-      // Get preceptor availability
+      // Get preceptor availability with site info
       const availability = await this.db
         .selectFrom('preceptor_availability')
-        .select('date')
+        .select(['date', 'site_id'])
         .where('preceptor_id', '=', preceptor.id)
         .where('is_available', '=', 1)
         .execute();
@@ -159,6 +159,13 @@ export class StrategyContextBuilder {
         .where('requirement_type', 'is', null)
         .executeTakeFirst();
 
+      // Get preceptor's sites (from preceptor_sites table)
+      const preceptorSites = await this.db
+        .selectFrom('preceptor_sites')
+        .select('site_id')
+        .where('preceptor_id', '=', preceptor.id)
+        .execute();
+
       // Skip preceptors without valid IDs
       if (!preceptor.id) continue;
 
@@ -166,7 +173,8 @@ export class StrategyContextBuilder {
         id: preceptor.id,
         name: preceptor.name,
         healthSystemId: preceptor.health_system_id,
-        siteId: preceptor.site_id,
+        siteId: preceptorSites[0]?.site_id ?? null, // Use first site for backwards compat
+        siteIds: preceptorSites.map(ps => ps.site_id),
         availability: availabilityDates,
         currentAssignmentCount: assignmentCount?.count ?? 0,
         maxStudentsPerDay: capacityRule?.max_students_per_day ?? 2,

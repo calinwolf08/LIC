@@ -40,7 +40,8 @@ export interface StrategyContext {
     id: string;
     name: string;
     healthSystemId: string | null;
-    siteId: string | null;
+    siteId: string | null; // Primary site (for backwards compat)
+    siteIds?: string[]; // All sites preceptor is associated with
     availability: string[]; // Dates this preceptor is available
     currentAssignmentCount: number; // For load balancing
     maxStudentsPerDay: number;

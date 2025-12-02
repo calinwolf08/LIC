@@ -24,7 +24,7 @@ export const requirementInputSchema = z.object({
   }),
 
   // Override fields - only validated if overrideMode != 'inherit'
-  overrideAssignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation']).optional(),
+  overrideAssignmentStrategy: z.enum(['team_continuity', 'continuous_single', 'continuous_team', 'block_based', 'daily_rotation']).optional(),
   overrideHealthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference']).optional(),
   overrideMaxStudentsPerDay: z.number().int().positive().optional(),
   overrideMaxStudentsPerYear: z.number().int().positive().optional(),
@@ -110,7 +110,7 @@ export const clerkshipRequirementSchema = z.object({
   requirementType: z.enum(['outpatient', 'inpatient', 'elective']),
   requiredDays: z.number().int().positive(),
   overrideMode: z.enum(['inherit', 'override_fields', 'override_section']),
-  overrideAssignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation']).optional(),
+  overrideAssignmentStrategy: z.enum(['team_continuity', 'continuous_single', 'continuous_team', 'block_based', 'daily_rotation']).optional(),
   overrideHealthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference']).optional(),
   overrideMaxStudentsPerDay: z.number().int().positive().optional(),
   overrideMaxStudentsPerYear: z.number().int().positive().optional(),

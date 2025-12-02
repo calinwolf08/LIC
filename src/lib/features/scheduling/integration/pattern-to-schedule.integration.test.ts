@@ -52,12 +52,24 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	await db.schema
+		.createTable('sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('address', 'text')
+		.addColumn('contact_person', 'text')
+		.addColumn('contact_email', 'text')
+		.addColumn('office_phone', 'text')
+		.addColumn('created_at', 'text')
+		.addColumn('updated_at', 'text')
+		.execute();
+
+	await db.schema
 		.createTable('preceptors')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull())
 		.addColumn('health_system_id', 'text')
-		.addColumn('site_id', 'text')
 		.addColumn('phone', 'text')
 		.addColumn('max_students', 'integer')
 		.addColumn('created_at', 'text')
@@ -65,11 +77,19 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	await db.schema
+		.createTable('preceptor_sites')
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text')
+		.execute();
+
+	await db.schema
 		.createTable('clerkships')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('clerkship_type', 'text', (col) => col.notNull())
 		.addColumn('specialty', 'text')
-		.addColumn('required_days', 'integer')
+		.addColumn('required_days', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text')
 		.addColumn('updated_at', 'text')
 		.execute();
@@ -78,6 +98,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.createTable('preceptor_availability')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text')
@@ -123,6 +144,11 @@ describe('Pattern-to-Schedule End-to-End Integration', () => {
 			id: 'hs-1', name: 'Test Health System', created_at: now, updated_at: now
 		}).execute();
 
+		await db.insertInto('sites').values({
+			id: 'site-1', name: 'Test Site', health_system_id: 'hs-1',
+			created_at: now, updated_at: now
+		}).execute();
+
 		await db.insertInto('students').values({
 			id: 'student-1', name: 'Test Student', email: 'student@test.com',
 			created_at: now, updated_at: now
@@ -134,9 +160,13 @@ describe('Pattern-to-Schedule End-to-End Integration', () => {
 			created_at: now, updated_at: now
 		}).execute();
 
+		await db.insertInto('preceptor_sites').values({
+			preceptor_id: 'preceptor-1', site_id: 'site-1', created_at: now
+		}).execute();
+
 		await db.insertInto('clerkships').values({
-			id: 'clerkship-1', name: 'Family Medicine', specialty: 'Family Medicine',
-			required_days: 10, created_at: now, updated_at: now
+			id: 'clerkship-1', name: 'Family Medicine', clerkship_type: 'outpatient',
+			specialty: 'Family Medicine', required_days: 10, created_at: now, updated_at: now
 		}).execute();
 
 		// =====================================================
@@ -169,6 +199,7 @@ describe('Pattern-to-Schedule End-to-End Integration', () => {
 			await db.insertInto('preceptor_availability').values({
 				id: `avail-${date}`,
 				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
 				date: date,
 				is_available: 1,
 				created_at: now,
