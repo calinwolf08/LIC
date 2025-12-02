@@ -12,7 +12,6 @@ import type { DB } from '$lib/db/types';
 import {
 	getPreceptors,
 	getPreceptorById,
-	getPreceptorsBySpecialty,
 	getPreceptorByEmail,
 	createPreceptor,
 	updatePreceptor,
@@ -44,7 +43,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull().unique())
-		.addColumn('specialty', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('phone', 'text')
 		.addColumn('max_students', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -57,6 +57,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text')
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -67,13 +68,15 @@ async function initializeSchema(db: Kysely<DB>) {
 function createMockPreceptorData(overrides: Partial<{
 	name: string;
 	email: string;
-	specialty: string;
+	health_system_id: string | null;
+	phone: string | null;
 	max_students: number;
 }> = {}) {
 	return {
 		name: overrides.name ?? 'Dr. Smith',
 		email: overrides.email ?? 'smith@example.com',
-		specialty: overrides.specialty ?? 'Family Medicine',
+		health_system_id: overrides.health_system_id ?? null,
+		phone: overrides.phone ?? null,
 		max_students: overrides.max_students ?? 2
 	};
 }
@@ -139,7 +142,6 @@ describe('Preceptor Service', () => {
 			const created = await createPreceptor(db, createMockPreceptorData({
 				name: 'Dr. Johnson',
 				email: 'johnson@example.com',
-				specialty: 'Internal Medicine',
 				max_students: 3
 			}));
 
@@ -147,60 +149,9 @@ describe('Preceptor Service', () => {
 
 			expect(found?.name).toBe('Dr. Johnson');
 			expect(found?.email).toBe('johnson@example.com');
-			expect(found?.specialty).toBe('Internal Medicine');
 			expect(found?.max_students).toBe(3);
 			expect(found?.created_at).toBeDefined();
 			expect(found?.updated_at).toBeDefined();
-		});
-	});
-
-	describe('getPreceptorsBySpecialty()', () => {
-		it('returns preceptors with matching specialty', async () => {
-			await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Smith',
-				email: 'smith@example.com',
-				specialty: 'Family Medicine'
-			}));
-			await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Jones',
-				email: 'jones@example.com',
-				specialty: 'Family Medicine'
-			}));
-			await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Brown',
-				email: 'brown@example.com',
-				specialty: 'Internal Medicine'
-			}));
-
-			const familyDocs = await getPreceptorsBySpecialty(db, 'Family Medicine');
-
-			expect(familyDocs).toHaveLength(2);
-			expect(familyDocs.every(p => p.specialty === 'Family Medicine')).toBe(true);
-		});
-
-		it('returns empty array when no matching specialty', async () => {
-			await createPreceptor(db, createMockPreceptorData({ specialty: 'Family Medicine' }));
-
-			const result = await getPreceptorsBySpecialty(db, 'Cardiology');
-			expect(result).toEqual([]);
-		});
-
-		it('returns preceptors ordered by name', async () => {
-			await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Zoe',
-				email: 'zoe@example.com',
-				specialty: 'Family Medicine'
-			}));
-			await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Alice',
-				email: 'alice@example.com',
-				specialty: 'Family Medicine'
-			}));
-
-			const result = await getPreceptorsBySpecialty(db, 'Family Medicine');
-
-			expect(result[0].name).toBe('Dr. Alice');
-			expect(result[1].name).toBe('Dr. Zoe');
 		});
 	});
 
@@ -239,7 +190,6 @@ describe('Preceptor Service', () => {
 			expect(preceptor).toBeDefined();
 			expect(preceptor.name).toBe(data.name);
 			expect(preceptor.email).toBe(data.email);
-			expect(preceptor.specialty).toBe(data.specialty);
 			expect(preceptor.max_students).toBe(data.max_students);
 		});
 
@@ -270,8 +220,7 @@ describe('Preceptor Service', () => {
 		it('defaults max_students to 1 if not provided', async () => {
 			const data = {
 				name: 'Dr. Smith',
-				email: 'smith@example.com',
-				specialty: 'Family Medicine'
+				email: 'smith@example.com'
 			};
 			const preceptor = await createPreceptor(db, data);
 
@@ -285,7 +234,6 @@ describe('Preceptor Service', () => {
 			expect(preceptor).toHaveProperty('id');
 			expect(preceptor).toHaveProperty('name');
 			expect(preceptor).toHaveProperty('email');
-			expect(preceptor).toHaveProperty('specialty');
 			expect(preceptor).toHaveProperty('max_students');
 			expect(preceptor).toHaveProperty('created_at');
 			expect(preceptor).toHaveProperty('updated_at');
@@ -309,13 +257,6 @@ describe('Preceptor Service', () => {
 			expect(updated.name).toBe(created.name);
 		});
 
-		it('updates preceptor specialty', async () => {
-			const created = await createPreceptor(db, createMockPreceptorData());
-			const updated = await updatePreceptor(db, created.id, { specialty: 'Internal Medicine' });
-
-			expect(updated.specialty).toBe('Internal Medicine');
-		});
-
 		it('updates preceptor max_students', async () => {
 			const created = await createPreceptor(db, createMockPreceptorData());
 			const updated = await updatePreceptor(db, created.id, { max_students: 5 });
@@ -328,13 +269,11 @@ describe('Preceptor Service', () => {
 			const updated = await updatePreceptor(db, created.id, {
 				name: 'Dr. New Name',
 				email: 'newemail@example.com',
-				specialty: 'Cardiology',
 				max_students: 4
 			});
 
 			expect(updated.name).toBe('Dr. New Name');
 			expect(updated.email).toBe('newemail@example.com');
-			expect(updated.specialty).toBe('Cardiology');
 			expect(updated.max_students).toBe(4);
 		});
 
