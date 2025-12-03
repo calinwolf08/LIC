@@ -402,6 +402,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 		it('enforces preceptor availability constraints', async () => {
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id as string, 'Test Site');
 
 			const student = await createStudent(db, {
 				name: 'Test Student',
@@ -423,7 +424,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 			});
 
 			// Mark preceptor as unavailable
-			await setAvailability(db, preceptor.id as string, '2024-01-15', false);
+			await setAvailability(db, preceptor.id as string, site.id as string, '2024-01-15', false);
 
 			// Attempt to create assignment when unavailable
 			await expect(
@@ -662,6 +663,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 	describe('Validation Integration', () => {
 		it('validates assignment with all constraints', async () => {
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id as string, 'Test Site');
 
 			const student = await createStudent(db, {
 				name: 'Test Student',
@@ -683,7 +685,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 			});
 
 			// Mark preceptor as available
-			await setAvailability(db, preceptor.id as string, '2024-01-15', true);
+			await setAvailability(db, preceptor.id as string, site.id as string, '2024-01-15', true);
 
 			const assignmentData = {
 				student_id: student.id as string,
@@ -730,8 +732,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 				'$lib/features/preceptors/services/pattern-generators'
 			);
 
-			// Setup: Create health system, student, preceptor, clerkship
+			// Setup: Create health system, site, student, preceptor, clerkship
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id as string, 'Test Site');
 
 			const student = await createStudent(db, {
 				name: 'Test Student',
@@ -784,7 +787,7 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 			// Save availability to database
 			for (const dateStr of availabilityDates) {
-				await setAvailability(db, preceptor.id as string, dateStr, true);
+				await setAvailability(db, preceptor.id as string, site.id as string, dateStr, true);
 			}
 
 			// Verify availability was saved correctly
