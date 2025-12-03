@@ -222,6 +222,7 @@ export const patternSchema = createPatternSchema.and(
  */
 export const generatedDateSchema = z.object({
 	date: dateStringSchema,
+	site_id: cuid2Schema,
 	is_available: z.boolean(),
 	source_pattern_id: cuid2Schema.optional(),
 	source_pattern_type: patternTypeSchema.optional()
@@ -242,7 +243,6 @@ export const patternGenerationResultSchema = z.object({
  */
 export const savePatternDatesSchema = z.object({
 	preceptor_id: cuid2Schema,
-	site_id: cuid2Schema,
 	clear_existing: z.boolean().default(true)
 });
 

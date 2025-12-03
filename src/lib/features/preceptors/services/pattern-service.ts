@@ -303,12 +303,12 @@ export async function saveGeneratedDates(
 			.execute();
 	}
 
-	// Save all generated dates
+	// Save all generated dates using site_id from each generated date
 	for (const generatedDate of result.preview) {
 		await setAvailability(
 			db,
 			data.preceptor_id,
-			data.site_id,
+			generatedDate.site_id,
 			generatedDate.date,
 			generatedDate.is_available
 		);

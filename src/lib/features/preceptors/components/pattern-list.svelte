@@ -1,11 +1,23 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
-	import type { Pattern } from '$lib/features/preceptors/pattern-schemas';
+
+	// Generic pattern interface that works with both Pattern and LocalPattern
+	interface PatternLike {
+		id: string;
+		pattern_type: string;
+		is_available: number | boolean;
+		enabled: number | boolean;
+		specificity: number;
+		date_range_start: string;
+		date_range_end: string;
+		config: any;
+		reason?: string | null;
+	}
 
 	interface Props {
-		patterns: Pattern[];
-		onEdit?: (pattern: Pattern) => void;
+		patterns: PatternLike[];
+		onEdit?: (pattern: PatternLike) => void;
 		onDelete?: (patternId: string) => void;
 		onToggleEnabled?: (patternId: string, enabled: boolean) => void;
 	}
@@ -22,7 +34,7 @@
 		return labels[type] || type;
 	}
 
-	function getPatternDescription(pattern: Pattern): string {
+	function getPatternDescription(pattern: PatternLike): string {
 		try {
 			const config = pattern.config;
 

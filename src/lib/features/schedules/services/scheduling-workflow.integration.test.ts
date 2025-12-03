@@ -134,10 +134,33 @@ async function initializeSchema(db: Kysely<DB>) {
 		.createTable('preceptor_availability')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Sites table (required for site_id references)
+	await db.schema
+		.createTable('sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('address', 'text')
+		.addColumn('contact_person', 'text')
+		.addColumn('contact_email', 'text')
+		.addColumn('office_phone', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Preceptor sites junction table
+	await db.schema
+		.createTable('preceptor_sites')
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
 		.execute();
 }
 
@@ -161,6 +184,44 @@ async function createHealthSystem(db: Kysely<DB>, name: string = 'Test Health Sy
 	return healthSystem;
 }
 
+/**
+ * Helper to create a site for tests
+ */
+async function createSite(db: Kysely<DB>, healthSystemId: string, name: string = 'Test Site') {
+	const timestamp = new Date().toISOString();
+	const site = await db
+		.insertInto('sites')
+		.values({
+			id: generateTestId('clst'),
+			name,
+			health_system_id: healthSystemId,
+			address: null,
+			contact_person: null,
+			contact_email: null,
+			office_phone: null,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+	return site;
+}
+
+/**
+ * Helper to link a preceptor to a site
+ */
+async function linkPreceptorToSite(db: Kysely<DB>, preceptorId: string, siteId: string) {
+	const timestamp = new Date().toISOString();
+	await db
+		.insertInto('preceptor_sites')
+		.values({
+			preceptor_id: preceptorId,
+			site_id: siteId,
+			created_at: timestamp
+		})
+		.execute();
+}
+
 describe('Scheduling Workflow Integration Tests', () => {
 	let db: Kysely<DB>;
 
@@ -176,8 +237,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 	describe('Complete Scheduling Workflow', () => {
 		it('creates a full schedule from setup to assignments', async () => {
-			// Step 0: Create health system
+			// Step 0: Create health system and site
 			const healthSystem = await createHealthSystem(db);
+			const site = await createSite(db, healthSystem.id as string);
 
 			// Step 1: Create students
 			const student1 = await createStudent(db, {
@@ -213,6 +275,10 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(preceptor1.id).toBeDefined();
 			expect(preceptor2.id).toBeDefined();
 
+			// Link preceptors to site
+			await linkPreceptorToSite(db, preceptor1.id as string, site.id as string);
+			await linkPreceptorToSite(db, preceptor2.id as string, site.id as string);
+
 			// Step 3: Create clerkships
 			const clerkship1 = await createClerkship(db, {
 				name: 'Cardiology Rotation',
@@ -229,12 +295,12 @@ describe('Scheduling Workflow Integration Tests', () => {
 			expect(clerkship1.id).toBeDefined();
 			expect(clerkship2.id).toBeDefined();
 
-			// Step 4: Set preceptor availability
-			await setAvailability(db, preceptor1.id as string, '2024-01-15', true);
-			await setAvailability(db, preceptor1.id as string, '2024-01-16', true);
-			await setAvailability(db, preceptor1.id as string, '2024-01-17', true);
-			await setAvailability(db, preceptor2.id as string, '2024-01-18', true);
-			await setAvailability(db, preceptor2.id as string, '2024-01-19', true);
+			// Step 4: Set preceptor availability (now with site_id)
+			await setAvailability(db, preceptor1.id as string, site.id as string, '2024-01-15', true);
+			await setAvailability(db, preceptor1.id as string, site.id as string, '2024-01-16', true);
+			await setAvailability(db, preceptor1.id as string, site.id as string, '2024-01-17', true);
+			await setAvailability(db, preceptor2.id as string, site.id as string, '2024-01-18', true);
+			await setAvailability(db, preceptor2.id as string, site.id as string, '2024-01-19', true);
 
 			// Step 5: Add blackout date
 			const blackout = await createBlackoutDate(db, {

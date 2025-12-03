@@ -10,18 +10,25 @@
 		BlockConfig
 	} from '$lib/features/preceptors/pattern-schemas';
 
+	interface Site {
+		id: string;
+		name: string;
+	}
+
 	interface Props {
 		preceptorId: string;
+		sites: Site[];
 		onSuccess?: (pattern: CreatePattern) => void;
 		onCancel?: () => void;
 		editPattern?: CreatePattern | null;
 	}
 
-	let { preceptorId, onSuccess, onCancel, editPattern = null }: Props = $props();
+	let { preceptorId, sites, onSuccess, onCancel, editPattern = null }: Props = $props();
 
 	// Form state
 	let patternType = $state<'weekly' | 'monthly' | 'block' | 'individual'>('weekly');
 	let isAvailable = $state(true);
+	let selectedSiteId = $state<string>(sites.length === 1 ? sites[0].id : '');
 	let startDate = $state('');
 	let endDate = $state('');
 	let reason = $state('');
@@ -51,6 +58,7 @@
 		if (editPattern) {
 			patternType = editPattern.pattern_type;
 			isAvailable = editPattern.is_available;
+			selectedSiteId = editPattern.site_id || (sites.length === 1 ? sites[0].id : '');
 			startDate = editPattern.date_range_start;
 			endDate = editPattern.date_range_end;
 			reason = editPattern.reason || '';
@@ -84,7 +92,7 @@
 
 	function buildPattern(): CreatePattern {
 		let config: any = null;
-		let specificity = 1;
+		let specificity: 1 | 2 | 3 = 1;
 
 		switch (patternType) {
 			case 'weekly':
@@ -127,6 +135,7 @@
 
 		return {
 			preceptor_id: preceptorId,
+			site_id: selectedSiteId,
 			pattern_type: patternType,
 			is_available: isAvailable,
 			specificity,
@@ -135,7 +144,7 @@
 			config,
 			reason: reason || undefined,
 			enabled: true
-		};
+		} as CreatePattern;
 	}
 
 	function handleSubmit() {
@@ -145,6 +154,7 @@
 
 	// Computed values
 	let isValid = $derived(() => {
+		if (!selectedSiteId) return false;
 		if (!startDate) return false;
 		if (patternType !== 'individual' && !endDate) return false;
 		if (patternType === 'weekly' && selectedDays.size === 0) return false;
@@ -226,6 +236,32 @@
 					Individual
 				</button>
 			</div>
+		</div>
+
+		<!-- Site Selection -->
+		<div class="space-y-2">
+			<Label for="site-select">Site</Label>
+			{#if sites.length === 0}
+				<p class="text-sm text-destructive">No sites available. Please assign this preceptor to at least one site first.</p>
+			{:else if sites.length === 1}
+				<div class="px-3 py-2 border rounded-md bg-muted text-sm">
+					{sites[0].name}
+				</div>
+			{:else}
+				<select
+					id="site-select"
+					bind:value={selectedSiteId}
+					class="w-full px-3 py-2 border rounded-md bg-background"
+				>
+					<option value="">Select a site...</option>
+					{#each sites as site}
+						<option value={site.id}>{site.name}</option>
+					{/each}
+				</select>
+			{/if}
+			<p class="text-xs text-muted-foreground">
+				Availability patterns apply to a specific site
+			</p>
 		</div>
 
 		<!-- Availability Toggle -->

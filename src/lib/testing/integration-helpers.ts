@@ -11,7 +11,7 @@ import type { DB } from '$lib/db/types';
 /**
  * Creates a complete test clerkship with all necessary data
  */
-export async function createTestClerkship(db: Kysely<DB>, name: string, clerkshipType: string = 'core') {
+export async function createTestClerkship(db: Kysely<DB>, name: string, clerkshipType: string = 'outpatient') {
 	const id = nanoid();
 	await db
 		.insertInto('clerkships')

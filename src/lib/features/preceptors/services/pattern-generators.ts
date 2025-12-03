@@ -402,7 +402,8 @@ export function generateIndividualDate(date: string): string[] {
  * @returns Array of generated dates with availability and source information
  */
 export function applyPatternsBySpecificity(patterns: CreatePattern[]): GeneratedDate[] {
-	// Map to store final availability state for each date
+	// Map to store final availability state for each date+site combination
+	// Key is "date:site_id" to allow different availability per site on same date
 	const dateMap = new Map<string, GeneratedDate>();
 
 	// Sort patterns by specificity (already assumed to be sorted, but ensure it)
@@ -446,10 +447,12 @@ export function applyPatternsBySpecificity(patterns: CreatePattern[]): Generated
 				break;
 		}
 
-		// Apply dates to map (higher specificity overwrites lower)
+		// Apply dates to map (higher specificity overwrites lower for same date+site)
 		for (const date of dates) {
-			dateMap.set(date, {
+			const key = `${date}:${pattern.site_id}`;
+			dateMap.set(key, {
 				date,
+				site_id: pattern.site_id,
 				is_available: pattern.is_available,
 				source_pattern_type: pattern.pattern_type
 			});

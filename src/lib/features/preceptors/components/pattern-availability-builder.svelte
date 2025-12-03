@@ -10,10 +10,33 @@
 		PatternGenerationResult
 	} from '$lib/features/preceptors/pattern-schemas';
 
-	// Accept any preceptor-like object with id
+	interface Site {
+		id: string;
+		name: string;
+	}
+
+	// Accept any preceptor-like object with id and sites
 	interface PreceptorLike {
 		id: string;
 		name: string;
+		sites: Site[];
+	}
+
+	// Local pattern type that matches what we store (is_available/enabled as numbers for DB compatibility)
+	interface LocalPattern {
+		id: string;
+		preceptor_id: string;
+		site_id: string;
+		pattern_type: string;
+		is_available: number;
+		specificity: number;
+		date_range_start: string;
+		date_range_end: string;
+		config: any;
+		reason: string | null;
+		enabled: number;
+		created_at: string;
+		updated_at: string;
 	}
 
 	interface Props {
@@ -25,7 +48,7 @@
 	let { preceptor, onSuccess, onCancel }: Props = $props();
 
 	// Local state for patterns (not yet saved to database)
-	let localPatterns = $state<Pattern[]>([]);
+	let localPatterns = $state<LocalPattern[]>([]);
 	let nextTempId = $state(1);
 	let generationResult = $state<PatternGenerationResult | null>(null);
 	let isLoading = $state(true);
@@ -33,7 +56,7 @@
 	let isGenerating = $state(false);
 	let error = $state<string | null>(null);
 	let showPatternForm = $state(false);
-	let editingPattern = $state<Pattern | null>(null);
+	let editingPattern = $state<LocalPattern | null>(null);
 	let editingIndex = $state<number | null>(null);
 
 	// Load existing patterns from database
@@ -80,19 +103,21 @@
 			const { applyPatternsBySpecificity } = await import('../services/pattern-generators');
 
 			// Convert Pattern[] to CreatePattern[]
-			const createPatterns: CreatePattern[] = localPatterns
+			// Note: Pattern from DB has is_available/enabled as numbers (0/1), but TypeScript type says boolean
+			const createPatterns = localPatterns
 				.filter(p => p.enabled)
 				.map(p => ({
 					preceptor_id: p.preceptor_id,
-					pattern_type: p.pattern_type as any,
-					is_available: p.is_available === 1,
-					specificity: p.specificity,
+					site_id: p.site_id,
+					pattern_type: p.pattern_type,
+					is_available: typeof p.is_available === 'number' ? p.is_available === 1 : p.is_available,
+					specificity: p.specificity as 1 | 2 | 3,
 					date_range_start: p.date_range_start,
 					date_range_end: p.date_range_end,
 					config: p.config,
 					reason: p.reason || undefined,
-					enabled: p.enabled === 1
-				}));
+					enabled: typeof p.enabled === 'number' ? p.enabled === 1 : p.enabled
+				})) as CreatePattern[];
 
 			// Generate dates locally
 			const generatedDates = applyPatternsBySpecificity(createPatterns);
@@ -123,9 +148,10 @@
 		const tempId = `temp-${nextTempId}`;
 		nextTempId++;
 
-		const newPattern: Pattern = {
+		const newPattern: LocalPattern = {
 			id: tempId,
 			preceptor_id: pattern.preceptor_id,
+			site_id: pattern.site_id,
 			pattern_type: pattern.pattern_type,
 			is_available: pattern.is_available ? 1 : 0,
 			specificity: pattern.specificity,
@@ -149,8 +175,9 @@
 
 		error = null;
 
-		const updated: Pattern = {
+		const updated: LocalPattern = {
 			...localPatterns[editingIndex],
+			site_id: pattern.site_id,
 			pattern_type: pattern.pattern_type,
 			is_available: pattern.is_available ? 1 : 0,
 			specificity: pattern.specificity,
@@ -197,12 +224,12 @@
 		generatePreviewLocal();
 	}
 
-	function handleEdit(pattern: Pattern) {
+	function handleEdit(pattern: { id: string }) {
 		// Find the index
 		const index = localPatterns.findIndex(p => p.id === pattern.id);
 		if (index === -1) return;
 
-		editingPattern = pattern;
+		editingPattern = localPatterns[index];
 		editingIndex = index;
 		showPatternForm = false; // Hide add form
 	}
@@ -239,9 +266,10 @@
 			for (const pattern of localPatterns) {
 				// Skip temporary patterns, create new ones
 				if (pattern.id?.startsWith('temp-')) {
-					const createData: CreatePattern = {
+					const createData = {
 						preceptor_id: pattern.preceptor_id,
-						pattern_type: pattern.pattern_type as any,
+						site_id: pattern.site_id,
+						pattern_type: pattern.pattern_type,
 						is_available: pattern.is_available === 1,
 						specificity: pattern.specificity,
 						date_range_start: pattern.date_range_start,
@@ -265,9 +293,10 @@
 					}
 				} else {
 					// For existing patterns, also recreate them
-					const createData: CreatePattern = {
+					const createData = {
 						preceptor_id: pattern.preceptor_id,
-						pattern_type: pattern.pattern_type as any,
+						site_id: pattern.site_id,
+						pattern_type: pattern.pattern_type,
 						is_available: pattern.is_available === 1,
 						specificity: pattern.specificity,
 						date_range_start: pattern.date_range_start,
@@ -334,6 +363,23 @@
 
 	// Track if there are unsaved changes
 	let hasUnsavedChanges = $derived(localPatterns.some(p => p.id?.startsWith('temp-')));
+
+	// Convert LocalPattern to CreatePattern for the form
+	function localPatternToCreatePattern(p: LocalPattern | null): CreatePattern | null {
+		if (!p) return null;
+		return {
+			preceptor_id: p.preceptor_id,
+			site_id: p.site_id,
+			pattern_type: p.pattern_type as any,
+			is_available: p.is_available === 1,
+			specificity: p.specificity as 1 | 2 | 3,
+			date_range_start: p.date_range_start,
+			date_range_end: p.date_range_end,
+			config: p.config,
+			reason: p.reason || undefined,
+			enabled: p.enabled === 1
+		} as CreatePattern;
+	}
 </script>
 
 <div class="space-y-6">
@@ -362,7 +408,8 @@
 		{#if showPatternForm || editingPattern}
 			<PatternForm
 				preceptorId={preceptor.id!}
-				editPattern={editingPattern}
+				sites={preceptor.sites}
+				editPattern={localPatternToCreatePattern(editingPattern)}
 				onSuccess={editingPattern ? handleUpdatePattern : handleAddPattern}
 				onCancel={() => {
 					showPatternForm = false;

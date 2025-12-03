@@ -158,6 +158,8 @@
 											size="sm"
 											variant="outline"
 											onclick={() => onManageAvailability?.(preceptor)}
+											disabled={!preceptor.sites || preceptor.sites.length === 0}
+											title={!preceptor.sites || preceptor.sites.length === 0 ? 'Assign this preceptor to a site first' : 'Manage availability patterns'}
 										>
 											Availability
 										</Button>
