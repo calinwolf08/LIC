@@ -15,15 +15,20 @@ export const uuidSchema = z.string().uuid({
 
 /**
  * ID validation schema (for database IDs)
- * Accepts both UUIDs (36 chars with dashes) and CUID2s (20-30 chars)
+ * Accepts multiple ID formats used in the application:
+ * - UUIDs (36 chars with dashes): xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ * - CUID2s (20-30 chars starting with letter): clxxxxxxxxxxxxxxxxxx
+ * - Nanoids (21 chars using A-Za-z0-9_-): can start with any character
  */
 export const cuid2Schema = z.string().refine(
 	(val) => {
 		// Accept UUIDs (36 chars with format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
 		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-		// Accept CUID2s (20-30 chars starting with letter)
+		// Accept CUID2s (20-30 chars starting with letter, alphanumeric only)
 		const cuid2Regex = /^[a-z][a-z0-9]{19,29}$/i;
-		return uuidRegex.test(val) || cuid2Regex.test(val);
+		// Accept Nanoids (default 21 chars using A-Za-z0-9_-)
+		const nanoidRegex = /^[A-Za-z0-9_-]{21}$/;
+		return uuidRegex.test(val) || cuid2Regex.test(val) || nanoidRegex.test(val);
 	},
 	{ message: 'Invalid ID format' }
 );
