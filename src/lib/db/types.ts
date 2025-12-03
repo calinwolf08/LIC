@@ -36,32 +36,27 @@ export interface ClerkshipConfigurations {
   clerkship_id: string;
   created_at: Generated<string>;
   id: string | null;
-  updated_at: Generated<string>;
-  // Override mode: 'inherit' uses global defaults, 'override' uses custom values
-  override_mode: Generated<string>;
-  // Assignment settings
+  override_allow_fallbacks: number | null;
+  override_allow_partial_blocks: number | null;
+  override_allow_teams: number | null;
   override_assignment_strategy: string | null;
+  override_block_size_days: number | null;
+  override_fallback_allow_cross_system: number | null;
+  override_fallback_requires_approval: number | null;
   override_health_system_rule: string | null;
-  // Capacity settings
+  override_max_blocks_per_year: number | null;
+  override_max_students_per_block: number | null;
   override_max_students_per_day: number | null;
   override_max_students_per_year: number | null;
-  // Inpatient-specific settings
-  override_block_size_days: number | null;
-  override_max_students_per_block: number | null;
-  override_max_blocks_per_year: number | null;
-  override_allow_partial_blocks: number | null;
+  override_mode: Generated<string | null>;
   override_prefer_continuous_blocks: number | null;
-  // Team settings
-  override_allow_teams: number | null;
-  override_team_size_min: number | null;
   override_team_size_max: number | null;
-  // Fallback settings
-  override_allow_fallbacks: number | null;
-  override_fallback_requires_approval: number | null;
-  override_fallback_allow_cross_system: number | null;
+  override_team_size_min: number | null;
+  updated_at: Generated<string>;
 }
 
 export interface ClerkshipElectives {
+  available_preceptor_ids: Generated<string>;
   created_at: Generated<string>;
   id: string | null;
   minimum_days: number;
@@ -204,7 +199,7 @@ export interface PreceptorAvailabilityPatterns {
   preceptor_id: string;
   reason: string | null;
   site_id: string;
-  specificity: number;
+  specificity: Generated<number>;
   updated_at: Generated<string>;
 }
 
@@ -244,8 +239,7 @@ export interface Preceptors {
   updated_at: Generated<string>;
 }
 
-export interface PreceptorSiteClerkships {
-  clerkship_id: string;
+export interface PreceptorSites {
   created_at: Generated<string>;
   preceptor_id: string;
   site_id: string;
@@ -270,18 +264,6 @@ export interface PreceptorTeams {
   require_same_specialty: Generated<number>;
   requires_admin_approval: Generated<number>;
   updated_at: Generated<string>;
-}
-
-export interface PreceptorSites {
-  preceptor_id: string;
-  site_id: string;
-  created_at: Generated<string>;
-}
-
-export interface TeamSites {
-  team_id: string;
-  site_id: string;
-  created_at: Generated<string>;
 }
 
 export interface ScheduleAssignments {
@@ -365,7 +347,7 @@ export interface Sites {
   contact_email: string | null;
   contact_person: string | null;
   created_at: Generated<string>;
-  health_system_id: string | null;
+  health_system_id: string;
   id: string | null;
   name: string;
   office_phone: string | null;
@@ -398,6 +380,12 @@ export interface Teams {
   id: string | null;
   name: string;
   updated_at: Generated<string>;
+}
+
+export interface TeamSites {
+  created_at: Generated<string>;
+  site_id: string;
+  team_id: string;
 }
 
 export interface User {
@@ -436,12 +424,10 @@ export interface DB {
   preceptor_availability_patterns: PreceptorAvailabilityPatterns;
   preceptor_capacity_rules: PreceptorCapacityRules;
   preceptor_fallbacks: PreceptorFallbacks;
-  preceptor_site_clerkships: PreceptorSiteClerkships;
   preceptor_sites: PreceptorSites;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
-  team_sites: TeamSites;
   schedule_assignments: ScheduleAssignments;
   scheduling_periods: SchedulingPeriods;
   session: Session;
@@ -452,6 +438,7 @@ export interface DB {
   sites: Sites;
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;
+  team_sites: TeamSites;
   teams: Teams;
   user: User;
   verification: Verification;

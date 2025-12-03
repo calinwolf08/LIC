@@ -11,9 +11,6 @@ export const load: LayoutServerLoad = async ({ locals, url, request }) => {
     // Allow bypass during E2E testing
     const isE2ETesting = process.env.E2E_TESTING === 'true';
 
-    console.log('session')
-    console.log(locals.session);
-
     // Check if the user is authenticated
     if (!locals.session?.user && !isPublicRoute && !isE2ETesting) {
         console.log('redirecting')
