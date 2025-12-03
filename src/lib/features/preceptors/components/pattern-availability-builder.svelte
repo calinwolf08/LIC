@@ -437,6 +437,7 @@
 
 				<PatternList
 					patterns={localPatterns}
+					sites={preceptor.sites}
 					onEdit={handleEdit}
 					onDelete={handleDeletePattern}
 					onToggleEnabled={handleToggleEnabled}

@@ -2,9 +2,15 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
 
+	interface Site {
+		id: string;
+		name: string;
+	}
+
 	// Generic pattern interface that works with both Pattern and LocalPattern
 	interface PatternLike {
 		id: string;
+		site_id: string;
 		pattern_type: string;
 		is_available: number | boolean;
 		enabled: number | boolean;
@@ -17,12 +23,18 @@
 
 	interface Props {
 		patterns: PatternLike[];
+		sites?: Site[];
 		onEdit?: (pattern: PatternLike) => void;
 		onDelete?: (patternId: string) => void;
 		onToggleEnabled?: (patternId: string, enabled: boolean) => void;
 	}
 
-	let { patterns, onEdit, onDelete, onToggleEnabled }: Props = $props();
+	let { patterns, sites = [], onEdit, onDelete, onToggleEnabled }: Props = $props();
+
+	function getSiteName(siteId: string): string {
+		const site = sites.find(s => s.id === siteId);
+		return site?.name || 'Unknown Site';
+	}
 
 	function getPatternTypeLabel(type: string): string {
 		const labels: Record<string, string> = {
@@ -137,6 +149,12 @@
 							<span class={`px-2 py-0.5 text-xs font-medium rounded ${getSpecificityColor(pattern.specificity)}`}>
 								{getSpecificityLabel(pattern.specificity)}
 							</span>
+							{#if sites.length > 0}
+								<span class="text-sm text-muted-foreground">•</span>
+								<span class="px-2 py-0.5 text-xs font-medium rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+									{getSiteName(pattern.site_id)}
+								</span>
+							{/if}
 							{#if !pattern.enabled}
 								<span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
 									Disabled
