@@ -274,8 +274,6 @@ async function seed(db: Kysely<DB>) {
 			required_days: 5,
 			override_mode: 'override_section',
 			override_assignment_strategy: 'continuous_single',
-			override_max_students_per_day: 1,
-			override_max_students_per_year: 10,
 			created_at: timestamp,
 			updated_at: timestamp
 		},
@@ -286,8 +284,6 @@ async function seed(db: Kysely<DB>) {
 			required_days: 5,
 			override_mode: 'override_section',
 			override_assignment_strategy: 'continuous_single',
-			override_max_students_per_day: 1,
-			override_max_students_per_year: 10,
 			created_at: timestamp,
 			updated_at: timestamp
 		},
@@ -298,8 +294,6 @@ async function seed(db: Kysely<DB>) {
 			required_days: 5,
 			override_mode: 'override_section',
 			override_assignment_strategy: 'continuous_single',
-			override_max_students_per_day: 1,
-			override_max_students_per_year: 10,
 			created_at: timestamp,
 			updated_at: timestamp
 		}
@@ -308,6 +302,34 @@ async function seed(db: Kysely<DB>) {
 	await db
 		.insertInto('clerkship_requirements')
 		.values(clerkshipRequirements)
+		.onConflict((oc) => oc.doNothing())
+		.execute();
+
+	console.log('Creating preceptor capacity rules...');
+
+	// Create capacity rules for each preceptor (max 1 student per day)
+	const capacityRules = [
+		{
+			id: nanoid(),
+			preceptor_id: preceptors[0].id,
+			max_students_per_day: 1,
+			max_students_per_year: 10,
+			created_at: timestamp,
+			updated_at: timestamp
+		},
+		{
+			id: nanoid(),
+			preceptor_id: preceptors[1].id,
+			max_students_per_day: 1,
+			max_students_per_year: 10,
+			created_at: timestamp,
+			updated_at: timestamp
+		}
+	];
+
+	await db
+		.insertInto('preceptor_capacity_rules')
+		.values(capacityRules)
 		.onConflict((oc) => oc.doNothing())
 		.execute();
 
@@ -478,6 +500,7 @@ async function seed(db: Kysely<DB>) {
 	console.log(`   - 3 Clerkships (5 days each)`);
 	console.log(`   - 3 Clerkship Requirements (continuous_single strategy)`);
 	console.log(`   - 2 Preceptors (max 1 student each)`);
+	console.log(`   - 2 Capacity Rules (max 1 student/day)`);
 	console.log(`   - 5 Students`);
 	console.log(`   - 1 Team with 2 members`);
 	console.log(`   - 60 Availability records (30 days x 2 preceptors)`);
