@@ -175,11 +175,10 @@ async function seed() {
 			updated_at: new Date().toISOString(),
 		}).execute();
 
-		// Add elective options
+		// Add elective options - get some preceptors for the elective
 		const preceptors = await db
 			.selectFrom('preceptors')
-			.select(['id', 'specialty'])
-			.where('specialty', '=', 'Pediatrics')
+			.select(['id'])
 			.limit(3)
 			.execute();
 
@@ -284,7 +283,8 @@ async function seed() {
 	console.log('👥 Creating preceptor teams...');
 
 	if (surgery?.id && preceptors.length >= 4) {
-		const surgeryPreceptors = preceptors.filter(p => p.specialty === 'Surgery').slice(0, 3);
+		// Use available preceptors for the surgery team (specialty no longer on preceptors)
+		const surgeryPreceptors = preceptors.slice(0, 3);
 
 		if (surgeryPreceptors.length >= 2) {
 			const teamId = nanoid();

@@ -173,7 +173,7 @@ async function seed(db: Kysely<DB>) {
 
 	console.log('Creating preceptors...');
 
-	// Create Preceptors
+	// Create Preceptors (site associations handled via preceptor_sites junction table)
 	const preceptors = [
 		{
 			id: nanoid(),
@@ -181,7 +181,6 @@ async function seed(db: Kysely<DB>) {
 			email: 'asmith@metrogeneral.com',
 			phone: '555-1001',
 			health_system_id: healthSystem1.id,
-			site_id: sites[0].id,
 			max_students: 2,
 			created_at: timestamp,
 			updated_at: timestamp
@@ -192,7 +191,6 @@ async function seed(db: Kysely<DB>) {
 			email: 'jbrown@metrofamily.com',
 			phone: '555-1002',
 			health_system_id: healthSystem1.id,
-			site_id: sites[1].id,
 			max_students: 2,
 			created_at: timestamp,
 			updated_at: timestamp
@@ -203,7 +201,6 @@ async function seed(db: Kysely<DB>) {
 			email: 'lgarcia@communityhosp.com',
 			phone: '555-1003',
 			health_system_id: healthSystem2.id,
-			site_id: sites[2].id,
 			max_students: 3,
 			created_at: timestamp,
 			updated_at: timestamp
@@ -214,7 +211,6 @@ async function seed(db: Kysely<DB>) {
 			email: 'tlee@suburbanpc.com',
 			phone: '555-1004',
 			health_system_id: healthSystem2.id,
-			site_id: sites[3].id,
 			max_students: 2,
 			created_at: timestamp,
 			updated_at: timestamp
