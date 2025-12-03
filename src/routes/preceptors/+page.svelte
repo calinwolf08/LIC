@@ -101,7 +101,18 @@
 
 		if (!response.ok) {
 			const result = await response.json();
-			throw new Error(result.error?.message || 'Failed to delete preceptor');
+			// Extract detailed error message from validation errors or conflict errors
+			let errorMessage = result.error?.message || 'Failed to delete preceptor';
+			if (result.error?.details && Array.isArray(result.error.details)) {
+				const fieldErrors = result.error.details
+					.map((d: { field?: string; message?: string }) => d.message || d.field)
+					.filter(Boolean)
+					.join(', ');
+				if (fieldErrors) {
+					errorMessage = `${errorMessage}: ${fieldErrors}`;
+				}
+			}
+			throw new Error(errorMessage);
 		}
 
 		showDeleteDialog = false;

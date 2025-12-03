@@ -14,12 +14,19 @@ export const uuidSchema = z.string().uuid({
 });
 
 /**
- * CUID2 validation schema (for database IDs)
- * CUID2s are 24 character strings that start with a letter
+ * ID validation schema (for database IDs)
+ * Accepts both UUIDs (36 chars with dashes) and CUID2s (20-30 chars)
  */
-export const cuid2Schema = z.string().min(20).max(30, {
-	message: 'Invalid ID format'
-});
+export const cuid2Schema = z.string().refine(
+	(val) => {
+		// Accept UUIDs (36 chars with format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		// Accept CUID2s (20-30 chars starting with letter)
+		const cuid2Regex = /^[a-z][a-z0-9]{19,29}$/i;
+		return uuidRegex.test(val) || cuid2Regex.test(val);
+	},
+	{ message: 'Invalid ID format' }
+);
 
 /**
  * Email validation schema
