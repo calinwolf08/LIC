@@ -20,12 +20,12 @@ export class StrategySelector {
   private strategies: SchedulingStrategy[];
 
   constructor() {
-    // Order matters - first matching strategy is selected
+    // Order matters - specific strategies first, then default (continuous_single) last
     this.strategies = [
-      new TeamContinuityStrategy(), // Default strategy (handles undefined)
-      new ContinuousSingleStrategy(),
+      new TeamContinuityStrategy(),
       new BlockBasedStrategy(),
       new DailyRotationStrategy(),
+      new ContinuousSingleStrategy(), // Default strategy (handles undefined)
     ];
   }
 
@@ -39,8 +39,8 @@ export class StrategySelector {
       }
     }
 
-    // Default to team continuity if no strategy matches
-    return new TeamContinuityStrategy();
+    // Default to continuous_single if no strategy matches
+    return new ContinuousSingleStrategy();
   }
 
   /**

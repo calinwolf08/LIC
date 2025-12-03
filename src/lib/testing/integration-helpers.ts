@@ -10,15 +10,25 @@ import type { DB } from '$lib/db/types';
 
 /**
  * Creates a complete test clerkship with all necessary data
+ * Note: clerkshipType must be 'inpatient' or 'outpatient' per database constraint
  */
-export async function createTestClerkship(db: Kysely<DB>, name: string, clerkshipType: string = 'outpatient') {
+export async function createTestClerkship(
+	db: Kysely<DB>,
+	name: string,
+	clerkshipType: 'inpatient' | 'outpatient' | string = 'outpatient'
+) {
 	const id = nanoid();
+	// Ensure valid clerkship type - default to 'outpatient' if invalid
+	const validType = (clerkshipType === 'inpatient' || clerkshipType === 'outpatient')
+		? clerkshipType
+		: 'outpatient';
+
 	await db
 		.insertInto('clerkships')
 		.values({
 			id,
 			name,
-			clerkship_type: clerkshipType,
+			clerkship_type: validType,
 			required_days: 28,
 			description: `Test ${name} clerkship`,
 		})
@@ -156,7 +166,7 @@ export async function createTestRequirement(
 			clerkship_id: clerkshipId,
 			requirement_type: options.requirementType,
 			required_days: options.requiredDays,
-			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_all' : undefined,
+			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_fields' : 'inherit',
 			override_assignment_strategy: options.assignmentStrategy,
 			override_health_system_rule: options.healthSystemRule,
 			override_block_length_days: options.blockSizeDays,
@@ -366,6 +376,29 @@ export async function countAssignmentsByDateRange(
 }
 
 /**
+ * Creates preceptor availability records for specific dates
+ */
+export async function createPreceptorAvailability(
+	db: Kysely<DB>,
+	preceptorId: string,
+	siteId: string,
+	dates: string[]
+) {
+	const values = dates.map((date) => ({
+		id: nanoid(),
+		preceptor_id: preceptorId,
+		site_id: siteId,
+		date,
+		is_available: 1, // SQLite boolean
+		created_at: new Date().toISOString(),
+	}));
+
+	if (values.length > 0) {
+		await db.insertInto('preceptor_availability').values(values).execute();
+	}
+}
+
+/**
  * Clears all test data from database
  */
 export async function clearAllTestData(db: Kysely<DB>) {
@@ -375,9 +408,11 @@ export async function clearAllTestData(db: Kysely<DB>) {
 	await db.deleteFrom('preceptor_teams').execute();
 	await db.deleteFrom('preceptor_fallbacks').execute();
 	await db.deleteFrom('preceptor_capacity_rules').execute();
+	await db.deleteFrom('preceptor_availability').execute();
 	await db.deleteFrom('blackout_dates').execute();
 	await db.deleteFrom('clerkship_electives').execute();
 	await db.deleteFrom('clerkship_requirements').execute();
+	await db.deleteFrom('preceptor_sites').execute();
 	await db.deleteFrom('sites').execute();
 	await db.deleteFrom('health_systems').execute();
 	await db.deleteFrom('preceptors').execute();

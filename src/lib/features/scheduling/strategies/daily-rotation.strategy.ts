@@ -10,17 +10,16 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
 /**
  * Daily Rotation Strategy
  *
- * Assigns a preceptor for each day independently. Preceptor can change daily.
- * Provides maximum flexibility but minimal continuity.
+ * Rotates through preceptors day-by-day for exposure to different teaching styles.
+ * Provides maximum variety and load balancing.
  *
  * Algorithm:
- * 1. For each required day:
- *    a. Find all preceptors available on that date
- *    b. Filter by specialty and health system rules
+ * 1. Create a rotation pool of available preceptors
+ * 2. For each required day:
+ *    a. Try to use a DIFFERENT preceptor than the previous day
+ *    b. Round-robin through available preceptors
  *    c. Check daily capacity
- *    d. Prefer less loaded preceptors (load balancing)
- *    e. Try to minimize preceptor changes (soft preference)
- * 2. Generate one assignment per day
+ * 3. Generate one assignment per day, rotating preceptors
  */
 export class DailyRotationStrategy extends BaseStrategy {
   getName(): string {
@@ -42,7 +41,8 @@ export class DailyRotationStrategy extends BaseStrategy {
       return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
     }
 
-    const totalDays = clerkship.required_days;
+    // Use config.requiredDays which respects requirement overrides
+    const totalDays = config.requiredDays;
 
     // Check if we have enough dates
     if (availableDates.length < totalDays) {
@@ -58,11 +58,17 @@ export class DailyRotationStrategy extends BaseStrategy {
       ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
       : availablePreceptors;
 
+    // Sort by load for initial ordering
+    candidates = this.sortByLoad(candidates);
+
     const assignments: import('./base-strategy').ProposedAssignment[] = [];
-    let previousPreceptor: typeof candidates[0] | null = null;
     const requiredDates = availableDates.slice(0, totalDays);
 
-    // Assign each day
+    // Track rotation index for round-robin
+    let rotationIndex = 0;
+    let previousPreceptorId: string | null = null;
+
+    // Assign each day, rotating through preceptors
     for (const date of requiredDates) {
       // Find preceptors available on this date
       const availableToday = candidates.filter(p => this.isDateAvailable(p, date));
@@ -80,37 +86,35 @@ export class DailyRotationStrategy extends BaseStrategy {
         };
       }
 
-      // Sort by load
-      const sortedCandidates = this.sortByLoad(availableToday);
+      // Try to select a DIFFERENT preceptor than yesterday (rotation behavior)
+      let selectedPreceptor: typeof candidates[0] | null = null;
 
-      // Soft preference: try to use previous preceptor if available (minimize changes)
-      let selectedPreceptor: typeof candidates[0];
-
-      if (previousPreceptor && availableToday.some(p => p.id === previousPreceptor!.id)) {
-        // Check if previous preceptor hasn't exceeded daily capacity
-        const assignmentsToday = assignments.filter(
-          a => a.preceptorId === previousPreceptor!.id && a.date === date
-        ).length;
-
-        if (assignmentsToday < previousPreceptor.maxStudentsPerDay) {
-          selectedPreceptor = previousPreceptor;
-        } else {
-          selectedPreceptor = sortedCandidates[0];
+      // If we have multiple available preceptors, prefer one different from yesterday
+      if (availableToday.length > 1 && previousPreceptorId) {
+        const differentPreceptors = availableToday.filter(p => p.id !== previousPreceptorId);
+        if (differentPreceptors.length > 0) {
+          // Round-robin through the different preceptors
+          selectedPreceptor = differentPreceptors[rotationIndex % differentPreceptors.length];
+          rotationIndex++;
         }
-      } else {
-        selectedPreceptor = sortedCandidates[0];
+      }
+
+      // Fallback: use round-robin from all available today
+      if (!selectedPreceptor) {
+        selectedPreceptor = availableToday[rotationIndex % availableToday.length];
+        rotationIndex++;
       }
 
       // Check daily capacity
       const assignmentsToday = assignments.filter(
-        a => a.preceptorId === selectedPreceptor.id && a.date === date
+        a => a.preceptorId === selectedPreceptor!.id && a.date === date
       ).length;
 
       if (assignmentsToday >= selectedPreceptor.maxStudentsPerDay) {
-        // Try next available preceptor
-        const nextPreceptor = sortedCandidates.find(p => {
-          const dailyCount = assignments.filter(a => a.preceptorId === p.id && a.date === date)
-            .length;
+        // Try to find another preceptor with capacity
+        const nextPreceptor = availableToday.find(p => {
+          if (p.id === selectedPreceptor!.id) return false;
+          const dailyCount = assignments.filter(a => a.preceptorId === p.id && a.date === date).length;
           return dailyCount < p.maxStudentsPerDay;
         });
 
@@ -137,7 +141,7 @@ export class DailyRotationStrategy extends BaseStrategy {
         })
       );
 
-      previousPreceptor = selectedPreceptor;
+      previousPreceptorId = selectedPreceptor.id;
     }
 
     return {

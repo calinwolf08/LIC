@@ -28,10 +28,7 @@ export class TeamContinuityStrategy extends BaseStrategy {
   }
 
   canHandle(config: ResolvedRequirementConfiguration): boolean {
-    return (
-      config.assignmentStrategy === 'team_continuity' ||
-      config.assignmentStrategy === undefined // Default strategy
-    );
+    return config.assignmentStrategy === 'team_continuity';
   }
 
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
@@ -45,7 +42,8 @@ export class TeamContinuityStrategy extends BaseStrategy {
       return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
     }
 
-    const requiredDays = clerkship.required_days;
+    // Use config.requiredDays which respects requirement overrides
+    const requiredDays = config.requiredDays;
 
     // Check if we have enough dates available
     if (availableDates.length < requiredDays) {

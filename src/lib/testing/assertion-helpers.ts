@@ -73,6 +73,7 @@ export async function assertContinuousSingleStrategy(
 
 /**
  * Asserts that assignments follow block-based strategy
+ * Each block of consecutive days (up to blockSizeDays) should have the same preceptor
  */
 export async function assertBlockBasedStrategy(
 	db: Kysely<DB>,
@@ -85,21 +86,23 @@ export async function assertBlockBasedStrategy(
 		.selectAll()
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId)
+		.orderBy('date', 'asc')
 		.execute();
 
 	expect(assignments.length).toBeGreaterThan(0);
 
-	// Group assignments by preceptor to find blocks
-	const byPreceptor = new Map<string, Assignment[]>();
-	for (const assignment of assignments) {
-		const list = byPreceptor.get(assignment.preceptor_id) || [];
-		list.push(assignment);
-		byPreceptor.set(assignment.preceptor_id, list);
+	// Split assignments into blocks of blockSizeDays
+	const blocks: Assignment[][] = [];
+	for (let i = 0; i < assignments.length; i += blockSizeDays) {
+		blocks.push(assignments.slice(i, i + blockSizeDays));
 	}
 
-	// Each block (preceptor's assignments) should be <= blockSizeDays
-	for (const [, preceptorAssignments] of byPreceptor.entries()) {
-		expect(preceptorAssignments.length).toBeLessThanOrEqual(blockSizeDays);
+	// Each block should have a single preceptor (all assignments in block use same preceptor)
+	for (const block of blocks) {
+		const preceptorIds = new Set(block.map(a => a.preceptor_id));
+		expect(preceptorIds.size).toBe(1);
+		// Each block should be <= blockSizeDays
+		expect(block.length).toBeLessThanOrEqual(blockSizeDays);
 	}
 }
 
@@ -287,4 +290,81 @@ export async function assertNoOverAssignment(
 
 	const count = result?.count || 0;
 	expect(count).toBeLessThanOrEqual(maxStudentsPerYear);
+}
+
+/**
+ * Asserts that assignments follow daily rotation strategy
+ * Each day should have a different preceptor (when possible)
+ */
+export async function assertDailyRotationStrategy(
+	db: Kysely<DB>,
+	studentId: string,
+	clerkshipId: string,
+	minPreceptorsExpected: number = 2
+) {
+	const assignments = await db
+		.selectFrom('schedule_assignments')
+		.selectAll()
+		.where('student_id', '=', studentId)
+		.where('clerkship_id', '=', clerkshipId)
+		.execute();
+
+	expect(assignments.length).toBeGreaterThan(0);
+
+	// Count unique preceptors used
+	const preceptorIds = new Set(assignments.map((a: Assignment) => a.preceptor_id));
+
+	// Daily rotation should use multiple preceptors
+	expect(preceptorIds.size).toBeGreaterThanOrEqual(minPreceptorsExpected);
+
+	// Check that consecutive days have different preceptors (when possible)
+	const sortedAssignments = assignments.sort(
+		(a: Assignment, b: Assignment) => new Date(a.date).getTime() - new Date(b.date).getTime()
+	);
+
+	let rotationCount = 0;
+	for (let i = 1; i < sortedAssignments.length; i++) {
+		if (sortedAssignments[i].preceptor_id !== sortedAssignments[i - 1].preceptor_id) {
+			rotationCount++;
+		}
+	}
+
+	// Should have rotated at least once
+	expect(rotationCount).toBeGreaterThan(0);
+}
+
+/**
+ * Asserts that assignments follow team continuity strategy
+ * Primary preceptor should have the most assignments, with team filling gaps
+ */
+export async function assertTeamContinuityStrategy(
+	db: Kysely<DB>,
+	studentId: string,
+	clerkshipId: string
+) {
+	const assignments = await db
+		.selectFrom('schedule_assignments')
+		.selectAll()
+		.where('student_id', '=', studentId)
+		.where('clerkship_id', '=', clerkshipId)
+		.execute();
+
+	expect(assignments.length).toBeGreaterThan(0);
+
+	// Count assignments per preceptor
+	const assignmentsByPreceptor = new Map<string, number>();
+	for (const assignment of assignments) {
+		const count = assignmentsByPreceptor.get(assignment.preceptor_id) || 0;
+		assignmentsByPreceptor.set(assignment.preceptor_id, count + 1);
+	}
+
+	// Find the preceptor with the most assignments (primary)
+	let maxCount = 0;
+	for (const count of assignmentsByPreceptor.values()) {
+		if (count > maxCount) maxCount = count;
+	}
+
+	// Primary preceptor should have majority of assignments (at least 50%)
+	const primaryPercentage = maxCount / assignments.length;
+	expect(primaryPercentage).toBeGreaterThanOrEqual(0.5);
 }

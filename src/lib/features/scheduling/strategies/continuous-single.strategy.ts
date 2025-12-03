@@ -27,7 +27,11 @@ export class ContinuousSingleStrategy extends BaseStrategy {
   }
 
   canHandle(config: ResolvedRequirementConfiguration): boolean {
-    return config.assignmentStrategy === 'continuous_single';
+    // continuous_single is the default strategy when none is specified
+    return (
+      config.assignmentStrategy === 'continuous_single' ||
+      config.assignmentStrategy === undefined
+    );
   }
 
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
@@ -41,17 +45,20 @@ export class ContinuousSingleStrategy extends BaseStrategy {
       return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
     }
 
+    // Use config.requiredDays which respects requirement overrides
+    const requiredDays = config.requiredDays;
+
     // Need enough dates
-    if (availableDates.length < clerkship.required_days) {
+    if (availableDates.length < requiredDays) {
       return {
         success: false,
         assignments: [],
-        error: `Insufficient available dates: ${availableDates.length} < ${clerkship.required_days}`,
+        error: `Insufficient available dates: ${availableDates.length} < ${requiredDays}`,
       };
     }
 
     // Take only required number of days
-    const requiredDates = availableDates.slice(0, clerkship.required_days);
+    const requiredDates = availableDates.slice(0, requiredDays);
 
     // Filter preceptors by specialty
     let candidates = clerkship.specialty
@@ -74,7 +81,7 @@ export class ContinuousSingleStrategy extends BaseStrategy {
       return {
         success: false,
         assignments: [],
-        error: `No single preceptor available for all ${clerkship.required_days} required days`,
+        error: `No single preceptor available for all ${requiredDays} required days`,
         metadata: {
           strategyUsed: this.getName(),
           preceptorsConsidered: candidates.length,
@@ -84,8 +91,7 @@ export class ContinuousSingleStrategy extends BaseStrategy {
     }
 
     // Check capacity
-    const totalNeeded = clerkship.required_days;
-    if (selectedPreceptor.currentAssignmentCount + totalNeeded > selectedPreceptor.maxStudentsPerYear) {
+    if (selectedPreceptor.currentAssignmentCount + requiredDays > selectedPreceptor.maxStudentsPerYear) {
       return {
         success: false,
         assignments: [],

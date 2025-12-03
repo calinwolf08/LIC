@@ -43,7 +43,8 @@ export class BlockBasedStrategy extends BaseStrategy {
     }
 
     const blockSize = config.blockSizeDays!;
-    const totalDays = clerkship.required_days;
+    // Use config.requiredDays which respects requirement overrides
+    const totalDays = config.requiredDays;
 
     // Check if we have enough dates
     if (availableDates.length < totalDays) {

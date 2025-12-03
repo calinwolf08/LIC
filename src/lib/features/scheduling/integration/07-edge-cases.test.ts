@@ -23,6 +23,8 @@ import type { DB } from '$lib/db/types';
 describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 	let db: Kysely<DB>;
 	let engine: ConfigurableSchedulingEngine;
+	const startDate = '2025-01-06';
+	const endDate = '2025-06-30';
 
 	beforeEach(async () => {
 		db = await createTestDatabaseWithMigrations();
@@ -63,6 +65,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -101,6 +105,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -158,6 +164,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -219,6 +227,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			// First batch: Fill capacity with 4 students (2 per preceptor)
 			const firstBatchIds = await createTestStudents(db, 4);
 			const firstResult = await engine.schedule(firstBatchIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 			expect(firstResult.success).toBe(true);
@@ -226,6 +236,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			// Second batch: Try to schedule more students when capacity is full
 			const secondBatchIds = await createTestStudents(db, 2);
 			const secondResult = await engine.schedule(secondBatchIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -260,6 +272,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -293,6 +307,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -333,6 +349,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling with empty student list
 			const result = await engine.schedule([], [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -353,6 +371,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling with empty clerkship list
 			const result = await engine.schedule(studentIds, [], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 
@@ -385,6 +405,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute in dry run mode
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: true,
 			});
 
@@ -426,6 +448,8 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Execute scheduling - should still work with valid preceptor
 			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate,
+				endDate,
 				dryRun: false,
 			});
 

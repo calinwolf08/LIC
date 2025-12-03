@@ -1,17 +1,8 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
 import { generateScheduleSchema } from '$lib/features/scheduling/schemas';
-import { SchedulingEngine } from '$lib/features/scheduling';
-import {
-	NoDoubleBookingConstraint,
-	PreceptorCapacityConstraint,
-	PreceptorAvailabilityConstraint,
-	BlackoutDateConstraint,
-	SpecialtyMatchConstraint
-} from '$lib/features/scheduling';
-import { ConstraintFactory } from '$lib/features/scheduling/services/constraint-factory';
+import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
 import type { OptionalContextData } from '$lib/features/scheduling/services/context-builder';
 import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
@@ -36,7 +27,12 @@ import { ZodError } from 'zod';
 /**
  * POST /api/schedules/generate
  *
- * Generate a complete schedule for all students
+ * Generate a complete schedule for all students using the ConfigurableSchedulingEngine.
+ * The engine uses configuration-driven scheduling with support for multiple strategies:
+ * - continuous_single (default): One preceptor for entire clerkship
+ * - team_continuity: Primary preceptor + team fallback
+ * - block_based: Fixed-size blocks with same preceptor
+ * - daily_rotation: Different preceptor each day
  *
  * Request body:
  * {
@@ -44,6 +40,7 @@ import { ZodError } from 'zod';
  *   endDate: string (YYYY-MM-DD)
  *   regenerateFromDate?: string (YYYY-MM-DD) - Optional: Only regenerate from this date forward
  *   strategy?: 'full-reoptimize' | 'minimal-change' - Optional: Regeneration strategy (default: full-reoptimize)
+ *   preview?: boolean - Optional: If true, returns impact analysis without making changes
  *   bypassedConstraints?: string[] (optional)
  * }
  *
@@ -54,11 +51,11 @@ import { ZodError } from 'zod';
  *     assignments: Assignment[],
  *     success: boolean,
  *     unmetRequirements: UnmetRequirement[],
- *     violationStats: ViolationStats[],
+ *     violations: Violation[],
  *     summary: {
  *       totalAssignments: number,
  *       totalViolations: number,
- *       mostBlockingConstraints: string[]
+ *       strategiesUsed: string[]
  *     },
  *     regeneratedFrom?: string,
  *     strategy: string,
@@ -76,11 +73,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		const validatedData = generateScheduleSchema.parse(body);
 
 		// Determine regeneration date (defaults to today if not provided)
-		const regenerateFromDate = validatedData.regenerateFromDate || (() => {
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			return today.toISOString().split('T')[0];
-		})();
+		const regenerateFromDate =
+			validatedData.regenerateFromDate ||
+			(() => {
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+				return today.toISOString().split('T')[0];
+			})();
 
 		// Get regeneration strategy
 		const strategy: RegenerationStrategy = validatedData.strategy || 'full-reoptimize';
@@ -88,43 +87,32 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Check if this is a preview (dry-run) request
 		const isPreview = validatedData.preview || false;
 
-		// Fetch all required data from database
-		const [
-			students,
-			preceptors,
-			clerkships,
-			blackoutDates,
-			availabilityRecords,
-			healthSystems,
-			teams,
-			studentOnboarding,
-			siteElectives
-		] = await Promise.all([
-			// Required data
-			db.selectFrom('students').selectAll().execute(),
-			db.selectFrom('preceptors').selectAll().execute(),
-			db.selectFrom('clerkships').selectAll().execute(),
-			db
-				.selectFrom('blackout_dates')
-				.select('date')
-				.execute()
-				.then((rows) => rows.map((r) => r.date)),
-			db.selectFrom('preceptor_availability').selectAll().execute(),
+		// Fetch required data for preview/context building
+		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding, siteElectives] =
+			await Promise.all([
+				db.selectFrom('students').selectAll().execute(),
+				db.selectFrom('preceptors').selectAll().execute(),
+				db.selectFrom('clerkships').selectAll().execute(),
+				db.selectFrom('health_systems').selectAll().execute(),
+				db.selectFrom('teams').selectAll().execute(),
+				db
+					.selectFrom('student_health_system_onboarding')
+					.select(['student_id', 'health_system_id', 'is_completed'])
+					.execute(),
+				db.selectFrom('site_electives').select(['site_id', 'elective_requirement_id']).execute()
+			]);
 
-			// Optional data for enhanced constraints
-			db.selectFrom('health_systems').selectAll().execute(),
-			db.selectFrom('teams').selectAll().execute(),
-			db
-				.selectFrom('student_health_system_onboarding')
-				.select(['student_id', 'health_system_id', 'is_completed'])
-				.execute(),
-			db
-				.selectFrom('site_electives')
-				.select(['site_id', 'elective_requirement_id'])
-				.execute()
-		]);
+		// Get blackout dates separately
+		const blackoutDates = await db
+			.selectFrom('blackout_dates')
+			.select('date')
+			.execute()
+			.then((rows) => rows.map((r) => r.date));
 
-		// Build optional context data
+		// Get availability records
+		const availabilityRecords = await db.selectFrom('preceptor_availability').selectAll().execute();
+
+		// Build optional context data for legacy context building (used by preview)
 		const optionalData: OptionalContextData = {
 			healthSystems,
 			teams,
@@ -132,8 +120,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			siteElectives
 		};
 
-		// Build scheduling context with optional data
-		const context = buildSchedulingContext(
+		// Build scheduling context for preview mode
+		const legacyContext = buildSchedulingContext(
 			students,
 			preceptors,
 			clerkships,
@@ -148,7 +136,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (isPreview) {
 			const impact = await analyzeRegenerationImpact(
 				db,
-				context,
+				legacyContext,
 				regenerateFromDate,
 				validatedData.endDate,
 				strategy
@@ -203,41 +191,26 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Prepare context for regeneration (credit past assignments, apply strategy)
 		const regenerationResult = await prepareRegenerationContext(
 			db,
-			context,
+			legacyContext,
 			regenerateFromDate,
 			validatedData.endDate,
 			strategy
 		);
 
-		// Get clerkship IDs for constraint factory
-		const clerkshipIds = clerkships.map((c) => c.id!);
+		// Get IDs for scheduling
+		const studentIds = students.map((s) => s.id!).filter(Boolean);
+		const clerkshipIds = clerkships.map((c) => c.id!).filter(Boolean);
 
-		// Build constraints using factory
-		const constraintFactory = new ConstraintFactory(db);
-		const factoryConstraints = await constraintFactory.buildConstraints(clerkshipIds, context);
-
-		// Add legacy constraints that aren't yet in the factory
-		const allConstraints = [
-			...factoryConstraints,
-			new PreceptorCapacityConstraint(),
-			new PreceptorAvailabilityConstraint()
-		];
-
-		// Create scheduling engine with constraints
-		const engine = new SchedulingEngine(allConstraints);
-
-		// Generate schedule using the prepared context (with credited past assignments)
-		const result = await engine.generateSchedule(
-			students,
-			preceptors,
-			clerkships,
-			blackoutDates,
-			availabilityRecords,
-			validatedData.startDate,
-			validatedData.endDate,
-			new Set(validatedData.bypassedConstraints || []),
-			context // Pass the prepared context with credited requirements
-		);
+		// Create and run the ConfigurableSchedulingEngine
+		const engine = new ConfigurableSchedulingEngine(db);
+		const result = await engine.schedule(studentIds, clerkshipIds, {
+			startDate: regenerateFromDate, // Start from regeneration date
+			endDate: validatedData.endDate,
+			enableTeamFormation: true,
+			enableFallbacks: false, // Disabled per requirements
+			dryRun: true, // We handle saving externally for audit trail
+			bypassedConstraints: validatedData.bypassedConstraints || []
+		});
 
 		// Save generated assignments to database
 		if (result.assignments.length > 0) {
@@ -283,9 +256,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			schedulingPeriodId = activePeriod.id;
 		}
 
-		// Return result (exclude violationTracker from response as it's not serializable)
-		const { violationTracker, ...serializable } = result;
-
 		// Log successful regeneration to audit trail
 		await logRegenerationEvent(
 			db,
@@ -298,17 +268,26 @@ export const POST: RequestHandler = async ({ request }) => {
 				regenerationResult.preservedAssignments,
 				regenerationResult.affectedAssignments,
 				result.assignments.length,
-				true,
+				result.success,
 				{
 					reason: 'api_request',
-					notes: `Generated ${result.assignments.length} assignments using ${strategy} strategy`
+					notes: `Generated ${result.assignments.length} assignments using ConfigurableSchedulingEngine`
 				}
 			)
 		);
 
+		// Build response
 		return successResponse(
 			{
-				...serializable,
+				assignments: result.assignments,
+				success: result.success,
+				unmetRequirements: result.unmetRequirements,
+				violations: result.violations,
+				summary: {
+					totalAssignments: result.assignments.length,
+					totalViolations: result.violations.length,
+					unmetRequirementsCount: result.unmetRequirements.length
+				},
 				regeneratedFrom: regenerateFromDate,
 				strategy,
 				preservedPastAssignments: true,
@@ -327,6 +306,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Log unexpected errors
 		console.error('Schedule generation error:', error);
-		return errorResponse('Failed to generate schedule', 500);
+		return errorResponse(
+			`Failed to generate schedule: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			500
+		);
 	}
 };

@@ -22,6 +22,8 @@ import { ZodError } from 'zod';
 const executeSchedulingSchema = z.object({
 	studentIds: z.array(z.string()).min(1, 'At least one student ID is required'),
 	clerkshipIds: z.array(z.string()).min(1, 'At least one clerkship ID is required'),
+	startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in YYYY-MM-DD format'),
+	endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in YYYY-MM-DD format'),
 	options: z.object({
 		enableTeamFormation: z.boolean().optional(),
 		enableFallbacks: z.boolean().optional(),
@@ -39,6 +41,8 @@ const executeSchedulingSchema = z.object({
  * {
  *   "studentIds": ["student-1", "student-2"],
  *   "clerkshipIds": ["clerkship-1", "clerkship-2"],
+ *   "startDate": "2025-01-06",
+ *   "endDate": "2025-06-30",
  *   "options": {
  *     "enableTeamFormation": false,
  *     "enableFallbacks": true,
@@ -74,7 +78,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		const result = await engine.schedule(
 			validatedData.studentIds,
 			validatedData.clerkshipIds,
-			validatedData.options || {}
+			{
+				startDate: validatedData.startDate,
+				endDate: validatedData.endDate,
+				...validatedData.options,
+			}
 		);
 
 		console.log(`[API] Scheduling complete. Success: ${result.success}`);
