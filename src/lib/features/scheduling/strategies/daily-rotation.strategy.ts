@@ -11,15 +11,16 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
  * Daily Rotation Strategy
  *
  * Rotates through preceptors day-by-day for exposure to different teaching styles.
- * Provides maximum variety and load balancing.
+ * Skips dates where no preceptor is available. Days do NOT need to be consecutive.
  *
  * Algorithm:
- * 1. Create a rotation pool of available preceptors
- * 2. For each required day:
+ * 1. Find dates where ANY preceptor is available (skip dates with no availability)
+ * 2. Take the first N such dates
+ * 3. For each date:
  *    a. Try to use a DIFFERENT preceptor than the previous day
  *    b. Round-robin through available preceptors
  *    c. Check daily capacity
- * 3. Generate one assignment per day, rotating preceptors
+ * 4. Generate one assignment per day, rotating preceptors
  */
 export class DailyRotationStrategy extends BaseStrategy {
   getName(): string {
@@ -44,15 +45,6 @@ export class DailyRotationStrategy extends BaseStrategy {
     // Use config.requiredDays which respects requirement overrides
     const totalDays = config.requiredDays;
 
-    // Check if we have enough dates
-    if (availableDates.length < totalDays) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Insufficient available dates: ${availableDates.length} < ${totalDays}`,
-      };
-    }
-
     // Filter preceptors by specialty
     let candidates = clerkship.specialty
       ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
@@ -61,8 +53,26 @@ export class DailyRotationStrategy extends BaseStrategy {
     // Sort by load for initial ordering
     candidates = this.sortByLoad(candidates);
 
+    // Find dates where ANY preceptor is available (skip dates with no availability)
+    const datesWithAvailability: string[] = [];
+    for (const date of availableDates) {
+      const availableToday = candidates.filter(p => this.isDateAvailable(p, date));
+      if (availableToday.length > 0) {
+        datesWithAvailability.push(date);
+      }
+    }
+
+    // Check if we have enough dates with preceptor availability
+    if (datesWithAvailability.length < totalDays) {
+      return {
+        success: false,
+        assignments: [],
+        error: `Insufficient dates with preceptor availability: ${datesWithAvailability.length} < ${totalDays}`,
+      };
+    }
+
     const assignments: import('./base-strategy').ProposedAssignment[] = [];
-    const requiredDates = availableDates.slice(0, totalDays);
+    const requiredDates = datesWithAvailability.slice(0, totalDays);
 
     // Track rotation index for round-robin
     let rotationIndex = 0;
@@ -70,26 +80,13 @@ export class DailyRotationStrategy extends BaseStrategy {
 
     // Assign each day, rotating through preceptors
     for (const date of requiredDates) {
-      // Find preceptors available on this date
+      // Find preceptors available on this date (we already know there's at least one)
       const availableToday = candidates.filter(p => this.isDateAvailable(p, date));
 
-      if (availableToday.length === 0) {
-        return {
-          success: false,
-          assignments: [],
-          error: `No preceptor available on date ${date}`,
-          metadata: {
-            strategyUsed: this.getName(),
-            preceptorsConsidered: candidates.length,
-            assignmentCount: assignments.length,
-          },
-        };
-      }
+      // Try to select a DIFFERENT preceptor than the previous assignment (rotation behavior)
+      let selectedPreceptor: (typeof candidates)[0] | null = null;
 
-      // Try to select a DIFFERENT preceptor than yesterday (rotation behavior)
-      let selectedPreceptor: typeof candidates[0] | null = null;
-
-      // If we have multiple available preceptors, prefer one different from yesterday
+      // If we have multiple available preceptors, prefer one different from previous
       if (availableToday.length > 1 && previousPreceptorId) {
         const differentPreceptors = availableToday.filter(p => p.id !== previousPreceptorId);
         if (differentPreceptors.length > 0) {

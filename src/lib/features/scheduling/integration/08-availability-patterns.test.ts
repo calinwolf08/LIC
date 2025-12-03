@@ -90,7 +90,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 	});
 
 	describe('Test 2: Mon/Wed/Fri Availability with continuous_single Strategy', () => {
-		it('should fail to schedule because continuous_single requires consecutive availability', async () => {
+		it('should successfully schedule using non-consecutive dates with same preceptor', async () => {
 			// Setup: Health system and site
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Hospital', 1);
 			const siteId = siteIds[0];
@@ -136,17 +136,22 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				dryRun: false,
 			});
 
-			// This SHOULD fail with continuous_single strategy
-			// because the strategy requires ALL 5 consecutive days (Dec 1-5)
-			// but preceptor is only available Mon/Wed/Fri (Dec 1, 3, 5)
-			expect(result.assignments.length).toBe(0);
-			expect(result.unmetRequirements.length).toBeGreaterThan(0);
-			expect(result.unmetRequirements[0].reason).toContain('No single preceptor available');
+			// NEW EXPECTED BEHAVIOR: continuous_single should find N dates where
+			// the SAME preceptor is available, regardless of whether dates are consecutive
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBe(5);
+
+			// All assignments should be to the same preceptor
+			expect(result.assignments.every((a) => a.preceptorId === preceptorIds[0])).toBe(true);
+
+			// Assigned dates should be the Mon/Wed/Fri dates
+			const assignedDates = result.assignments.map((a) => a.date).sort();
+			expect(assignedDates).toEqual(monWedFriDates);
 		});
 	});
 
 	describe('Test 3: Mon/Wed/Fri Availability with daily_rotation Strategy', () => {
-		it('should also fail because daily_rotation uses consecutive calendar dates', async () => {
+		it('should successfully schedule by skipping days with no availability', async () => {
 			// Setup: Health system and site
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Hospital', 1);
 			const siteId = siteIds[0];
@@ -191,20 +196,69 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				dryRun: false,
 			});
 
-			// KEY INSIGHT: daily_rotation ALSO fails because it uses consecutive calendar dates
-			// The engine takes the first 5 calendar dates (Dec 1, 2, 3, 4, 5) and looks for
-			// preceptors available on each. Since the preceptor is only available Mon/Wed/Fri,
-			// Dec 2 (Tue) and Dec 4 (Thu) have no available preceptors.
-			expect(result.success).toBe(false);
-			expect(result.assignments.length).toBe(0);
-			expect(result.unmetRequirements.length).toBeGreaterThan(0);
-			// The error should indicate no preceptor available on a specific date
-			expect(result.unmetRequirements[0].reason).toContain('No preceptor available on date');
+			// NEW EXPECTED BEHAVIOR: daily_rotation should skip days where no preceptor
+			// is available and find N dates where ANY preceptor is available
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBe(5);
+
+			// Assigned dates should be the Mon/Wed/Fri dates (skipping Tue/Thu)
+			const assignedDates = result.assignments.map((a) => a.date).sort();
+			expect(assignedDates).toEqual(monWedFriDates);
+		});
+	});
+
+	describe('Test 3b: Daily Rotation with Multiple Preceptors', () => {
+		it('should rotate between preceptors and not repeat same preceptor consecutively', async () => {
+			// Setup: Health system and site
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Hospital', 1);
+			const siteId = siteIds[0];
+
+			// Create clerkship with 4-day requirement
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
+
+			// Create requirement with daily_rotation strategy
+			await createTestRequirement(db, clerkshipId, {
+				requirementType: 'outpatient',
+				requiredDays: 4,
+				assignmentStrategy: 'daily_rotation',
+			});
+
+			// Create 2 preceptors
+			const preceptorIds = await createTestPreceptors(db, 2, {
+				healthSystemId,
+				siteId,
+				maxStudents: 2,
+			});
+
+			// Create student
+			const studentIds = await createTestStudents(db, 1);
+
+			// Both preceptors available on same 4 dates
+			const availableDates = ['2025-12-01', '2025-12-03', '2025-12-05', '2025-12-08'];
+			await createPreceptorAvailability(db, preceptorIds[0], siteId, availableDates);
+			await createPreceptorAvailability(db, preceptorIds[1], siteId, availableDates);
+
+			// Run scheduling engine
+			const engine = new ConfigurableSchedulingEngine(db);
+			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31',
+				dryRun: false,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBe(4);
+
+			// Verify rotation - no two consecutive assignments should have same preceptor
+			const sortedAssignments = result.assignments.sort((a, b) => a.date.localeCompare(b.date));
+			for (let i = 1; i < sortedAssignments.length; i++) {
+				expect(sortedAssignments[i].preceptorId).not.toBe(sortedAssignments[i - 1].preceptorId);
+			}
 		});
 	});
 
 	describe('Test 4: Multiple Preceptors with Different Availability Patterns', () => {
-		it('should find preceptor with matching consecutive availability', async () => {
+		it('should prefer preceptor with lower load when both have enough availability', async () => {
 			// Setup: Health system and site
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Hospital', 1);
 			const siteId = siteIds[0];
@@ -229,11 +283,11 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			// Create student
 			const studentIds = await createTestStudents(db, 1);
 
-			// Preceptor 1: Mon/Wed/Fri only
+			// Preceptor 1: Mon/Wed/Fri only (5 dates - exactly enough)
 			const monWedFriDates = ['2025-12-01', '2025-12-03', '2025-12-05', '2025-12-08', '2025-12-10'];
 			await createPreceptorAvailability(db, preceptorIds[0], siteId, monWedFriDates);
 
-			// Preceptor 2: Every day (Dec 1-10)
+			// Preceptor 2: Every day (Dec 1-10) - more availability
 			const consecutiveDates = generateDateRange('2025-12-01', 10);
 			await createPreceptorAvailability(db, preceptorIds[1], siteId, consecutiveDates);
 
@@ -245,12 +299,14 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				dryRun: false,
 			});
 
-			// Should succeed by finding Preceptor 2 (who has all consecutive days)
+			// NEW BEHAVIOR: Both preceptors have at least 5 available dates
+			// Either could be selected (sorted by load, both have 0)
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(5);
 
-			// All assignments should be to Preceptor 2
-			expect(result.assignments.every((a) => a.preceptorId === preceptorIds[1])).toBe(true);
+			// All assignments should be to the SAME preceptor (continuous_single)
+			const preceptorId = result.assignments[0].preceptorId;
+			expect(result.assignments.every((a) => a.preceptorId === preceptorId)).toBe(true);
 		});
 	});
 

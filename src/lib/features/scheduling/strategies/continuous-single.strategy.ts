@@ -10,16 +10,16 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
 /**
  * Continuous Single Preceptor Strategy
  *
- * Finds a single preceptor available for ALL required days and assigns
- * them continuously. This is the most common and simplest strategy.
+ * Finds a single preceptor with at least N available days and assigns
+ * them for all required days. Days do NOT need to be consecutive.
  *
  * Algorithm:
  * 1. Filter preceptors by specialty
  * 2. Filter by health system if required
- * 3. Find preceptors available for ALL required days
+ * 3. Find preceptors with at least N available days within the date range
  * 4. Sort by load (prefer less loaded preceptors)
  * 5. Select first available preceptor
- * 6. Generate assignments for all days
+ * 6. Use the first N available dates from that preceptor
  */
 export class ContinuousSingleStrategy extends BaseStrategy {
   getName(): string {
@@ -48,18 +48,6 @@ export class ContinuousSingleStrategy extends BaseStrategy {
     // Use config.requiredDays which respects requirement overrides
     const requiredDays = config.requiredDays;
 
-    // Need enough dates
-    if (availableDates.length < requiredDays) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Insufficient available dates: ${availableDates.length} < ${requiredDays}`,
-      };
-    }
-
-    // Take only required number of days
-    const requiredDates = availableDates.slice(0, requiredDays);
-
     // Filter preceptors by specialty
     let candidates = clerkship.specialty
       ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
@@ -74,8 +62,28 @@ export class ContinuousSingleStrategy extends BaseStrategy {
     // Sort by load (prefer less loaded)
     candidates = this.sortByLoad(candidates);
 
-    // Find preceptor available for ALL required dates
-    const selectedPreceptor = this.findPreceptorAvailableForAllDates(candidates, requiredDates);
+    // Convert availableDates to a Set for fast lookup
+    const availableDateSet = new Set(availableDates);
+
+    // Find preceptor with at least N available dates within the scheduling range
+    let selectedPreceptor: (typeof candidates)[0] | null = null;
+    let selectedDates: string[] = [];
+
+    for (const preceptor of candidates) {
+      // Get preceptor's available dates that are also in the scheduling range
+      const preceptorAvailableDates = preceptor.availability
+        .filter(date => availableDateSet.has(date))
+        .sort(); // Sort chronologically
+
+      if (preceptorAvailableDates.length >= requiredDays) {
+        // Check capacity
+        if (preceptor.currentAssignmentCount + requiredDays <= preceptor.maxStudentsPerYear) {
+          selectedPreceptor = preceptor;
+          selectedDates = preceptorAvailableDates.slice(0, requiredDays);
+          break;
+        }
+      }
+    }
 
     if (!selectedPreceptor) {
       return {
@@ -90,18 +98,9 @@ export class ContinuousSingleStrategy extends BaseStrategy {
       };
     }
 
-    // Check capacity
-    if (selectedPreceptor.currentAssignmentCount + requiredDays > selectedPreceptor.maxStudentsPerYear) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Selected preceptor ${selectedPreceptor.name} would exceed yearly capacity`,
-      };
-    }
-
-    // Generate assignments
-    const assignments = requiredDates.map(date =>
-      this.createAssignment(student.id!, selectedPreceptor.id, clerkship.id!, date, {
+    // Generate assignments using the selected preceptor's available dates
+    const assignments = selectedDates.map(date =>
+      this.createAssignment(student.id!, selectedPreceptor!.id, clerkship.id!, date, {
         requirementType: config.requirementType,
       })
     );
