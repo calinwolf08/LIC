@@ -114,7 +114,7 @@ async function seed(db: Kysely<DB>) {
 			name: 'Family Medicine',
 			specialty: 'Family Medicine',
 			clerkship_type: 'outpatient',
-			required_days: 20,
+			required_days: 5,
 			description: 'Core family medicine rotation covering primary care',
 			created_at: timestamp,
 			updated_at: timestamp
@@ -124,7 +124,7 @@ async function seed(db: Kysely<DB>) {
 			name: 'Internal Medicine',
 			specialty: 'Internal Medicine',
 			clerkship_type: 'inpatient',
-			required_days: 30,
+			required_days: 5,
 			description: 'Inpatient internal medicine rotation',
 			created_at: timestamp,
 			updated_at: timestamp
@@ -134,7 +134,7 @@ async function seed(db: Kysely<DB>) {
 			name: 'Pediatrics',
 			specialty: 'Pediatrics',
 			clerkship_type: 'outpatient',
-			required_days: 20,
+			required_days: 5,
 			description: 'Pediatric care rotation',
 			created_at: timestamp,
 			updated_at: timestamp
@@ -173,7 +173,7 @@ async function seed(db: Kysely<DB>) {
 
 	console.log('Creating preceptors...');
 
-	// Create Preceptors (site associations handled via preceptor_sites junction table)
+	// Create Preceptors (2 preceptors with max 1 student each)
 	const preceptors = [
 		{
 			id: nanoid(),
@@ -181,7 +181,7 @@ async function seed(db: Kysely<DB>) {
 			email: 'asmith@metrogeneral.com',
 			phone: '555-1001',
 			health_system_id: healthSystem1.id,
-			max_students: 2,
+			max_students: 1,
 			created_at: timestamp,
 			updated_at: timestamp
 		},
@@ -191,27 +191,7 @@ async function seed(db: Kysely<DB>) {
 			email: 'jbrown@metrofamily.com',
 			phone: '555-1002',
 			health_system_id: healthSystem1.id,
-			max_students: 2,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Dr. Lisa Garcia',
-			email: 'lgarcia@communityhosp.com',
-			phone: '555-1003',
-			health_system_id: healthSystem2.id,
-			max_students: 3,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Dr. Thomas Lee',
-			email: 'tlee@suburbanpc.com',
-			phone: '555-1004',
-			health_system_id: healthSystem2.id,
-			max_students: 2,
+			max_students: 1,
 			created_at: timestamp,
 			updated_at: timestamp
 		}
@@ -229,16 +209,105 @@ async function seed(db: Kysely<DB>) {
 	const preceptorSites = [
 		{ preceptor_id: preceptors[0].id, site_id: sites[0].id, created_at: timestamp },
 		{ preceptor_id: preceptors[1].id, site_id: sites[1].id, created_at: timestamp },
-		{ preceptor_id: preceptors[2].id, site_id: sites[2].id, created_at: timestamp },
-		{ preceptor_id: preceptors[3].id, site_id: sites[3].id, created_at: timestamp },
-		// Some preceptors work at multiple sites within same health system
+		// Both preceptors can work at both Metro sites
 		{ preceptor_id: preceptors[0].id, site_id: sites[1].id, created_at: timestamp },
-		{ preceptor_id: preceptors[2].id, site_id: sites[3].id, created_at: timestamp }
+		{ preceptor_id: preceptors[1].id, site_id: sites[0].id, created_at: timestamp }
 	];
 
 	await db
 		.insertInto('preceptor_sites')
 		.values(preceptorSites)
+		.onConflict((oc) => oc.doNothing())
+		.execute();
+
+	console.log('Creating preceptor availability...');
+
+	// Create preceptor availability for the next 30 days
+	const availabilityRecords: Array<{
+		id: string;
+		preceptor_id: string;
+		site_id: string;
+		date: string;
+		created_at: string;
+		updated_at: string;
+	}> = [];
+
+	const startDate = new Date();
+	for (let i = 0; i < 30; i++) {
+		const date = new Date(startDate);
+		date.setDate(date.getDate() + i);
+		const dateStr = date.toISOString().split('T')[0];
+
+		// Both preceptors available at their primary sites for 30 days
+		availabilityRecords.push({
+			id: nanoid(),
+			preceptor_id: preceptors[0].id,
+			site_id: sites[0].id,
+			date: dateStr,
+			created_at: timestamp,
+			updated_at: timestamp
+		});
+		availabilityRecords.push({
+			id: nanoid(),
+			preceptor_id: preceptors[1].id,
+			site_id: sites[1].id,
+			date: dateStr,
+			created_at: timestamp,
+			updated_at: timestamp
+		});
+	}
+
+	await db
+		.insertInto('preceptor_availability')
+		.values(availabilityRecords)
+		.onConflict((oc) => oc.doNothing())
+		.execute();
+
+	console.log('Creating clerkship requirements...');
+
+	// Create clerkship requirements for the scheduling engine
+	const clerkshipRequirements = [
+		{
+			id: nanoid(),
+			clerkship_id: clerkships[0].id,
+			requirement_type: 'outpatient',
+			required_days: 5,
+			override_mode: 'override_section',
+			override_assignment_strategy: 'continuous_single',
+			override_max_students_per_day: 1,
+			override_max_students_per_year: 10,
+			created_at: timestamp,
+			updated_at: timestamp
+		},
+		{
+			id: nanoid(),
+			clerkship_id: clerkships[1].id,
+			requirement_type: 'inpatient',
+			required_days: 5,
+			override_mode: 'override_section',
+			override_assignment_strategy: 'continuous_single',
+			override_max_students_per_day: 1,
+			override_max_students_per_year: 10,
+			created_at: timestamp,
+			updated_at: timestamp
+		},
+		{
+			id: nanoid(),
+			clerkship_id: clerkships[2].id,
+			requirement_type: 'outpatient',
+			required_days: 5,
+			override_mode: 'override_section',
+			override_assignment_strategy: 'continuous_single',
+			override_max_students_per_day: 1,
+			override_max_students_per_year: 10,
+			created_at: timestamp,
+			updated_at: timestamp
+		}
+	];
+
+	await db
+		.insertInto('clerkship_requirements')
+		.values(clerkshipRequirements)
 		.onConflict((oc) => oc.doNothing())
 		.execute();
 
@@ -406,10 +475,12 @@ async function seed(db: Kysely<DB>) {
 	console.log('\n✅ Seed data created successfully!');
 	console.log(`   - 2 Health Systems`);
 	console.log(`   - 4 Sites`);
-	console.log(`   - 3 Clerkships`);
-	console.log(`   - 4 Preceptors`);
+	console.log(`   - 3 Clerkships (5 days each)`);
+	console.log(`   - 3 Clerkship Requirements (continuous_single strategy)`);
+	console.log(`   - 2 Preceptors (max 1 student each)`);
 	console.log(`   - 5 Students`);
 	console.log(`   - 1 Team with 2 members`);
+	console.log(`   - 60 Availability records (30 days x 2 preceptors)`);
 }
 
 async function main() {
