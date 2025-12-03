@@ -50,7 +50,7 @@ export async function createTestStudents(db: Kysely<DB>, count: number) {
 			.values({
 				id,
 				name: `Test Student ${i + 1}`,
-				email: `student${i + 1}@test.edu`,
+				email: `student-${id}@test.edu`, // Use unique ID in email to avoid conflicts
 			})
 			.execute();
 
@@ -396,6 +396,20 @@ export async function createPreceptorAvailability(
 	if (values.length > 0) {
 		await db.insertInto('preceptor_availability').values(values).execute();
 	}
+}
+
+/**
+ * Generates an array of date strings starting from a given date
+ */
+export function generateDateRange(startDate: string, days: number): string[] {
+	const dates: string[] = [];
+	const start = new Date(startDate + 'T00:00:00.000Z');
+	for (let i = 0; i < days; i++) {
+		const date = new Date(start);
+		date.setUTCDate(start.getUTCDate() + i);
+		dates.push(date.toISOString().split('T')[0]);
+	}
+	return dates;
 }
 
 /**

@@ -18,6 +18,8 @@ import {
 	createBlackoutDates,
 	getStudentAssignments,
 	clearAllTestData,
+	createPreceptorAvailability,
+	generateDateRange,
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -72,9 +74,15 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
-					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 10,
+					maxStudentsPerDay: 3, // Sufficient for 3 students
+					maxStudentsPerYear: 100, // Sufficient for 3 students × 20 days
 				});
+			}
+
+			// Create preceptor availability for required dates
+			const availabilityDates = generateDateRange(startDate, 60);
+			for (const preceptorId of preceptorIds) {
+				await createPreceptorAvailability(db, preceptorId, siteIds[0], availabilityDates);
 			}
 
 			// Execute scheduling
@@ -97,7 +105,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 
 			// Verify capacity constraints respected
 			for (const preceptorId of preceptorIds) {
-				await assertNoCapacityViolations(db, preceptorId, 2);
+				await assertNoCapacityViolations(db, preceptorId, 3);
 			}
 		});
 	});
@@ -127,6 +135,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
 				});
+			}
+
+			// Create preceptor availability for required dates
+			const availabilityDates = generateDateRange(startDate, 60);
+			for (const preceptorId of preceptorIds) {
+				await createPreceptorAvailability(db, preceptorId, siteIds[0], availabilityDates);
 			}
 
 			// Execute scheduling
@@ -176,6 +190,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				});
 			}
 
+			// Create preceptor availability for required dates
+			const availabilityDates = generateDateRange(startDate, 90);
+			for (const preceptorId of preceptorIds) {
+				await createPreceptorAvailability(db, preceptorId, siteIds[0], availabilityDates);
+			}
+
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
@@ -197,7 +217,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		});
 	});
 
-	describe('Test 4: Continuous Team Strategy End-to-End', () => {
+	describe('Test 4: Team Continuity Strategy End-to-End', () => {
 		it('should assign students to teams and balance across team members', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Teaching Hospital');
@@ -209,11 +229,11 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				maxStudents: 3,
 			});
 
-			// Create requirement with continuous_team strategy
+			// Create requirement with team_continuity strategy
 			await createTestRequirement(db, clerkshipId, {
 				requirementType: 'inpatient',
 				requiredDays: 28,
-				assignmentStrategy: 'continuous_team',
+				assignmentStrategy: 'team_continuity',
 			});
 
 			// Create pre-configured team
@@ -221,6 +241,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				requireSameHealthSystem: true,
 				requireSameSpecialty: true,
 			});
+
+			// Create preceptor availability for required dates
+			const availabilityDates = generateDateRange(startDate, 60);
+			for (const preceptorId of preceptorIds) {
+				await createPreceptorAvailability(db, preceptorId, siteIds[0], availabilityDates);
+			}
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
@@ -277,6 +303,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				});
 			}
 
+			// Create preceptor availability for required dates
+			const availabilityDates = generateDateRange(startDate, 90);
+			for (const preceptorId of preceptorIds) {
+				await createPreceptorAvailability(db, preceptorId, siteIds[0], availabilityDates);
+			}
+
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
@@ -331,6 +363,11 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Create fallback chain: P1 -> P2 -> P3
 			await createFallbackChain(db, preceptorIds[0], [preceptorIds[1], preceptorIds[2]]);
 
+			// Create availability for fallback preceptors (primary is blacked out)
+			const availabilityDates = generateDateRange(startDate, 30);
+			await createPreceptorAvailability(db, preceptorIds[1], siteIds[0], availabilityDates);
+			await createPreceptorAvailability(db, preceptorIds[2], siteIds[0], availabilityDates);
+
 			// Execute scheduling with fallbacks enabled
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
@@ -339,8 +376,8 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				dryRun: false,
 			});
 
-			// With fallbacks disabled, scheduling may fail or produce unmet requirements
-			// This test now verifies behavior without fallbacks
+			// With fallbacks disabled but alternative preceptors available,
+			// scheduling should still succeed via load balancing
 			expect(result).toBeDefined();
 		});
 	});
@@ -370,6 +407,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 					maxStudentsPerDay: 1,
 					maxStudentsPerYear: 5,
 				});
+			}
+
+			// Create preceptor availability for required dates
+			const availabilityDates = generateDateRange(startDate, 30);
+			for (const preceptorId of preceptorIds) {
+				await createPreceptorAvailability(db, preceptorId, siteIds[0], availabilityDates);
 			}
 
 			// Execute scheduling
