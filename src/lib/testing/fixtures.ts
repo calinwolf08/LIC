@@ -49,7 +49,6 @@ export function createMockPreceptor(
 		id: crypto.randomUUID(),
 		name: `Dr. Preceptor ${preceptorCounter}`,
 		email: `preceptor${preceptorCounter}@example.com`,
-		specialty: 'Internal Medicine',
 		max_students: 1,
 		created_at: timestamp,
 		updated_at: timestamp,
@@ -69,7 +68,7 @@ export function createMockClerkship(
 	return {
 		id: crypto.randomUUID(),
 		name: `Internal Medicine ${clerkshipCounter}`,
-		specialty: 'Internal Medicine',
+		clerkship_type: 'core',
 		required_days: 20,
 		description: `A ${clerkshipCounter * 20}-day rotation in Internal Medicine`,
 		created_at: timestamp,

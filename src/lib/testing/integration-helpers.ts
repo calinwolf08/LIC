@@ -11,15 +11,14 @@ import type { DB } from '$lib/db/types';
 /**
  * Creates a complete test clerkship with all necessary data
  */
-export async function createTestClerkship(db: Kysely<DB>, name: string, specialty: string) {
+export async function createTestClerkship(db: Kysely<DB>, name: string, clerkshipType: string = 'core') {
 	const id = nanoid();
 	await db
 		.insertInto('clerkships')
 		.values({
 			id,
 			name,
-			specialty,
-			clerkship_type: 'core',
+			clerkship_type: clerkshipType,
 			required_days: 28,
 			description: `Test ${name} clerkship`,
 		})
@@ -52,7 +51,8 @@ export async function createTestStudents(db: Kysely<DB>, count: number) {
 }
 
 /**
- * Creates test preceptors with optional health system and site
+ * Creates test preceptors with optional health system
+ * Note: Site associations are now handled via preceptor_sites junction table
  */
 export async function createTestPreceptors(
 	db: Kysely<DB>,
@@ -79,11 +79,16 @@ export async function createTestPreceptors(
 		if (options?.healthSystemId) {
 			values.health_system_id = options.healthSystemId;
 		}
-		if (options?.siteId) {
-			values.site_id = options.siteId;
-		}
 
 		await db.insertInto('preceptors').values(values).execute();
+
+		// If siteId is provided, create the site association via junction table
+		if (options?.siteId) {
+			await db.insertInto('preceptor_sites').values({
+				preceptor_id: id,
+				site_id: options.siteId,
+			}).execute();
+		}
 
 		preceptorIds.push(id);
 	}
