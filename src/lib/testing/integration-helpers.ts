@@ -61,8 +61,9 @@ export async function createTestStudents(db: Kysely<DB>, count: number) {
 }
 
 /**
- * Creates test preceptors with optional health system
- * Note: Site associations are now handled via preceptor_sites junction table
+ * Creates test preceptors with optional health system and clerkship association
+ * Note: Site associations are handled via preceptor_sites junction table
+ * Note: Clerkship associations are handled via team membership (preceptor_teams + preceptor_team_members)
  */
 export async function createTestPreceptors(
 	db: Kysely<DB>,
@@ -71,6 +72,7 @@ export async function createTestPreceptors(
 		healthSystemId?: string;
 		siteId?: string;
 		maxStudents?: number;
+		clerkshipId?: string; // If provided, creates a team and adds preceptors to it
 	}
 ) {
 	const preceptorIds: string[] = [];
@@ -101,6 +103,27 @@ export async function createTestPreceptors(
 		}
 
 		preceptorIds.push(id);
+	}
+
+	// If clerkshipId is provided, create a team and add all preceptors to it
+	if (options?.clerkshipId && preceptorIds.length > 0) {
+		const teamId = nanoid();
+		await db.insertInto('preceptor_teams').values({
+			id: teamId,
+			name: `Test Team for ${options.clerkshipId}`,
+			clerkship_id: options.clerkshipId,
+		}).execute();
+
+		// Add all preceptors as team members
+		for (let i = 0; i < preceptorIds.length; i++) {
+			await db.insertInto('preceptor_team_members').values({
+				id: nanoid(),
+				team_id: teamId,
+				preceptor_id: preceptorIds[i],
+				role: i === 0 ? 'lead' : 'member',
+				priority: i + 1,
+			}).execute();
+		}
 	}
 
 	return preceptorIds;

@@ -56,6 +56,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				healthSystemId,
 				siteId,
 				maxStudents: 1, // Only 1 student per day allowed
+				clerkshipId, // Associate preceptor with this clerkship via team
 			});
 
 			// Set capacity rule explicitly
@@ -126,6 +127,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				healthSystemId,
 				siteId,
 				maxStudents: 1,
+				clerkshipId, // Associate preceptor with this clerkship via team
 			});
 
 			await db
@@ -194,6 +196,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				healthSystemId,
 				siteId,
 				maxStudents: 1,
+				clerkshipId, // Associate preceptors with this clerkship via team
 			});
 
 			// Set capacity rules for both
@@ -263,6 +266,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				healthSystemId,
 				siteId,
 				maxStudents: 1,
+				clerkshipId, // Associate preceptor with this clerkship via team
 			});
 
 			await db
@@ -320,6 +324,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				healthSystemId,
 				siteId,
 				maxStudents: 2, // 2 per day
+				clerkshipId, // Associate preceptor with this clerkship via team
 			});
 
 			await db
@@ -381,6 +386,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				healthSystemId,
 				siteId,
 				maxStudents: 5,
+				clerkshipId, // Associate preceptors with this clerkship via team
 			});
 
 			// Set capacity rules for both (high capacity)

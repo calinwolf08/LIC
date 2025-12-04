@@ -160,12 +160,30 @@ export class StrategyContextBuilder {
     requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
     pendingAssignments: PendingAssignment[]
   ): Promise<StrategyContext['availablePreceptors']> {
-    // Get all preceptors
-    let query = this.db.selectFrom('preceptors').selectAll();
+    // Get preceptors who are members of teams for this clerkship
+    // Team membership is the authoritative source for clerkship associations
+    const teamMemberPreceptorIds = await this.db
+      .selectFrom('preceptor_team_members')
+      .innerJoin('preceptor_teams', 'preceptor_teams.id', 'preceptor_team_members.team_id')
+      .select('preceptor_team_members.preceptor_id')
+      .where('preceptor_teams.clerkship_id', '=', clerkship.id!)
+      .execute();
 
-    // Note: Specialty filtering removed - preceptors no longer have specialty field
+    const validPreceptorIds = new Set(teamMemberPreceptorIds.map(r => r.preceptor_id));
 
-    const preceptors = await query.execute();
+    let preceptors;
+    if (validPreceptorIds.size > 0) {
+      // Filter to only preceptors associated with this clerkship via team membership
+      preceptors = await this.db
+        .selectFrom('preceptors')
+        .selectAll()
+        .where('id', 'in', [...validPreceptorIds])
+        .execute();
+    } else {
+      // No team associations for this clerkship - allow all preceptors (backward compatibility)
+      // In production, teams should be set up for proper clerkship associations
+      preceptors = await this.db.selectFrom('preceptors').selectAll().execute();
+    }
 
     // Count pending assignments per preceptor (for yearly capacity)
     const pendingCountByPreceptor = new Map<string, number>();
