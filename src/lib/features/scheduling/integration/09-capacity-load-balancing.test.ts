@@ -65,7 +65,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 					id: `cap-${preceptorIds[0]}`,
 					preceptor_id: preceptorIds[0],
 					max_students_per_day: 1,
-					max_students_per_year: 10,
+					max_students_per_year: 20, // Must be >= 15 (3 students × 5 days)
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString(),
 				})
@@ -349,13 +349,15 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				dryRun: false,
 			});
 
-			// First student: 5 days (5 of 7 yearly capacity)
-			// Second student: can only get 2 days (7 - 5 = 2 remaining)
-			// So we should have 1 fully scheduled and 1 partially scheduled
-			expect(result.assignments.length).toBe(7);
+			// continuous_single is "all or nothing" - requires N days with same preceptor
+			// First student: 5 days (5 of 7 yearly capacity used)
+			// Second student: needs 5 days but only 2 remaining → fails entirely
+			expect(result.assignments.length).toBe(5);
 
-			// Should have 1 unmet requirement (second student only got 2 of 5 days)
+			// Should have 1 unmet requirement (second student got 0 of 5 days)
 			expect(result.unmetRequirements.length).toBe(1);
+			expect(result.unmetRequirements[0].assignedDays).toBe(0);
+			expect(result.unmetRequirements[0].remainingDays).toBe(5);
 		});
 	});
 });

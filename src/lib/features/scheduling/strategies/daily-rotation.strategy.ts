@@ -53,10 +53,12 @@ export class DailyRotationStrategy extends BaseStrategy {
     // Sort by load for initial ordering
     candidates = this.sortByLoad(candidates);
 
-    // Find dates where ANY preceptor is available (skip dates with no availability)
+    // Find dates where ANY preceptor is available AND has daily capacity
     const datesWithAvailability: string[] = [];
     for (const date of availableDates) {
-      const availableToday = candidates.filter(p => this.isDateAvailable(p, date));
+      const availableToday = candidates.filter(
+        p => this.isDateAvailable(p, date) && this.hasDailyCapacity(context, p, date)
+      );
       if (availableToday.length > 0) {
         datesWithAvailability.push(date);
       }
@@ -78,10 +80,37 @@ export class DailyRotationStrategy extends BaseStrategy {
     let rotationIndex = 0;
     let previousPreceptorId: string | null = null;
 
+    // Track assignments made in this call (for daily capacity within this student's assignment)
+    const localAssignmentsByPreceptorDate = new Map<string, Map<string, number>>();
+
     // Assign each day, rotating through preceptors
     for (const date of requiredDates) {
-      // Find preceptors available on this date (we already know there's at least one)
-      const availableToday = candidates.filter(p => this.isDateAvailable(p, date));
+      // Find preceptors available on this date with remaining daily capacity
+      // Check both pending assignments (from context) and local assignments (this call)
+      const availableToday = candidates.filter(p => {
+        if (!this.isDateAvailable(p, date)) return false;
+
+        // Check pending assignments from context
+        const pendingCount = context.assignmentsByPreceptorDate?.get(p.id)?.get(date) ?? 0;
+        // Check local assignments made in this call
+        const localCount = localAssignmentsByPreceptorDate.get(p.id)?.get(date) ?? 0;
+        const totalDailyCount = pendingCount + localCount;
+
+        return totalDailyCount < p.maxStudentsPerDay;
+      });
+
+      if (availableToday.length === 0) {
+        return {
+          success: false,
+          assignments: [],
+          error: `No preceptor with available capacity on date ${date}`,
+          metadata: {
+            strategyUsed: this.getName(),
+            preceptorsConsidered: candidates.length,
+            assignmentCount: assignments.length,
+          },
+        };
+      }
 
       // Try to select a DIFFERENT preceptor than the previous assignment (rotation behavior)
       let selectedPreceptor: (typeof candidates)[0] | null = null;
@@ -102,34 +131,13 @@ export class DailyRotationStrategy extends BaseStrategy {
         rotationIndex++;
       }
 
-      // Check daily capacity
-      const assignmentsToday = assignments.filter(
-        a => a.preceptorId === selectedPreceptor!.id && a.date === date
-      ).length;
-
-      if (assignmentsToday >= selectedPreceptor.maxStudentsPerDay) {
-        // Try to find another preceptor with capacity
-        const nextPreceptor = availableToday.find(p => {
-          if (p.id === selectedPreceptor!.id) return false;
-          const dailyCount = assignments.filter(a => a.preceptorId === p.id && a.date === date).length;
-          return dailyCount < p.maxStudentsPerDay;
-        });
-
-        if (!nextPreceptor) {
-          return {
-            success: false,
-            assignments: [],
-            error: `No preceptor with available capacity on date ${date}`,
-            metadata: {
-              strategyUsed: this.getName(),
-              preceptorsConsidered: candidates.length,
-              assignmentCount: assignments.length,
-            },
-          };
-        }
-
-        selectedPreceptor = nextPreceptor;
+      // Track this assignment locally
+      if (!localAssignmentsByPreceptorDate.has(selectedPreceptor.id)) {
+        localAssignmentsByPreceptorDate.set(selectedPreceptor.id, new Map());
       }
+      const dateMap = localAssignmentsByPreceptorDate.get(selectedPreceptor.id)!;
+      const currentCount = dateMap.get(date) ?? 0;
+      dateMap.set(date, currentCount + 1);
 
       // Create assignment
       assignments.push(

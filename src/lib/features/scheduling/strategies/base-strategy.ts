@@ -71,6 +71,10 @@ export interface StrategyContext {
   // Health system information
   healthSystems: Map<string, { id: string; name: string }>;
   sites: Map<string, { id: string; healthSystemId: string | null; name: string }>;
+
+  // Daily assignment counts per preceptor (for maxStudentsPerDay enforcement)
+  // Map<preceptorId, Map<date, count>>
+  assignmentsByPreceptorDate?: Map<string, Map<string, number>>;
 }
 
 /**
@@ -202,6 +206,28 @@ export abstract class BaseStrategy implements SchedulingStrategy {
     date: string
   ): boolean {
     return preceptor.availability.includes(date);
+  }
+
+  /**
+   * Helper: Check if preceptor has daily capacity remaining on a specific date
+   */
+  protected hasDailyCapacity(
+    context: StrategyContext,
+    preceptor: StrategyContext['availablePreceptors'][0],
+    date: string
+  ): boolean {
+    const dailyCount = context.assignmentsByPreceptorDate?.get(preceptor.id)?.get(date) ?? 0;
+    return dailyCount < preceptor.maxStudentsPerDay;
+  }
+
+  /**
+   * Helper: Check if preceptor has yearly capacity remaining
+   */
+  protected hasYearlyCapacity(
+    preceptor: StrategyContext['availablePreceptors'][0],
+    additionalAssignments: number = 1
+  ): boolean {
+    return preceptor.currentAssignmentCount + additionalAssignments <= preceptor.maxStudentsPerYear;
   }
 
   /**

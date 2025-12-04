@@ -49,6 +49,16 @@ export interface EngineOptions {
  *    e. Commit valid assignments
  * 5. Generate results
  */
+/**
+ * Pending assignment tracking for batch scheduling
+ */
+export interface PendingAssignment {
+  studentId: string;
+  preceptorId: string;
+  clerkshipId: string;
+  date: string;
+}
+
 export class ConfigurableSchedulingEngine {
   private strategySelector: StrategySelector;
   private contextBuilder: StrategyContextBuilder;
@@ -58,6 +68,7 @@ export class ConfigurableSchedulingEngine {
   private constraintFactory: ConstraintFactory;
   private constraints: Constraint[] = [];
   private clerkshipConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
+  private pendingAssignments: PendingAssignment[] = [];
 
   constructor(private db: Kysely<DB>) {
     this.strategySelector = new StrategySelector();
@@ -89,6 +100,7 @@ export class ConfigurableSchedulingEngine {
 
     this.resultBuilder.reset();
     this.clerkshipConfigs.clear();
+    this.pendingAssignments = [];
 
     // Phase 1: Load data
     console.log('[Engine] Loading students and clerkships...');
@@ -389,11 +401,12 @@ export class ConfigurableSchedulingEngine {
         return;
       }
 
-      // Build strategy context with proper date range
+      // Build strategy context with proper date range and pending assignments
       const context = await this.contextBuilder.buildContext(student, clerkship, config, {
         startDate: options.startDate,
         endDate: options.endDate,
         requirementType: config.requirementType,
+        pendingAssignments: this.pendingAssignments,
       });
 
       // Select strategy based on configuration
@@ -438,9 +451,16 @@ export class ConfigurableSchedulingEngine {
       );
 
       if (validationResult.isValid) {
-        // Add assignments to result
+        // Add assignments to result and track as pending for future students
         result.assignments.forEach(assignment => {
           this.resultBuilder.addAssignment(assignment);
+          // Track pending assignment for capacity calculations
+          this.pendingAssignments.push({
+            studentId: assignment.studentId,
+            preceptorId: assignment.preceptorId,
+            clerkshipId: assignment.clerkshipId,
+            date: assignment.date,
+          });
         });
         console.log(`[Engine] Successfully assigned ${result.assignments.length} days for ${student.name} to ${clerkship.name}`);
       } else {

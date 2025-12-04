@@ -12,6 +12,16 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
 import type { StrategyContext } from './base-strategy';
 
 /**
+ * Pending assignment from current scheduling batch
+ */
+export interface PendingAssignment {
+  studentId: string;
+  preceptorId: string;
+  clerkshipId: string;
+  date: string;
+}
+
+/**
  * Strategy Context Builder
  *
  * Fetches and assembles all data needed for scheduling strategies.
@@ -30,6 +40,7 @@ export class StrategyContextBuilder {
       startDate?: string;
       endDate?: string;
       requirementType?: 'outpatient' | 'inpatient' | 'elective';
+      pendingAssignments?: PendingAssignment[];
     } = {}
   ): Promise<StrategyContext> {
     if (!clerkship.id) {
@@ -44,13 +55,18 @@ export class StrategyContextBuilder {
       options.endDate
     );
 
-    // Get available preceptors
+    // Get available preceptors (with pending assignment counts)
+    const pendingAssignments = options.pendingAssignments ?? [];
     const availablePreceptors = await this.buildAvailablePreceptors(
       clerkship,
       config,
       availableDates,
-      options.requirementType
+      options.requirementType,
+      pendingAssignments
     );
+
+    // Build daily assignment counts per preceptor
+    const assignmentsByPreceptorDate = this.buildAssignmentsByPreceptorDate(pendingAssignments);
 
     // Get teams if needed
     const teams = await this.buildTeams(clerkship.id);
@@ -71,7 +87,28 @@ export class StrategyContextBuilder {
       existingAssignments,
       healthSystems,
       sites,
+      assignmentsByPreceptorDate,
     };
+  }
+
+  /**
+   * Build daily assignment counts per preceptor from pending assignments
+   */
+  private buildAssignmentsByPreceptorDate(
+    pendingAssignments: PendingAssignment[]
+  ): Map<string, Map<string, number>> {
+    const result = new Map<string, Map<string, number>>();
+
+    for (const assignment of pendingAssignments) {
+      if (!result.has(assignment.preceptorId)) {
+        result.set(assignment.preceptorId, new Map());
+      }
+      const dateMap = result.get(assignment.preceptorId)!;
+      const currentCount = dateMap.get(assignment.date) ?? 0;
+      dateMap.set(assignment.date, currentCount + 1);
+    }
+
+    return result;
   }
 
   /**
@@ -120,7 +157,8 @@ export class StrategyContextBuilder {
     clerkship: Clerkship,
     config: ResolvedRequirementConfiguration,
     availableDates: string[],
-    requirementType?: 'outpatient' | 'inpatient' | 'elective'
+    requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
+    pendingAssignments: PendingAssignment[]
   ): Promise<StrategyContext['availablePreceptors']> {
     // Get all preceptors
     let query = this.db.selectFrom('preceptors').selectAll();
@@ -128,6 +166,13 @@ export class StrategyContextBuilder {
     // Note: Specialty filtering removed - preceptors no longer have specialty field
 
     const preceptors = await query.execute();
+
+    // Count pending assignments per preceptor (for yearly capacity)
+    const pendingCountByPreceptor = new Map<string, number>();
+    for (const pending of pendingAssignments) {
+      const current = pendingCountByPreceptor.get(pending.preceptorId) ?? 0;
+      pendingCountByPreceptor.set(pending.preceptorId, current + 1);
+    }
 
     // For each preceptor, get availability and current assignments
     const result: StrategyContext['availablePreceptors'] = [];
@@ -143,12 +188,17 @@ export class StrategyContextBuilder {
 
       const availabilityDates = availability.map(a => a.date);
 
-      // Get current assignment count
-      const assignmentCount = await this.db
+      // Get current assignment count from database
+      const dbAssignmentCount = await this.db
         .selectFrom('schedule_assignments')
         .select(({ fn }) => [fn.count<number>('id').as('count')])
         .where('preceptor_id', '=', preceptor.id)
         .executeTakeFirst();
+
+      // Add pending assignments to get total current count
+      const dbCount = dbAssignmentCount?.count ?? 0;
+      const pendingCount = pendingCountByPreceptor.get(preceptor.id) ?? 0;
+      const totalAssignmentCount = dbCount + pendingCount;
 
       // Get capacity rules (simplified - would need to resolve hierarchy)
       const capacityRule = await this.db
@@ -176,7 +226,7 @@ export class StrategyContextBuilder {
         siteId: preceptorSites[0]?.site_id ?? null, // Use first site for backwards compat
         siteIds: preceptorSites.map(ps => ps.site_id),
         availability: availabilityDates,
-        currentAssignmentCount: assignmentCount?.count ?? 0,
+        currentAssignmentCount: totalAssignmentCount,
         maxStudentsPerDay: capacityRule?.max_students_per_day ?? 2,
         maxStudentsPerYear: capacityRule?.max_students_per_year ?? 20,
       });

@@ -71,13 +71,15 @@ export class ContinuousSingleStrategy extends BaseStrategy {
 
     for (const preceptor of candidates) {
       // Get preceptor's available dates that are also in the scheduling range
+      // AND where preceptor has daily capacity remaining
       const preceptorAvailableDates = preceptor.availability
         .filter(date => availableDateSet.has(date))
+        .filter(date => this.hasDailyCapacity(context, preceptor, date))
         .sort(); // Sort chronologically
 
       if (preceptorAvailableDates.length >= requiredDays) {
-        // Check capacity
-        if (preceptor.currentAssignmentCount + requiredDays <= preceptor.maxStudentsPerYear) {
+        // Check yearly capacity
+        if (this.hasYearlyCapacity(preceptor, requiredDays)) {
           selectedPreceptor = preceptor;
           selectedDates = preceptorAvailableDates.slice(0, requiredDays);
           break;
