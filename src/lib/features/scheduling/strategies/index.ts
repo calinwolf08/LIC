@@ -12,7 +12,6 @@ export { StrategyContextBuilder } from './strategy-context';
 
 // Strategy implementations
 export { TeamContinuityStrategy } from './team-continuity.strategy';
-export { ContinuousSingleStrategy } from './continuous-single.strategy';
 export { BlockBasedStrategy } from './block-based.strategy';
 export { DailyRotationStrategy } from './daily-rotation.strategy';
 

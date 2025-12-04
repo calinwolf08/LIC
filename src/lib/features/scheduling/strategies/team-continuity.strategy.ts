@@ -28,7 +28,13 @@ export class TeamContinuityStrategy extends BaseStrategy {
   }
 
   canHandle(config: ResolvedRequirementConfiguration): boolean {
-    return config.assignmentStrategy === 'team_continuity';
+    // team_continuity is the default strategy when none is specified
+    // Also handles 'continuous_single' for backward compatibility (deprecated)
+    return (
+      config.assignmentStrategy === 'team_continuity' ||
+      config.assignmentStrategy === 'continuous_single' ||
+      config.assignmentStrategy === undefined
+    );
   }
 
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
@@ -73,6 +79,9 @@ export class TeamContinuityStrategy extends BaseStrategy {
     const preceptorsUsed: string[] = [];
     let primaryPreceptorId: string | null = null;
 
+    // Track assignments made to each preceptor in this strategy run (for capacity calculations)
+    const assignmentsPerPreceptor = new Map<string, number>();
+
     // For each team member by priority, assign their available days
     for (const member of teamMembers) {
       if (remainingDays <= 0) break;
@@ -85,22 +94,36 @@ export class TeamContinuityStrategy extends BaseStrategy {
         primaryPreceptorId = preceptor.id;
       }
 
+      // Check yearly capacity before attempting to assign days
+      // Calculate how many days we can assign to this preceptor
+      // Include both context-tracked pending assignments AND assignments made in this strategy run
+      const contextYearlyAssignments = preceptor.currentAssignmentCount;
+      const strategyRunAssignments = assignmentsPerPreceptor.get(preceptor.id) ?? 0;
+      const totalYearlyAssignments = contextYearlyAssignments + strategyRunAssignments;
+      const maxYearlyCapacity = preceptor.maxStudentsPerYear;
+      const yearlyCapacityRemaining = maxYearlyCapacity - totalYearlyAssignments;
+
+      if (yearlyCapacityRemaining <= 0) {
+        continue; // Skip this preceptor, yearly capacity exhausted
+      }
+
       // Get preceptor's available dates that we haven't used yet
+      // AND where preceptor has daily capacity remaining (using context for batch tracking)
       const preceptorAvailableDates = preceptor.availability
         .filter(date => availableDates.includes(date) && !usedDates.has(date))
+        .filter(date => this.hasDailyCapacity(context, preceptor, date))
         .sort(); // Sort chronologically
+
+      // Track assignments made for this preceptor in this strategy run
+      let assignedToThisPreceptor = 0;
 
       // Assign as many days as possible with this preceptor
       for (const date of preceptorAvailableDates) {
         if (remainingDays <= 0) break;
 
-        // Check daily capacity
-        const assignmentsOnDate = assignments.filter(
-          a => a.preceptorId === preceptor.id && a.date === date
-        ).length;
-
-        if (assignmentsOnDate >= preceptor.maxStudentsPerDay) {
-          continue; // Skip, preceptor at capacity for this day
+        // Check if we've exceeded yearly capacity for this preceptor
+        if (assignedToThisPreceptor >= yearlyCapacityRemaining) {
+          break; // Move to next preceptor
         }
 
         // Create assignment
@@ -113,6 +136,10 @@ export class TeamContinuityStrategy extends BaseStrategy {
 
         usedDates.add(date);
         remainingDays--;
+        assignedToThisPreceptor++;
+
+        // Track assignment for this preceptor in this strategy run
+        assignmentsPerPreceptor.set(preceptor.id, (assignmentsPerPreceptor.get(preceptor.id) ?? 0) + 1);
 
         if (!preceptorsUsed.includes(preceptor.id)) {
           preceptorsUsed.push(preceptor.id);
@@ -129,7 +156,8 @@ export class TeamContinuityStrategy extends BaseStrategy {
         requiredDays - assignments.length,
         student.id,
         clerkship.id,
-        config.requirementType
+        config.requirementType,
+        assignmentsPerPreceptor
       );
 
       assignments.push(...additionalAssignments);
@@ -220,7 +248,8 @@ export class TeamContinuityStrategy extends BaseStrategy {
     daysNeeded: number,
     studentId: string,
     clerkshipId: string,
-    requirementType?: 'outpatient' | 'inpatient' | 'elective'
+    requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
+    assignmentsPerPreceptor: Map<string, number>
   ): ReturnType<typeof this.createAssignment>[] {
     const { availablePreceptors } = context;
     const assignments: ReturnType<typeof this.createAssignment>[] = [];
@@ -237,18 +266,22 @@ export class TeamContinuityStrategy extends BaseStrategy {
       for (const preceptor of sortedPreceptors) {
         if (!preceptor.availability.includes(date)) continue;
 
-        // Check capacity
-        const assignmentsOnDate = assignments.filter(
-          a => a.preceptorId === preceptor.id && a.date === date
-        ).length;
+        // Check daily capacity using context (includes pending assignments from batch)
+        if (!this.hasDailyCapacity(context, preceptor, date)) continue;
 
-        if (assignmentsOnDate >= preceptor.maxStudentsPerDay) continue;
+        // Check yearly capacity including assignments made in this strategy run
+        const strategyRunAssignments = assignmentsPerPreceptor.get(preceptor.id) ?? 0;
+        const totalYearlyAssignments = preceptor.currentAssignmentCount + strategyRunAssignments;
+        if (totalYearlyAssignments >= preceptor.maxStudentsPerYear) continue;
 
         assignments.push(
           this.createAssignment(studentId, preceptor.id, clerkshipId, date, {
             requirementType,
           })
         );
+
+        // Track this assignment
+        assignmentsPerPreceptor.set(preceptor.id, strategyRunAssignments + 1);
 
         usedDates.add(date);
         break; // Move to next date
