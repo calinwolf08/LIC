@@ -220,19 +220,67 @@ async function seed(db: Kysely<DB>) {
 		.onConflict((oc) => oc.doNothing())
 		.execute();
 
-	console.log('Creating preceptor availability...');
+	console.log('Creating preceptor availability patterns...');
 
-	// Create preceptor availability for the next 30 days
+	// Create availability patterns (visible in UI)
+	const startDate = new Date();
+	const endDate = new Date(startDate);
+	endDate.setDate(endDate.getDate() + 29); // 30 days total
+	const startDateStr = startDate.toISOString().split('T')[0];
+	const endDateStr = endDate.toISOString().split('T')[0];
+
+	const availabilityPatterns = [
+		{
+			id: nanoid(),
+			preceptor_id: preceptors[0].id,
+			site_id: sites[0].id,
+			pattern_type: 'block',
+			is_available: 1,
+			specificity: 1,
+			date_range_start: startDateStr,
+			date_range_end: endDateStr,
+			config: JSON.stringify({}),
+			reason: null,
+			enabled: 1,
+			created_at: timestamp,
+			updated_at: timestamp
+		},
+		{
+			id: nanoid(),
+			preceptor_id: preceptors[1].id,
+			site_id: sites[1].id,
+			pattern_type: 'block',
+			is_available: 1,
+			specificity: 1,
+			date_range_start: startDateStr,
+			date_range_end: endDateStr,
+			config: JSON.stringify({}),
+			reason: null,
+			enabled: 1,
+			created_at: timestamp,
+			updated_at: timestamp
+		}
+	];
+
+	await db
+		.insertInto('preceptor_availability_patterns')
+		.values(availabilityPatterns)
+		.onConflict((oc) => oc.doNothing())
+		.execute();
+
+	console.log('Generating preceptor availability dates from patterns...');
+
+	// Generate availability dates (used by scheduling engine)
 	const availabilityRecords: Array<{
 		id: string;
 		preceptor_id: string;
 		site_id: string;
 		date: string;
+		is_available: number;
 		created_at: string;
 		updated_at: string;
 	}> = [];
 
-	const startDate = new Date();
 	for (let i = 0; i < 30; i++) {
 		const date = new Date(startDate);
 		date.setDate(date.getDate() + i);
@@ -244,6 +292,7 @@ async function seed(db: Kysely<DB>) {
 			preceptor_id: preceptors[0].id,
 			site_id: sites[0].id,
 			date: dateStr,
+			is_available: 1,
 			created_at: timestamp,
 			updated_at: timestamp
 		});
@@ -252,6 +301,7 @@ async function seed(db: Kysely<DB>) {
 			preceptor_id: preceptors[1].id,
 			site_id: sites[1].id,
 			date: dateStr,
+			is_available: 1,
 			created_at: timestamp,
 			updated_at: timestamp
 		});
@@ -503,6 +553,7 @@ async function seed(db: Kysely<DB>) {
 	console.log(`   - 2 Capacity Rules (max 1 student/day)`);
 	console.log(`   - 5 Students`);
 	console.log(`   - 1 Team with 2 members`);
+	console.log(`   - 2 Availability patterns (block, 30 days each)`);
 	console.log(`   - 60 Availability records (30 days x 2 preceptors)`);
 }
 
