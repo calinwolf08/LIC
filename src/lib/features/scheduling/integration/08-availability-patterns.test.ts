@@ -58,6 +58,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student
@@ -110,6 +111,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student
@@ -171,6 +173,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student
@@ -228,6 +231,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student
@@ -278,6 +282,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student
@@ -331,6 +336,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student
@@ -371,6 +377,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			// Create student

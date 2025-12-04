@@ -180,9 +180,9 @@ export class StrategyContextBuilder {
         .where('id', 'in', [...validPreceptorIds])
         .execute();
     } else {
-      // No team associations for this clerkship - allow all preceptors (backward compatibility)
-      // In production, teams should be set up for proper clerkship associations
-      preceptors = await this.db.selectFrom('preceptors').selectAll().execute();
+      // No team associations for this clerkship - no preceptors available
+      // Teams must be set up for proper clerkship-preceptor associations
+      preceptors = [];
     }
 
     // Count pending assignments per preceptor (for yearly capacity)

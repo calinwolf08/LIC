@@ -49,6 +49,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			await createTestRequirement(db, clerkshipId, {
@@ -99,7 +100,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const clerkshipId = await createTestClerkship(db, 'Neurosurgery', 'Neurosurgery');
 			const studentIds = await createTestStudents(db, 3);
 			// Create preceptors but don't create availability
-			await createTestPreceptors(db, 2, {});
+			await createTestPreceptors(db, 2, { clerkshipId });
 
 			await createTestRequirement(db, clerkshipId, {
 				requirementType: 'inpatient',
@@ -144,6 +145,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId,
 			});
 
 			// Use daily_rotation which can work with non-consecutive availability
@@ -208,6 +210,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
+				clerkshipId,
 			});
 
 			await createTestRequirement(db, clerkshipId, {
@@ -263,6 +266,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId: siteIds[0],
+				clerkshipId,
 			});
 
 			// Create requirement with minimum 1 day
@@ -303,6 +307,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId,
 			});
 
 			// Moderate rotation: 60 days (2 months) - fits within start/end date range
@@ -356,6 +361,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId: siteIds[0],
+				clerkshipId,
 			});
 
 			await createTestRequirement(db, clerkshipId, {
@@ -414,6 +420,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId,
 			});
 
 			await createTestRequirement(db, clerkshipId, {
@@ -460,6 +467,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
+				clerkshipId,
 			});
 
 			await createTestRequirement(db, clerkshipId, {

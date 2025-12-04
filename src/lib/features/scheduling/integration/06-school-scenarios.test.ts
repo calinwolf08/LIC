@@ -74,6 +74,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 5,
+				clerkshipId: famMedId,
 			});
 
 			// Configure clerkship with continuous single strategy
@@ -211,6 +212,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 4,
+				clerkshipId: psychiatryId,
 			});
 
 			// Configure with block-based (14 days, 7-day blocks)
@@ -275,6 +277,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId: emergencyId,
 			});
 
 			// Configure with daily rotation
@@ -350,6 +353,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 5,
+				clerkshipId: internalMedId,
 			});
 
 			// Configure clerkship with block-based strategy

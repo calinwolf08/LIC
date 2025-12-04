@@ -61,6 +61,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId, // Associate preceptors with clerkship via team
 			});
 
 			// Create requirement with continuous_single strategy
@@ -120,6 +121,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId,
 			});
 
 			// Create requirement with block_based strategy (14-day blocks)
@@ -173,6 +175,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 4,
+				clerkshipId,
 			});
 
 			// Create requirement with daily_rotation strategy
@@ -278,6 +281,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
+				clerkshipId,
 			});
 
 			// Create two requirements with different strategies

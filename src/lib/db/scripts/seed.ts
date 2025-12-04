@@ -222,24 +222,41 @@ async function seed(db: Kysely<DB>) {
 
 	console.log('Creating preceptor availability patterns...');
 
-	// Create availability patterns (visible in UI)
-	const startDate = new Date();
-	const endDate = new Date(startDate);
-	endDate.setDate(endDate.getDate() + 29); // 30 days total
-	const startDateStr = startDate.toISOString().split('T')[0];
-	const endDateStr = endDate.toISOString().split('T')[0];
+	// Helper function to get Mon-Wed-Fri dates in December 2025
+	function getMonWedFriDates(year: number, month: number): string[] {
+		const dates: string[] = [];
+		const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+		for (let day = 1; day <= daysInMonth; day++) {
+			const date = new Date(year, month, day);
+			const dayOfWeek = date.getDay();
+			// Monday = 1, Wednesday = 3, Friday = 5
+			if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
+				const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+				dates.push(dateStr);
+			}
+		}
+		return dates;
+	}
+
+	// Amanda: Mon-Wed-Fri from 12/1 - 12/31/2025
+	const amandaDates = getMonWedFriDates(2025, 11); // month is 0-indexed, so 11 = December
+
+	// James: Only 12/12/2025
+	const jamesDates = ['2025-12-12'];
+
+	// Create availability patterns (visible in UI)
 	const availabilityPatterns = [
 		{
 			id: nanoid(),
 			preceptor_id: preceptors[0].id,
 			site_id: sites[0].id,
-			pattern_type: 'block',
+			pattern_type: 'weekly',
 			is_available: 1,
 			specificity: 1,
-			date_range_start: startDateStr,
-			date_range_end: endDateStr,
-			config: JSON.stringify({}),
+			date_range_start: '2025-12-01',
+			date_range_end: '2025-12-31',
+			config: JSON.stringify({ days_of_week: [1, 3, 5] }), // Mon, Wed, Fri
 			reason: null,
 			enabled: 1,
 			created_at: timestamp,
@@ -252,8 +269,8 @@ async function seed(db: Kysely<DB>) {
 			pattern_type: 'block',
 			is_available: 1,
 			specificity: 1,
-			date_range_start: startDateStr,
-			date_range_end: endDateStr,
+			date_range_start: '2025-12-12',
+			date_range_end: '2025-12-12',
 			config: JSON.stringify({}),
 			reason: null,
 			enabled: 1,
@@ -281,12 +298,8 @@ async function seed(db: Kysely<DB>) {
 		updated_at: string;
 	}> = [];
 
-	for (let i = 0; i < 30; i++) {
-		const date = new Date(startDate);
-		date.setDate(date.getDate() + i);
-		const dateStr = date.toISOString().split('T')[0];
-
-		// Both preceptors available at their primary sites for 30 days
+	// Amanda: Mon-Wed-Fri in December 2025
+	for (const dateStr of amandaDates) {
 		availabilityRecords.push({
 			id: nanoid(),
 			preceptor_id: preceptors[0].id,
@@ -296,6 +309,10 @@ async function seed(db: Kysely<DB>) {
 			created_at: timestamp,
 			updated_at: timestamp
 		});
+	}
+
+	// James: Only 12/12/2025
+	for (const dateStr of jamesDates) {
 		availabilityRecords.push({
 			id: nanoid(),
 			preceptor_id: preceptors[1].id,
@@ -307,6 +324,9 @@ async function seed(db: Kysely<DB>) {
 		});
 	}
 
+	console.log(`   Amanda (Dr. Smith) available on ${amandaDates.length} Mon-Wed-Fri dates`);
+	console.log(`   James (Dr. Brown) available on ${jamesDates.length} date (12/12 only)`);
+
 	await db
 		.insertInto('preceptor_availability')
 		.values(availabilityRecords)
@@ -316,6 +336,7 @@ async function seed(db: Kysely<DB>) {
 	console.log('Creating clerkship requirements...');
 
 	// Create clerkship requirements for the scheduling engine
+	// NOTE: Only Family Medicine has a team, so only it should get scheduled
 	const clerkshipRequirements = [
 		{
 			id: nanoid(),
@@ -323,7 +344,7 @@ async function seed(db: Kysely<DB>) {
 			requirement_type: 'outpatient',
 			required_days: 5,
 			override_mode: 'override_section',
-			override_assignment_strategy: 'continuous_single',
+			override_assignment_strategy: 'team_continuity',
 			created_at: timestamp,
 			updated_at: timestamp
 		},
@@ -333,7 +354,7 @@ async function seed(db: Kysely<DB>) {
 			requirement_type: 'inpatient',
 			required_days: 5,
 			override_mode: 'override_section',
-			override_assignment_strategy: 'continuous_single',
+			override_assignment_strategy: 'team_continuity',
 			created_at: timestamp,
 			updated_at: timestamp
 		},
@@ -343,7 +364,7 @@ async function seed(db: Kysely<DB>) {
 			requirement_type: 'outpatient',
 			required_days: 5,
 			override_mode: 'override_section',
-			override_assignment_strategy: 'continuous_single',
+			override_assignment_strategy: 'team_continuity',
 			created_at: timestamp,
 			updated_at: timestamp
 		}
@@ -548,13 +569,13 @@ async function seed(db: Kysely<DB>) {
 	console.log(`   - 2 Health Systems`);
 	console.log(`   - 4 Sites`);
 	console.log(`   - 3 Clerkships (5 days each)`);
-	console.log(`   - 3 Clerkship Requirements (continuous_single strategy)`);
+	console.log(`   - 3 Clerkship Requirements (team_continuity strategy)`);
 	console.log(`   - 2 Preceptors (max 1 student each)`);
 	console.log(`   - 2 Capacity Rules (max 1 student/day)`);
 	console.log(`   - 5 Students`);
-	console.log(`   - 1 Team with 2 members`);
-	console.log(`   - 2 Availability patterns (block, 30 days each)`);
-	console.log(`   - 60 Availability records (30 days x 2 preceptors)`);
+	console.log(`   - 1 Team (Family Medicine) with 2 members`);
+	console.log(`   - Amanda available Mon-Wed-Fri December 2025 (${amandaDates.length} days)`);
+	console.log(`   - James available only 12/12/2025 (1 day)`);
 }
 
 async function main() {
