@@ -360,4 +360,70 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			expect(result.unmetRequirements[0].remainingDays).toBe(5);
 		});
 	});
+
+	describe('Test 6: Only Preceptors With Availability Should Be Assigned', () => {
+		it('should only assign to preceptors who have availability, not to those without', async () => {
+			// Setup: Health system and site
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Hospital', 1);
+			const siteId = siteIds[0];
+
+			// Create clerkship with 5-day requirement
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
+
+			await createTestRequirement(db, clerkshipId, {
+				requirementType: 'outpatient',
+				requiredDays: 5,
+				assignmentStrategy: 'continuous_single',
+			});
+
+			// Create TWO preceptors
+			const preceptorIds = await createTestPreceptors(db, 2, {
+				healthSystemId,
+				siteId,
+				maxStudents: 5,
+			});
+
+			// Set capacity rules for both (high capacity)
+			for (const preceptorId of preceptorIds) {
+				await db
+					.insertInto('preceptor_capacity_rules')
+					.values({
+						id: `cap-${preceptorId}`,
+						preceptor_id: preceptorId,
+						max_students_per_day: 5,
+						max_students_per_year: 50,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
+					})
+					.execute();
+			}
+
+			// Create 3 students
+			const studentIds = await createTestStudents(db, 3);
+
+			// ONLY give availability to the FIRST preceptor
+			// Second preceptor has NO availability
+			const availableDates = generateDateRange('2025-12-01', 15);
+			await createPreceptorAvailability(db, preceptorIds[0], siteId, availableDates);
+			// Note: preceptorIds[1] has NO availability created
+
+			// Run scheduling
+			const engine = new ConfigurableSchedulingEngine(db);
+			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31',
+				dryRun: false,
+			});
+
+			// All students should be scheduled
+			expect(result.success).toBe(true);
+			expect(result.assignments.length).toBe(15); // 3 students × 5 days
+
+			// ALL assignments should be to the first preceptor (the one with availability)
+			const assignedPreceptors = new Set(result.assignments.map(a => a.preceptorId));
+			expect(assignedPreceptors.size).toBe(1);
+			expect(assignedPreceptors.has(preceptorIds[0])).toBe(true);
+			expect(assignedPreceptors.has(preceptorIds[1])).toBe(false);
+		});
+	});
 });
