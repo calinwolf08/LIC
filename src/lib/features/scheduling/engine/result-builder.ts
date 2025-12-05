@@ -176,6 +176,13 @@ export class ResultBuilder {
   }
 
   /**
+   * Clear unmet requirements (used by fallback gap filler to rebuild list)
+   */
+  clearUnmetRequirements(): void {
+    this.unmetRequirements = [];
+  }
+
+  /**
    * Reset builder for new run
    */
   reset(): void {

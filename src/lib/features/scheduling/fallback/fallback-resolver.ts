@@ -1,7 +1,22 @@
 /**
  * Fallback Resolver
  *
- * Selects appropriate fallback preceptor when primary is unavailable.
+ * @deprecated This module is deprecated. Use FallbackGapFiller instead.
+ *
+ * The original FallbackResolver used explicit fallback chains (preceptor_fallbacks table)
+ * to find replacement preceptors. This has been replaced by FallbackGapFiller which
+ * uses team membership to find fallback preceptors in priority order:
+ *   1. Same team members
+ *   2. Other teams in same health system
+ *   3. Teams in different health systems (if allowed)
+ *
+ * Migration:
+ * - Replace `FallbackResolver` with `FallbackGapFiller`
+ * - Use `FallbackGapFiller.fillGaps()` instead of `resolveFallback()`
+ * - Fallback preceptors are determined by team membership, not explicit chains
+ *
+ * @see FallbackGapFiller - The new fallback implementation
+ * @see FallbackPreceptorResolver - Resolves fallback preceptors by team membership
  */
 
 import type { Kysely } from 'kysely';
@@ -33,6 +48,9 @@ interface FallbackEntry {
 
 /**
  * Fallback Resolver
+ *
+ * @deprecated Use FallbackGapFiller instead. This class uses explicit fallback chains
+ * which have been replaced by team-membership-based fallback resolution.
  *
  * Implements fallback preceptor selection with:
  * - Priority-based chain traversal

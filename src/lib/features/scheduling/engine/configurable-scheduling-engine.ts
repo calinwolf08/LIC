@@ -14,8 +14,8 @@ import type { Constraint } from '../types/constraint';
 import type { SchedulingContext } from '../types/scheduling-context';
 import { StrategySelector, StrategyContextBuilder } from '../strategies';
 import { CapacityChecker } from '../capacity';
-import { FallbackResolver } from '../fallback';
-import { ResultBuilder, type SchedulingResult } from './result-builder';
+import { FallbackResolver, FallbackGapFiller, type UnmetRequirement as FallbackUnmetRequirement } from '../fallback';
+import { ResultBuilder, type SchedulingResult, type UnmetRequirement } from './result-builder';
 import { ConstraintFactory } from '../services/constraint-factory';
 import { AssignmentStrategy } from '$lib/features/scheduling-config/types';
 import { nanoid } from 'nanoid';
@@ -64,6 +64,7 @@ export class ConfigurableSchedulingEngine {
   private contextBuilder: StrategyContextBuilder;
   private capacityChecker: CapacityChecker;
   private fallbackResolver: FallbackResolver;
+  private fallbackGapFiller: FallbackGapFiller;
   private resultBuilder: ResultBuilder;
   private constraintFactory: ConstraintFactory;
   private constraints: Constraint[] = [];
@@ -75,6 +76,7 @@ export class ConfigurableSchedulingEngine {
     this.contextBuilder = new StrategyContextBuilder(db);
     this.capacityChecker = new CapacityChecker(db);
     this.fallbackResolver = new FallbackResolver(db);
+    this.fallbackGapFiller = new FallbackGapFiller(db);
     this.resultBuilder = new ResultBuilder();
     this.constraintFactory = new ConstraintFactory(db);
   }
@@ -91,7 +93,7 @@ export class ConfigurableSchedulingEngine {
       startDate,
       endDate,
       enableTeamFormation = false,
-      enableFallbacks = false, // Disabled per requirements
+      enableFallbacks = false,
       enableOptimization = false,
       maxRetriesPerStudent = 3,
       dryRun = false,
@@ -132,7 +134,7 @@ export class ConfigurableSchedulingEngine {
     console.log('[Engine] Prioritizing students...');
     const prioritizedStudents = this.prioritizeStudents(students);
 
-    // Phase 5: Schedule each student
+    // Phase 5: Schedule each student (primary scheduling)
     for (const student of prioritizedStudents) {
       console.log(`[Engine] Scheduling student ${student.name} (${student.id})...`);
 
@@ -152,12 +154,22 @@ export class ConfigurableSchedulingEngine {
       }
     }
 
-    // Phase 6: Build result
+    // Phase 6: Fallback gap filling (if enabled and there are unmet requirements)
+    const intermediateResult = this.resultBuilder.build();
+    if (enableFallbacks && intermediateResult.unmetRequirements.length > 0) {
+      console.log(`[Engine] Running fallback gap filling for ${intermediateResult.unmetRequirements.length} unmet requirements...`);
+      await this.runFallbackGapFilling(
+        intermediateResult.unmetRequirements,
+        { startDate, endDate }
+      );
+    }
+
+    // Phase 7: Build final result
     console.log('[Engine] Generating results...');
     const result = this.resultBuilder.build();
 
     // Commit to database if not dry run
-    if (!dryRun && result.success) {
+    if (!dryRun && result.assignments.length > 0) {
       await this.commitAssignments(result.assignments);
     }
 
@@ -616,5 +628,110 @@ export class ConfigurableSchedulingEngine {
       .execute();
 
     console.log(`[Engine] Committed ${assignments.length} assignments to database`);
+  }
+
+  /**
+   * Run fallback gap filling for unmet requirements
+   *
+   * This phase runs AFTER primary scheduling completes to fill gaps
+   * using preceptors from associated teams in priority order:
+   * 1. Other preceptors on same team
+   * 2. Preceptors on teams in same health system
+   * 3. Preceptors on any team for clerkship (if cross-system allowed)
+   */
+  private async runFallbackGapFilling(
+    unmetRequirements: UnmetRequirement[],
+    options: { startDate: string; endDate: string }
+  ): Promise<void> {
+    // Convert unmet requirements to the format expected by gap filler
+    const fallbackUnmetRequirements: FallbackUnmetRequirement[] = unmetRequirements.map(req => ({
+      studentId: req.studentId,
+      studentName: req.studentName,
+      clerkshipId: req.clerkshipId,
+      clerkshipName: req.clerkshipName,
+      requirementType: req.requirementType,
+      requiredDays: req.requiredDays,
+      assignedDays: req.assignedDays,
+      remainingDays: req.remainingDays,
+      reason: req.reason,
+      // Primary team info would need to be tracked during primary scheduling
+      // For now, the gap filler will use the first team for the clerkship
+      primaryTeamId: undefined,
+      primaryHealthSystemId: undefined,
+    }));
+
+    // Run gap filling
+    const result = await this.fallbackGapFiller.fillGaps(
+      fallbackUnmetRequirements,
+      this.pendingAssignments,
+      this.clerkshipConfigs,
+      options
+    );
+
+    console.log(`[Engine] Fallback filled ${result.assignments.length} additional assignments`);
+    console.log(`[Engine] Fully fulfilled: ${result.fulfilledRequirements.length}, Partial: ${result.partialFulfillments.length}, Still unmet: ${result.stillUnmet.length}`);
+
+    // Clear existing unmet requirements and rebuild based on fallback results
+    this.resultBuilder.clearUnmetRequirements();
+
+    // Add fallback assignments to result builder and pending assignments
+    for (const assignment of result.assignments) {
+      this.resultBuilder.addAssignment({
+        studentId: assignment.studentId,
+        preceptorId: assignment.preceptorId,
+        clerkshipId: assignment.clerkshipId,
+        date: assignment.date,
+        // Add metadata about fallback
+        metadata: {
+          isFallback: true,
+          fallbackTier: assignment.tier,
+          fallbackTeamId: assignment.fallbackTeamId,
+          originalTeamId: assignment.originalTeamId,
+        },
+      });
+
+      // Track for capacity calculations
+      this.pendingAssignments.push({
+        studentId: assignment.studentId,
+        preceptorId: assignment.preceptorId,
+        clerkshipId: assignment.clerkshipId,
+        date: assignment.date,
+      });
+    }
+
+    // Add partial fulfillments back as unmet requirements
+    for (const partial of result.partialFulfillments) {
+      const config = this.clerkshipConfigs.get(partial.clerkshipId);
+      const originalReq = unmetRequirements.find(
+        r => r.studentId === partial.studentId && r.clerkshipId === partial.clerkshipId
+      );
+
+      this.resultBuilder.addUnmetRequirement({
+        studentId: partial.studentId,
+        studentName: originalReq?.studentName || 'Unknown',
+        clerkshipId: partial.clerkshipId,
+        clerkshipName: originalReq?.clerkshipName || 'Unknown',
+        requirementType: config?.requirementType || 'outpatient',
+        requiredDays: partial.requiredDays,
+        assignedDays: partial.assignedDays,
+        remainingDays: partial.requiredDays - partial.assignedDays,
+        reason: `Partially fulfilled by fallback: ${partial.assignedDays}/${partial.requiredDays} days assigned`,
+      });
+    }
+
+    // Add still unmet requirements
+    for (const unmet of result.stillUnmet) {
+      this.resultBuilder.addUnmetRequirement({
+        studentId: unmet.studentId,
+        studentName: unmet.studentName,
+        clerkshipId: unmet.clerkshipId,
+        clerkshipName: unmet.clerkshipName,
+        requirementType: unmet.requirementType,
+        requiredDays: unmet.requiredDays,
+        assignedDays: unmet.assignedDays,
+        remainingDays: unmet.remainingDays,
+        reason: `${unmet.reason} (fallback also failed)`,
+      });
+    }
   }
 }

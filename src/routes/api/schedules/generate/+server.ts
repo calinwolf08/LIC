@@ -207,7 +207,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			startDate: regenerateFromDate, // Start from regeneration date
 			endDate: validatedData.endDate,
 			enableTeamFormation: true,
-			enableFallbacks: false, // Disabled per requirements
+			enableFallbacks: true, // Uses per-clerkship allowFallbacks config
 			dryRun: true, // We handle saving externally for audit trail
 			bypassedConstraints: validatedData.bypassedConstraints || []
 		});
