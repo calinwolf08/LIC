@@ -9,6 +9,7 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
+	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import {
 		formatDisplayDate as formatDateDisplay,
@@ -20,6 +21,28 @@
 	} from '$lib/features/scheduling/utils/date-utils';
 
 	let { data }: { data: PageData } = $props();
+
+	// Blackout dates state
+	let blackoutDates = $state(data.blackoutDates || []);
+	let showBlackoutPanel = $state(false);
+
+	// Create a Set of blackout dates for efficient lookup
+	let blackoutDateSet = $derived(new Set(blackoutDates.map(bd => bd.date)));
+
+	// Refresh blackout dates
+	async function refreshBlackoutDates() {
+		try {
+			const response = await fetch('/api/blackout-dates');
+			const result = await response.json();
+			if (result.data) {
+				blackoutDates = result.data;
+			}
+		} catch (error) {
+			console.error('Failed to refresh blackout dates:', error);
+		}
+		// Also reload calendar in case assignments were deleted
+		loadCalendar();
+	}
 
 	// View mode toggle
 	let viewMode = $state<'list' | 'calendar'>('list');
@@ -359,6 +382,17 @@
 	<div class="mb-6 flex items-center justify-between flex-wrap gap-4">
 		<h1 class="text-3xl font-bold">Schedule Calendar</h1>
 		<div class="flex gap-3 flex-wrap">
+			<Button
+				variant={showBlackoutPanel ? 'default' : 'outline'}
+				onclick={() => (showBlackoutPanel = !showBlackoutPanel)}
+			>
+				{showBlackoutPanel ? 'Hide' : 'Show'} Blackout Dates
+				{#if blackoutDates.length > 0}
+					<span class="ml-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs">
+						{blackoutDates.length}
+					</span>
+				{/if}
+			</Button>
 			<Button variant="outline" onclick={() => goto('/schedule/results')}>
 				Schedule Results
 			</Button>
@@ -370,6 +404,17 @@
 			</Button>
 		</div>
 	</div>
+
+	<!-- Blackout Dates Panel -->
+	{#if showBlackoutPanel}
+		<div class="mb-6">
+			<BlackoutDateManager
+				blackoutDates={blackoutDates}
+				onAdd={refreshBlackoutDates}
+				onDelete={refreshBlackoutDates}
+			/>
+		</div>
+	{/if}
 
 	<!-- Filters -->
 	<Card class="p-6 mb-6">
@@ -491,7 +536,7 @@
 	{:else if viewMode === 'calendar'}
 		<!-- Calendar Grid View -->
 		{#if calendarMonths().length > 0}
-			<ScheduleCalendarGrid months={calendarMonths()} mode="student" onDayClick={handleDayClick} onAssignmentClick={handleAssignmentClick} />
+			<ScheduleCalendarGrid months={calendarMonths()} mode="student" blackoutDates={blackoutDateSet} onDayClick={handleDayClick} onAssignmentClick={handleAssignmentClick} />
 		{:else}
 			<Card class="p-8 text-center">
 				<p class="text-muted-foreground">No data to display</p>
