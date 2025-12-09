@@ -119,14 +119,13 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-	// Blackout dates table
+	// Blackout dates table (no updated_at - matches real schema)
 	await db.schema
 		.createTable('blackout_dates')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('date', 'text', (col) => col.notNull().unique())
 		.addColumn('reason', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
-		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
 	// Preceptor availability table

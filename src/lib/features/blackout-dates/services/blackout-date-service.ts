@@ -73,8 +73,7 @@ export async function createBlackoutDate(
 		id: crypto.randomUUID(),
 		date: data.date,
 		reason: data.reason || null,
-		created_at: timestamp,
-		updated_at: timestamp
+		created_at: timestamp
 	};
 
 	const inserted = await db

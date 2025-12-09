@@ -30,9 +30,10 @@
 		blackoutDates: BlackoutDate[];
 		onAdd?: () => void;
 		onDelete?: () => void;
+		onRegenerateNeeded?: () => void;
 	}
 
-	let { blackoutDates = [], onAdd, onDelete }: Props = $props();
+	let { blackoutDates = [], onAdd, onDelete, onRegenerateNeeded }: Props = $props();
 
 	// Form state
 	let newDate = $state('');
@@ -48,6 +49,10 @@
 
 	// Delete state
 	let deletingId = $state<string | null>(null);
+
+	// Regeneration prompt state
+	let showRegeneratePrompt = $state(false);
+	let deletedAssignmentsCount = $state(0);
 
 	// Format date for display
 	function formatDate(dateStr: string): string {
@@ -86,6 +91,7 @@
 	async function addBlackoutDate(deleteConflicts: boolean = false) {
 		isAdding = true;
 		addError = null;
+		let assignmentsDeleted = 0;
 
 		try {
 			// If we need to delete conflicts first
@@ -95,6 +101,7 @@
 						await fetch(`/api/schedules/assignments/${assignment.id}`, {
 							method: 'DELETE'
 						});
+						assignmentsDeleted++;
 					}
 				}
 			}
@@ -111,6 +118,11 @@
 
 			if (!response.ok) {
 				const result = await response.json();
+				// Check for duplicate date error
+				if (result.error?.message?.includes('UNIQUE constraint') ||
+				    result.error?.message?.includes('duplicate')) {
+					throw new Error('This date is already a blackout date');
+				}
 				throw new Error(result.error?.message || 'Failed to add blackout date');
 			}
 
@@ -121,6 +133,12 @@
 			pendingReason = '';
 			showConflictDialog = false;
 			conflictInfo = null;
+
+			// Show regenerate prompt if assignments were deleted
+			if (assignmentsDeleted > 0) {
+				deletedAssignmentsCount = assignmentsDeleted;
+				showRegeneratePrompt = true;
+			}
 
 			// Notify parent
 			onAdd?.();
@@ -199,6 +217,48 @@
 	<p class="text-sm text-muted-foreground mb-4">
 		Days when no scheduling can occur. Existing assignments on these dates will need to be rescheduled.
 	</p>
+
+	<!-- Regeneration Prompt -->
+	{#if showRegeneratePrompt}
+		<div class="rounded-md bg-amber-50 border border-amber-200 p-3 mb-4">
+			<div class="flex items-start gap-3">
+				<div class="text-amber-600 mt-0.5">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+					</svg>
+				</div>
+				<div class="flex-1">
+					<p class="text-sm font-medium text-amber-800">
+						{deletedAssignmentsCount} assignment{deletedAssignmentsCount === 1 ? ' was' : 's were'} removed
+					</p>
+					<p class="text-xs text-amber-700 mt-1">
+						Some students now have gaps in their schedule. Consider regenerating the schedule to fill these gaps.
+					</p>
+					<div class="flex gap-2 mt-2">
+						<Button
+							size="sm"
+							variant="outline"
+							class="text-amber-800 border-amber-300 hover:bg-amber-100"
+							onclick={() => {
+								showRegeneratePrompt = false;
+								onRegenerateNeeded?.();
+							}}
+						>
+							Regenerate Schedule
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							class="text-amber-700"
+							onclick={() => (showRegeneratePrompt = false)}
+						>
+							Dismiss
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Add Form -->
 	<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-3 mb-4">

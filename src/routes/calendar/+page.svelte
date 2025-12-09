@@ -412,6 +412,7 @@
 				blackoutDates={blackoutDates}
 				onAdd={refreshBlackoutDates}
 				onDelete={refreshBlackoutDates}
+				onRegenerateNeeded={() => (showRegenerateDialog = true)}
 			/>
 		</div>
 	{/if}
