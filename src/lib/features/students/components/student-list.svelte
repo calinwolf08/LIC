@@ -10,14 +10,32 @@
 		total_health_systems?: number;
 	}
 
+	interface CompletionStats {
+		scheduledDays: number;
+		requiredDays: number;
+		percentage: number;
+	}
+
 	interface Props {
 		students: StudentWithOnboarding[];
+		completionStats?: Record<string, CompletionStats>;
 		loading?: boolean;
 		onEdit?: (student: StudentWithOnboarding) => void;
 		onDelete?: (student: StudentWithOnboarding) => void;
 	}
 
-	let { students, loading = false, onEdit, onDelete }: Props = $props();
+	let { students, completionStats = {}, loading = false, onEdit, onDelete }: Props = $props();
+
+	function getCompletionColor(percentage: number): string {
+		if (percentage >= 100) return 'bg-green-500';
+		if (percentage >= 50) return 'bg-yellow-500';
+		return 'bg-red-500';
+	}
+
+	function getStudentCompletion(studentId: string | null): number {
+		if (!studentId) return 0;
+		return completionStats[studentId]?.percentage ?? 0;
+	}
 
 	function handleView(student: StudentWithOnboarding) {
 		goto(`/students/${student.id}`);
@@ -87,7 +105,7 @@
 							{/if}
 						</div>
 					</th>
-					<th class="px-4 py-3 text-left text-sm font-medium">Onboarding</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Completion</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Created</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Actions</th>
 				</tr>
@@ -118,16 +136,17 @@
 							</td>
 							<td class="px-4 py-3 text-sm">{student.email}</td>
 							<td class="px-4 py-3 text-sm">
-								{#if student.total_health_systems !== undefined && student.total_health_systems > 0}
-									<Badge
-										variant={student.completed_onboarding === student.total_health_systems
-											? 'default'
-											: 'secondary'}
-									>
-										{student.completed_onboarding || 0}/{student.total_health_systems}
-									</Badge>
-								{:else}
-									<span class="text-muted-foreground">—</span>
+								{#if true}
+									{@const pct = getStudentCompletion(student.id)}
+									<div class="flex items-center gap-2">
+										<div class="w-16 bg-gray-200 rounded-full h-2">
+											<div
+												class="h-2 rounded-full {getCompletionColor(pct)}"
+												style="width: {Math.min(pct, 100)}%"
+											></div>
+										</div>
+										<span class="text-sm text-muted-foreground">{pct}%</span>
+									</div>
 								{/if}
 							</td>
 							<td class="px-4 py-3 text-sm text-muted-foreground">

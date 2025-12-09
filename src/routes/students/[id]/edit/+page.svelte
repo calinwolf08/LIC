@@ -1,17 +1,15 @@
+<!-- This page redirects to /students/[id] - see +page.ts -->
 <script lang="ts">
-	import type { PageData } from './$types';
-	import StudentForm from '$lib/features/students/components/student-form.svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 
-	let { data }: { data: PageData } = $props();
+	// Fallback redirect in case the load function redirect doesn't work
+	onMount(() => {
+		goto(`/students/${$page.params.id}`);
+	});
 </script>
 
-<div class="container mx-auto py-8 max-w-2xl">
-	<h1 class="text-3xl font-bold mb-6">Edit Student</h1>
-
-	<StudentForm
-		student={data.student}
-		onSuccess={() => goto('/students')}
-		onCancel={() => goto('/students')}
-	/>
+<div class="container mx-auto py-8 text-center">
+	<p class="text-muted-foreground">Redirecting...</p>
 </div>

@@ -26,6 +26,7 @@
 	async function loadDependencies() {
 		loadingDependencies = true;
 		const promises = healthSystems.map(async (hs) => {
+			if (!hs.id) return;
 			try {
 				const response = await fetch(`/api/health-systems/${hs.id}/dependencies`);
 				const result = await response.json();
@@ -126,7 +127,7 @@
 								Delete
 							</Button>
 						{:else}
-							{@const depInfo = getDependencyInfo(healthSystem.id)}
+							{@const depInfo = getDependencyInfo(healthSystem.id || '')}
 							<div class="flex items-center gap-2">
 								<Button
 									size="sm"

@@ -4,15 +4,28 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import {
 		ClerkshipProgressCard,
 		StudentRequirementsSummary
 	} from '$lib/features/schedules/components';
+	import StudentForm from '$lib/features/students/components/student-form.svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	// Tab state
-	let activeTab = $state<'onboarding' | 'progress' | 'calendar'>('onboarding');
+	// Tab state - Details is now first
+	let activeTab = $state<'details' | 'onboarding' | 'progress' | 'calendar'>('details');
+
+	// Success message for form
+	let successMessage = $state<string | null>(null);
+
+	async function handleFormSuccess() {
+		successMessage = 'Student updated successfully';
+		await invalidateAll();
+		setTimeout(() => {
+			successMessage = null;
+		}, 3000);
+	}
 
 	// Compute completed onboarding count
 	let completedOnboarding = $derived(
@@ -63,22 +76,23 @@
 		<div>
 			<h1 class="text-3xl font-bold">{data.student.name}</h1>
 			<p class="text-muted-foreground">{data.student.email}</p>
-			{#if data.student.cohort}
-				<Badge variant="outline" class="mt-2">{data.student.cohort}</Badge>
-			{/if}
 		</div>
-		<div class="flex gap-2">
-			<Button variant="outline" onclick={() => goto(`/students/${data.studentId}/edit`)}>
-				Edit Student
-			</Button>
-			<Button onclick={() => goto(`/students/${data.studentId}/schedule`)}>View Full Schedule</Button
-			>
-		</div>
+		<Button onclick={() => goto(`/students/${data.studentId}/schedule`)}>View Full Schedule</Button>
 	</div>
 
 	<!-- Tabs -->
 	<div class="mb-6 border-b">
 		<nav class="-mb-px flex space-x-8">
+			<button
+				onclick={() => (activeTab = 'details')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'details'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Details
+			</button>
 			<button
 				onclick={() => (activeTab = 'onboarding')}
 				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
@@ -121,7 +135,35 @@
 	</div>
 
 	<!-- Tab Content -->
-	{#if activeTab === 'onboarding'}
+	{#if activeTab === 'details'}
+		<Card class="p-6">
+			<h2 class="text-xl font-semibold mb-4">Student Information</h2>
+
+			{#if successMessage}
+				<div class="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800 mb-4">
+					{successMessage}
+				</div>
+			{/if}
+
+			<div class="max-w-xl">
+				<StudentForm student={data.student} onSuccess={handleFormSuccess} />
+			</div>
+
+			<div class="mt-6 pt-6 border-t">
+				<h3 class="text-sm font-medium text-muted-foreground mb-2">Additional Information</h3>
+				<dl class="grid grid-cols-2 gap-4 text-sm">
+					<div>
+						<dt class="text-muted-foreground">Created</dt>
+						<dd>{new Date(String(data.student.created_at)).toLocaleDateString()}</dd>
+					</div>
+					<div>
+						<dt class="text-muted-foreground">Last Updated</dt>
+						<dd>{new Date(String(data.student.updated_at)).toLocaleDateString()}</dd>
+					</div>
+				</dl>
+			</div>
+		</Card>
+	{:else if activeTab === 'onboarding'}
 		<Card class="p-6">
 			<h2 class="text-xl font-semibold mb-4">Health System Onboarding</h2>
 			<p class="text-sm text-muted-foreground mb-6">
