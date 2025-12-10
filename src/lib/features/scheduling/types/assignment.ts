@@ -21,4 +21,9 @@ export interface Assignment {
 	 * Date of assignment (ISO format YYYY-MM-DD)
 	 */
 	date: string;
+
+	/**
+	 * Optional elective ID if this assignment is for an elective
+	 */
+	electiveId?: string;
 }

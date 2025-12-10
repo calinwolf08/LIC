@@ -63,7 +63,16 @@ export interface ClerkshipElective {
   requirementId: string; // Links to requirement where type = 'elective'
   name: string;
   minimumDays: number;
+  isRequired: boolean;
   specialty?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Clerkship Elective with associated sites and preceptors
+ */
+export interface ClerkshipElectiveWithDetails extends ClerkshipElective {
+  sites: Array<{ id: string; name: string }>;
+  preceptors: Array<{ id: string; name: string }>;
 }

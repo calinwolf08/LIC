@@ -57,6 +57,7 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	const { up: migration018 } = await import('./migrations/018_drop_preceptor_site_clerkships');
 	const { up: migration019 } = await import('./migrations/019_site_based_availability');
 	const { up: migration020 } = await import('./migrations/020_add_fallback_only_flag');
+	const { up: migration021 } = await import('./migrations/021_elective_enhancements');
 
 	await migration001(db);
 	await migration002(db);
@@ -78,6 +79,7 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	await migration018(db);
 	await migration019(db);
 	await migration020(db);
+	await migration021(db);
 }
 
 /**

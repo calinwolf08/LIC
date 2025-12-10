@@ -32,6 +32,7 @@ export type {
   ClerkshipRequirement,
   ClerkshipRequirementOverride,
   ClerkshipElective,
+  ClerkshipElectiveWithDetails,
 } from './requirements';
 
 // Resolved Configuration

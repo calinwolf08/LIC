@@ -153,12 +153,17 @@ export const applyDefaultsChangeInputSchema = z.object({
  * Clerkship Elective Schema
  */
 export const clerkshipElectiveInputSchema = z.object({
-  name: z.string().min(1, 'Elective name is required'),
+  name: z.string().min(1, 'Elective name is required').max(200),
   minimumDays: z.number().int().positive({
     message: 'Minimum days must be a positive integer',
   }),
-  specialty: z.string().optional(),
+  isRequired: z.boolean().default(true),
+  specialty: z.string().max(200).optional(),
+  siteIds: z.array(z.string()).optional(),
+  preceptorIds: z.array(z.string()).optional(),
 });
+
+export const clerkshipElectiveUpdateSchema = clerkshipElectiveInputSchema.partial();
 
 export const clerkshipElectiveSchema = clerkshipElectiveInputSchema.extend({
   id: z.string(),
@@ -173,4 +178,5 @@ export const clerkshipElectiveSchema = clerkshipElectiveInputSchema.extend({
 export type RequirementInput = z.infer<typeof requirementInputSchema>;
 export type FieldOverrideInput = z.infer<typeof fieldOverrideInputSchema>;
 export type ApplyDefaultsChangeInput = z.infer<typeof applyDefaultsChangeInputSchema>;
-export type ClerkshipElectiveInput = z.infer<typeof clerkshipElectiveInputSchema>;
+export type ClerkshipElectiveInput = z.input<typeof clerkshipElectiveInputSchema>;
+export type ClerkshipElectiveUpdateInput = z.input<typeof clerkshipElectiveUpdateSchema>;

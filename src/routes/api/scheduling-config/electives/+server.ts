@@ -1,7 +1,7 @@
 /**
  * Electives API - Collection Endpoints
  *
- * GET /api/scheduling-config/electives - List electives (filtered by requirement)
+ * GET /api/scheduling-config/electives - List electives (filtered by requirement or clerkship)
  * POST /api/scheduling-config/electives - Create new elective
  */
 
@@ -21,20 +21,40 @@ const service = new ElectiveService(db);
 
 /**
  * GET /api/scheduling-config/electives
- * Returns electives for a requirement
+ * Returns electives for a requirement or clerkship
+ * Query params:
+ *   - requirementId: filter by requirement
+ *   - clerkshipId: filter by clerkship (across all requirements)
+ *   - required: 'true' | 'false' - filter by required status
  */
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const requirementId = url.searchParams.get('requirementId');
+		const clerkshipId = url.searchParams.get('clerkshipId');
+		const requiredFilter = url.searchParams.get('required');
 
-		if (!requirementId) {
-			return errorResponse('requirementId query parameter is required', 400);
+		// Must provide either requirementId or clerkshipId
+		if (!requirementId && !clerkshipId) {
+			return errorResponse('Either requirementId or clerkshipId query parameter is required', 400);
 		}
 
-		const result = await service.getElectivesByRequirement(requirementId);
+		let result;
 
-		if (!result.success) {
-			return errorResponse(result.error.message, 400);
+		if (requirementId) {
+			// Filter by required status if specified
+			if (requiredFilter === 'true') {
+				result = await service.getRequiredElectives(requirementId);
+			} else if (requiredFilter === 'false') {
+				result = await service.getOptionalElectives(requirementId);
+			} else {
+				result = await service.getElectivesByRequirement(requirementId);
+			}
+		} else if (clerkshipId) {
+			result = await service.getElectivesByClerkship(clerkshipId);
+		}
+
+		if (!result || !result.success) {
+			return errorResponse(result?.error?.message || 'Failed to fetch electives', 400);
 		}
 
 		return successResponse(result.data);

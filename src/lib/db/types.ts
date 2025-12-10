@@ -59,11 +59,26 @@ export interface ClerkshipElectives {
   available_preceptor_ids: Generated<string>;
   created_at: Generated<string>;
   id: string | null;
+  is_required: Generated<number>;
   minimum_days: number;
   name: string;
   requirement_id: string;
   specialty: string | null;
   updated_at: Generated<string>;
+}
+
+export interface ElectivePreceptors {
+  created_at: Generated<string>;
+  elective_id: string;
+  id: string | null;
+  preceptor_id: string;
+}
+
+export interface ElectiveSites {
+  created_at: Generated<string>;
+  elective_id: string;
+  id: string | null;
+  site_id: string;
 }
 
 export interface ClerkshipRequirementOverrides {
@@ -272,6 +287,7 @@ export interface ScheduleAssignments {
   clerkship_id: string;
   created_at: Generated<string>;
   date: string;
+  elective_id: string | null;
   id: string | null;
   preceptor_id: string;
   site_id: string | null;
@@ -418,6 +434,8 @@ export interface DB {
   clerkship_requirements: ClerkshipRequirements;
   clerkship_sites: ClerkshipSites;
   clerkships: Clerkships;
+  elective_preceptors: ElectivePreceptors;
+  elective_sites: ElectiveSites;
   global_elective_defaults: GlobalElectiveDefaults;
   global_inpatient_defaults: GlobalInpatientDefaults;
   global_outpatient_defaults: GlobalOutpatientDefaults;

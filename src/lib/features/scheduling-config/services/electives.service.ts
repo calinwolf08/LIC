@@ -1,15 +1,17 @@
 /**
  * Elective Service
  *
- * Manages clerkship elective options with validation.
+ * Manages clerkship elective options with validation, site and preceptor associations.
  */
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
-import type { ClerkshipElective } from '$lib/features/scheduling-config/types';
+import type { ClerkshipElective, ClerkshipElectiveWithDetails } from '$lib/features/scheduling-config/types';
 import {
   clerkshipElectiveInputSchema,
+  clerkshipElectiveUpdateSchema,
   type ClerkshipElectiveInput,
+  type ClerkshipElectiveUpdateInput,
 } from '../schemas';
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
@@ -18,10 +20,15 @@ import { nanoid } from 'nanoid';
 /**
  * Elective Service
  *
- * Provides CRUD operations for clerkship electives with validation.
+ * Provides CRUD operations for clerkship electives with validation,
+ * plus site and preceptor association management.
  */
 export class ElectiveService {
   constructor(private db: Kysely<DB>) {}
+
+  // ============================================
+  // CRUD Operations
+  // ============================================
 
   /**
    * Create a new elective
@@ -37,6 +44,8 @@ export class ElectiveService {
         ServiceErrors.validationError('Invalid elective data', validation.error.errors)
       );
     }
+
+    const data = validation.data;
 
     try {
       // Check requirement exists and is elective type
@@ -57,27 +66,41 @@ export class ElectiveService {
       }
 
       // Validate minimum days
-      if (input.minimumDays > requirement.required_days) {
+      if (data.minimumDays > requirement.required_days) {
         return Result.failure(
           ServiceErrors.conflict(
-            `Minimum days (${input.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
+            `Minimum days (${data.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
           )
         );
       }
 
+      const electiveId = nanoid();
+      const now = new Date().toISOString();
+
       const elective = await this.db
         .insertInto('clerkship_electives')
         .values({
-          id: nanoid(),
+          id: electiveId,
           requirement_id: requirementId,
-          name: input.name,
-          minimum_days: input.minimumDays,
-          specialty: input.specialty || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          name: data.name,
+          minimum_days: data.minimumDays,
+          is_required: data.isRequired ? 1 : 0,
+          specialty: data.specialty || null,
+          created_at: now,
+          updated_at: now,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+
+      // Add site associations if provided
+      if (data.siteIds && data.siteIds.length > 0) {
+        await this.setSitesForElective(electiveId, data.siteIds);
+      }
+
+      // Add preceptor associations if provided
+      if (data.preceptorIds && data.preceptorIds.length > 0) {
+        await this.setPreceptorsForElective(electiveId, data.preceptorIds);
+      }
 
       return Result.success(this.mapElective(elective));
     } catch (error) {
@@ -107,6 +130,47 @@ export class ElectiveService {
   }
 
   /**
+   * Get elective with full details including sites and preceptors
+   */
+  async getElectiveWithDetails(id: string): Promise<ServiceResult<ClerkshipElectiveWithDetails | null>> {
+    try {
+      const elective = await this.db
+        .selectFrom('clerkship_electives')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      if (!elective) {
+        return Result.success(null);
+      }
+
+      // Get associated sites
+      const sites = await this.db
+        .selectFrom('elective_sites')
+        .innerJoin('sites', 'sites.id', 'elective_sites.site_id')
+        .select(['sites.id', 'sites.name'])
+        .where('elective_sites.elective_id', '=', id)
+        .execute();
+
+      // Get associated preceptors
+      const preceptors = await this.db
+        .selectFrom('elective_preceptors')
+        .innerJoin('preceptors', 'preceptors.id', 'elective_preceptors.preceptor_id')
+        .select(['preceptors.id', 'preceptors.name'])
+        .where('elective_preceptors.elective_id', '=', id)
+        .execute();
+
+      return Result.success({
+        ...this.mapElective(elective),
+        sites: sites.map(s => ({ id: s.id!, name: s.name })),
+        preceptors: preceptors.map(p => ({ id: p.id!, name: p.name })),
+      });
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch elective details', error));
+    }
+  }
+
+  /**
    * Get all electives for a requirement
    */
   async getElectivesByRequirement(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
@@ -124,12 +188,76 @@ export class ElectiveService {
   }
 
   /**
+   * Get required electives for a requirement
+   */
+  async getRequiredElectives(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+    try {
+      const electives = await this.db
+        .selectFrom('clerkship_electives')
+        .selectAll()
+        .where('requirement_id', '=', requirementId)
+        .where('is_required', '=', 1)
+        .execute();
+
+      return Result.success(electives.map(e => this.mapElective(e)));
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch required electives', error));
+    }
+  }
+
+  /**
+   * Get optional electives for a requirement
+   */
+  async getOptionalElectives(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+    try {
+      const electives = await this.db
+        .selectFrom('clerkship_electives')
+        .selectAll()
+        .where('requirement_id', '=', requirementId)
+        .where('is_required', '=', 0)
+        .execute();
+
+      return Result.success(electives.map(e => this.mapElective(e)));
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch optional electives', error));
+    }
+  }
+
+  /**
+   * Get all electives for a clerkship (across all requirements)
+   */
+  async getElectivesByClerkship(clerkshipId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+    try {
+      const electives = await this.db
+        .selectFrom('clerkship_electives')
+        .innerJoin('clerkship_requirements', 'clerkship_requirements.id', 'clerkship_electives.requirement_id')
+        .selectAll('clerkship_electives')
+        .where('clerkship_requirements.clerkship_id', '=', clerkshipId)
+        .execute();
+
+      return Result.success(electives.map(e => this.mapElective(e)));
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch electives for clerkship', error));
+    }
+  }
+
+  /**
    * Update elective
    */
   async updateElective(
     id: string,
-    input: Partial<ClerkshipElectiveInput>
+    input: ClerkshipElectiveUpdateInput
   ): Promise<ServiceResult<ClerkshipElective>> {
+    // Validate input
+    const validation = clerkshipElectiveUpdateSchema.safeParse(input);
+    if (!validation.success) {
+      return Result.failure(
+        ServiceErrors.validationError('Invalid elective data', validation.error.errors)
+      );
+    }
+
+    const data = validation.data;
+
     try {
       // Check if exists
       const existing = await this.db
@@ -154,22 +282,23 @@ export class ElectiveService {
       }
 
       // Build update data
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
 
-      if (input.name !== undefined) updateData.name = input.name;
-      if (input.minimumDays !== undefined) {
-        if (input.minimumDays > requirement.required_days) {
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.minimumDays !== undefined) {
+        if (data.minimumDays > requirement.required_days) {
           return Result.failure(
             ServiceErrors.conflict(
-              `Minimum days (${input.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
+              `Minimum days (${data.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
             )
           );
         }
-        updateData.minimum_days = input.minimumDays;
+        updateData.minimum_days = data.minimumDays;
       }
-      if (input.specialty !== undefined) updateData.specialty = input.specialty || null;
+      if (data.isRequired !== undefined) updateData.is_required = data.isRequired ? 1 : 0;
+      if (data.specialty !== undefined) updateData.specialty = data.specialty || null;
 
       const updated = await this.db
         .updateTable('clerkship_electives')
@@ -177,6 +306,16 @@ export class ElectiveService {
         .where('id', '=', id)
         .returningAll()
         .executeTakeFirstOrThrow();
+
+      // Update site associations if provided
+      if (data.siteIds !== undefined) {
+        await this.setSitesForElective(id, data.siteIds);
+      }
+
+      // Update preceptor associations if provided
+      if (data.preceptorIds !== undefined) {
+        await this.setPreceptorsForElective(id, data.preceptorIds);
+      }
 
       return Result.success(this.mapElective(updated));
     } catch (error) {
@@ -189,8 +328,19 @@ export class ElectiveService {
    */
   async deleteElective(id: string): Promise<ServiceResult<boolean>> {
     try {
-      // TODO: Check for current student assignments
-      // For now, just delete
+      // Check for current student assignments
+      const assignments = await this.db
+        .selectFrom('schedule_assignments')
+        .select('id')
+        .where('elective_id', '=', id)
+        .limit(1)
+        .execute();
+
+      if (assignments.length > 0) {
+        return Result.failure(
+          ServiceErrors.conflict('Cannot delete elective with existing assignments')
+        );
+      }
 
       const result = await this.db.deleteFrom('clerkship_electives').where('id', '=', id).execute();
 
@@ -204,12 +354,266 @@ export class ElectiveService {
     }
   }
 
+  // ============================================
+  // Site Associations
+  // ============================================
+
+  /**
+   * Get sites for an elective
+   */
+  async getSitesForElective(electiveId: string): Promise<ServiceResult<Array<{ id: string; name: string }>>> {
+    try {
+      const sites = await this.db
+        .selectFrom('elective_sites')
+        .innerJoin('sites', 'sites.id', 'elective_sites.site_id')
+        .select(['sites.id', 'sites.name'])
+        .where('elective_sites.elective_id', '=', electiveId)
+        .execute();
+
+      return Result.success(sites.map(s => ({ id: s.id!, name: s.name })));
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch sites for elective', error));
+    }
+  }
+
+  /**
+   * Add a site to an elective
+   */
+  async addSiteToElective(electiveId: string, siteId: string): Promise<ServiceResult<void>> {
+    try {
+      // Check elective exists
+      const elective = await this.db
+        .selectFrom('clerkship_electives')
+        .select('id')
+        .where('id', '=', electiveId)
+        .executeTakeFirst();
+
+      if (!elective) {
+        return Result.failure(ServiceErrors.notFound('Elective', electiveId));
+      }
+
+      // Check site exists
+      const site = await this.db
+        .selectFrom('sites')
+        .select('id')
+        .where('id', '=', siteId)
+        .executeTakeFirst();
+
+      if (!site) {
+        return Result.failure(ServiceErrors.notFound('Site', siteId));
+      }
+
+      // Check if already exists
+      const existing = await this.db
+        .selectFrom('elective_sites')
+        .select('id')
+        .where('elective_id', '=', electiveId)
+        .where('site_id', '=', siteId)
+        .executeTakeFirst();
+
+      if (existing) {
+        return Result.success(undefined); // Already exists, no-op
+      }
+
+      await this.db
+        .insertInto('elective_sites')
+        .values({
+          id: nanoid(),
+          elective_id: electiveId,
+          site_id: siteId,
+          created_at: new Date().toISOString(),
+        })
+        .execute();
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to add site to elective', error));
+    }
+  }
+
+  /**
+   * Remove a site from an elective
+   */
+  async removeSiteFromElective(electiveId: string, siteId: string): Promise<ServiceResult<void>> {
+    try {
+      await this.db
+        .deleteFrom('elective_sites')
+        .where('elective_id', '=', electiveId)
+        .where('site_id', '=', siteId)
+        .execute();
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to remove site from elective', error));
+    }
+  }
+
+  /**
+   * Set all sites for an elective (replaces existing)
+   */
+  async setSitesForElective(electiveId: string, siteIds: string[]): Promise<ServiceResult<void>> {
+    try {
+      // Delete existing associations
+      await this.db
+        .deleteFrom('elective_sites')
+        .where('elective_id', '=', electiveId)
+        .execute();
+
+      // Add new associations
+      if (siteIds.length > 0) {
+        const now = new Date().toISOString();
+        await this.db
+          .insertInto('elective_sites')
+          .values(
+            siteIds.map(siteId => ({
+              id: nanoid(),
+              elective_id: electiveId,
+              site_id: siteId,
+              created_at: now,
+            }))
+          )
+          .execute();
+      }
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to set sites for elective', error));
+    }
+  }
+
+  // ============================================
+  // Preceptor Associations
+  // ============================================
+
+  /**
+   * Get preceptors for an elective
+   */
+  async getPreceptorsForElective(electiveId: string): Promise<ServiceResult<Array<{ id: string; name: string }>>> {
+    try {
+      const preceptors = await this.db
+        .selectFrom('elective_preceptors')
+        .innerJoin('preceptors', 'preceptors.id', 'elective_preceptors.preceptor_id')
+        .select(['preceptors.id', 'preceptors.name'])
+        .where('elective_preceptors.elective_id', '=', electiveId)
+        .execute();
+
+      return Result.success(preceptors.map(p => ({ id: p.id!, name: p.name })));
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch preceptors for elective', error));
+    }
+  }
+
+  /**
+   * Add a preceptor to an elective
+   */
+  async addPreceptorToElective(electiveId: string, preceptorId: string): Promise<ServiceResult<void>> {
+    try {
+      // Check elective exists
+      const elective = await this.db
+        .selectFrom('clerkship_electives')
+        .select('id')
+        .where('id', '=', electiveId)
+        .executeTakeFirst();
+
+      if (!elective) {
+        return Result.failure(ServiceErrors.notFound('Elective', electiveId));
+      }
+
+      // Check preceptor exists
+      const preceptor = await this.db
+        .selectFrom('preceptors')
+        .select('id')
+        .where('id', '=', preceptorId)
+        .executeTakeFirst();
+
+      if (!preceptor) {
+        return Result.failure(ServiceErrors.notFound('Preceptor', preceptorId));
+      }
+
+      // Check if already exists
+      const existing = await this.db
+        .selectFrom('elective_preceptors')
+        .select('id')
+        .where('elective_id', '=', electiveId)
+        .where('preceptor_id', '=', preceptorId)
+        .executeTakeFirst();
+
+      if (existing) {
+        return Result.success(undefined); // Already exists, no-op
+      }
+
+      await this.db
+        .insertInto('elective_preceptors')
+        .values({
+          id: nanoid(),
+          elective_id: electiveId,
+          preceptor_id: preceptorId,
+          created_at: new Date().toISOString(),
+        })
+        .execute();
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to add preceptor to elective', error));
+    }
+  }
+
+  /**
+   * Remove a preceptor from an elective
+   */
+  async removePreceptorFromElective(electiveId: string, preceptorId: string): Promise<ServiceResult<void>> {
+    try {
+      await this.db
+        .deleteFrom('elective_preceptors')
+        .where('elective_id', '=', electiveId)
+        .where('preceptor_id', '=', preceptorId)
+        .execute();
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to remove preceptor from elective', error));
+    }
+  }
+
+  /**
+   * Set all preceptors for an elective (replaces existing)
+   */
+  async setPreceptorsForElective(electiveId: string, preceptorIds: string[]): Promise<ServiceResult<void>> {
+    try {
+      // Delete existing associations
+      await this.db
+        .deleteFrom('elective_preceptors')
+        .where('elective_id', '=', electiveId)
+        .execute();
+
+      // Add new associations
+      if (preceptorIds.length > 0) {
+        const now = new Date().toISOString();
+        await this.db
+          .insertInto('elective_preceptors')
+          .values(
+            preceptorIds.map(preceptorId => ({
+              id: nanoid(),
+              elective_id: electiveId,
+              preceptor_id: preceptorId,
+              created_at: now,
+            }))
+          )
+          .execute();
+      }
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to set preceptors for elective', error));
+    }
+  }
+
   /**
    * Get available preceptors for an elective
    *
    * Note: Returns all preceptors since specialty matching is disabled.
    */
-  async getAvailablePreceptors(electiveId: string): Promise<ServiceResult<any[]>> {
+  async getAvailablePreceptors(electiveId: string): Promise<ServiceResult<Array<{ id: string; name: string }>>> {
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
@@ -224,14 +628,18 @@ export class ElectiveService {
       // Return all preceptors (specialty matching disabled)
       const preceptors = await this.db
         .selectFrom('preceptors')
-        .selectAll()
+        .select(['id', 'name'])
         .execute();
 
-      return Result.success(preceptors);
+      return Result.success(preceptors.map(p => ({ id: p.id!, name: p.name })));
     } catch (error) {
       return Result.failure(ServiceErrors.databaseError('Failed to fetch available preceptors', error));
     }
   }
+
+  // ============================================
+  // Private Helpers
+  // ============================================
 
   /**
    * Map database row to ClerkshipElective type
@@ -242,6 +650,7 @@ export class ElectiveService {
       requirementId: row.requirement_id,
       name: row.name,
       minimumDays: row.minimum_days,
+      isRequired: Boolean(row.is_required),
       specialty: row.specialty || undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
