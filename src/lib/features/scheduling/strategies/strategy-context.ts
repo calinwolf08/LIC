@@ -65,8 +65,8 @@ export class StrategyContextBuilder {
       pendingAssignments
     );
 
-    // Build daily assignment counts per preceptor
-    const assignmentsByPreceptorDate = this.buildAssignmentsByPreceptorDate(pendingAssignments);
+    // Build daily assignment counts per preceptor (includes both DB and pending)
+    const assignmentsByPreceptorDate = await this.buildAssignmentsByPreceptorDate(pendingAssignments);
 
     // Get teams if needed
     const teams = await this.buildTeams(clerkship.id);
@@ -92,13 +92,30 @@ export class StrategyContextBuilder {
   }
 
   /**
-   * Build daily assignment counts per preceptor from pending assignments
+   * Build daily assignment counts per preceptor from both DB and pending assignments
    */
-  private buildAssignmentsByPreceptorDate(
+  private async buildAssignmentsByPreceptorDate(
     pendingAssignments: PendingAssignment[]
-  ): Map<string, Map<string, number>> {
+  ): Promise<Map<string, Map<string, number>>> {
     const result = new Map<string, Map<string, number>>();
 
+    // First, load existing assignments from the database
+    const dbAssignments = await this.db
+      .selectFrom('schedule_assignments')
+      .select(['preceptor_id', 'date'])
+      .execute();
+
+    // Add DB assignments to the map
+    for (const assignment of dbAssignments) {
+      if (!result.has(assignment.preceptor_id)) {
+        result.set(assignment.preceptor_id, new Map());
+      }
+      const dateMap = result.get(assignment.preceptor_id)!;
+      const currentCount = dateMap.get(assignment.date) ?? 0;
+      dateMap.set(assignment.date, currentCount + 1);
+    }
+
+    // Then add pending assignments from the current batch
     for (const assignment of pendingAssignments) {
       if (!result.has(assignment.preceptorId)) {
         result.set(assignment.preceptorId, new Map());
