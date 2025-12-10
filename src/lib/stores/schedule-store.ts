@@ -59,35 +59,50 @@ export async function loadSchedules(): Promise<void> {
 	scheduleStore.update((s) => ({ ...s, loading: true, error: null }));
 
 	try {
-		const response = await fetch('/api/scheduling-periods');
-		const result = await response.json();
+		// Load schedules and user's active schedule in parallel
+		const [schedulesResponse, activeScheduleResponse] = await Promise.all([
+			fetch('/api/scheduling-periods'),
+			fetch('/api/user/active-schedule').catch(() => null) // May fail if not authenticated
+		]);
 
-		if (result.success) {
-			const loadedSchedules = result.data as Schedule[];
+		const schedulesResult = await schedulesResponse.json();
 
-			// Find the active schedule
+		if (schedulesResult.success) {
+			const loadedSchedules = schedulesResult.data as Schedule[];
+
+			// Try to get user's active schedule from the database
+			let userActiveScheduleId: string | null = null;
+			if (activeScheduleResponse?.ok) {
+				const activeResult = await activeScheduleResponse.json();
+				if (activeResult.success && activeResult.data?.schedule) {
+					userActiveScheduleId = activeResult.data.schedule.id;
+				}
+			}
+
+			// Find the server's active schedule (for reference)
 			const serverActiveSchedule = loadedSchedules.find((s) => s.is_active === 1);
 
-			// Try to restore from localStorage, otherwise use server's active schedule
+			// Try to restore from localStorage as fallback
 			let storedId: string | null = null;
 			if (browser) {
 				storedId = localStorage.getItem(STORAGE_KEY);
 			}
 
+			// Priority: 1. User's DB active schedule, 2. localStorage, 3. Server active, 4. First schedule
 			let activeId: string | null = null;
-			if (storedId && loadedSchedules.some((s) => s.id === storedId)) {
+			if (userActiveScheduleId && loadedSchedules.some((s) => s.id === userActiveScheduleId)) {
+				activeId = userActiveScheduleId;
+			} else if (storedId && loadedSchedules.some((s) => s.id === storedId)) {
 				activeId = storedId;
 			} else if (serverActiveSchedule) {
 				activeId = serverActiveSchedule.id;
-				if (browser) {
-					localStorage.setItem(STORAGE_KEY, serverActiveSchedule.id);
-				}
 			} else if (loadedSchedules.length > 0) {
-				// Fall back to first schedule
 				activeId = loadedSchedules[0].id;
-				if (browser) {
-					localStorage.setItem(STORAGE_KEY, loadedSchedules[0].id);
-				}
+			}
+
+			// Sync localStorage
+			if (browser && activeId) {
+				localStorage.setItem(STORAGE_KEY, activeId);
 			}
 
 			scheduleStore.set({
@@ -100,7 +115,7 @@ export async function loadSchedules(): Promise<void> {
 			scheduleStore.update((s) => ({
 				...s,
 				loading: false,
-				error: result.error?.message || 'Failed to load schedules'
+				error: schedulesResult.error?.message || 'Failed to load schedules'
 			}));
 		}
 	} catch (error) {
@@ -113,14 +128,24 @@ export async function loadSchedules(): Promise<void> {
 }
 
 /**
- * Set the active schedule (UI only - doesn't change server state)
+ * Set the active schedule (updates UI immediately and persists to database)
  */
 export function selectSchedule(scheduleId: string): void {
 	const currentState = get(scheduleStore);
 	if (currentState.schedules.some((s) => s.id === scheduleId)) {
+		// Update UI immediately
 		scheduleStore.update((s) => ({ ...s, activeScheduleId: scheduleId }));
 		if (browser) {
 			localStorage.setItem(STORAGE_KEY, scheduleId);
+
+			// Also persist to database (fire and forget - don't block UI)
+			fetch('/api/user/active-schedule', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ scheduleId })
+			}).catch((err) => {
+				console.warn('Failed to persist active schedule to database:', err);
+			});
 		}
 	}
 }

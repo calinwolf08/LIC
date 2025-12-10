@@ -6,6 +6,7 @@
 
 	const navItems = [
 		{ href: '/', label: 'Dashboard', icon: '📊' },
+		{ href: '/schedules', label: 'Schedules', icon: '📆' },
 		{ href: '/students', label: 'Students', icon: '👨‍🎓' },
 		{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
 		{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
