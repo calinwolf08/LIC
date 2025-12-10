@@ -12,6 +12,7 @@
  */
 
 import type { Kysely } from 'kysely';
+import { sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
 	// Add user_id column to scheduling_periods
@@ -33,10 +34,18 @@ export async function up(db: Kysely<any>): Promise<void> {
 	// Add active_schedule_id column to user table
 	// Note: The user table is managed by better-auth, but we can add columns to it.
 	// No foreign key constraint for SQLite compatibility.
-	await db.schema
-		.alterTable('user')
-		.addColumn('active_schedule_id', 'text')
-		.execute();
+	// In test environments, the user table may not exist (it's created by better-auth).
+	const userTableExists = await sql<{ count: number }>`
+		SELECT COUNT(*) as count FROM sqlite_master
+		WHERE type='table' AND name='user'
+	`.execute(db);
+
+	if (userTableExists.rows[0]?.count > 0) {
+		await db.schema
+			.alterTable('user')
+			.addColumn('active_schedule_id', 'text')
+			.execute();
+	}
 
 	// Note: Existing schedules will have NULL user_id.
 	// The seed script or first user login will need to claim orphaned schedules
