@@ -70,6 +70,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 5,
+				clerkshipId, // Required: associates preceptors with clerkship via team
 			});
 
 			// Create requirement with continuous_single strategy
@@ -199,7 +200,7 @@ describe('Strategy Pattern Tests', () => {
 			}
 		});
 
-		it('should fall back to single preceptor behavior when no team is configured', async () => {
+		it('should report unmet requirements when no team is configured', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
 			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'outpatient');
 			const studentIds = await createTestStudents(db, 1);
@@ -207,6 +208,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
+				// Note: NO clerkshipId - preceptors are NOT associated with this clerkship
 			});
 
 			// Create requirement with team_continuity but NO team
@@ -236,8 +238,10 @@ describe('Strategy Pattern Tests', () => {
 				dryRun: false,
 			});
 
-			// Should still work, using the available preceptor
-			expect(result.assignments.length).toBeGreaterThan(0);
+			// Engine requires team membership to associate preceptors with clerkships
+			// Without a team, no preceptors are available, so scheduling fails
+			expect(result.assignments.length).toBe(0);
+			expect(result.unmetRequirements.length).toBeGreaterThan(0);
 		});
 	});
 
@@ -250,6 +254,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
+				clerkshipId, // Required: associates preceptors with clerkship via team
 			});
 
 			const blockSize = 7;
@@ -302,6 +307,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
+				clerkshipId, // Required: associates preceptors with clerkship via team
 			});
 
 			// Create requirement with daily_rotation strategy
@@ -351,6 +357,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
+				clerkshipId, // Required: associates preceptors with clerkship via team
 			});
 
 			// Create requirement WITHOUT specifying strategy
@@ -400,6 +407,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
+				clerkshipId, // Required: associates preceptors with clerkship via team
 			});
 
 			// Create requirement
