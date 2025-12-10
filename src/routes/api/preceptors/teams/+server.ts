@@ -55,6 +55,7 @@ const createTeamBodySchema = z.object({
 		preceptorId: z.string().min(1, 'Preceptor ID is required'),
 		role: z.string().optional(),
 		priority: z.number().int().min(1, 'Priority must be at least 1'),
+		isFallbackOnly: z.boolean().optional().default(false),
 	})).min(1, 'Team must have at least 1 member'),
 });
 

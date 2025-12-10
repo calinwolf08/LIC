@@ -16,6 +16,7 @@
 		preceptorId: string;
 		role?: string;
 		priority: number;
+		isFallbackOnly: boolean;
 	}
 
 	interface Preceptor {
@@ -41,6 +42,7 @@
 
 	let selectedPreceptorId = $state('');
 	let newMemberRole = $state('');
+	let newMemberFallbackOnly = $state(false);
 	let isSubmitting = $state(false);
 	let error = $state<string | null>(null);
 
@@ -190,12 +192,14 @@
 			{
 				preceptorId: selectedPreceptorId,
 				role: newMemberRole || undefined,
-				priority: maxPriority + 1
+				priority: maxPriority + 1,
+				isFallbackOnly: newMemberFallbackOnly
 			}
 		];
 
 		selectedPreceptorId = '';
 		newMemberRole = '';
+		newMemberFallbackOnly = false;
 		error = null;
 	}
 
@@ -261,7 +265,8 @@
 				members: members.map((m) => ({
 					preceptorId: m.preceptorId,
 					role: m.role || undefined,
-					priority: m.priority
+					priority: m.priority,
+					isFallbackOnly: m.isFallbackOnly
 				}))
 			};
 
@@ -403,8 +408,9 @@
 				</p>
 
 				<!-- Add Member -->
-				<div class="flex gap-2 mb-4">
-					<div class="flex-1">
+				<div class="flex flex-wrap gap-2 mb-4 items-end">
+					<div class="flex-1 min-w-[200px]">
+						<Label class="text-xs text-muted-foreground mb-1">Preceptor</Label>
 						<select
 							bind:value={selectedPreceptorId}
 							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -418,27 +424,46 @@
 							{/each}
 						</select>
 					</div>
-					<div class="w-48">
+					<div class="w-36">
+						<Label class="text-xs text-muted-foreground mb-1">Role (optional)</Label>
 						<Input
 							type="text"
 							bind:value={newMemberRole}
-							placeholder="Role (optional)"
+							placeholder="Role"
 							disabled={isSubmitting}
 						/>
+					</div>
+					<div class="flex items-center gap-2 pb-2">
+						<input
+							type="checkbox"
+							id="fallbackOnly"
+							bind:checked={newMemberFallbackOnly}
+							class="h-4 w-4 rounded border-gray-300"
+							disabled={isSubmitting}
+						/>
+						<Label for="fallbackOnly" class="cursor-pointer text-sm whitespace-nowrap">
+							Fallback only
+						</Label>
 					</div>
 					<Button type="button" variant="outline" onclick={addMember} disabled={isSubmitting || !selectedPreceptorId}>
 						Add
 					</Button>
 				</div>
+				<p class="text-xs text-muted-foreground mb-4">
+					<strong>Fallback only:</strong> This preceptor will only be assigned when primary members reach capacity.
+				</p>
 
 				<!-- Member List -->
 				{#if members.length > 0}
 					<div class="space-y-2">
 						{#each members as member, index}
-							<div class="flex items-center justify-between rounded border p-3">
+							<div class="flex items-center justify-between rounded border p-3 {member.isFallbackOnly ? 'bg-muted/50 border-dashed' : ''}">
 								<div class="flex-1">
-									<p class="font-medium">
+									<p class="font-medium flex items-center gap-2">
 										{index + 1}. {getPreceptorName(member.preceptorId)}
+										{#if member.isFallbackOnly}
+											<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Fallback</span>
+										{/if}
 									</p>
 									<div class="mt-1 flex gap-3 text-xs text-muted-foreground">
 										{#if member.role}

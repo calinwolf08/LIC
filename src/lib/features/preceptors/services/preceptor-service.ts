@@ -248,6 +248,7 @@ export interface PreceptorWithAssociations {
 	email: string;
 	phone: string | null;
 	max_students: number;
+	is_global_fallback_only: boolean;
 	health_system_id: string | null;
 	health_system_name: string | null;
 	created_at: string;
@@ -272,6 +273,7 @@ export async function getPreceptorsWithAssociations(
 			'preceptors.email',
 			'preceptors.phone',
 			'preceptors.max_students',
+			'preceptors.is_global_fallback_only',
 			'preceptors.health_system_id',
 			'health_systems.name as health_system_name',
 			'preceptors.created_at',
@@ -320,6 +322,7 @@ export async function getPreceptorsWithAssociations(
 				email: p.email,
 				phone: p.phone,
 				max_students: p.max_students,
+				is_global_fallback_only: Boolean(p.is_global_fallback_only),
 				health_system_id: p.health_system_id,
 				health_system_name: p.health_system_name,
 				created_at: p.created_at as string,
