@@ -367,6 +367,7 @@ export class ConfigurationService {
                 preceptorId: m.preceptorId,
                 role: m.role,
                 priority: m.priority,
+                isFallbackOnly: m.isFallbackOnly ?? false,
               })),
             });
           }

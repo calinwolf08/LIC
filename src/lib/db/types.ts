@@ -233,6 +233,7 @@ export interface Preceptors {
   email: string;
   health_system_id: string | null;
   id: string | null;
+  is_global_fallback_only: Generated<number>;
   max_students: Generated<number>;
   name: string;
   phone: string | null;
@@ -248,6 +249,7 @@ export interface PreceptorSites {
 export interface PreceptorTeamMembers {
   created_at: Generated<string>;
   id: string | null;
+  is_fallback_only: Generated<number>;
   preceptor_id: string;
   priority: Generated<number>;
   role: string | null;

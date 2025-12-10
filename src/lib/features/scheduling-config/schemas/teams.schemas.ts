@@ -13,6 +13,7 @@ export const preceptorTeamMemberInputSchema = z.object({
   preceptorId: z.string().min(1, 'Preceptor ID is required'),
   role: z.string().optional(),
   priority: z.number().int().min(1, 'Priority must be at least 1'),
+  isFallbackOnly: z.boolean().optional().default(false),
 });
 
 /**
@@ -45,6 +46,16 @@ export const preceptorTeamInputSchema = z.object({
   },
   {
     message: 'Team members must be unique (no duplicate preceptors)',
+    path: ['members'],
+  }
+).refine(
+  (data) => {
+    // Check that at least one member is not fallback-only
+    const hasPrimaryMember = data.members.some((m) => !m.isFallbackOnly);
+    return hasPrimaryMember;
+  },
+  {
+    message: 'Team must have at least one non-fallback (primary) member',
     path: ['members'],
   }
 );
@@ -109,7 +120,8 @@ export const preceptorFallbackSchema = z.object({
 
 /**
  * Type inference helpers
+ * Using z.input for input types to allow optional fields with defaults to be truly optional
  */
-export type PreceptorTeamMemberInput = z.infer<typeof preceptorTeamMemberInputSchema>;
-export type PreceptorTeamInput = z.infer<typeof preceptorTeamInputSchema>;
-export type PreceptorFallbackInput = z.infer<typeof preceptorFallbackInputSchema>;
+export type PreceptorTeamMemberInput = z.input<typeof preceptorTeamMemberInputSchema>;
+export type PreceptorTeamInput = z.input<typeof preceptorTeamInputSchema>;
+export type PreceptorFallbackInput = z.input<typeof preceptorFallbackInputSchema>;

@@ -94,6 +94,7 @@ export class TeamService {
               preceptor_id: memberInput.preceptorId,
               role: memberInput.role ?? null,
               priority: memberInput.priority,
+              is_fallback_only: memberInput.isFallbackOnly ? 1 : 0,
               created_at: new Date().toISOString(),
             })
             .returningAll()
@@ -165,6 +166,7 @@ export class TeamService {
             'preceptor_team_members.preceptor_id',
             'preceptor_team_members.role',
             'preceptor_team_members.priority',
+            'preceptor_team_members.is_fallback_only',
             'preceptor_team_members.created_at',
             'preceptors.name as preceptorName'
           ])
@@ -258,6 +260,7 @@ export class TeamService {
                 preceptor_id: memberInput.preceptorId,
                 role: memberInput.role ?? null,
                 priority: memberInput.priority,
+                is_fallback_only: memberInput.isFallbackOnly ? 1 : 0,
                 created_at: new Date().toISOString(),
               })
               .returningAll()
@@ -388,6 +391,7 @@ export class TeamService {
           preceptor_id: memberInput.preceptorId,
           role: memberInput.role || null,
           priority: memberInput.priority,
+          is_fallback_only: memberInput.isFallbackOnly ? 1 : 0,
           created_at: new Date().toISOString(),
         })
         .returningAll()
@@ -541,6 +545,7 @@ export class TeamService {
       preceptorId: row.preceptor_id,
       role: row.role || undefined,
       priority: row.priority,
+      isFallbackOnly: Boolean(row.is_fallback_only),
       createdAt: new Date(row.created_at),
     };
   }
@@ -622,6 +627,7 @@ export class TeamService {
             'preceptor_team_members.preceptor_id',
             'preceptor_team_members.role',
             'preceptor_team_members.priority',
+            'preceptor_team_members.is_fallback_only',
             'preceptor_team_members.created_at',
             'preceptors.name as preceptorName'
           ])

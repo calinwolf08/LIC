@@ -199,13 +199,27 @@ export class TeamContinuityStrategy extends BaseStrategy {
   }
 
   /**
-   * Get team members sorted by priority.
+   * Get team members sorted by priority, with fallback-only members at the end.
+   *
+   * Order:
+   * 1. Primary members (isFallbackOnly = false, isGlobalFallbackOnly = false) sorted by priority
+   * 2. Fallback-only members (isFallbackOnly = true OR isGlobalFallbackOnly = true) sorted by priority
+   *
    * Falls back to all available preceptors sorted by load if no team exists.
    */
   private getTeamMembersSortedByPriority(
     context: StrategyContext
-  ): Array<{ preceptorId: string; priority: number; teamId?: string }> {
-    const { teams, availablePreceptors, clerkship } = context;
+  ): Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> {
+    const { teams, availablePreceptors } = context;
+
+    // Helper to check if a preceptor is fallback-only (either team-level or global)
+    const isFallbackOnlyPreceptor = (preceptorId: string, teamMemberFallbackOnly?: boolean): boolean => {
+      // Check global fallback flag on the preceptor
+      const preceptor = availablePreceptors.find(p => p.id === preceptorId);
+      if (preceptor?.isGlobalFallbackOnly) return true;
+      // Check team-level fallback flag
+      return teamMemberFallbackOnly ?? false;
+    };
 
     // Look for a team associated with this clerkship
     const clerkshipTeam = teams?.find(team => {
@@ -216,26 +230,61 @@ export class TeamContinuityStrategy extends BaseStrategy {
     });
 
     if (clerkshipTeam && clerkshipTeam.members.length > 0) {
-      // Return team members sorted by priority (lower = higher priority)
-      return clerkshipTeam.members
+      // Get available team members
+      const availableMembers = clerkshipTeam.members
         .filter(m => availablePreceptors.some(p => p.id === m.preceptorId))
-        .sort((a, b) => a.priority - b.priority)
         .map(m => ({
           preceptorId: m.preceptorId,
           priority: m.priority,
           teamId: clerkshipTeam.id,
+          isFallbackOnly: isFallbackOnlyPreceptor(m.preceptorId, m.isFallbackOnly),
         }));
+
+      // Separate into primary and fallback-only members
+      const primaryMembers = availableMembers
+        .filter(m => !m.isFallbackOnly)
+        .sort((a, b) => a.priority - b.priority);
+
+      const fallbackOnlyMembers = availableMembers
+        .filter(m => m.isFallbackOnly)
+        .sort((a, b) => a.priority - b.priority);
+
+      // Return primary members first, then fallback-only members
+      return [...primaryMembers, ...fallbackOnlyMembers];
     }
 
     // No team found - treat all available preceptors as an implicit team
-    // Sort by load (fewer assignments = higher priority)
-    const sortedPreceptors = this.sortByLoad(availablePreceptors);
+    // Filter out global fallback-only preceptors for primary selection
+    const primaryPreceptors = availablePreceptors.filter(p => !p.isGlobalFallbackOnly);
+    const fallbackOnlyPreceptors = availablePreceptors.filter(p => p.isGlobalFallbackOnly);
 
-    return sortedPreceptors.map((p, index) => ({
-      preceptorId: p.id,
-      priority: index + 1, // Assign priority based on load order
-      teamId: undefined,
-    }));
+    // Sort by load (fewer assignments = higher priority)
+    const sortedPrimary = this.sortByLoad(primaryPreceptors);
+    const sortedFallback = this.sortByLoad(fallbackOnlyPreceptors);
+
+    const result: Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> = [];
+
+    // Primary preceptors first
+    sortedPrimary.forEach((p, index) => {
+      result.push({
+        preceptorId: p.id,
+        priority: index + 1,
+        teamId: undefined,
+        isFallbackOnly: false,
+      });
+    });
+
+    // Then fallback-only preceptors
+    sortedFallback.forEach((p, index) => {
+      result.push({
+        preceptorId: p.id,
+        priority: sortedPrimary.length + index + 1,
+        teamId: undefined,
+        isFallbackOnly: true,
+      });
+    });
+
+    return result;
   }
 
   /**

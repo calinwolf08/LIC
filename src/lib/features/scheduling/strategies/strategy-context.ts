@@ -247,6 +247,7 @@ export class StrategyContextBuilder {
         currentAssignmentCount: totalAssignmentCount,
         maxStudentsPerDay: capacityRule?.max_students_per_day ?? 2,
         maxStudentsPerYear: capacityRule?.max_students_per_year ?? 20,
+        isGlobalFallbackOnly: Boolean(preceptor.is_global_fallback_only),
       });
     }
 
@@ -282,6 +283,7 @@ export class StrategyContextBuilder {
           preceptorId: m.preceptor_id,
           priority: m.priority,
           role: m.role || undefined,
+          isFallbackOnly: Boolean(m.is_fallback_only),
         })),
         requireSameHealthSystem: Boolean(team.require_same_health_system),
         requireSameSite: Boolean(team.require_same_site),

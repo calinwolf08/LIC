@@ -34,6 +34,7 @@ export interface PreceptorTeamMember {
   preceptorId: string;
   role?: string;
   priority: number; // Order in rotation
+  isFallbackOnly?: boolean; // If true, only used when primary capacity exhausted (default: false)
   createdAt: Date;
 }
 

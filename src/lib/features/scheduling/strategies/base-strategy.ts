@@ -46,6 +46,7 @@ export interface StrategyContext {
     currentAssignmentCount: number; // For load balancing
     maxStudentsPerDay: number;
     maxStudentsPerYear: number;
+    isGlobalFallbackOnly?: boolean; // If true, never assigned as primary for any clerkship
   }>;
 
   // Team configurations (if using team strategies)
@@ -55,6 +56,7 @@ export interface StrategyContext {
       preceptorId: string;
       priority: number;
       role?: string;
+      isFallbackOnly?: boolean; // If true, only used when primary capacity exhausted
     }>;
     requireSameHealthSystem: boolean;
     requireSameSite: boolean;
