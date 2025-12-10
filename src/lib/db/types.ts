@@ -304,6 +304,7 @@ export interface SchedulingPeriods {
   name: string;
   start_date: string;
   updated_at: Generated<string>;
+  user_id: string | null;
   year: number | null;
 }
 
@@ -457,6 +458,7 @@ export interface TeamSites {
 }
 
 export interface User {
+  active_schedule_id: string | null;
   createdAt: string;
   email: string;
   emailVerified: number;
