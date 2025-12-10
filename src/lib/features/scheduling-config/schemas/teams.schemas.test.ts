@@ -37,6 +37,47 @@ describe('Teams Schemas', () => {
       const result = preceptorTeamMemberInputSchema.safeParse(invalidMember);
       expect(result.success).toBe(false);
     });
+
+    it('should allow optional isFallbackOnly field', () => {
+      const validMember = {
+        preceptorId: 'prec-1',
+        priority: 1,
+      };
+
+      const result = preceptorTeamMemberInputSchema.safeParse(validMember);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.isFallbackOnly).toBe(false);
+      }
+    });
+
+    it('should accept isFallbackOnly as true', () => {
+      const fallbackMember = {
+        preceptorId: 'prec-1',
+        priority: 1,
+        isFallbackOnly: true,
+      };
+
+      const result = preceptorTeamMemberInputSchema.safeParse(fallbackMember);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.isFallbackOnly).toBe(true);
+      }
+    });
+
+    it('should accept isFallbackOnly as false explicitly', () => {
+      const primaryMember = {
+        preceptorId: 'prec-1',
+        priority: 1,
+        isFallbackOnly: false,
+      };
+
+      const result = preceptorTeamMemberInputSchema.safeParse(primaryMember);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.isFallbackOnly).toBe(false);
+      }
+    });
   });
 
   describe('preceptorTeamInputSchema', () => {
@@ -117,6 +158,72 @@ describe('Teams Schemas', () => {
 
       const result = preceptorTeamInputSchema.safeParse(validTeam);
       expect(result.success).toBe(true);
+    });
+
+    describe('isFallbackOnly validation', () => {
+      it('should accept team with mix of primary and fallback-only members', () => {
+        const validTeam = {
+          members: [
+            { preceptorId: 'prec-1', priority: 1, isFallbackOnly: false },
+            { preceptorId: 'prec-2', priority: 2, isFallbackOnly: true },
+          ],
+        };
+
+        const result = preceptorTeamInputSchema.safeParse(validTeam);
+        expect(result.success).toBe(true);
+      });
+
+      it('should accept team where isFallbackOnly defaults to false', () => {
+        const validTeam = {
+          members: [
+            { preceptorId: 'prec-1', priority: 1 },
+            { preceptorId: 'prec-2', priority: 2, isFallbackOnly: true },
+          ],
+        };
+
+        const result = preceptorTeamInputSchema.safeParse(validTeam);
+        expect(result.success).toBe(true);
+      });
+
+      it('should reject team with all members as fallback-only', () => {
+        const invalidTeam = {
+          members: [
+            { preceptorId: 'prec-1', priority: 1, isFallbackOnly: true },
+            { preceptorId: 'prec-2', priority: 2, isFallbackOnly: true },
+          ],
+        };
+
+        const result = preceptorTeamInputSchema.safeParse(invalidTeam);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.errors[0].message).toContain('at least one non-fallback');
+        }
+      });
+
+      it('should reject single-member team with fallback-only member', () => {
+        const invalidTeam = {
+          members: [
+            { preceptorId: 'prec-1', priority: 1, isFallbackOnly: true },
+          ],
+        };
+
+        const result = preceptorTeamInputSchema.safeParse(invalidTeam);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.errors[0].message).toContain('at least one non-fallback');
+        }
+      });
+
+      it('should accept single-member team with primary member', () => {
+        const validTeam = {
+          members: [
+            { preceptorId: 'prec-1', priority: 1, isFallbackOnly: false },
+          ],
+        };
+
+        const result = preceptorTeamInputSchema.safeParse(validTeam);
+        expect(result.success).toBe(true);
+      });
     });
   });
 

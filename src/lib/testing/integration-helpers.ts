@@ -130,6 +130,50 @@ export async function createTestPreceptors(
 }
 
 /**
+ * Creates a single test preceptor with detailed options
+ */
+export async function createTestPreceptor(
+	db: Kysely<DB>,
+	options: {
+		name?: string;
+		email?: string;
+		healthSystemId?: string;
+		siteId?: string;
+		maxStudents?: number;
+		isGlobalFallbackOnly?: boolean;
+	} = {}
+): Promise<string> {
+	const id = nanoid();
+	const values: any = {
+		id,
+		name: options.name ?? `Dr. Test ${id.slice(0, 6)}`,
+		email: options.email ?? `preceptor-${id}@test.edu`,
+	};
+
+	if (options.maxStudents !== undefined) {
+		values.max_students = options.maxStudents;
+	}
+	if (options.healthSystemId) {
+		values.health_system_id = options.healthSystemId;
+	}
+	if (options.isGlobalFallbackOnly) {
+		values.is_global_fallback_only = 1;
+	}
+
+	await db.insertInto('preceptors').values(values).execute();
+
+	// If siteId is provided, create the site association via junction table
+	if (options.siteId) {
+		await db.insertInto('preceptor_sites').values({
+			preceptor_id: id,
+			site_id: options.siteId,
+		}).execute();
+	}
+
+	return id;
+}
+
+/**
  * Creates a test health system with sites
  */
 export async function createTestHealthSystem(
@@ -229,13 +273,27 @@ export async function createCapacityRule(
 }
 
 /**
+ * Team member configuration for createTestTeam
+ */
+export interface TeamMemberConfig {
+	preceptorId: string;
+	priority?: number;
+	isFallbackOnly?: boolean;
+	role?: string;
+}
+
+/**
  * Creates a preceptor team
+ *
+ * Supports two modes:
+ * 1. Simple mode: Pass array of preceptor IDs (string[]) - all become primary members
+ * 2. Advanced mode: Pass array of TeamMemberConfig objects for fine-grained control
  */
 export async function createTestTeam(
 	db: Kysely<DB>,
 	clerkshipId: string,
 	name: string,
-	memberIds: string[],
+	members: string[] | TeamMemberConfig[],
 	options?: {
 		requireSameHealthSystem?: boolean;
 		requireSameSite?: boolean;
@@ -252,18 +310,30 @@ export async function createTestTeam(
 			require_same_health_system: options?.requireSameHealthSystem ? 1 : 0,
 			require_same_site: options?.requireSameSite ? 1 : 0,
 			require_same_specialty: options?.requireSameSpecialty ? 1 : 0,
-					})
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		})
 		.execute();
 
+	// Normalize members to TeamMemberConfig format
+	const normalizedMembers: TeamMemberConfig[] = members.map((m, i) => {
+		if (typeof m === 'string') {
+			return { preceptorId: m, priority: i + 1, isFallbackOnly: false };
+		}
+		return { ...m, priority: m.priority ?? i + 1 };
+	});
+
 	// Add team members
-	for (let i = 0; i < memberIds.length; i++) {
+	for (const member of normalizedMembers) {
 		await db
 			.insertInto('preceptor_team_members')
 			.values({
 				id: nanoid(),
 				team_id: teamId,
-				preceptor_id: memberIds[i],
-				priority: i + 1,
+				preceptor_id: member.preceptorId,
+				priority: member.priority!,
+				role: member.role ?? null,
+				is_fallback_only: member.isFallbackOnly ? 1 : 0,
 				created_at: new Date().toISOString(),
 			})
 			.execute();

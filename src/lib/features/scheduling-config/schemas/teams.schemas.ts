@@ -82,6 +82,7 @@ export const preceptorTeamSchema = z.object({
 export const preceptorTeamMemberSchema = preceptorTeamMemberInputSchema.extend({
   id: z.string(),
   teamId: z.string(),
+  isFallbackOnly: z.boolean().default(false), // Override to ensure it's always present
   createdAt: z.date(),
 });
 
@@ -120,7 +121,9 @@ export const preceptorFallbackSchema = z.object({
 
 /**
  * Type inference helpers
- * Using z.input for input types to allow optional fields with defaults to be truly optional
+ *
+ * Using z.input for input types allows optional fields with defaults
+ * to remain optional in the TypeScript type (before parsing/validation).
  */
 export type PreceptorTeamMemberInput = z.input<typeof preceptorTeamMemberInputSchema>;
 export type PreceptorTeamInput = z.input<typeof preceptorTeamInputSchema>;

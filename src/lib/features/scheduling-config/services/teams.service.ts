@@ -223,13 +223,24 @@ export class TeamService {
       // Validate team rules BEFORE starting transaction to avoid SQLite deadlock
       // (validateTeamRules uses this.db, not trx)
       if (input.members) {
-        const validationResult = await this.validateTeamRules({
+        // First validate against schema (includes fallback-only validation)
+        const teamForValidation = {
           ...input,
           members: input.members,
           requireSameHealthSystem: Boolean(updateData.require_same_health_system ?? existing.require_same_health_system),
           requireSameSite: Boolean(updateData.require_same_site ?? existing.require_same_site),
           requireSameSpecialty: Boolean(updateData.require_same_specialty ?? existing.require_same_specialty),
-        } as PreceptorTeamInput);
+        } as PreceptorTeamInput;
+
+        const schemaValidation = preceptorTeamInputSchema.safeParse(teamForValidation);
+        if (!schemaValidation.success) {
+          return Result.failure(
+            ServiceErrors.validationError('Invalid team data', schemaValidation.error.errors)
+          );
+        }
+
+        // Then validate team rules (health system, site, specialty)
+        const validationResult = await this.validateTeamRules(teamForValidation);
 
         if (!validationResult.success) {
           return Result.failure(validationResult.error);
