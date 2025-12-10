@@ -3,6 +3,8 @@ import { createSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
 import { ConflictError, NotFoundError, handleApiError } from '$lib/api/errors';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
+import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
+import { db } from '$lib/db';
 import type { RequestHandler } from './$types';
 
 /**
@@ -25,14 +27,19 @@ export const GET: RequestHandler = async ({ url }) => {
 
 /**
  * POST /api/sites
- * Create a new site
+ * Create a new site and auto-associate with user's active schedule
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
 		const input = createSiteSchema.parse(body);
 
 		const site = await siteService.createSite(input);
+
+		// Auto-associate with user's active schedule
+		if (site.id) {
+			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'site', site.id);
+		}
 
 		return successResponse(site, 201);
 	} catch (error) {

@@ -19,6 +19,7 @@ import {
 	setPreceptorSites
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { createPreceptorSchema } from '$lib/features/preceptors/schemas.js';
+import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
 import { ZodError } from 'zod';
 
 /**
@@ -36,9 +37,9 @@ export const GET: RequestHandler = async () => {
 
 /**
  * POST /api/preceptors
- * Creates a new preceptor
+ * Creates a new preceptor and auto-associates with user's active schedule
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
 		const validatedData = createPreceptorSchema.parse(body);
@@ -48,6 +49,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Handle site_ids if provided (new multi-site support)
 		if (validatedData.site_ids && validatedData.site_ids.length > 0 && preceptor.id) {
 			await setPreceptorSites(db, preceptor.id, validatedData.site_ids);
+		}
+
+		// Auto-associate with user's active schedule
+		if (preceptor.id) {
+			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'preceptor', preceptor.id);
 		}
 
 		return successResponse(preceptor, 201);

@@ -18,6 +18,7 @@ import {
 	createClerkship
 } from '$lib/features/clerkships/services/clerkship-service.js';
 import { createClerkshipSchema } from '$lib/features/clerkships/schemas.js';
+import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
 import { ZodError } from 'zod';
 
 /**
@@ -36,14 +37,19 @@ export const GET: RequestHandler = async () => {
 
 /**
  * POST /api/clerkships
- * Creates a new clerkship
+ * Creates a new clerkship and auto-associates with user's active schedule
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
 		const validatedData = createClerkshipSchema.parse(body);
 
 		const clerkship = await createClerkship(db, validatedData);
+
+		// Auto-associate with user's active schedule
+		if (clerkship.id) {
+			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'clerkship', clerkship.id);
+		}
 
 		return successResponse(clerkship, 201);
 	} catch (error) {

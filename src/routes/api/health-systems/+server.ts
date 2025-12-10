@@ -15,6 +15,7 @@ import {
 import { handleApiError } from '$lib/api/errors';
 import { HealthSystemService } from '$lib/features/scheduling-config/services/health-systems.service';
 import { healthSystemInputSchema } from '$lib/features/scheduling-config/schemas/health-systems.schemas';
+import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
 import { ZodError } from 'zod';
 
 const service = new HealthSystemService(db);
@@ -39,9 +40,9 @@ export const GET: RequestHandler = async () => {
 
 /**
  * POST /api/health-systems
- * Creates a new health system
+ * Creates a new health system and auto-associates with user's active schedule
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
 		const validatedData = healthSystemInputSchema.parse(body);
@@ -50,6 +51,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (!result.success) {
 			return errorResponse(result.error.message, 400);
+		}
+
+		// Auto-associate with user's active schedule
+		if (result.data.id) {
+			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'health_system', result.data.id);
 		}
 
 		return successResponse(result.data, 201);
