@@ -10,6 +10,7 @@
 		StudentRequirementsSummary
 	} from '$lib/features/schedules/components';
 	import StudentForm from '$lib/features/students/components/student-form.svelte';
+	import SharedEntityWarning from '$lib/components/shared-entity-warning.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -138,6 +139,12 @@
 	{#if activeTab === 'details'}
 		<Card class="p-6">
 			<h2 class="text-xl font-semibold mb-4">Student Information</h2>
+
+			<SharedEntityWarning
+				entityType="students"
+				entityId={data.studentId}
+				entityName={data.student.name}
+			/>
 
 			{#if successMessage}
 				<div class="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800 mb-4">
