@@ -141,7 +141,7 @@
 							<Button
 								variant="outline"
 								size="sm"
-								onclick={() => goto(`/schedules/new?from=${schedule.id}`)}
+								onclick={() => goto(`/schedules/new?source=${schedule.id}`)}
 							>
 								Duplicate
 							</Button>

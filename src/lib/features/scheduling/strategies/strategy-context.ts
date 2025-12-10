@@ -4,8 +4,8 @@
  * Assembles all information needed by scheduling strategies.
  */
 
-import type { Kysely } from 'kysely';
-import type { DB } from '$lib/db/types';
+import type { Kysely, Selectable } from 'kysely';
+import type { DB, Preceptors } from '$lib/db/types';
 import type { Student } from '$lib/features/students/types';
 import type { Clerkship } from '$lib/features/clerkships/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
@@ -188,7 +188,7 @@ export class StrategyContextBuilder {
 
     const validPreceptorIds = new Set(teamMemberPreceptorIds.map(r => r.preceptor_id));
 
-    let preceptors;
+    let preceptors: Selectable<Preceptors>[] = [];
     if (validPreceptorIds.size > 0) {
       // Filter to only preceptors associated with this clerkship via team membership
       preceptors = await this.db
@@ -232,7 +232,7 @@ export class StrategyContextBuilder {
 
       // Add pending assignments to get total current count
       const dbCount = dbAssignmentCount?.count ?? 0;
-      const pendingCount = pendingCountByPreceptor.get(preceptor.id) ?? 0;
+      const pendingCount = pendingCountByPreceptor.get(preceptor.id!) ?? 0;
       const totalAssignmentCount = dbCount + pendingCount;
 
       // Get capacity rules (simplified - would need to resolve hierarchy)

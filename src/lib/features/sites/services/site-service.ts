@@ -101,7 +101,8 @@ export class SiteService {
 			.values({
 				id,
 				name: input.name,
-				health_system_id: input.health_system_id || null,
+				// Note: DB schema requires health_system_id but app allows optional - this may fail at DB level
+				health_system_id: (input.health_system_id || '') as string,
 				address: input.address || null,
 				office_phone: input.office_phone || null,
 				contact_person: input.contact_person || null,

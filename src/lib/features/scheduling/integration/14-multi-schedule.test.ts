@@ -70,10 +70,10 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const studentIds = await createTestStudents(db, 3);
 
 			// Associate students with schedule
-			await addEntitiesToSchedule(db, schedule.id, 'students', studentIds);
+			await addEntitiesToSchedule(db, schedule.id!, 'students', studentIds);
 
 			// Verify association
-			const associatedStudents = await getScheduleEntities(db, schedule.id, 'students');
+			const associatedStudents = await getScheduleEntities(db, schedule.id!, 'students');
 			expect(associatedStudents).toHaveLength(3);
 			studentIds.forEach(id => expect(associatedStudents).toContain(id));
 		});
@@ -93,10 +93,10 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const preceptor2 = await createTestPreceptor(db, { name: 'Dr. Two', healthSystemId, siteId });
 
 			// Associate preceptors with schedule
-			await addEntitiesToSchedule(db, schedule.id, 'preceptors', [preceptor1, preceptor2]);
+			await addEntitiesToSchedule(db, schedule.id!, 'preceptors', [preceptor1, preceptor2]);
 
 			// Verify association
-			const associatedPreceptors = await getScheduleEntities(db, schedule.id, 'preceptors');
+			const associatedPreceptors = await getScheduleEntities(db, schedule.id!, 'preceptors');
 			expect(associatedPreceptors).toHaveLength(2);
 			expect(associatedPreceptors).toContain(preceptor1);
 			expect(associatedPreceptors).toContain(preceptor2);
@@ -113,11 +113,11 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 
 			// Create and associate various entities
 			const studentIds = await createTestStudents(db, 5);
-			await addEntitiesToSchedule(db, schedule.id, 'students', studentIds);
+			await addEntitiesToSchedule(db, schedule.id!, 'students', studentIds);
 
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System', 3);
-			await addEntitiesToSchedule(db, schedule.id, 'sites', siteIds);
-			await addEntityToSchedule(db, schedule.id, 'health_systems', healthSystemId);
+			await addEntitiesToSchedule(db, schedule.id!, 'sites', siteIds);
+			await addEntityToSchedule(db, schedule.id!, 'health_systems', healthSystemId);
 
 			const preceptorIds: string[] = [];
 			for (let i = 0; i < 4; i++) {
@@ -128,10 +128,10 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 				});
 				preceptorIds.push(id);
 			}
-			await addEntitiesToSchedule(db, schedule.id, 'preceptors', preceptorIds);
+			await addEntitiesToSchedule(db, schedule.id!, 'preceptors', preceptorIds);
 
 			// Get counts
-			const counts = await getScheduleEntityCounts(db, schedule.id);
+			const counts = await getScheduleEntityCounts(db, schedule.id!);
 
 			expect(counts.students).toBe(5);
 			expect(counts.preceptors).toBe(4);
@@ -162,12 +162,12 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const studentId = studentIds[0];
 
 			// Add to both schedules
-			await addEntityToSchedule(db, schedule2025.id, 'students', studentId);
-			await addEntityToSchedule(db, schedule2026.id, 'students', studentId);
+			await addEntityToSchedule(db, schedule2025.id!, 'students', studentId);
+			await addEntityToSchedule(db, schedule2026.id!, 'students', studentId);
 
 			// Verify student is in both
-			const students2025 = await getScheduleEntities(db, schedule2025.id, 'students');
-			const students2026 = await getScheduleEntities(db, schedule2026.id, 'students');
+			const students2025 = await getScheduleEntities(db, schedule2025.id!, 'students');
+			const students2026 = await getScheduleEntities(db, schedule2026.id!, 'students');
 
 			expect(students2025).toContain(studentId);
 			expect(students2026).toContain(studentId);
@@ -203,11 +203,11 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const singleStudent = studentIds[1];
 
 			// Shared student in both schedules
-			await addEntityToSchedule(db, schedule1.id, 'students', sharedStudent);
-			await addEntityToSchedule(db, schedule2.id, 'students', sharedStudent);
+			await addEntityToSchedule(db, schedule1.id!, 'students', sharedStudent);
+			await addEntityToSchedule(db, schedule2.id!, 'students', sharedStudent);
 
 			// Single student only in schedule 1
-			await addEntityToSchedule(db, schedule1.id, 'students', singleStudent);
+			await addEntityToSchedule(db, schedule1.id!, 'students', singleStudent);
 
 			// Check
 			expect(await isEntityInMultipleSchedules(db, 'students', sharedStudent)).toBe(true);
@@ -227,16 +227,16 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 
 			// Add entities to source
 			const studentIds = await createTestStudents(db, 4);
-			await addEntitiesToSchedule(db, sourceSchedule.id, 'students', studentIds);
+			await addEntitiesToSchedule(db, sourceSchedule.id!, 'students', studentIds);
 
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test HS', 2);
-			await addEntityToSchedule(db, sourceSchedule.id, 'health_systems', healthSystemId);
-			await addEntitiesToSchedule(db, sourceSchedule.id, 'sites', siteIds);
+			await addEntityToSchedule(db, sourceSchedule.id!, 'health_systems', healthSystemId);
+			await addEntitiesToSchedule(db, sourceSchedule.id!, 'sites', siteIds);
 
 			// Duplicate schedule
 			const result = await quickCopySchedule(
 				db,
-				sourceSchedule.id,
+				sourceSchedule.id!,
 				'Copied Schedule 2026',
 				'2026-01-01',
 				'2026-12-31',
@@ -248,11 +248,11 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			expect(result.schedule.year).toBe(2026);
 
 			// Verify entities were copied
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(4);
 			studentIds.forEach(id => expect(newStudents).toContain(id));
 
-			const newSites = await getScheduleEntities(db, result.schedule.id, 'sites');
+			const newSites = await getScheduleEntities(db, result.schedule.id!, 'sites');
 			expect(newSites).toHaveLength(2);
 		});
 
@@ -267,13 +267,13 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 
 			// Add students
 			const studentIds = await createTestStudents(db, 4);
-			await addEntitiesToSchedule(db, sourceSchedule.id, 'students', studentIds);
+			await addEntitiesToSchedule(db, sourceSchedule.id!, 'students', studentIds);
 
 			// Duplicate with only 2 students
 			const selectedStudents = [studentIds[0], studentIds[2]];
 			const result = await duplicateToNewSchedule(
 				db,
-				sourceSchedule.id,
+				sourceSchedule.id!,
 				'Partial Copy 2026',
 				'2026-01-01',
 				'2026-12-31',
@@ -282,7 +282,7 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			);
 
 			// Verify only selected students were copied
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(2);
 			expect(newStudents).toContain(studentIds[0]);
 			expect(newStudents).toContain(studentIds[2]);
@@ -312,15 +312,15 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const studentIds = await createTestStudents(db, 1);
 			const studentId = studentIds[0];
 
-			await addEntityToSchedule(db, schedule1.id, 'students', studentId);
-			await addEntityToSchedule(db, schedule2.id, 'students', studentId);
+			await addEntityToSchedule(db, schedule1.id!, 'students', studentId);
+			await addEntityToSchedule(db, schedule2.id!, 'students', studentId);
 
 			// Remove from schedule 1
-			await removeEntityFromSchedule(db, schedule1.id, 'students', studentId);
+			await removeEntityFromSchedule(db, schedule1.id!, 'students', studentId);
 
 			// Verify removal from schedule 1 but not schedule 2
-			const students1 = await getScheduleEntities(db, schedule1.id, 'students');
-			const students2 = await getScheduleEntities(db, schedule2.id, 'students');
+			const students1 = await getScheduleEntities(db, schedule1.id!, 'students');
+			const students2 = await getScheduleEntities(db, schedule2.id!, 'students');
 
 			expect(students1).not.toContain(studentId);
 			expect(students2).toContain(studentId);
@@ -341,13 +341,13 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 
 			// Add initial students
 			const studentIds = await createTestStudents(db, 4);
-			await addEntitiesToSchedule(db, schedule.id, 'students', studentIds.slice(0, 2)); // Add first 2
+			await addEntitiesToSchedule(db, schedule.id!, 'students', studentIds.slice(0, 2)); // Add first 2
 
 			// Replace with different set
-			await setScheduleEntities(db, schedule.id, 'students', studentIds.slice(2)); // Set to last 2
+			await setScheduleEntities(db, schedule.id!, 'students', studentIds.slice(2)); // Set to last 2
 
 			// Verify replacement
-			const students = await getScheduleEntities(db, schedule.id, 'students');
+			const students = await getScheduleEntities(db, schedule.id!, 'students');
 			expect(students).toHaveLength(2);
 			expect(students).not.toContain(studentIds[0]);
 			expect(students).not.toContain(studentIds[1]);
@@ -392,11 +392,11 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const studentIds = await createTestStudents(db, 2);
 
 			// Associate entities with schedule
-			await addEntitiesToSchedule(db, schedule.id, 'students', studentIds);
-			await addEntityToSchedule(db, schedule.id, 'preceptors', preceptorId);
-			await addEntityToSchedule(db, schedule.id, 'sites', siteId);
-			await addEntityToSchedule(db, schedule.id, 'health_systems', healthSystemId);
-			await addEntityToSchedule(db, schedule.id, 'clerkships', clerkshipId);
+			await addEntitiesToSchedule(db, schedule.id!, 'students', studentIds);
+			await addEntityToSchedule(db, schedule.id!, 'preceptors', preceptorId);
+			await addEntityToSchedule(db, schedule.id!, 'sites', siteId);
+			await addEntityToSchedule(db, schedule.id!, 'health_systems', healthSystemId);
+			await addEntityToSchedule(db, schedule.id!, 'clerkships', clerkshipId);
 
 			// Create availability
 			const dates = generateDateRange('2025-12-01', 14);
@@ -449,15 +449,15 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const teamId = await createTestTeam(db, clerkshipId, 'Test Team', preceptorIds);
 
 			// Associate all with schedule
-			await addEntitiesToSchedule(db, schedule.id, 'students', studentIds);
-			await addEntitiesToSchedule(db, schedule.id, 'preceptors', preceptorIds);
-			await addEntitiesToSchedule(db, schedule.id, 'sites', siteIds);
-			await addEntityToSchedule(db, schedule.id, 'health_systems', healthSystemId);
-			await addEntityToSchedule(db, schedule.id, 'clerkships', clerkshipId);
-			await addEntityToSchedule(db, schedule.id, 'teams', teamId);
+			await addEntitiesToSchedule(db, schedule.id!, 'students', studentIds);
+			await addEntitiesToSchedule(db, schedule.id!, 'preceptors', preceptorIds);
+			await addEntitiesToSchedule(db, schedule.id!, 'sites', siteIds);
+			await addEntityToSchedule(db, schedule.id!, 'health_systems', healthSystemId);
+			await addEntityToSchedule(db, schedule.id!, 'clerkships', clerkshipId);
+			await addEntityToSchedule(db, schedule.id!, 'teams', teamId);
 
 			// Verify all associations
-			const counts = await getScheduleEntityCounts(db, schedule.id);
+			const counts = await getScheduleEntityCounts(db, schedule.id!);
 			expect(counts.students).toBe(3);
 			expect(counts.preceptors).toBe(2);
 			expect(counts.sites).toBe(2);
@@ -482,10 +482,10 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			await db
 				.updateTable('scheduling_periods')
 				.set({ year: 2025 })
-				.where('id', '=', schedule.id)
+				.where('id', '=', schedule.id!)
 				.execute();
 
-			const retrieved = await getSchedulingPeriodById(db, schedule.id);
+			const retrieved = await getSchedulingPeriodById(db, schedule.id!);
 			expect(retrieved?.year).toBe(2025);
 		});
 	});
@@ -501,17 +501,17 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			});
 
 			// Get entities (should be empty)
-			const students = await getScheduleEntities(db, schedule.id, 'students');
+			const students = await getScheduleEntities(db, schedule.id!, 'students');
 			expect(students).toEqual([]);
 
 			// Get counts (should be all zeros)
-			const counts = await getScheduleEntityCounts(db, schedule.id);
+			const counts = await getScheduleEntityCounts(db, schedule.id!);
 			expect(counts.students).toBe(0);
 			expect(counts.preceptors).toBe(0);
 			expect(counts.sites).toBe(0);
 
 			// Remove non-existent entity (should not throw)
-			await removeEntityFromSchedule(db, schedule.id, 'students', 'non-existent-id');
+			await removeEntityFromSchedule(db, schedule.id!, 'students', 'non-existent-id');
 		});
 
 		it('should handle duplication of empty schedule', async () => {
@@ -526,7 +526,7 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			// Duplicate
 			const result = await quickCopySchedule(
 				db,
-				sourceSchedule.id,
+				sourceSchedule.id!,
 				'Empty Copy',
 				'2026-01-01',
 				'2026-12-31',
@@ -535,7 +535,7 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 
 			// Verify copy created with no entities
 			expect(result.schedule.name).toBe('Empty Copy');
-			const counts = await getScheduleEntityCounts(db, result.schedule.id);
+			const counts = await getScheduleEntityCounts(db, result.schedule.id!);
 			expect(counts.students).toBe(0);
 		});
 	});

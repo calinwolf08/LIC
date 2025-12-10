@@ -28,7 +28,6 @@ describe('FallbackGapFiller', () => {
 
 	// Helper to create config
 	const createConfig = (overrides: Partial<ResolvedRequirementConfiguration> = {}): ResolvedRequirementConfiguration => ({
-		id: nanoid(),
 		clerkshipId,
 		requirementType: 'outpatient',
 		requiredDays: 5,
@@ -40,6 +39,7 @@ describe('FallbackGapFiller', () => {
 		allowFallbacks: true,
 		fallbackRequiresApproval: false,
 		fallbackAllowCrossSystem: false,
+		source: 'global_defaults',
 		...overrides,
 	});
 

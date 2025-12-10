@@ -19,6 +19,12 @@ export interface ProposedAssignment {
   requirementType?: 'outpatient' | 'inpatient' | 'elective';
   blockNumber?: number; // For block-based strategies
   teamId?: string; // For team strategies
+  metadata?: {
+    isFallback?: boolean;
+    fallbackTier?: number;
+    fallbackTeamId?: string;
+    originalTeamId?: string;
+  };
 }
 
 /**

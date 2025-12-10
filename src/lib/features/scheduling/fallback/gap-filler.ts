@@ -220,7 +220,7 @@ export class FallbackGapFiller {
 			const teams = await this.preceptorResolver.getTeamsForClerkship(requirement.clerkshipId);
 			if (teams.length > 0) {
 				primaryTeamId = teams[0].id;
-				primaryHealthSystemId = teams[0].healthSystemId;
+				primaryHealthSystemId = teams[0].healthSystemId ?? undefined;
 			}
 		}
 

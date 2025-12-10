@@ -38,7 +38,7 @@ describe('Schedule Duplication Service', () => {
 			end_date: '2025-12-31',
 			is_active: true
 		});
-		sourceScheduleId = sourceSchedule.id;
+		sourceScheduleId = sourceSchedule.id!;
 	});
 
 	afterEach(async () => {
@@ -152,7 +152,7 @@ describe('Schedule Duplication Service', () => {
 				{ students: 'all' }
 			);
 
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(3);
 			studentIds.forEach(id => expect(newStudents).toContain(id));
 			expect(result.entityCounts.students).toBe(3);
@@ -174,7 +174,7 @@ describe('Schedule Duplication Service', () => {
 				{ students: [studentIds[0], studentIds[1]] }
 			);
 
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(2);
 			expect(newStudents).toContain(studentIds[0]);
 			expect(newStudents).toContain(studentIds[1]);
@@ -209,9 +209,9 @@ describe('Schedule Duplication Service', () => {
 				}
 			);
 
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
-			const newPreceptors = await getScheduleEntities(db, result.schedule.id, 'preceptors');
-			const newSites = await getScheduleEntities(db, result.schedule.id, 'sites');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
+			const newPreceptors = await getScheduleEntities(db, result.schedule.id!, 'preceptors');
+			const newSites = await getScheduleEntities(db, result.schedule.id!, 'sites');
 
 			expect(newStudents).toHaveLength(2);
 			expect(newPreceptors).toHaveLength(3);
@@ -242,8 +242,8 @@ describe('Schedule Duplication Service', () => {
 				{ students: 'all' }
 			);
 
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
-			const newPreceptors = await getScheduleEntities(db, result.schedule.id, 'preceptors');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
+			const newPreceptors = await getScheduleEntities(db, result.schedule.id!, 'preceptors');
 
 			expect(newStudents).toHaveLength(2);
 			expect(newPreceptors).toHaveLength(0);
@@ -265,7 +265,7 @@ describe('Schedule Duplication Service', () => {
 				{}
 			);
 
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(0);
 			expect(result.entityCounts.students).toBe(0);
 		});
@@ -326,8 +326,8 @@ describe('Schedule Duplication Service', () => {
 				2026
 			);
 
-			const newStudents = await getScheduleEntities(db, result.schedule.id, 'students');
-			const newPreceptors = await getScheduleEntities(db, result.schedule.id, 'preceptors');
+			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
+			const newPreceptors = await getScheduleEntities(db, result.schedule.id!, 'preceptors');
 
 			expect(newStudents).toHaveLength(2);
 			expect(newPreceptors).toHaveLength(3);

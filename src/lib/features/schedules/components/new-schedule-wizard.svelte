@@ -12,31 +12,48 @@
 		configurations: Array<{ id: string; clerkship_name?: string | null }>;
 	}
 
+	interface SourceSchedule {
+		name: string;
+		start_date: string;
+		end_date: string;
+	}
+
+	interface SourceEntityIds {
+		students: string[];
+		preceptors: string[];
+		sites: string[];
+		healthSystems: string[];
+		clerkships: string[];
+		teams: string[];
+	}
+
 	interface Props {
 		sourceScheduleId?: string | null;
+		sourceSchedule?: SourceSchedule | null;
+		sourceEntityIds?: SourceEntityIds | null;
 		entityData: EntityData;
 	}
 
-	let { sourceScheduleId = null, entityData }: Props = $props();
+	let { sourceScheduleId = null, sourceSchedule = null, sourceEntityIds = null, entityData }: Props = $props();
 
 	// Wizard state
 	let currentStep = $state(0);
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 
-	// Form data
-	let name = $state('');
-	let startDate = $state('');
-	let endDate = $state('');
+	// Form data - initialize from source schedule if duplicating
+	let name = $state(sourceSchedule ? `Copy of ${sourceSchedule.name}` : '');
+	let startDate = $state(sourceSchedule?.start_date || '');
+	let endDate = $state(sourceSchedule?.end_date || '');
 	let year = $state(new Date().getFullYear());
 
-	// Entity selections
-	let selectedStudents = $state<string[]>([]);
-	let selectedPreceptors = $state<string[]>([]);
-	let selectedSites = $state<string[]>([]);
-	let selectedHealthSystems = $state<string[]>([]);
-	let selectedClerkships = $state<string[]>([]);
-	let selectedTeams = $state<string[]>([]);
+	// Entity selections - initialize from source if duplicating
+	let selectedStudents = $state<string[]>(sourceEntityIds?.students || []);
+	let selectedPreceptors = $state<string[]>(sourceEntityIds?.preceptors || []);
+	let selectedSites = $state<string[]>(sourceEntityIds?.sites || []);
+	let selectedHealthSystems = $state<string[]>(sourceEntityIds?.healthSystems || []);
+	let selectedClerkships = $state<string[]>(sourceEntityIds?.clerkships || []);
+	let selectedTeams = $state<string[]>(sourceEntityIds?.teams || []);
 	let selectedConfigurations = $state<string[]>([]);
 
 	const steps = [
