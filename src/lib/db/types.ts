@@ -304,6 +304,56 @@ export interface SchedulingPeriods {
   name: string;
   start_date: string;
   updated_at: Generated<string>;
+  year: number | null;
+}
+
+export interface ScheduleStudents {
+  id: string | null;
+  schedule_id: string;
+  student_id: string;
+  created_at: Generated<string>;
+}
+
+export interface SchedulePreceptors {
+  id: string | null;
+  schedule_id: string;
+  preceptor_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleSites {
+  id: string | null;
+  schedule_id: string;
+  site_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleHealthSystems {
+  id: string | null;
+  schedule_id: string;
+  health_system_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleClerkships {
+  id: string | null;
+  schedule_id: string;
+  clerkship_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleTeams {
+  id: string | null;
+  schedule_id: string;
+  team_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleConfigurations {
+  id: string | null;
+  schedule_id: string;
+  configuration_id: string;
+  created_at: Generated<string>;
 }
 
 export interface Session {
@@ -449,6 +499,13 @@ export interface DB {
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
   schedule_assignments: ScheduleAssignments;
+  schedule_clerkships: ScheduleClerkships;
+  schedule_configurations: ScheduleConfigurations;
+  schedule_health_systems: ScheduleHealthSystems;
+  schedule_preceptors: SchedulePreceptors;
+  schedule_sites: ScheduleSites;
+  schedule_students: ScheduleStudents;
+  schedule_teams: ScheduleTeams;
   scheduling_periods: SchedulingPeriods;
   session: Session;
   site_availability: SiteAvailability;

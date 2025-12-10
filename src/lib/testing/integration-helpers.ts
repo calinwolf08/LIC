@@ -507,10 +507,25 @@ export function generateDateRange(startDate: string, days: number): string[] {
 
 /**
  * Clears all test data from database
+ * Note: Uses try/catch for newer tables that may not exist in all test databases
  */
 export async function clearAllTestData(db: Kysely<DB>) {
 	// Delete in reverse dependency order
 	await db.deleteFrom('schedule_assignments').execute();
+
+	// Clear schedule scoping junction tables (may not exist in older test DBs)
+	try {
+		await db.deleteFrom('schedule_students').execute();
+		await db.deleteFrom('schedule_preceptors').execute();
+		await db.deleteFrom('schedule_sites').execute();
+		await db.deleteFrom('schedule_health_systems').execute();
+		await db.deleteFrom('schedule_clerkships').execute();
+		await db.deleteFrom('schedule_teams').execute();
+		await db.deleteFrom('schedule_configurations').execute();
+	} catch {
+		// Tables may not exist yet - ignore
+	}
+
 	await db.deleteFrom('preceptor_team_members').execute();
 	await db.deleteFrom('preceptor_teams').execute();
 	await db.deleteFrom('preceptor_fallbacks').execute();
@@ -525,4 +540,10 @@ export async function clearAllTestData(db: Kysely<DB>) {
 	await db.deleteFrom('preceptors').execute();
 	await db.deleteFrom('students').execute();
 	await db.deleteFrom('clerkships').execute();
+
+	try {
+		await db.deleteFrom('scheduling_periods').execute();
+	} catch {
+		// Table may not exist - ignore
+	}
 }

@@ -326,3 +326,63 @@ export type SavePatternDates = z.infer<typeof savePatternDatesSchema>;
 export type CreateSchedulingPeriod = z.infer<typeof createSchedulingPeriodSchema>;
 export type UpdateSchedulingPeriod = z.infer<typeof updateSchedulingPeriodSchema>;
 export type SchedulingPeriod = z.infer<typeof schedulingPeriodSchema>;
+
+// ========================================
+// Schedule Duplication Schemas
+// ========================================
+
+/**
+ * Entity type enum for schedule associations
+ */
+export const scheduleEntityTypeSchema = z.enum([
+	'students',
+	'preceptors',
+	'sites',
+	'health_systems',
+	'clerkships',
+	'teams',
+	'configurations'
+]);
+
+/**
+ * Schema for schedule duplication options
+ */
+export const duplicationOptionsSchema = z.object({
+	students: z.union([z.array(cuid2Schema), z.literal('all')]).optional(),
+	preceptors: z.union([z.array(cuid2Schema), z.literal('all')]).optional(),
+	sites: z.union([z.array(cuid2Schema), z.literal('all')]).optional(),
+	healthSystems: z.union([z.array(cuid2Schema), z.literal('all')]).optional(),
+	clerkships: z.union([z.array(cuid2Schema), z.literal('all')]).optional(),
+	teams: z.union([z.array(cuid2Schema), z.literal('all')]).optional(),
+	configurations: z.union([z.array(cuid2Schema), z.literal('all')]).optional()
+});
+
+/**
+ * Schema for duplicating a schedule
+ */
+export const duplicateScheduleSchema = z.object({
+	name: z.string().min(1).max(200),
+	startDate: dateStringSchema,
+	endDate: dateStringSchema,
+	year: z.number().int().min(2000).max(2100),
+	options: duplicationOptionsSchema.default({})
+}).refine(
+	(data) => data.startDate <= data.endDate,
+	{
+		message: 'startDate must be before or equal to endDate',
+		path: ['endDate']
+	}
+);
+
+/**
+ * Schema for adding/removing entities from a schedule
+ */
+export const scheduleEntitiesSchema = z.object({
+	entityType: scheduleEntityTypeSchema,
+	entityIds: z.array(cuid2Schema).min(1)
+});
+
+export type ScheduleEntityType = z.infer<typeof scheduleEntityTypeSchema>;
+export type DuplicationOptions = z.infer<typeof duplicationOptionsSchema>;
+export type DuplicateSchedule = z.infer<typeof duplicateScheduleSchema>;
+export type ScheduleEntities = z.infer<typeof scheduleEntitiesSchema>;

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import ScheduleSelector from '$lib/features/schedules/components/schedule-selector.svelte';
 
 	let currentPath = $derived($page.url.pathname);
 
@@ -27,6 +28,11 @@
 		<div class="p-6">
 			<h1 class="text-2xl font-bold">LIC Scheduler</h1>
 			<p class="text-sm text-gray-400 mt-1">Medical Education</p>
+		</div>
+
+		<!-- Schedule Selector -->
+		<div class="px-4 pb-4 border-b border-gray-800">
+			<ScheduleSelector />
 		</div>
 
 		<!-- Navigation -->
