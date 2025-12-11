@@ -25,16 +25,30 @@ async function setupScheduleTestEntities(api: ReturnType<typeof createApiClient>
 	const preceptorResponse = await api.post('/api/preceptors', preceptorData);
 	const preceptor = await api.expectData<any>(preceptorResponse, 201);
 
-	// 5. Create clerkship
+	// 5. Create clerkship with required_days matching the available dates
 	const clerkshipData = fixtures.clerkship({
 		duration_weeks: 1,
 		start_date: dates[0],
-		end_date: dates[dates.length - 1]
+		end_date: dates[dates.length - 1],
+		required_days: dates.length // Match required days to available dates
 	});
 	const clerkshipResponse = await api.post('/api/clerkships', clerkshipData);
 	const clerkship = await api.expectData<any>(clerkshipResponse, 201);
 
-	// 6. Set preceptor availability with site_id
+	// 6. Create a team for the clerkship and add the preceptor to it
+	// The scheduling engine requires preceptors to be team members for clerkship associations
+	const teamResponse = await api.post('/api/preceptors/teams', {
+		name: `Team for ${clerkship.name}`,
+		clerkshipId: clerkship.id,
+		requireSameHealthSystem: false,
+		requireSameSite: false,
+		members: [
+			{ preceptorId: preceptor.id, priority: 1 }
+		]
+	});
+	await api.expectData(teamResponse, 201);
+
+	// 7. Set preceptor availability with site_id
 	const availability = dates.map(date => ({ date, is_available: true }));
 	await api.post(`/api/preceptors/${preceptor.id}/availability`, {
 		site_id: site.id,
@@ -50,13 +64,13 @@ test.describe('Schedules API', () => {
 			const api = createApiClient(request);
 
 			// Setup: Create full entity chain
-			const dates = dateHelpers.getDateRange('2025-01-06', '2025-01-10');
+			const dates = dateHelpers.getDateRange('2026-01-06', '2026-01-10');
 			const { student, preceptor, clerkship } = await setupScheduleTestEntities(api, dates);
 
 			// Generate schedule
 			const generateResponse = await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-10'
+				startDate: '2026-01-06',
+				endDate: '2026-01-10'
 			});
 
 			const result = await api.expectData(generateResponse);
@@ -69,14 +83,14 @@ test.describe('Schedules API', () => {
 			const api = createApiClient(request);
 
 			// Create full entity chain for proper setup
-			const dates = dateHelpers.getDateRange('2025-01-06', '2025-01-10');
+			const dates = dateHelpers.getDateRange('2026-01-06', '2026-01-10');
 			await setupScheduleTestEntities(api, dates);
 
-			// Generate in dry-run mode
+			// Generate in preview (dry-run) mode
 			const response = await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-10',
-				dry_run: true
+				startDate: '2026-01-06',
+				endDate: '2026-01-10',
+				preview: true
 			});
 
 			const result = await api.expectData(response);
@@ -89,7 +103,7 @@ test.describe('Schedules API', () => {
 			const api = createApiClient(request);
 
 			// Setup with full entity chain
-			const dates = dateHelpers.getDateRange('2025-01-06', '2025-01-10');
+			const dates = dateHelpers.getDateRange('2026-01-06', '2026-01-10');
 			const { healthSystem, site, preceptor } = await setupScheduleTestEntities(api, dates);
 
 			// Add a second student
@@ -105,8 +119,8 @@ test.describe('Schedules API', () => {
 
 			// Generate schedule
 			const response = await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-10'
+				startDate: '2026-01-06',
+				endDate: '2026-01-10'
 			});
 
 			const result = await api.expectData(response);
@@ -126,8 +140,8 @@ test.describe('Schedules API', () => {
 		test.beforeEach(async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Setup full entity chain
-			const dates = ['2025-01-06'];
+			// Setup full entity chain - use 2-day range since schema requires startDate < endDate
+			const dates = ['2026-01-06', '2026-01-07'];
 			const entities = await setupScheduleTestEntities(api, dates);
 
 			studentId = entities.student.id;
@@ -136,16 +150,16 @@ test.describe('Schedules API', () => {
 			siteId = entities.site.id;
 
 			const genResponse = await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-06'
+				startDate: '2026-01-06',
+				endDate: '2026-01-07'
 			});
 			await api.expectData(genResponse);
 
 			// Get the created assignment
 			const calResponse = await api.get('/api/calendar', {
 				params: {
-					start_date: '2025-01-06',
-					end_date: '2025-01-06'
+					start_date: '2026-01-06',
+					end_date: '2026-01-07'
 				}
 			});
 			const events = await api.expectData<any[]>(calResponse);
@@ -178,14 +192,15 @@ test.describe('Schedules API', () => {
 
 			const api = createApiClient(request);
 
+			// Valid update fields are: student_id, preceptor_id, clerkship_id, date, status
 			const updates = {
-				assignment_type: 'outpatient'
+				status: 'completed'
 			};
 
 			const response = await api.patch(`/api/schedules/assignments/${assignmentId}`, updates);
 			const updated = await api.expectData(response);
 
-			expect(updated.assignment_type).toBe('outpatient');
+			expect(updated.status).toBe('completed');
 		});
 
 		test('should delete assignment', async ({ request }) => {
@@ -220,8 +235,10 @@ test.describe('Schedules API', () => {
 				new_preceptor_id: p.id
 			});
 
-			const reassigned = await api.expectData(response);
-			expect(reassigned.preceptor_id).toBe(p.id);
+			const result = await api.expectData<any>(response);
+			// Response is { valid: boolean, assignment: {...} }
+			expect(result.valid).toBe(true);
+			expect(result.assignment?.preceptor_id).toBe(p.id);
 		});
 	});
 
@@ -229,8 +246,8 @@ test.describe('Schedules API', () => {
 		test('should swap assignments between students', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Setup full entity chain for first student/preceptor
-			const dates = ['2025-01-06'];
+			// Setup full entity chain for first student/preceptor - use 2-day range since schema requires startDate < endDate
+			const dates = ['2026-01-06', '2026-01-07'];
 			const { healthSystem, site, student: student1, preceptor: preceptor1, clerkship } = await setupScheduleTestEntities(api, dates);
 
 			// Create second student
@@ -241,21 +258,33 @@ test.describe('Schedules API', () => {
 			const p2Response = await api.post('/api/preceptors', fixtures.preceptor({ health_system_id: healthSystem.id }));
 			const preceptor2 = await api.expectData(p2Response, 201);
 
+			// Add second preceptor to a team for this clerkship (required for scheduling)
+			const team2Response = await api.post('/api/preceptors/teams', {
+				name: `Team 2 for ${clerkship.name}`,
+				clerkshipId: clerkship.id,
+				requireSameHealthSystem: false,
+				requireSameSite: false,
+				members: [
+					{ preceptorId: preceptor2.id, priority: 1 }
+				]
+			});
+			await api.expectData(team2Response, 201);
+
 			// Set availability for second preceptor
 			await api.post(`/api/preceptors/${preceptor2.id}/availability`, {
 				site_id: site.id,
-				availability: [{ date: '2025-01-06', is_available: true }]
+				availability: [{ date: '2026-01-06', is_available: true }, { date: '2026-01-07', is_available: true }]
 			});
 
 			// Generate schedule
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-06'
+				startDate: '2026-01-06',
+				endDate: '2026-01-07'
 			});
 
 			// Get assignments
 			const calResponse = await api.get('/api/calendar', {
-				params: { start_date: '2025-01-06', end_date: '2025-01-06' }
+				params: { start_date: '2026-01-06', end_date: '2026-01-07' }
 			});
 			const events = await api.expectData<any[]>(calResponse);
 
@@ -281,13 +310,13 @@ test.describe('Schedules API', () => {
 		test('should clear all assignments', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Setup full entity chain
-			const dates = ['2025-01-06'];
+			// Setup full entity chain - use 2-day range since schema requires startDate < endDate
+			const dates = ['2026-01-06', '2026-01-07'];
 			await setupScheduleTestEntities(api, dates);
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-06'
+				startDate: '2026-01-06',
+				endDate: '2026-01-07'
 			});
 
 			// Clear all assignments
@@ -299,7 +328,7 @@ test.describe('Schedules API', () => {
 
 			// Verify no assignments remain
 			const calResponse = await api.get('/api/calendar', {
-				params: { start_date: '2025-01-06', end_date: '2025-01-06' }
+				params: { start_date: '2026-01-06', end_date: '2026-01-07' }
 			});
 			const events = await api.expectData<any[]>(calResponse);
 			expect(events?.length || 0).toBe(0);
@@ -309,24 +338,24 @@ test.describe('Schedules API', () => {
 			const api = createApiClient(request);
 
 			// Setup full entity chain with multiple dates
-			const dates = dateHelpers.getDateRange('2025-01-06', '2025-01-10');
+			const dates = dateHelpers.getDateRange('2026-01-06', '2026-01-10');
 			await setupScheduleTestEntities(api, dates);
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-10'
+				startDate: '2026-01-06',
+				endDate: '2026-01-10'
 			});
 
 			// Clear from Jan 8 onwards
 			const response = await api.delete('/api/schedules', {
-				params: { fromDate: '2025-01-08' }
+				params: { fromDate: '2026-01-08' }
 			});
 
 			await api.expectSuccess(response);
 
 			// Verify assignments before Jan 8 still exist
 			const beforeResponse = await api.get('/api/calendar', {
-				params: { start_date: '2025-01-06', end_date: '2025-01-07' }
+				params: { start_date: '2026-01-06', end_date: '2026-01-07' }
 			});
 			const beforeEvents = await api.expectData<any[]>(beforeResponse);
 			// Schedule may or may not have created assignments for these days depending on requirements
@@ -334,7 +363,7 @@ test.describe('Schedules API', () => {
 
 			// Verify assignments from Jan 8 onwards are cleared
 			const afterResponse = await api.get('/api/calendar', {
-				params: { start_date: '2025-01-08', end_date: '2025-01-10' }
+				params: { start_date: '2026-01-08', end_date: '2026-01-10' }
 			});
 			const afterEvents = await api.expectData<any[]>(afterResponse);
 			expect(afterEvents?.length || 0).toBe(0);
@@ -345,20 +374,20 @@ test.describe('Schedules API', () => {
 		test('should export schedule to Excel', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Setup full entity chain
-			const dates = ['2025-01-06'];
+			// Setup full entity chain - use 2-day range since schema requires startDate < endDate
+			const dates = ['2026-01-06', '2026-01-07'];
 			await setupScheduleTestEntities(api, dates);
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-06'
+				startDate: '2026-01-06',
+				endDate: '2026-01-07'
 			});
 
 			// Export schedule
 			const response = await api.get('/api/schedules/export', {
 				params: {
-					start_date: '2025-01-06',
-					end_date: '2025-01-06'
+					start_date: '2026-01-06',
+					end_date: '2026-01-07'
 				}
 			});
 
@@ -371,20 +400,20 @@ test.describe('Schedules API', () => {
 		test('should export with filters', async ({ request }) => {
 			const api = createApiClient(request);
 
-			// Setup full entity chain
-			const dates = ['2025-01-06'];
+			// Setup full entity chain - use 2-day range since schema requires startDate < endDate
+			const dates = ['2026-01-06', '2026-01-07'];
 			const { student } = await setupScheduleTestEntities(api, dates);
 
 			await api.post('/api/schedules/generate', {
-				start_date: '2025-01-06',
-				end_date: '2025-01-06'
+				startDate: '2026-01-06',
+				endDate: '2026-01-07'
 			});
 
 			// Export with student filter
 			const response = await api.get('/api/schedules/export', {
 				params: {
-					start_date: '2025-01-06',
-					end_date: '2025-01-06',
+					start_date: '2026-01-06',
+					end_date: '2026-01-07',
 					student_id: String(student.id)
 				}
 			});
