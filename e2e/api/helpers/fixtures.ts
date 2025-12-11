@@ -19,9 +19,12 @@ export const fixtures = {
 		const base: any = {
 			name: `Dr. Preceptor ${uniqueId()}`,
 			email: `preceptor-${uniqueId()}@test.com`,
-			health_system_id: overrides.health_system_id || 'temp-hs-id',
 			...overrides
 		};
+		// Only add health_system_id if explicitly provided with a valid value
+		if (overrides.health_system_id && overrides.health_system_id !== 'temp-hs-id') {
+			base.health_system_id = overrides.health_system_id;
+		}
 		// Only add max_students if explicitly provided
 		if (overrides.max_students !== undefined) {
 			base.max_students = overrides.max_students;
