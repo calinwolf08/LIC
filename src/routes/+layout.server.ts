@@ -24,29 +24,43 @@ export const load: LayoutServerLoad = async ({ locals, url, request }) => {
     const isScheduleExemptRoute = scheduleExemptRoutes.some(route => url.pathname.startsWith(route));
 
     if (locals.session?.user && !isScheduleExemptRoute && !isE2ETesting) {
-        const user = await db
-            .selectFrom('user')
-            .select('active_schedule_id')
-            .where('id', '=', locals.session.user.id)
-            .executeTakeFirst();
-
-        // Check if user has schedules accessible to them
-        if (!user?.active_schedule_id) {
-            const hasSchedules = await db
-                .selectFrom('scheduling_periods')
-                .select('id')
-                .where((eb) =>
-                    eb.or([
-                        eb('user_id', '=', locals.session!.user.id),
-                        eb('user_id', 'is', null)
-                    ])
-                )
-                .limit(1)
+        try {
+            const user = await db
+                .selectFrom('user')
+                .select('active_schedule_id')
+                .where('id', '=', locals.session.user.id)
                 .executeTakeFirst();
 
-            if (!hasSchedules) {
-                // No schedules - redirect to create one
-                throw redirect(302, '/schedules/new');
+            // Check if user has schedules accessible to them
+            if (!user?.active_schedule_id) {
+                const hasSchedules = await db
+                    .selectFrom('scheduling_periods')
+                    .select('id')
+                    .where((eb) =>
+                        eb.or([
+                            eb('user_id', '=', locals.session!.user.id),
+                            eb('user_id', 'is', null)
+                        ])
+                    )
+                    .limit(1)
+                    .executeTakeFirst();
+
+                if (!hasSchedules) {
+                    // No schedules - redirect to create one
+                    throw redirect(302, '/schedules/new');
+                }
+            }
+        } catch (error) {
+            // Handle case where active_schedule_id column doesn't exist yet
+            // This can happen if user table was created after migration 023 ran
+            if (error instanceof Error && error.message.includes('active_schedule_id')) {
+                console.warn('active_schedule_id column missing - run npm run db:migrate');
+                // Don't block the user, just skip the schedule check
+            } else if ((error as any)?.status === 302) {
+                // Re-throw redirects
+                throw error;
+            } else {
+                console.error('Error checking user schedule:', error);
             }
         }
     }
