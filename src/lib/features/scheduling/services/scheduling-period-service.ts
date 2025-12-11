@@ -191,11 +191,21 @@ export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promis
 		throw new NotFoundError('Scheduling Period');
 	}
 
-	// Prevent deletion of active period
-	if (period.is_active === 1) {
-		throw new ConflictError('Cannot delete the active scheduling period. Deactivate it first.');
-	}
+	// Clear any user's active_schedule_id that points to this schedule
+	await db
+		.updateTable('user')
+		.set({ active_schedule_id: null })
+		.where('active_schedule_id', '=', id)
+		.execute();
 
+	// Delete schedule-entity associations
+	await db.deleteFrom('schedule_students').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_preceptors').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_clerkships').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_sites').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_health_systems').where('schedule_id', '=', id).execute();
+
+	// Delete the schedule itself
 	await db
 		.deleteFrom('scheduling_periods')
 		.where('id', '=', id)

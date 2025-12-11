@@ -14,7 +14,7 @@
 	<Sidebar />
 
 	<!-- Main content area with padding for sidebar and responsive spacing -->
-	<div class="lg:pl-64 px-4 sm:px-6 lg:px-8">
+	<div class="lg:pl-72 px-4 sm:px-6 lg:px-8">
 		{@render children?.()}
 	</div>
 </div>

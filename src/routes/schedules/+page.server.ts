@@ -11,15 +11,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const session = locals.session;
 	const userId = session?.user?.id;
 
-	// Get all schedules accessible to the user
-	// For now, show all schedules (will filter by user_id once auth is required)
+	// Get all schedules owned by the user
+	// Only show schedules that belong to this user (not orphaned schedules)
 	let query = db.selectFrom('scheduling_periods').selectAll();
 
 	if (userId) {
-		// Show schedules owned by user or orphaned schedules
-		query = query.where((eb) =>
-			eb.or([eb('user_id', '=', userId), eb('user_id', 'is', null)])
-		);
+		// Only show schedules owned by this user
+		query = query.where('user_id', '=', userId);
+	} else {
+		// No user - show no schedules (shouldn't happen in authenticated routes)
+		query = query.where('id', '=', '__no_match__');
 	}
 
 	const schedules = await query.orderBy('start_date', 'desc').execute();
@@ -27,12 +28,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Get user's active schedule ID
 	let activeScheduleId: string | null = null;
 	if (userId) {
-		const user = await db
-			.selectFrom('user')
-			.select('active_schedule_id')
-			.where('id', '=', userId)
-			.executeTakeFirst();
-		activeScheduleId = user?.active_schedule_id || null;
+		try {
+			const user = await db
+				.selectFrom('user')
+				.select('active_schedule_id')
+				.where('id', '=', userId)
+				.executeTakeFirst();
+			activeScheduleId = user?.active_schedule_id || null;
+		} catch (error) {
+			// Handle case where active_schedule_id column doesn't exist
+			if (error instanceof Error && error.message.includes('active_schedule_id')) {
+				console.warn('active_schedule_id column missing - run npm run db:migrate');
+			} else {
+				throw error;
+			}
+		}
 	}
 
 	// Get entity counts for each schedule

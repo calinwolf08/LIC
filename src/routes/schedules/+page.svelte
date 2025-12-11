@@ -10,6 +10,7 @@
 	let settingActive = $state<string | null>(null);
 	let deleteConfirm = $state<string | null>(null);
 	let deleting = $state(false);
+	let deleteError = $state<string | null>(null);
 
 	async function setActiveSchedule(scheduleId: string) {
 		settingActive = scheduleId;
@@ -35,6 +36,7 @@
 
 	async function handleDelete(scheduleId: string) {
 		deleting = true;
+		deleteError = null;
 		try {
 			const response = await fetch(`/api/scheduling-periods/${scheduleId}`, {
 				method: 'DELETE'
@@ -43,9 +45,13 @@
 			if (response.ok) {
 				deleteConfirm = null;
 				await invalidateAll();
+			} else {
+				const body = await response.json();
+				deleteError = body.error || 'Failed to delete schedule';
 			}
 		} catch (error) {
 			console.error('Failed to delete schedule:', error);
+			deleteError = 'Network error deleting schedule';
 		} finally {
 			deleting = false;
 		}
@@ -147,22 +153,33 @@
 							</Button>
 							{#if deleteConfirm === schedule.id}
 								<div class="flex items-center gap-2 ml-2">
-									<span class="text-sm text-red-600">Delete?</span>
-									<Button
-										variant="destructive"
-										size="sm"
-										onclick={() => handleDelete(schedule.id!)}
-										disabled={deleting}
-									>
-										{deleting ? 'Deleting...' : 'Yes'}
-									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => (deleteConfirm = null)}
-									>
-										No
-									</Button>
+									{#if deleteError}
+										<span class="text-sm text-red-600">{deleteError}</span>
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => { deleteConfirm = null; deleteError = null; }}
+										>
+											OK
+										</Button>
+									{:else}
+										<span class="text-sm text-red-600">Delete?</span>
+										<Button
+											variant="destructive"
+											size="sm"
+											onclick={() => handleDelete(schedule.id!)}
+											disabled={deleting}
+										>
+											{deleting ? 'Deleting...' : 'Yes'}
+										</Button>
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => (deleteConfirm = null)}
+										>
+											No
+										</Button>
+									{/if}
 								</div>
 							{:else}
 								<Button
