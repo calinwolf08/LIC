@@ -9,6 +9,9 @@ import { db } from '$lib/db';
 import { successResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { getPreceptorsBySites } from '$lib/features/preceptors/services/preceptor-service.js';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('api:preceptors:teams:available-preceptors');
 
 /**
  * GET /api/preceptors/teams/available-preceptors
@@ -16,10 +19,15 @@ import { getPreceptorsBySites } from '$lib/features/preceptors/services/precepto
  * Query param: siteIds (comma-separated list of site IDs)
  */
 export const GET: RequestHandler = async ({ url }) => {
-	try {
-		const siteIdsParam = url.searchParams.get('siteIds');
-		const siteIds = siteIdsParam ? siteIdsParam.split(',').filter(Boolean) : [];
+	const siteIdsParam = url.searchParams.get('siteIds');
+	const siteIds = siteIdsParam ? siteIdsParam.split(',').filter(Boolean) : [];
 
+	log.debug('Fetching available preceptors', {
+		siteIds,
+		siteCount: siteIds.length
+	});
+
+	try {
 		const preceptors = await getPreceptorsBySites(db, siteIds);
 
 		// Enhance preceptors with their site associations
@@ -39,8 +47,14 @@ export const GET: RequestHandler = async ({ url }) => {
 			})
 		);
 
+		log.info('Available preceptors fetched', {
+			count: preceptorsWithSites.length,
+			siteCount: siteIds.length
+		});
+
 		return successResponse(preceptorsWithSites);
 	} catch (error) {
+		log.error('Failed to fetch available preceptors', { siteIds, error });
 		return handleApiError(error);
 	}
 };
