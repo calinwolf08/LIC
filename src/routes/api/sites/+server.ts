@@ -4,23 +4,34 @@ import { ZodError } from 'zod';
 import { ConflictError, NotFoundError, handleApiError } from '$lib/api/errors';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
 import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { db } from '$lib/db';
 import type { RequestHandler } from './$types';
+
+const log = createServerLogger('api:sites');
 
 /**
  * GET /api/sites
  * Get all sites or filter by health system
  */
 export const GET: RequestHandler = async ({ url }) => {
-	try {
-		const healthSystemId = url.searchParams.get('health_system_id');
+	const healthSystemId = url.searchParams.get('health_system_id');
 
+	log.debug('Fetching sites', { healthSystemId: healthSystemId || 'all' });
+
+	try {
 		const sites = healthSystemId
 			? await siteService.getSitesByHealthSystem(healthSystemId)
 			: await siteService.getAllSites();
 
+		log.info('Sites fetched', {
+			count: sites.length,
+			healthSystemId: healthSystemId || 'all'
+		});
+
 		return successResponse(sites);
 	} catch (error) {
+		log.error('Failed to fetch sites', { healthSystemId, error });
 		return handleApiError(error);
 	}
 };
@@ -30,6 +41,8 @@ export const GET: RequestHandler = async ({ url }) => {
  * Create a new site and auto-associate with user's active schedule
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
+	log.debug('Creating site');
+
 	try {
 		const body = await request.json();
 		const input = createSiteSchema.parse(body);
@@ -41,20 +54,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'site', site.id);
 		}
 
+		log.info('Site created', {
+			id: site.id,
+			name: site.name,
+			healthSystemId: site.health_system_id
+		});
+
 		return successResponse(site, 201);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Site validation failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
 		if (error instanceof ConflictError) {
+			log.warn('Site conflict', { message: error.message });
 			return errorResponse(error.message, 409);
 		}
 
 		if (error instanceof NotFoundError) {
+			log.warn('Health system not found', { message: error.message });
 			return errorResponse(error.message, 404);
 		}
 
+		log.error('Failed to create site', { error });
 		return handleApiError(error);
 	}
 };
