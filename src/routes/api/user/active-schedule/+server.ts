@@ -9,7 +9,10 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { z } from 'zod';
+
+const log = createServerLogger('api:user:active-schedule');
 
 const setActiveScheduleSchema = z.object({
 	scheduleId: z.string().min(1)
@@ -20,10 +23,14 @@ const setActiveScheduleSchema = z.object({
  * Returns the current user's active schedule
  */
 export const GET: RequestHandler = async ({ locals }) => {
+	const userId = locals.session?.user?.id;
+	log.debug('Fetching active schedule', { userId });
+
 	try {
 		const session = locals.session;
 
 		if (!session?.user?.id) {
+			log.warn('Unauthorized active schedule request');
 			return errorResponse('Unauthorized', 401);
 		}
 
@@ -34,10 +41,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.executeTakeFirst();
 
 		if (!user) {
+			log.warn('User not found for active schedule', { userId });
 			return errorResponse('User not found', 404);
 		}
 
 		if (!user.active_schedule_id) {
+			log.info('No active schedule set', { userId });
 			return successResponse({ schedule: null });
 		}
 
@@ -47,8 +56,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.where('id', '=', user.active_schedule_id)
 			.executeTakeFirst();
 
+		log.info('Active schedule fetched', {
+			userId,
+			scheduleId: user.active_schedule_id,
+			scheduleName: schedule?.name
+		});
+
 		return successResponse({ schedule: schedule || null });
 	} catch (error) {
+		log.error('Failed to fetch active schedule', { userId, error });
 		return handleApiError(error);
 	}
 };
@@ -58,15 +74,21 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Sets the current user's active schedule
  */
 export const PUT: RequestHandler = async ({ request, locals }) => {
+	const userId = locals.session?.user?.id;
+	log.debug('Setting active schedule', { userId });
+
 	try {
 		const session = locals.session;
 
 		if (!session?.user?.id) {
+			log.warn('Unauthorized set active schedule request');
 			return errorResponse('Unauthorized', 401);
 		}
 
 		const body = await request.json();
 		const { scheduleId } = setActiveScheduleSchema.parse(body);
+
+		log.debug('Verifying schedule access', { userId, scheduleId });
 
 		// Verify the schedule exists and belongs to the user (or is accessible)
 		const schedule = await db
@@ -82,6 +104,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			.executeTakeFirst();
 
 		if (!schedule) {
+			log.warn('Schedule not found or not accessible', { userId, scheduleId });
 			return errorResponse('Schedule not found or not accessible', 404);
 		}
 
@@ -92,8 +115,15 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			.where('id', '=', session.user.id)
 			.execute();
 
+		log.info('Active schedule set', {
+			userId,
+			scheduleId,
+			scheduleName: schedule.name
+		});
+
 		return successResponse({ schedule });
 	} catch (error) {
+		log.error('Failed to set active schedule', { userId, error });
 		return handleApiError(error);
 	}
 };
