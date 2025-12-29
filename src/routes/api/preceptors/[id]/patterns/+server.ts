@@ -19,13 +19,18 @@ import {
 } from '$lib/features/preceptors/services/pattern-service';
 import { createPatternSchema } from '$lib/features/preceptors/pattern-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
+
+const log = createServerLogger('api:preceptors:patterns');
 
 /**
  * GET /api/preceptors/[id]/patterns
  * Returns all patterns for a preceptor
  */
 export const GET: RequestHandler = async ({ params }) => {
+	log.debug('Fetching preceptor patterns', { preceptorId: params.id });
+
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
@@ -38,12 +43,22 @@ export const GET: RequestHandler = async ({ params }) => {
 			config: pattern.config ? JSON.parse(pattern.config) : null
 		}));
 
+		log.info('Preceptor patterns fetched', {
+			preceptorId: id,
+			count: parsedPatterns.length
+		});
+
 		return successResponse(parsedPatterns);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Pattern query validation failed', {
+				preceptorId: params.id,
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
+		log.error('Failed to fetch preceptor patterns', { preceptorId: params.id, error });
 		return handleApiError(error);
 	}
 };
@@ -53,6 +68,8 @@ export const GET: RequestHandler = async ({ params }) => {
  * Create a new pattern for a preceptor
  */
 export const POST: RequestHandler = async ({ params, request }) => {
+	log.debug('Creating preceptor pattern', { preceptorId: params.id });
+
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
@@ -72,16 +89,29 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			config: pattern.config ? JSON.parse(pattern.config) : null
 		};
 
+		log.info('Preceptor pattern created', {
+			preceptorId: id,
+			patternId: pattern.id,
+			patternType: pattern.pattern_type,
+			isEnabled: pattern.is_enabled
+		});
+
 		return successResponse(parsedPattern, 201);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Pattern creation validation failed', {
+				preceptorId: params.id,
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
 		if (error instanceof NotFoundError) {
+			log.warn('Preceptor not found for pattern creation', { preceptorId: params.id });
 			return errorResponse(error.message, 404);
 		}
 
+		log.error('Failed to create preceptor pattern', { preceptorId: params.id, error });
 		return handleApiError(error);
 	}
 };
