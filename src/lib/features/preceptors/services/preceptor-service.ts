@@ -9,6 +9,9 @@ import type { DB, Preceptors } from '$lib/db/types';
 import type { CreatePreceptorInput, UpdatePreceptorInput } from '../schemas.js';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:preceptors:preceptor');
 
 /**
  * Get all preceptors, ordered by name
@@ -59,9 +62,16 @@ export async function createPreceptor(
 	db: Kysely<DB>,
 	data: CreatePreceptorInput
 ): Promise<Selectable<Preceptors>> {
+	log.debug('Creating preceptor', {
+		name: data.name,
+		email: data.email,
+		healthSystemId: data.health_system_id
+	});
+
 	// Check if email is already taken
 	const existingPreceptor = await getPreceptorByEmail(db, data.email);
 	if (existingPreceptor) {
+		log.warn('Preceptor creation failed - email already exists', { email: data.email });
 		throw new ConflictError('Email already exists');
 	}
 
@@ -84,6 +94,12 @@ export async function createPreceptor(
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
+	log.info('Preceptor created', {
+		id: inserted.id,
+		name: inserted.name,
+		email: inserted.email
+	});
+
 	return inserted;
 }
 
@@ -97,9 +113,15 @@ export async function updatePreceptor(
 	id: string,
 	data: UpdatePreceptorInput
 ): Promise<Selectable<Preceptors>> {
+	log.debug('Updating preceptor', {
+		id,
+		updates: Object.keys(data)
+	});
+
 	// Check if preceptor exists
 	const exists = await preceptorExists(db, id);
 	if (!exists) {
+		log.warn('Preceptor not found for update', { id });
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -107,6 +129,7 @@ export async function updatePreceptor(
 	if (data.email) {
 		const emailTaken = await isEmailTaken(db, data.email, id);
 		if (emailTaken) {
+			log.warn('Preceptor update failed - email already exists', { id, email: data.email });
 			throw new ConflictError('Email already exists');
 		}
 	}
@@ -130,6 +153,12 @@ export async function updatePreceptor(
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
+	log.info('Preceptor updated', {
+		id: updated.id,
+		name: updated.name,
+		updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+	});
+
 	return updated;
 }
 
@@ -139,20 +168,26 @@ export async function updatePreceptor(
  * @throws {ConflictError} If preceptor has schedule assignments
  */
 export async function deletePreceptor(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting preceptor', { id });
+
 	// Check if preceptor exists
 	const exists = await preceptorExists(db, id);
 	if (!exists) {
+		log.warn('Preceptor not found for deletion', { id });
 		throw new NotFoundError('Preceptor');
 	}
 
 	// Check if preceptor can be deleted
 	const canDelete = await canDeletePreceptor(db, id);
 	if (!canDelete) {
+		log.warn('Cannot delete preceptor with existing assignments', { id });
 		throw new ConflictError('Cannot delete preceptor with existing schedule assignments');
 	}
 
 	// Delete will cascade to preceptor_availability
 	await db.deleteFrom('preceptors').where('id', '=', id).execute();
+
+	log.info('Preceptor deleted', { id });
 }
 
 /**

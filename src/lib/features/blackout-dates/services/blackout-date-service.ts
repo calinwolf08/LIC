@@ -8,6 +8,9 @@ import type { Kysely, Selectable } from 'kysely';
 import type { DB, BlackoutDates } from '$lib/db/types';
 import type { CreateBlackoutDateInput } from '../schemas.js';
 import { NotFoundError } from '$lib/api/errors';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:blackout-dates');
 
 /**
  * Get all blackout dates, ordered by date
@@ -68,6 +71,11 @@ export async function createBlackoutDate(
 	db: Kysely<DB>,
 	data: CreateBlackoutDateInput
 ): Promise<Selectable<BlackoutDates>> {
+	log.debug('Creating blackout date', {
+		date: data.date,
+		reason: data.reason
+	});
+
 	const timestamp = new Date().toISOString();
 	const newBlackoutDate = {
 		id: crypto.randomUUID(),
@@ -82,6 +90,11 @@ export async function createBlackoutDate(
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
+	log.info('Blackout date created', {
+		id: inserted.id,
+		date: inserted.date
+	});
+
 	return inserted;
 }
 
@@ -90,13 +103,18 @@ export async function createBlackoutDate(
  * @throws {NotFoundError} If blackout date not found
  */
 export async function deleteBlackoutDate(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting blackout date', { id });
+
 	// Check if blackout date exists
 	const exists = await blackoutDateExists(db, id);
 	if (!exists) {
+		log.warn('Blackout date not found for deletion', { id });
 		throw new NotFoundError('Blackout date');
 	}
 
 	await db.deleteFrom('blackout_dates').where('id', '=', id).execute();
+
+	log.info('Blackout date deleted', { id });
 }
 
 /**
