@@ -14,6 +14,9 @@ import {
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
 import { nanoid } from 'nanoid';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:fallbacks');
 
 /**
  * Fallback Service
@@ -28,9 +31,20 @@ export class FallbackService {
    * Create a new fallback
    */
   async createFallback(input: PreceptorFallbackInput): Promise<ServiceResult<PreceptorFallback>> {
+    log.debug('Creating fallback', {
+      primaryPreceptorId: input.primaryPreceptorId,
+      fallbackPreceptorId: input.fallbackPreceptorId,
+      priority: input.priority,
+      clerkshipId: input.clerkshipId
+    });
+
     // Validate input
     const validation = preceptorFallbackInputSchema.safeParse(input);
     if (!validation.success) {
+      log.warn('Fallback creation validation failed', {
+        primaryPreceptorId: input.primaryPreceptorId,
+        errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
       return Result.failure(
         ServiceErrors.validationError('Invalid fallback data', validation.error.errors)
       );
@@ -45,6 +59,7 @@ export class FallbackService {
         .executeTakeFirst();
 
       if (!primaryPreceptor) {
+        log.warn('Primary preceptor not found for fallback', { primaryPreceptorId: input.primaryPreceptorId });
         return Result.failure(ServiceErrors.notFound('Primary preceptor', input.primaryPreceptorId));
       }
 
@@ -56,6 +71,7 @@ export class FallbackService {
         .executeTakeFirst();
 
       if (!fallbackPreceptor) {
+        log.warn('Fallback preceptor not found', { fallbackPreceptorId: input.fallbackPreceptorId });
         return Result.failure(ServiceErrors.notFound('Fallback preceptor', input.fallbackPreceptorId));
       }
 
@@ -66,6 +82,10 @@ export class FallbackService {
         input.clerkshipId
       );
       if (!circularCheck.success) {
+        log.warn('Fallback creation blocked by circular reference', {
+          primaryPreceptorId: input.primaryPreceptorId,
+          fallbackPreceptorId: input.fallbackPreceptorId
+        });
         return Result.failure(circularCheck.error);
       }
 
@@ -116,8 +136,16 @@ export class FallbackService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      log.info('Fallback created', {
+        id: fallback.id,
+        primaryPreceptorId: fallback.primary_preceptor_id,
+        fallbackPreceptorId: fallback.fallback_preceptor_id,
+        priority: fallback.priority
+      });
+
       return Result.success(this.mapFallback(fallback));
     } catch (error) {
+      log.error('Failed to create fallback', { primaryPreceptorId: input.primaryPreceptorId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to create fallback', error));
     }
   }
@@ -126,6 +154,8 @@ export class FallbackService {
    * Get fallback by ID
    */
   async getFallback(id: string): Promise<ServiceResult<PreceptorFallback | null>> {
+    log.debug('Fetching fallback', { id });
+
     try {
       const fallback = await this.db
         .selectFrom('preceptor_fallbacks')
@@ -134,11 +164,14 @@ export class FallbackService {
         .executeTakeFirst();
 
       if (!fallback) {
+        log.debug('Fallback not found', { id });
         return Result.success(null);
       }
 
+      log.info('Fallback fetched', { id, primaryPreceptorId: fallback.primary_preceptor_id });
       return Result.success(this.mapFallback(fallback));
     } catch (error) {
+      log.error('Failed to fetch fallback', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch fallback', error));
     }
   }
@@ -150,6 +183,8 @@ export class FallbackService {
     primaryPreceptorId: string,
     clerkshipId?: string
   ): Promise<ServiceResult<PreceptorFallback[]>> {
+    log.debug('Fetching fallback chain', { primaryPreceptorId, clerkshipId });
+
     try {
       let query = this.db
         .selectFrom('preceptor_fallbacks')
@@ -164,8 +199,15 @@ export class FallbackService {
 
       const fallbacks = await query.orderBy('priority', 'asc').execute();
 
+      log.info('Fallback chain fetched', {
+        primaryPreceptorId,
+        clerkshipId,
+        chainLength: fallbacks.length
+      });
+
       return Result.success(fallbacks.map(f => this.mapFallback(f)));
     } catch (error) {
+      log.error('Failed to fetch fallback chain', { primaryPreceptorId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch fallback chain', error));
     }
   }
@@ -177,6 +219,8 @@ export class FallbackService {
     id: string,
     input: Partial<PreceptorFallbackInput>
   ): Promise<ServiceResult<PreceptorFallback>> {
+    log.debug('Updating fallback', { id, updates: Object.keys(input) });
+
     try {
       // Check if exists
       const existing = await this.db
@@ -186,6 +230,7 @@ export class FallbackService {
         .executeTakeFirst();
 
       if (!existing) {
+        log.warn('Fallback not found for update', { id });
         return Result.failure(ServiceErrors.notFound('Fallback', id));
       }
 
@@ -231,8 +276,15 @@ export class FallbackService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      log.info('Fallback updated', {
+        id: updated.id,
+        primaryPreceptorId: updated.primary_preceptor_id,
+        updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+      });
+
       return Result.success(this.mapFallback(updated));
     } catch (error) {
+      log.error('Failed to update fallback', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to update fallback', error));
     }
   }
@@ -241,15 +293,20 @@ export class FallbackService {
    * Delete fallback
    */
   async deleteFallback(id: string): Promise<ServiceResult<boolean>> {
+    log.debug('Deleting fallback', { id });
+
     try {
       const result = await this.db.deleteFrom('preceptor_fallbacks').where('id', '=', id).execute();
 
       if (result[0].numDeletedRows === BigInt(0)) {
+        log.warn('Fallback not found for deletion', { id });
         return Result.failure(ServiceErrors.notFound('Fallback', id));
       }
 
+      log.info('Fallback deleted', { id });
       return Result.success(true);
     } catch (error) {
+      log.error('Failed to delete fallback', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to delete fallback', error));
     }
   }
