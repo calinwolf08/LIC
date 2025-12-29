@@ -12,7 +12,10 @@ import {
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { dateStringSchema } from '$lib/validation/common-schemas';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { z, ZodError } from 'zod';
+
+const log = createServerLogger('api:blackout-dates:conflicts');
 
 const conflictCheckSchema = z.object({
 	date: dateStringSchema
@@ -37,9 +40,13 @@ interface ConflictInfo {
  * Checks if a given date has existing schedule assignments
  */
 export const POST: RequestHandler = async ({ request }) => {
+	log.debug('Checking blackout date conflicts');
+
 	try {
 		const body = await request.json();
 		const { date } = conflictCheckSchema.parse(body);
+
+		log.debug('Checking conflicts for date', { date });
 
 		// Query assignments for the given date with related info
 		const assignments = await db
@@ -73,11 +80,22 @@ export const POST: RequestHandler = async ({ request }) => {
 			}))
 		};
 
+		log.info('Blackout date conflicts checked', {
+			date,
+			hasConflicts: result.hasConflicts,
+			conflictCount: result.count
+		});
+
 		return successResponse(result);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Conflict check validation failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
+
+		log.error('Failed to check blackout date conflicts', { error });
 		return handleApiError(error);
 	}
 };
