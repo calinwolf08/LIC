@@ -14,6 +14,9 @@ import { ElectiveService } from './electives.service';
 import { TeamService } from './teams.service';
 import { GlobalDefaultsService } from './global-defaults.service';
 import type { ClerkshipRequirement } from '../types';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:configuration');
 
 /**
  * Configuration Service
@@ -42,6 +45,8 @@ export class ConfigurationService {
   async getCompleteConfiguration(
     clerkshipId: string
   ): Promise<ServiceResult<CompleteClerkshipConfiguration | null>> {
+    log.debug('Fetching complete configuration', { clerkshipId });
+
     try {
       // Get clerkship
       const clerkship = await this.db
@@ -51,6 +56,7 @@ export class ConfigurationService {
         .executeTakeFirst();
 
       if (!clerkship || !clerkship.id) {
+        log.debug('Clerkship not found for complete configuration', { clerkshipId });
         return Result.success(null);
       }
 
@@ -91,6 +97,14 @@ export class ConfigurationService {
         0
       );
 
+      log.info('Complete configuration fetched', {
+        clerkshipId: clerkship.id,
+        clerkshipName: clerkship.name,
+        requirementCount: requirements.length,
+        teamCount: teams?.length || 0,
+        totalRequiredDays
+      });
+
       return Result.success({
         clerkshipId: clerkship.id,
         clerkshipName: clerkship.name,
@@ -99,6 +113,7 @@ export class ConfigurationService {
         teams,
       });
     } catch (error) {
+      log.error('Failed to fetch complete configuration', { clerkshipId, error });
       return Result.failure(
         ServiceErrors.databaseError('Failed to fetch complete configuration', error)
       );
@@ -223,6 +238,8 @@ export class ConfigurationService {
   async validateConfiguration(
     clerkshipId: string
   ): Promise<ServiceResult<{ valid: boolean; errors: string[] }>> {
+    log.debug('Validating configuration', { clerkshipId });
+
     const errors: string[] = [];
 
     try {
@@ -234,6 +251,7 @@ export class ConfigurationService {
         .executeTakeFirst();
 
       if (!clerkship) {
+        log.warn('Clerkship not found for validation', { clerkshipId });
         return Result.failure(ServiceErrors.notFound('Clerkship', clerkshipId));
       }
 
@@ -271,11 +289,18 @@ export class ConfigurationService {
         }
       }
 
+      log.info('Configuration validated', {
+        clerkshipId,
+        valid: errors.length === 0,
+        errorCount: errors.length
+      });
+
       return Result.success({
         valid: errors.length === 0,
         errors,
       });
     } catch (error) {
+      log.error('Failed to validate configuration', { clerkshipId, error });
       return Result.failure(
         ServiceErrors.databaseError('Failed to validate configuration', error)
       );
@@ -291,6 +316,8 @@ export class ConfigurationService {
     sourceClerkshipId: string,
     targetClerkshipId: string
   ): Promise<ServiceResult<boolean>> {
+    log.debug('Cloning configuration', { sourceClerkshipId, targetClerkshipId });
+
     try {
       // Verify both clerkships exist
       const sourceClerkship = await this.db
@@ -300,6 +327,7 @@ export class ConfigurationService {
         .executeTakeFirst();
 
       if (!sourceClerkship) {
+        log.warn('Source clerkship not found for cloning', { sourceClerkshipId });
         return Result.failure(ServiceErrors.notFound('Source clerkship', sourceClerkshipId));
       }
 
@@ -310,6 +338,7 @@ export class ConfigurationService {
         .executeTakeFirst();
 
       if (!targetClerkship) {
+        log.warn('Target clerkship not found for cloning', { targetClerkshipId });
         return Result.failure(ServiceErrors.notFound('Target clerkship', targetClerkshipId));
       }
 
@@ -374,8 +403,16 @@ export class ConfigurationService {
         }
       });
 
+      log.info('Configuration cloned', {
+        sourceClerkshipId,
+        targetClerkshipId,
+        requirementCount: configResult.data!.requirements.length,
+        teamCount: configResult.data!.teams?.length || 0
+      });
+
       return Result.success(true);
     } catch (error) {
+      log.error('Failed to clone configuration', { sourceClerkshipId, targetClerkshipId, error });
       return Result.failure(
         ServiceErrors.databaseError('Failed to clone configuration', error)
       );
@@ -386,6 +423,8 @@ export class ConfigurationService {
    * Delete entire configuration for a clerkship
    */
   async deleteConfiguration(clerkshipId: string): Promise<ServiceResult<boolean>> {
+    log.debug('Deleting configuration', { clerkshipId });
+
     try {
       // Check for active assignments (would need assignments table)
       // For now, just delete
@@ -420,8 +459,10 @@ export class ConfigurationService {
         await trx.deleteFrom('preceptor_teams').where('clerkship_id', '=', clerkshipId).execute();
       });
 
+      log.info('Configuration deleted', { clerkshipId });
       return Result.success(true);
     } catch (error) {
+      log.error('Failed to delete configuration', { clerkshipId, error });
       return Result.failure(
         ServiceErrors.databaseError('Failed to delete configuration', error)
       );

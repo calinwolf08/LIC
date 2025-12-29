@@ -16,6 +16,9 @@ import {
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
 import { nanoid } from 'nanoid';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:electives');
 
 /**
  * Elective Service
@@ -37,9 +40,19 @@ export class ElectiveService {
     requirementId: string,
     input: ClerkshipElectiveInput
   ): Promise<ServiceResult<ClerkshipElective>> {
+    log.debug('Creating elective', {
+      requirementId,
+      name: input.name,
+      minimumDays: input.minimumDays
+    });
+
     // Validate input
     const validation = clerkshipElectiveInputSchema.safeParse(input);
     if (!validation.success) {
+      log.warn('Elective creation validation failed', {
+        requirementId,
+        errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
       return Result.failure(
         ServiceErrors.validationError('Invalid elective data', validation.error.errors)
       );
@@ -56,10 +69,15 @@ export class ElectiveService {
         .executeTakeFirst();
 
       if (!requirement) {
+        log.warn('Requirement not found for elective', { requirementId });
         return Result.failure(ServiceErrors.notFound('Requirement', requirementId));
       }
 
       if (requirement.requirement_type !== 'elective') {
+        log.warn('Elective creation blocked - requirement not elective type', {
+          requirementId,
+          requirementType: requirement.requirement_type
+        });
         return Result.failure(
           ServiceErrors.conflict('Electives can only be added to elective requirements')
         );
@@ -67,6 +85,10 @@ export class ElectiveService {
 
       // Validate minimum days
       if (data.minimumDays > requirement.required_days) {
+        log.warn('Elective creation blocked - minimum days exceeds requirement total', {
+          minimumDays: data.minimumDays,
+          requiredDays: requirement.required_days
+        });
         return Result.failure(
           ServiceErrors.conflict(
             `Minimum days (${data.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
@@ -102,8 +124,18 @@ export class ElectiveService {
         await this.setPreceptorsForElective(electiveId, data.preceptorIds);
       }
 
+      log.info('Elective created', {
+        id: elective.id,
+        requirementId: elective.requirement_id,
+        name: elective.name,
+        minimumDays: elective.minimum_days,
+        siteCount: data.siteIds?.length || 0,
+        preceptorCount: data.preceptorIds?.length || 0
+      });
+
       return Result.success(this.mapElective(elective));
     } catch (error) {
+      log.error('Failed to create elective', { requirementId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to create elective', error));
     }
   }
@@ -112,6 +144,8 @@ export class ElectiveService {
    * Get elective by ID
    */
   async getElective(id: string): Promise<ServiceResult<ClerkshipElective | null>> {
+    log.debug('Fetching elective', { id });
+
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
@@ -120,11 +154,14 @@ export class ElectiveService {
         .executeTakeFirst();
 
       if (!elective) {
+        log.debug('Elective not found', { id });
         return Result.success(null);
       }
 
+      log.info('Elective fetched', { id, name: elective.name });
       return Result.success(this.mapElective(elective));
     } catch (error) {
+      log.error('Failed to fetch elective', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch elective', error));
     }
   }
@@ -133,6 +170,8 @@ export class ElectiveService {
    * Get elective with full details including sites and preceptors
    */
   async getElectiveWithDetails(id: string): Promise<ServiceResult<ClerkshipElectiveWithDetails | null>> {
+    log.debug('Fetching elective with details', { id });
+
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
@@ -141,6 +180,7 @@ export class ElectiveService {
         .executeTakeFirst();
 
       if (!elective) {
+        log.debug('Elective not found for details fetch', { id });
         return Result.success(null);
       }
 
@@ -160,12 +200,20 @@ export class ElectiveService {
         .where('elective_preceptors.elective_id', '=', id)
         .execute();
 
+      log.info('Elective with details fetched', {
+        id,
+        name: elective.name,
+        siteCount: sites.length,
+        preceptorCount: preceptors.length
+      });
+
       return Result.success({
         ...this.mapElective(elective),
         sites: sites.map(s => ({ id: s.id!, name: s.name })),
         preceptors: preceptors.map(p => ({ id: p.id!, name: p.name })),
       });
     } catch (error) {
+      log.error('Failed to fetch elective details', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch elective details', error));
     }
   }
@@ -174,6 +222,8 @@ export class ElectiveService {
    * Get all electives for a requirement
    */
   async getElectivesByRequirement(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+    log.debug('Fetching electives for requirement', { requirementId });
+
     try {
       const electives = await this.db
         .selectFrom('clerkship_electives')
@@ -181,8 +231,10 @@ export class ElectiveService {
         .where('requirement_id', '=', requirementId)
         .execute();
 
+      log.info('Electives fetched for requirement', { requirementId, count: electives.length });
       return Result.success(electives.map(e => this.mapElective(e)));
     } catch (error) {
+      log.error('Failed to fetch electives for requirement', { requirementId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch electives', error));
     }
   }
@@ -248,9 +300,15 @@ export class ElectiveService {
     id: string,
     input: ClerkshipElectiveUpdateInput
   ): Promise<ServiceResult<ClerkshipElective>> {
+    log.debug('Updating elective', { id, updates: Object.keys(input) });
+
     // Validate input
     const validation = clerkshipElectiveUpdateSchema.safeParse(input);
     if (!validation.success) {
+      log.warn('Elective update validation failed', {
+        id,
+        errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
       return Result.failure(
         ServiceErrors.validationError('Invalid elective data', validation.error.errors)
       );
@@ -267,6 +325,7 @@ export class ElectiveService {
         .executeTakeFirst();
 
       if (!existing) {
+        log.warn('Elective not found for update', { id });
         return Result.failure(ServiceErrors.notFound('Elective', id));
       }
 
@@ -317,8 +376,15 @@ export class ElectiveService {
         await this.setPreceptorsForElective(id, data.preceptorIds);
       }
 
+      log.info('Elective updated', {
+        id: updated.id,
+        name: updated.name,
+        updatedFields: Object.keys(data).filter(k => k !== 'siteIds' && k !== 'preceptorIds')
+      });
+
       return Result.success(this.mapElective(updated));
     } catch (error) {
+      log.error('Failed to update elective', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to update elective', error));
     }
   }
@@ -327,6 +393,8 @@ export class ElectiveService {
    * Delete elective
    */
   async deleteElective(id: string): Promise<ServiceResult<boolean>> {
+    log.debug('Deleting elective', { id });
+
     try {
       // Check for current student assignments
       const assignments = await this.db
@@ -337,6 +405,7 @@ export class ElectiveService {
         .execute();
 
       if (assignments.length > 0) {
+        log.warn('Elective deletion blocked by existing assignments', { id });
         return Result.failure(
           ServiceErrors.conflict('Cannot delete elective with existing assignments')
         );
@@ -345,11 +414,14 @@ export class ElectiveService {
       const result = await this.db.deleteFrom('clerkship_electives').where('id', '=', id).execute();
 
       if (result[0].numDeletedRows === BigInt(0)) {
+        log.warn('Elective not found for deletion', { id });
         return Result.failure(ServiceErrors.notFound('Elective', id));
       }
 
+      log.info('Elective deleted', { id });
       return Result.success(true);
     } catch (error) {
+      log.error('Failed to delete elective', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to delete elective', error));
     }
   }
