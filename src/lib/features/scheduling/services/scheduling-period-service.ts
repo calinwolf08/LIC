@@ -12,6 +12,9 @@ import type {
 	UpdateSchedulingPeriod
 } from '$lib/features/preceptors/pattern-schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:period');
 
 /**
  * Entity types that can be associated with schedules
@@ -93,10 +96,20 @@ export async function createSchedulingPeriod(
 	db: Kysely<DB>,
 	data: CreateSchedulingPeriod
 ): Promise<Selectable<SchedulingPeriods>> {
+	log.debug('Creating scheduling period', {
+		name: data.name,
+		startDate: data.start_date,
+		endDate: data.end_date,
+		isActive: data.is_active
+	});
+
 	// If this period should be active, check if there's already an active period
 	if (data.is_active) {
 		const activePeriod = await getActiveSchedulingPeriod(db);
 		if (activePeriod) {
+			log.warn('Cannot create active period - another period is active', {
+				existingActivePeriod: activePeriod.name
+			});
 			throw new ConflictError(
 				`Cannot create active period. Period "${activePeriod.name}" is currently active. Deactivate it first.`
 			);
@@ -121,6 +134,12 @@ export async function createSchedulingPeriod(
 		.values(newPeriod)
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	log.info('Scheduling period created', {
+		id: inserted.id,
+		name: inserted.name,
+		isActive: Boolean(inserted.is_active)
+	});
 
 	return inserted;
 }
@@ -185,9 +204,12 @@ export async function updateSchedulingPeriod(
  * Delete a scheduling period
  */
 export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting scheduling period', { id });
+
 	// Check if period exists
 	const period = await getSchedulingPeriodById(db, id);
 	if (!period) {
+		log.warn('Scheduling period not found for deletion', { id });
 		throw new NotFoundError('Scheduling Period');
 	}
 
@@ -210,6 +232,8 @@ export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promis
 		.deleteFrom('scheduling_periods')
 		.where('id', '=', id)
 		.execute();
+
+	log.info('Scheduling period deleted', { id, name: period.name });
 }
 
 /**

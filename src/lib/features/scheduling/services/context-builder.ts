@@ -12,6 +12,9 @@ import type {
 } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
 import { initializeStudentRequirements } from './requirement-tracker';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:context-builder');
 
 /**
  * Optional data for building enhanced scheduling context
@@ -75,6 +78,17 @@ export function buildSchedulingContext(
 	endDate: string,
 	optionalData?: OptionalContextData
 ): SchedulingContext {
+	log.debug('Building scheduling context', {
+		studentCount: students.length,
+		preceptorCount: preceptors.length,
+		clerkshipCount: clerkships.length,
+		blackoutDateCount: blackoutDates.length,
+		availabilityRecordCount: preceptorAvailabilityRecords.length,
+		startDate,
+		endDate,
+		hasOptionalData: !!optionalData
+	});
+
 	// Convert blackout dates array to Set for O(1) lookup
 	const blackoutDatesSet = new Set(blackoutDates);
 
@@ -245,6 +259,14 @@ export function buildSchedulingContext(
 			context.preceptorTeams = preceptorTeams;
 		}
 	}
+
+	log.info('Scheduling context built', {
+		studentCount: students.length,
+		preceptorCount: preceptors.length,
+		clerkshipCount: clerkships.length,
+		preceptorsWithAvailability: preceptorAvailability.size,
+		hasOptionalData: !!optionalData
+	});
 
 	return context;
 }

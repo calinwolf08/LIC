@@ -9,6 +9,9 @@ import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { SchedulingContext, Assignment } from '../types';
 import { getAssignmentsByDateRange } from '$lib/features/schedules/services/assignment-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:regeneration');
 
 /**
  * Regeneration strategy types
@@ -46,6 +49,11 @@ export function creditPastAssignmentsToRequirements(
 	context: SchedulingContext,
 	pastAssignments: Selectable<ScheduleAssignments>[]
 ): RequirementCreditResult {
+	log.debug('Crediting past assignments to requirements', {
+		pastAssignmentsCount: pastAssignments.length,
+		studentCount: context.students.length
+	});
+
 	const creditsByStudent = new Map<string, Map<string, number>>();
 
 	for (const assignment of pastAssignments) {
@@ -66,6 +74,11 @@ export function creditPastAssignmentsToRequirements(
 			studentCredits.set(assignment.clerkship_id, currentCredit + 1);
 		}
 	}
+
+	log.info('Past assignments credited', {
+		totalPastAssignments: pastAssignments.length,
+		studentsWithCredits: creditsByStudent.size
+	});
 
 	return {
 		totalPastAssignments: pastAssignments.length,
@@ -90,6 +103,12 @@ export async function identifyAffectedAssignments(
 	regenerateFromDate: string,
 	endDate: string
 ): Promise<AffectedAssignmentsResult> {
+	log.debug('Identifying affected assignments', {
+		regenerateFromDate,
+		endDate,
+		preceptorCount: context.preceptors.length
+	});
+
 	// Get all future assignments (not yet cleared)
 	const futureAssignments = await getAssignmentsByDateRange(
 		db,
@@ -135,6 +154,13 @@ export async function identifyAffectedAssignments(
 		// Assignment appears valid - can be preserved
 		preservableAssignments.push(assignment);
 	}
+
+	log.info('Affected assignments identified', {
+		futureAssignmentsTotal: futureAssignments.length,
+		affectedCount: affectedAssignments.length,
+		preservableCount: preservableAssignments.length,
+		unavailablePreceptorCount: unavailablePreceptorIds.size
+	});
 
 	return {
 		affectedAssignments,
@@ -299,6 +325,14 @@ export async function prepareRegenerationContext(
 	preservedAssignments: number;
 	affectedAssignments: number;
 }> {
+	log.debug('Preparing regeneration context', {
+		regenerateFromDate,
+		endDate,
+		strategy,
+		studentCount: context.students.length,
+		preceptorCount: context.preceptors.length
+	});
+
 	// Get all past assignments (before regeneration date)
 	const startDate = context.startDate || '1900-01-01'; // Fallback to very old date
 	const pastAssignments = await getAssignmentsByDateRange(
@@ -336,6 +370,14 @@ export async function prepareRegenerationContext(
 		);
 	}
 	// For 'full-reoptimize', we don't preserve any future assignments
+
+	log.info('Regeneration context prepared', {
+		strategy,
+		pastAssignmentsCount: creditResult.totalPastAssignments,
+		preservedAssignments,
+		affectedAssignments,
+		studentsWithProgress: creditResult.creditsByStudent.size
+	});
 
 	return {
 		creditResult,
@@ -399,6 +441,12 @@ export async function analyzeRegenerationImpact(
 	endDate: string,
 	strategy: RegenerationStrategy
 ): Promise<RegenerationImpact> {
+	log.debug('Analyzing regeneration impact', {
+		regenerateFromDate,
+		endDate,
+		strategy
+	});
+
 	// Get all existing assignments
 	const assignments = await getAssignmentsByDateRange(db, context.startDate, endDate);
 
@@ -466,6 +514,17 @@ export async function analyzeRegenerationImpact(
 	// Calculate totals
 	const totalImpacted =
 		futureAssignments.length - (strategy === 'minimal-change' ? preservableAssignments.length : 0);
+
+	log.info('Regeneration impact analyzed', {
+		strategy,
+		regenerateFromDate,
+		pastAssignmentsCount: pastAssignments.length,
+		futureAssignmentsCount: futureAssignments.length,
+		preservableCount: preservableAssignments.length,
+		affectedCount: affectedAssignments.length,
+		totalImpacted,
+		studentsWithProgress: studentProgress.length
+	});
 
 	return {
 		pastAssignments,

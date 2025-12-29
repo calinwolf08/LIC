@@ -15,6 +15,9 @@ import {
 } from './requirement-tracker';
 import { getSchedulingDates } from '../utils/date-utils';
 import { getAvailablePreceptors } from '../utils/preceptor-matcher';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:engine');
 
 /**
  * Main scheduling engine using greedy algorithm with constraint validation
@@ -62,6 +65,17 @@ export class SchedulingEngine {
 		bypassedConstraints: Set<string> = new Set(),
 		existingContext?: SchedulingContext
 	): Promise<ScheduleResult> {
+		log.debug('Starting schedule generation', {
+			studentCount: students.length,
+			preceptorCount: preceptors.length,
+			clerkshipCount: clerkships.length,
+			startDate,
+			endDate,
+			blackoutDateCount: blackoutDates.length,
+			bypassedConstraintsCount: bypassedConstraints.size,
+			hasExistingContext: !!existingContext
+		});
+
 		// Clear violations from previous run
 		this.violationTracker.clear();
 
@@ -115,9 +129,19 @@ export class SchedulingEngine {
 		const unmetRequirements = checkUnmetRequirements(context);
 		const topViolations = this.violationTracker.getTopViolations(10);
 
+		const success = unmetRequirements.length === 0;
+
+		log.info('Schedule generation completed', {
+			success,
+			totalAssignments: context.assignments.length,
+			totalViolations: this.violationTracker.getTotalViolations(),
+			unmetRequirementsCount: unmetRequirements.length,
+			datesProcessed: dates.length
+		});
+
 		return {
 			assignments: context.assignments,
-			success: unmetRequirements.length === 0,
+			success,
 			unmetRequirements,
 			violationStats: topViolations,
 			violationTracker: this.violationTracker,
