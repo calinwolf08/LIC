@@ -7,6 +7,9 @@
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:clerkships:settings');
 
 export interface ClerkshipSettings {
 	overrideMode: 'inherit' | 'override';
@@ -39,6 +42,8 @@ export class ClerkshipSettingsService {
 	 * Get settings for a clerkship, merging global defaults with any overrides
 	 */
 	async getClerkshipSettings(clerkshipId: string): Promise<ClerkshipSettings> {
+		log.debug('Fetching clerkship settings', { clerkshipId });
+
 		// Get clerkship to determine type
 		const clerkship = await this.db
 			.selectFrom('clerkships')
@@ -47,6 +52,7 @@ export class ClerkshipSettingsService {
 			.executeTakeFirst();
 
 		if (!clerkship) {
+			log.error('Clerkship not found for settings fetch', { clerkshipId });
 			throw new Error('Clerkship not found');
 		}
 
@@ -62,6 +68,11 @@ export class ClerkshipSettingsService {
 
 		// If no config or inherit mode, return global defaults
 		if (!config || config.override_mode === 'inherit') {
+			log.info('Clerkship settings fetched (inherit mode)', {
+				clerkshipId,
+				clerkshipType: clerkship.clerkship_type,
+				overrideMode: 'inherit'
+			});
 			return {
 				overrideMode: 'inherit',
 				...globalDefaults
@@ -69,7 +80,7 @@ export class ClerkshipSettingsService {
 		}
 
 		// Merge overrides with defaults
-		return {
+		const settings = {
 			overrideMode: 'override',
 			assignmentStrategy: config.override_assignment_strategy || globalDefaults.assignmentStrategy,
 			healthSystemRule: config.override_health_system_rule || globalDefaults.healthSystemRule,
@@ -107,6 +118,16 @@ export class ClerkshipSettingsService {
 					? Boolean(config.override_fallback_allow_cross_system)
 					: globalDefaults.fallbackAllowCrossSystem
 		};
+
+		log.info('Clerkship settings fetched (override mode)', {
+			clerkshipId,
+			clerkshipType: clerkship.clerkship_type,
+			overrideMode: 'override',
+			assignmentStrategy: settings.assignmentStrategy,
+			healthSystemRule: settings.healthSystemRule
+		});
+
+		return settings;
 	}
 
 	/**
@@ -116,6 +137,11 @@ export class ClerkshipSettingsService {
 		clerkshipId: string,
 		settings: Partial<ClerkshipSettings>
 	): Promise<void> {
+		log.debug('Updating clerkship settings', {
+			clerkshipId,
+			settingKeys: Object.keys(settings)
+		});
+
 		// Ensure config record exists
 		const existing = await this.db
 			.selectFrom('clerkship_configurations')
@@ -167,6 +193,12 @@ export class ClerkshipSettingsService {
 				.set(updateData)
 				.where('clerkship_id', '=', clerkshipId)
 				.execute();
+
+			log.info('Clerkship settings updated', {
+				clerkshipId,
+				mode: 'update',
+				settingKeys: Object.keys(settings)
+			});
 		} else {
 			await this.db
 				.insertInto('clerkship_configurations')
@@ -177,6 +209,12 @@ export class ClerkshipSettingsService {
 					...updateData
 				})
 				.execute();
+
+			log.info('Clerkship settings created', {
+				clerkshipId,
+				mode: 'create',
+				settingKeys: Object.keys(settings)
+			});
 		}
 	}
 
@@ -184,6 +222,8 @@ export class ClerkshipSettingsService {
 	 * Reset clerkship settings to use global defaults
 	 */
 	async resetToDefaults(clerkshipId: string): Promise<void> {
+		log.debug('Resetting clerkship settings to defaults', { clerkshipId });
+
 		await this.db
 			.updateTable('clerkship_configurations')
 			.set({
@@ -207,6 +247,8 @@ export class ClerkshipSettingsService {
 			})
 			.where('clerkship_id', '=', clerkshipId)
 			.execute();
+
+		log.info('Clerkship settings reset to defaults', { clerkshipId });
 	}
 
 	/**

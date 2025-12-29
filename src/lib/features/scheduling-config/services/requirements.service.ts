@@ -14,6 +14,9 @@ import {
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
 import { nanoid } from 'nanoid';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:requirements');
 
 /**
  * Requirement Service
@@ -28,9 +31,19 @@ export class RequirementService {
    * Create a new requirement
    */
   async createRequirement(input: RequirementInput): Promise<ServiceResult<ClerkshipRequirement>> {
+    log.debug('Creating requirement', {
+      clerkshipId: input.clerkshipId,
+      requirementType: input.requirementType,
+      requiredDays: input.requiredDays
+    });
+
     // Validate input
     const validation = requirementInputSchema.safeParse(input);
     if (!validation.success) {
+      log.warn('Requirement creation validation failed', {
+        clerkshipId: input.clerkshipId,
+        errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
       return Result.failure(
         ServiceErrors.validationError('Invalid requirement data', validation.error.errors)
       );
@@ -53,8 +66,17 @@ export class RequirementService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      log.info('Requirement created', {
+        id: requirement.id,
+        clerkshipId: requirement.clerkship_id,
+        requirementType: requirement.requirement_type,
+        requiredDays: requirement.required_days,
+        overrideMode: requirement.override_mode
+      });
+
       return Result.success(this.mapRequirement(requirement));
     } catch (error) {
+      log.error('Failed to create requirement', { clerkshipId: input.clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to create requirement', error));
     }
   }
@@ -63,6 +85,8 @@ export class RequirementService {
    * Get requirement by ID
    */
   async getRequirement(id: string): Promise<ServiceResult<ClerkshipRequirement | null>> {
+    log.debug('Fetching requirement', { id });
+
     try {
       const requirement = await this.db
         .selectFrom('clerkship_requirements')
@@ -71,11 +95,19 @@ export class RequirementService {
         .executeTakeFirst();
 
       if (!requirement) {
+        log.debug('Requirement not found', { id });
         return Result.success(null);
       }
 
+      log.info('Requirement fetched', {
+        id: requirement.id,
+        clerkshipId: requirement.clerkship_id,
+        requirementType: requirement.requirement_type
+      });
+
       return Result.success(this.mapRequirement(requirement));
     } catch (error) {
+      log.error('Failed to fetch requirement', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch requirement', error));
     }
   }
@@ -84,6 +116,8 @@ export class RequirementService {
    * Get all requirements for a clerkship
    */
   async getRequirementsByClerkship(clerkshipId: string): Promise<ServiceResult<ClerkshipRequirement[]>> {
+    log.debug('Fetching requirements for clerkship', { clerkshipId });
+
     try {
       const requirements = await this.db
         .selectFrom('clerkship_requirements')
@@ -91,8 +125,15 @@ export class RequirementService {
         .where('clerkship_id', '=', clerkshipId)
         .execute();
 
+      log.info('Requirements fetched for clerkship', {
+        clerkshipId,
+        requirementCount: requirements.length,
+        requirementTypes: requirements.map(r => r.requirement_type)
+      });
+
       return Result.success(requirements.map(r => this.mapRequirement(r)));
     } catch (error) {
+      log.error('Failed to fetch requirements for clerkship', { clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch requirements', error));
     }
   }
@@ -104,6 +145,8 @@ export class RequirementService {
     id: string,
     input: Partial<RequirementInput>
   ): Promise<ServiceResult<ClerkshipRequirement>> {
+    log.debug('Updating requirement', { id, updates: Object.keys(input) });
+
     try {
       // Check if exists
       const existing = await this.db
@@ -113,6 +156,7 @@ export class RequirementService {
         .executeTakeFirst();
 
       if (!existing) {
+        log.warn('Requirement not found for update', { id });
         return Result.failure(ServiceErrors.notFound('Requirement', id));
       }
 
@@ -134,6 +178,10 @@ export class RequirementService {
       // Validate merged requirement
       const validation = requirementInputSchema.safeParse(mergedRequirement);
       if (!validation.success) {
+        log.warn('Requirement update validation failed', {
+          id,
+          errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+        });
         return Result.failure(
           ServiceErrors.validationError('Invalid requirement update', validation.error.errors)
         );
@@ -180,8 +228,16 @@ export class RequirementService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      log.info('Requirement updated', {
+        id: updated.id,
+        clerkshipId: updated.clerkship_id,
+        requirementType: updated.requirement_type,
+        updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+      });
+
       return Result.success(this.mapRequirement(updated));
     } catch (error) {
+      log.error('Failed to update requirement', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to update requirement', error));
     }
   }
@@ -190,6 +246,8 @@ export class RequirementService {
    * Delete requirement
    */
   async deleteRequirement(id: string): Promise<ServiceResult<boolean>> {
+    log.debug('Deleting requirement', { id });
+
     try {
       // Check for dependent electives
       const electiveCount = await this.db
@@ -199,6 +257,10 @@ export class RequirementService {
         .executeTakeFirst();
 
       if (electiveCount && electiveCount.count > 0) {
+        log.warn('Requirement deletion blocked by dependencies', {
+          id,
+          electiveCount: electiveCount.count
+        });
         return Result.failure(
           ServiceErrors.dependencyError('Requirement', 'electives', {
             electiveCount: electiveCount.count,
@@ -209,11 +271,14 @@ export class RequirementService {
       const result = await this.db.deleteFrom('clerkship_requirements').where('id', '=', id).execute();
 
       if (result[0].numDeletedRows === BigInt(0)) {
+        log.warn('Requirement not found for deletion', { id });
         return Result.failure(ServiceErrors.notFound('Requirement', id));
       }
 
+      log.info('Requirement deleted', { id });
       return Result.success(true);
     } catch (error) {
+      log.error('Failed to delete requirement', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to delete requirement', error));
     }
   }
@@ -228,6 +293,8 @@ export class RequirementService {
     totalRequiredDays: number;
     clerkshipTotalDays: number;
   }>> {
+    log.debug('Validating requirement split', { clerkshipId });
+
     try {
       // Get clerkship total days
       const clerkship = await this.db
@@ -237,6 +304,7 @@ export class RequirementService {
         .executeTakeFirst();
 
       if (!clerkship) {
+        log.warn('Clerkship not found for requirement split validation', { clerkshipId });
         return Result.failure(ServiceErrors.notFound('Clerkship', clerkshipId));
       }
 
@@ -248,13 +316,23 @@ export class RequirementService {
         .execute();
 
       const totalRequiredDays = requirements.reduce((sum, req) => sum + req.required_days, 0);
+      const valid = totalRequiredDays === clerkship.required_days;
+
+      log.info('Requirement split validated', {
+        clerkshipId,
+        valid,
+        totalRequiredDays,
+        clerkshipTotalDays: clerkship.required_days,
+        requirementCount: requirements.length
+      });
 
       return Result.success({
-        valid: totalRequiredDays === clerkship.required_days,
+        valid,
         totalRequiredDays,
         clerkshipTotalDays: clerkship.required_days,
       });
     } catch (error) {
+      log.error('Failed to validate requirement split', { clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to validate requirement split', error));
     }
   }
