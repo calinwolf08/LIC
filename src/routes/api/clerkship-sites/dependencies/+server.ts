@@ -10,6 +10,9 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('api:clerkship-sites:dependencies');
 
 /**
  * GET /api/clerkship-sites/dependencies
@@ -24,11 +27,17 @@ import { handleApiError } from '$lib/api/errors';
  * - site_id: The site ID
  */
 export const GET: RequestHandler = async ({ url }) => {
-	try {
-		const clerkshipId = url.searchParams.get('clerkship_id');
-		const siteId = url.searchParams.get('site_id');
+	const clerkshipId = url.searchParams.get('clerkship_id');
+	const siteId = url.searchParams.get('site_id');
 
+	log.debug('Checking clerkship-site dependencies', { clerkshipId, siteId });
+
+	try {
 		if (!clerkshipId || !siteId) {
+			log.warn('Missing required parameters for clerkship-site dependencies', {
+				clerkshipId,
+				siteId
+			});
 			return errorResponse('Both clerkship_id and site_id parameters are required', 400);
 		}
 
@@ -45,6 +54,12 @@ export const GET: RequestHandler = async ({ url }) => {
 			.groupBy('preceptor_teams.id')
 			.execute();
 
+		log.info('Clerkship-site dependencies checked', {
+			clerkshipId,
+			siteId,
+			dependentTeamCount: dependentTeams.length
+		});
+
 		return successResponse(
 			dependentTeams.map((t) => ({
 				teamId: t.teamId,
@@ -52,6 +67,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			}))
 		);
 	} catch (error) {
+		log.error('Failed to check clerkship-site dependencies', { clerkshipId, siteId, error });
 		return handleApiError(error);
 	}
 };
