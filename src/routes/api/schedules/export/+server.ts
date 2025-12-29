@@ -11,7 +11,10 @@ import { handleApiError } from '$lib/api/errors';
 import { generateScheduleExcel } from '$lib/features/schedules/services/export-service.js';
 import type { CalendarFilters } from '$lib/features/schedules/types';
 import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { z, ZodError } from 'zod';
+
+const log = createServerLogger('api:schedules:export');
 
 /**
  * Schema for export query parameters
@@ -36,16 +39,24 @@ const exportQuerySchema = z.object({
  *   - clerkship_id: UUID (optional)
  */
 export const GET: RequestHandler = async ({ url }) => {
-	try {
-		// Extract query parameters
-		const startDate = url.searchParams.get('start_date');
-		const endDate = url.searchParams.get('end_date');
-		const studentId = url.searchParams.get('student_id');
-		const preceptorId = url.searchParams.get('preceptor_id');
-		const clerkshipId = url.searchParams.get('clerkship_id');
+	const startDate = url.searchParams.get('start_date');
+	const endDate = url.searchParams.get('end_date');
+	const studentId = url.searchParams.get('student_id');
+	const preceptorId = url.searchParams.get('preceptor_id');
+	const clerkshipId = url.searchParams.get('clerkship_id');
 
+	log.debug('Exporting schedule', {
+		startDate,
+		endDate,
+		studentId,
+		preceptorId,
+		clerkshipId
+	});
+
+	try {
 		// Validate required parameters
 		if (!startDate || !endDate) {
+			log.warn('Missing required export parameters');
 			return errorResponse('start_date and end_date are required', 400);
 		}
 
@@ -73,6 +84,14 @@ export const GET: RequestHandler = async ({ url }) => {
 		// Generate filename with current date
 		const filename = `schedule-${new Date().toISOString().split('T')[0]}.xlsx`;
 
+		log.info('Schedule exported', {
+			startDate: validated.start_date,
+			endDate: validated.end_date,
+			fileSize: buffer.length,
+			filename,
+			filtered: !!(studentId || preceptorId || clerkshipId)
+		});
+
 		// Return Excel file with download headers
 		return new Response(new Uint8Array(buffer), {
 			status: 200,
@@ -84,9 +103,13 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Export validation failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return errorResponse(error.issues[0].message, 400);
 		}
 
+		log.error('Failed to export schedule', { startDate, endDate, error });
 		return handleApiError(error);
 	}
 };

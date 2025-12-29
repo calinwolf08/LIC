@@ -7,7 +7,10 @@
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, handleApiError } from '$lib/api';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { sql } from 'kysely';
+
+const log = createServerLogger('api:students:completion-stats');
 
 interface CompletionStats {
 	scheduledDays: number;
@@ -20,6 +23,8 @@ interface CompletionStats {
  * Returns completion stats for all students
  */
 export const GET: RequestHandler = async () => {
+	log.debug('Calculating student completion stats');
+
 	try {
 		// Get all students
 		const students = await db.selectFrom('students').select('id').execute();
@@ -67,8 +72,15 @@ export const GET: RequestHandler = async () => {
 			}
 		}
 
+		log.info('Student completion stats calculated', {
+			studentCount: students.length,
+			totalRequiredDays,
+			studentsWithAssignments: assignmentCounts.length
+		});
+
 		return successResponse(statsMap);
 	} catch (error) {
+		log.error('Failed to calculate completion stats', { error });
 		return handleApiError(error);
 	}
 };
