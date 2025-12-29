@@ -28,6 +28,9 @@ import {
 	getTodayUTC,
 	getDaysBetween
 } from '$lib/features/scheduling/utils/date-utils';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:schedules:views');
 
 // ============================================================================
 // Student Schedule
@@ -40,6 +43,8 @@ export async function getStudentScheduleData(
 	db: Kysely<DB>,
 	studentId: string
 ): Promise<StudentSchedule | null> {
+	log.debug('Fetching student schedule data', { studentId });
+
 	// Get student info
 	const student = await db
 		.selectFrom('students')
@@ -48,6 +53,7 @@ export async function getStudentScheduleData(
 		.executeTakeFirst();
 
 	if (!student) {
+		log.debug('Student not found', { studentId });
 		return null;
 	}
 
@@ -191,6 +197,16 @@ export async function getStudentScheduleData(
 		status: a.status
 	}));
 
+	log.info('Student schedule data fetched', {
+		studentId,
+		studentName: student.name,
+		totalAssignedDays,
+		totalRequiredDays,
+		clerkshipsComplete,
+		clerkshipsTotal: clerkships.length,
+		overallPercentComplete: totalRequiredDays > 0 ? Math.round((totalAssignedDays / totalRequiredDays) * 100) : 100
+	});
+
 	return {
 		student: {
 			id: student.id as string,
@@ -228,6 +244,8 @@ export async function getPreceptorScheduleData(
 	db: Kysely<DB>,
 	preceptorId: string
 ): Promise<PreceptorSchedule | null> {
+	log.debug('Fetching preceptor schedule data', { preceptorId });
+
 	// Get preceptor info
 	const preceptor = await db
 		.selectFrom('preceptors as p')
@@ -237,6 +255,7 @@ export async function getPreceptorScheduleData(
 		.executeTakeFirst();
 
 	if (!preceptor) {
+		log.debug('Preceptor not found', { preceptorId });
 		return null;
 	}
 
@@ -418,6 +437,16 @@ export async function getPreceptorScheduleData(
 		status: a.status
 	}));
 
+	log.info('Preceptor schedule data fetched', {
+		preceptorId,
+		preceptorName: preceptor.name,
+		totalAvailableDays: totalAvailable,
+		totalAssignedDays: totalAssigned,
+		openSlots: Math.max(0, totalAvailable - totalAssigned),
+		utilizationPercent: totalAvailable > 0 ? Math.round((totalAssigned / totalAvailable) * 100) : 0,
+		uniqueStudents: assignedStudents.length
+	});
+
 	return {
 		preceptor: {
 			id: preceptor.id as string,
@@ -452,6 +481,8 @@ export async function getPreceptorScheduleData(
  * Get overall schedule results summary
  */
 export async function getScheduleSummaryData(db: Kysely<DB>): Promise<ScheduleResultsSummary> {
+	log.debug('Fetching schedule summary data');
+
 	// Get active scheduling period
 	const period = await getActiveSchedulingPeriod(db);
 	const startDate = period?.start_date || getDefaultStartDate();
@@ -561,6 +592,17 @@ export async function getScheduleSummaryData(db: Kysely<DB>): Promise<ScheduleRe
 
 	// Count unique preceptors
 	const uniquePreceptors = new Set(assignments.map((a) => a.preceptor_id));
+
+	log.info('Schedule summary data fetched', {
+		totalAssignments: assignments.length,
+		totalStudents: students.length,
+		totalPreceptors: uniquePreceptors.size,
+		studentsFullyScheduled,
+		studentsPartiallyScheduled,
+		studentsWithNoAssignments,
+		studentsWithUnmetRequirements: studentsWithUnmetRequirements.length,
+		isComplete: studentsWithUnmetRequirements.length === 0
+	});
 
 	return {
 		period: period ? {

@@ -13,6 +13,9 @@ import {
 	addEntitiesToSchedule,
 	type ScheduleEntityType,
 } from '$lib/features/scheduling/services/scheduling-period-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:schedules:duplication');
 
 /**
  * Options for which entities to duplicate to a new schedule
@@ -71,6 +74,15 @@ export async function duplicateToNewSchedule(
 	year: number,
 	options: DuplicationOptions
 ): Promise<DuplicationResult> {
+	log.debug('Duplicating schedule', {
+		sourceScheduleId,
+		name,
+		startDate,
+		endDate,
+		year,
+		options
+	});
+
 	// Create the new schedule (not active by default)
 	const newSchedule = await createSchedulingPeriod(db, {
 		name,
@@ -172,6 +184,12 @@ export async function duplicateToNewSchedule(
 		.where('id', '=', newSchedule.id!)
 		.executeTakeFirstOrThrow();
 
+	log.info('Schedule duplicated', {
+		scheduleId: updatedSchedule.id,
+		name: updatedSchedule.name,
+		entityCounts
+	});
+
 	return {
 		schedule: updatedSchedule,
 		entityCounts,
@@ -211,7 +229,15 @@ export async function quickCopySchedule(
 	endDate: string,
 	year: number
 ): Promise<DuplicationResult> {
-	return await duplicateToNewSchedule(
+	log.debug('Quick copying schedule', {
+		sourceScheduleId,
+		newName,
+		startDate,
+		endDate,
+		year
+	});
+
+	const result = await duplicateToNewSchedule(
 		db,
 		sourceScheduleId,
 		newName,
@@ -228,4 +254,11 @@ export async function quickCopySchedule(
 			configurations: 'all',
 		}
 	);
+
+	log.info('Quick copy completed', {
+		scheduleId: result.schedule.id,
+		totalEntities: Object.values(result.entityCounts).reduce((sum, count) => sum + count, 0)
+	});
+
+	return result;
 }
