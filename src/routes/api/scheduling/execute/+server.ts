@@ -13,8 +13,11 @@ import {
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { z } from 'zod';
 import { ZodError } from 'zod';
+
+const log = createServerLogger('api:scheduling:execute');
 
 /**
  * Scheduling execution request schema
@@ -66,15 +69,31 @@ const executeSchedulingSchema = z.object({
  * }
  */
 export const POST: RequestHandler = async ({ request }) => {
+	log.debug('Scheduling execution request received');
+
 	try {
 		const body = await request.json();
 		const validatedData = executeSchedulingSchema.parse(body);
+
+		log.debug('Request validated', {
+			studentCount: validatedData.studentIds.length,
+			clerkshipCount: validatedData.clerkshipIds.length,
+			startDate: validatedData.startDate,
+			endDate: validatedData.endDate,
+			options: validatedData.options
+		});
 
 		// Create scheduling engine instance
 		const engine = new ConfigurableSchedulingEngine(db);
 
 		// Execute scheduling
-		console.log('[API] Executing scheduling engine...');
+		log.info('Executing scheduling engine', {
+			students: validatedData.studentIds.length,
+			clerkships: validatedData.clerkshipIds.length,
+			dateRange: `${validatedData.startDate} to ${validatedData.endDate}`,
+			dryRun: validatedData.options?.dryRun || false
+		});
+
 		const result = await engine.schedule(
 			validatedData.studentIds,
 			validatedData.clerkshipIds,
@@ -85,20 +104,26 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		);
 
-		console.log(`[API] Scheduling complete. Success: ${result.success}`);
-		console.log(`[API] Assignments: ${result.assignments.length}`);
-		console.log(`[API] Unmet requirements: ${result.unmetRequirements.length}`);
-		console.log(`[API] Violations: ${result.violations.length}`);
+		log.info('Scheduling execution complete', {
+			success: result.success,
+			assignmentCount: result.assignments.length,
+			unmetRequirementCount: result.unmetRequirements.length,
+			violationCount: result.violations.length,
+			pendingApprovalCount: result.pendingApprovals?.length || 0
+		});
 
 		// Return result
 		// Note: The result itself has a "success" field, but we wrap it in the API response
 		return successResponse(result, 200);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Scheduling execution validation failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
-		console.error('[API] Scheduling execution error:', error);
+		log.error('Scheduling execution failed', { error });
 		return handleApiError(error);
 	}
 };
