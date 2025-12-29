@@ -13,6 +13,9 @@ import {
 	getSchedulesForEntity,
 	type ScheduleEntityType
 } from '$lib/features/scheduling/services/scheduling-period-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('api:entities:schedules');
 
 const VALID_ENTITY_TYPES: ScheduleEntityType[] = [
 	'students',
@@ -28,11 +31,14 @@ const VALID_ENTITY_TYPES: ScheduleEntityType[] = [
  * Returns all schedules that contain the specified entity
  */
 export const GET: RequestHandler = async ({ params }) => {
-	try {
-		const { entityType, entityId } = params;
+	const { entityType, entityId } = params;
 
+	log.debug('Fetching schedules for entity', { entityType, entityId });
+
+	try {
 		// Validate entity type
 		if (!VALID_ENTITY_TYPES.includes(entityType as ScheduleEntityType)) {
+			log.warn('Invalid entity type requested', { entityType, entityId });
 			return errorResponse(`Invalid entity type: ${entityType}`, 400);
 		}
 
@@ -42,6 +48,13 @@ export const GET: RequestHandler = async ({ params }) => {
 			entityType as ScheduleEntityType,
 			entityId
 		);
+
+		log.info('Schedules for entity fetched', {
+			entityType,
+			entityId,
+			scheduleCount: schedules.length,
+			isShared: schedules.length > 1
+		});
 
 		return successResponse({
 			schedules: schedules.map((s) => ({
@@ -55,6 +68,7 @@ export const GET: RequestHandler = async ({ params }) => {
 			isShared: schedules.length > 1
 		});
 	} catch (error) {
+		log.error('Failed to fetch schedules for entity', { entityType, entityId, error });
 		return handleApiError(error);
 	}
 };
