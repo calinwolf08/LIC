@@ -22,7 +22,10 @@ import {
 	createSchedulingPeriod,
 	activateSchedulingPeriod
 } from '$lib/features/scheduling/services/scheduling-period-service';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
+
+const log = createServerLogger('api:schedules-generate');
 
 /**
  * POST /api/schedules/generate
@@ -67,10 +70,20 @@ import { ZodError } from 'zod';
  * }
  */
 export const POST: RequestHandler = async ({ request }) => {
+	log.info('Schedule generation request received');
+
 	try {
 		// Parse and validate request body
 		const body = await request.json();
 		const validatedData = generateScheduleSchema.parse(body);
+
+		log.debug('Request validated', {
+			startDate: validatedData.startDate,
+			endDate: validatedData.endDate,
+			regenerateFromDate: validatedData.regenerateFromDate,
+			strategy: validatedData.strategy,
+			preview: validatedData.preview
+		});
 
 		// Determine regeneration date (defaults to today if not provided)
 		const regenerateFromDate =
@@ -86,6 +99,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Check if this is a preview (dry-run) request
 		const isPreview = validatedData.preview || false;
+
+		log.debug('Fetching scheduling data', { isPreview });
 
 		// Fetch required data for preview/context building
 		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding, siteElectives] =
@@ -120,7 +135,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			siteElectives
 		};
 
+		log.info('Data loaded', {
+			studentCount: students.length,
+			preceptorCount: preceptors.length,
+			clerkshipCount: clerkships.length,
+			blackoutDateCount: blackoutDates.length
+		});
+
 		// Build scheduling context for preview mode
+		log.debug('Building scheduling context');
 		const legacyContext = buildSchedulingContext(
 			students,
 			preceptors,
@@ -134,6 +157,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// If preview mode, analyze impact and return without making changes
 		if (isPreview) {
+			log.info('Running preview analysis', { regenerateFromDate });
+
 			const impact = await analyzeRegenerationImpact(
 				db,
 				legacyContext,
@@ -141,6 +166,12 @@ export const POST: RequestHandler = async ({ request }) => {
 				validatedData.endDate,
 				strategy
 			);
+
+			log.info('Preview analysis complete', {
+				pastAssignments: impact.pastAssignmentsCount,
+				toDelete: impact.deletedCount,
+				toPreserve: impact.preservedCount
+			});
 
 			return successResponse({
 				preview: true,
@@ -186,9 +217,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Clear future assignments (preserving past assignments before regenerateFromDate)
+		log.info('Clearing future assignments', { regenerateFromDate });
 		const deletedCount = await clearAllAssignments(db, regenerateFromDate);
+		log.info('Future assignments cleared', { deletedCount });
 
 		// Prepare context for regeneration (credit past assignments, apply strategy)
+		log.debug('Preparing regeneration context', { strategy });
 		const regenerationResult = await prepareRegenerationContext(
 			db,
 			legacyContext,
@@ -201,6 +235,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		const studentIds = students.map((s) => s.id!).filter(Boolean);
 		const clerkshipIds = clerkships.map((c) => c.id!).filter(Boolean);
 
+		log.info('Starting scheduling engine', {
+			studentCount: studentIds.length,
+			clerkshipCount: clerkshipIds.length,
+			startDate: regenerateFromDate,
+			endDate: validatedData.endDate,
+			strategy
+		});
+
 		// Create and run the ConfigurableSchedulingEngine
 		const engine = new ConfigurableSchedulingEngine(db);
 		const result = await engine.schedule(studentIds, clerkshipIds, {
@@ -212,8 +254,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			bypassedConstraints: validatedData.bypassedConstraints || []
 		});
 
+		log.info('Scheduling engine complete', {
+			assignmentsGenerated: result.assignments.length,
+			unmetRequirements: result.unmetRequirements.length,
+			violations: result.violations.length,
+			success: result.success
+		});
+
 		// Save generated assignments to database
 		if (result.assignments.length > 0) {
+			log.debug('Saving assignments to database', { count: result.assignments.length });
 			const assignmentsToSave = result.assignments.map((assignment) => ({
 				student_id: assignment.studentId,
 				preceptor_id: assignment.preceptorId,
@@ -223,13 +273,17 @@ export const POST: RequestHandler = async ({ request }) => {
 			}));
 
 			await bulkCreateAssignments(db, { assignments: assignmentsToSave });
+			log.info('Assignments saved to database');
 		}
 
 		// Auto-create and activate scheduling period if none exists
+		log.debug('Managing scheduling period');
 		let schedulingPeriodId: string | null = null;
 		const activePeriod = await getActiveSchedulingPeriod(db);
 
 		if (!activePeriod) {
+			log.debug('No active period found, creating or activating one');
+
 			// Check if there's an existing period covering this date range
 			const overlappingPeriods = await getOverlappingPeriods(
 				db,
@@ -239,11 +293,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			if (overlappingPeriods.length > 0) {
 				// Activate the first overlapping period
+				log.info('Activating existing overlapping period', {
+					periodId: overlappingPeriods[0].id
+				});
 				const period = await activateSchedulingPeriod(db, overlappingPeriods[0].id!);
 				schedulingPeriodId = period.id;
 			} else {
 				// Create a new scheduling period
 				const periodName = `Schedule ${validatedData.startDate} to ${validatedData.endDate}`;
+				log.info('Creating new scheduling period', { name: periodName });
 				const newPeriod = await createSchedulingPeriod(db, {
 					name: periodName,
 					start_date: validatedData.startDate,
@@ -251,12 +309,15 @@ export const POST: RequestHandler = async ({ request }) => {
 					is_active: true
 				});
 				schedulingPeriodId = newPeriod.id;
+				log.info('New scheduling period created', { periodId: schedulingPeriodId });
 			}
 		} else {
 			schedulingPeriodId = activePeriod.id;
+			log.debug('Using existing active period', { periodId: schedulingPeriodId });
 		}
 
 		// Log successful regeneration to audit trail
+		log.debug('Logging to audit trail');
 		await logRegenerationEvent(
 			db,
 			createRegenerationAuditLog(
@@ -275,6 +336,12 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			)
 		);
+
+		log.info('Schedule generation completed successfully', {
+			totalAssignments: result.assignments.length,
+			success: result.success,
+			schedulingPeriodId
+		});
 
 		// Build response
 		return successResponse(
@@ -301,11 +368,17 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		// Handle validation errors
 		if (error instanceof ZodError) {
+			log.warn('Schedule generation validation failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
 		// Log unexpected errors
-		console.error('Schedule generation error:', error);
+		log.error('Schedule generation failed', {
+			error: error instanceof Error ? error.message : 'Unknown error',
+			stack: error instanceof Error ? error.stack : undefined
+		});
 		return errorResponse(
 			`Failed to generate schedule: ${error instanceof Error ? error.message : 'Unknown error'}`,
 			500
