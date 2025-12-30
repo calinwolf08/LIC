@@ -23,7 +23,12 @@
 	let { data }: { data: PageData } = $props();
 
 	// Blackout dates state
-	let blackoutDates = $state(data.blackoutDates || []);
+	let blackoutDates = $state(
+		(data.blackoutDates || []).map(bd => ({
+			...bd,
+			id: bd.id! // Non-null: queried from database
+		}))
+	);
 	let showBlackoutPanel = $state(false);
 
 	// Create a Set of blackout dates for efficient lookup
@@ -286,7 +291,7 @@
 
 					// Convert events to CalendarDayAssignment array
 					const assignments: CalendarDayAssignment[] = dayEvents.map((event) => ({
-						id: event.assignment.id,
+						id: event.assignment.id!, // Non-null: queried from database
 						clerkshipId: event.assignment.clerkship_id,
 						clerkshipName: event.assignment.clerkship_name,
 						preceptorId: event.assignment.preceptor_id,

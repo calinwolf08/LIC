@@ -112,11 +112,12 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeDefined();
-			expect(result.data!.name).toBe('Cardiology Elective');
-			expect(result.data!.minimumDays).toBe(10);
-			expect(result.data!.isRequired).toBe(true); // default
-			expect(result.data!.requirementId).toBe(testRequirementId);
+			expect(result.data.name).toBe('Cardiology Elective');
+			expect(result.data.minimumDays).toBe(10);
+			expect(result.data.isRequired).toBe(true); // default
+			expect(result.data.requirementId).toBe(testRequirementId);
 		});
 
 		it('should create an elective with isRequired=false', async () => {
@@ -127,7 +128,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.isRequired).toBe(false);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.isRequired).toBe(false);
 		});
 
 		it('should create an elective with specialty', async () => {
@@ -138,7 +140,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.specialty).toBe('Cardiology');
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.specialty).toBe('Cardiology');
 		});
 
 		it('should create an elective with sites and preceptors', async () => {
@@ -152,16 +155,18 @@ describe('ElectiveService', () => {
 			expect(result.success).toBe(true);
 
 			// Verify sites were added
-			const sitesResult = await service.getSitesForElective(result.data!.id);
+			const sitesResult = await service.getSitesForElective(result.data.id);
 			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(1);
-			expect(sitesResult.data![0].id).toBe(testSiteId);
+			expect(sitesResult.data[0].id).toBe(testSiteId);
 
 			// Verify preceptors were added
-			const preceptorsResult = await service.getPreceptorsForElective(result.data!.id);
+			const preceptorsResult = await service.getPreceptorsForElective(result.data.id);
 			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(1);
-			expect(preceptorsResult.data![0].id).toBe(testPreceptorId);
+			expect(preceptorsResult.data[0].id).toBe(testPreceptorId);
 		});
 
 		it('should reject elective if requirement not found', async () => {
@@ -171,7 +176,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 
 		it('should reject elective if requirement is not elective type', async () => {
@@ -196,7 +202,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(false);
-			expect(result.error?.message).toContain('elective requirements');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.message).toContain('elective requirements');
 		});
 
 		it('should reject elective if minimumDays exceeds requirement total', async () => {
@@ -206,7 +213,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(false);
-			expect(result.error?.message).toContain('cannot exceed');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.message).toContain('cannot exceed');
 		});
 
 		it('should reject invalid input data', async () => {
@@ -216,7 +224,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('VALIDATION_ERROR');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('VALIDATION_ERROR');
 		});
 	});
 
@@ -227,17 +236,19 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 			});
 
-			const result = await service.getElective(createResult.data!.id);
+			const result = await service.getElective(createResult.data.id);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeDefined();
-			expect(result.data!.name).toBe('Test Elective');
+			expect(result.data.name).toBe('Test Elective');
 		});
 
 		it('should return null for non-existent elective', async () => {
 			const result = await service.getElective('non-existent');
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeNull();
 		});
 	});
@@ -251,20 +262,22 @@ describe('ElectiveService', () => {
 				preceptorIds: [testPreceptorId],
 			});
 
-			const result = await service.getElectiveWithDetails(createResult.data!.id);
+			const result = await service.getElectiveWithDetails(createResult.data.id);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeDefined();
-			expect(result.data!.sites).toHaveLength(1);
-			expect(result.data!.sites[0].name).toBe('Test Site');
-			expect(result.data!.preceptors).toHaveLength(1);
-			expect(result.data!.preceptors[0].name).toBe('Dr. Test');
+			expect(result.data.sites).toHaveLength(1);
+			expect(result.data.sites[0].name).toBe('Test Site');
+			expect(result.data.preceptors).toHaveLength(1);
+			expect(result.data.preceptors[0].name).toBe('Dr. Test');
 		});
 
 		it('should return null for non-existent elective', async () => {
 			const result = await service.getElectiveWithDetails('non-existent');
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeNull();
 		});
 	});
@@ -283,6 +296,7 @@ describe('ElectiveService', () => {
 			const result = await service.getElectivesByRequirement(testRequirementId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toHaveLength(2);
 		});
 
@@ -290,6 +304,7 @@ describe('ElectiveService', () => {
 			const result = await service.getElectivesByRequirement(testRequirementId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toHaveLength(0);
 		});
 	});
@@ -310,8 +325,9 @@ describe('ElectiveService', () => {
 			const result = await service.getRequiredElectives(testRequirementId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toHaveLength(1);
-			expect(result.data![0].name).toBe('Required Elective');
+			expect(result.data[0].name).toBe('Required Elective');
 		});
 	});
 
@@ -331,8 +347,9 @@ describe('ElectiveService', () => {
 			const result = await service.getOptionalElectives(testRequirementId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toHaveLength(1);
-			expect(result.data![0].name).toBe('Optional Elective');
+			expect(result.data[0].name).toBe('Optional Elective');
 		});
 	});
 
@@ -365,6 +382,7 @@ describe('ElectiveService', () => {
 			const result = await service.getElectivesByClerkship(testClerkshipId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toHaveLength(2);
 		});
 	});
@@ -376,12 +394,13 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 			});
 
-			const result = await service.updateElective(createResult.data!.id, {
+			const result = await service.updateElective(createResult.data.id, {
 				name: 'Updated Name',
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.name).toBe('Updated Name');
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.name).toBe('Updated Name');
 		});
 
 		it('should update isRequired flag', async () => {
@@ -391,12 +410,13 @@ describe('ElectiveService', () => {
 				isRequired: true,
 			});
 
-			const result = await service.updateElective(createResult.data!.id, {
+			const result = await service.updateElective(createResult.data.id, {
 				isRequired: false,
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.isRequired).toBe(false);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.isRequired).toBe(false);
 		});
 
 		it('should update sites and preceptors', async () => {
@@ -405,17 +425,17 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 			});
 
-			const result = await service.updateElective(createResult.data!.id, {
+			const result = await service.updateElective(createResult.data.id, {
 				siteIds: [testSiteId],
 				preceptorIds: [testPreceptorId],
 			});
 
 			expect(result.success).toBe(true);
 
-			const sitesResult = await service.getSitesForElective(createResult.data!.id);
+			const sitesResult = await service.getSitesForElective(createResult.data.id);
 			expect(sitesResult.data).toHaveLength(1);
 
-			const preceptorsResult = await service.getPreceptorsForElective(createResult.data!.id);
+			const preceptorsResult = await service.getPreceptorsForElective(createResult.data.id);
 			expect(preceptorsResult.data).toHaveLength(1);
 		});
 
@@ -425,7 +445,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 
 		it('should reject update if minimumDays exceeds requirement total', async () => {
@@ -434,12 +455,13 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 			});
 
-			const result = await service.updateElective(createResult.data!.id, {
+			const result = await service.updateElective(createResult.data.id, {
 				minimumDays: 25, // exceeds 20 days
 			});
 
 			expect(result.success).toBe(false);
-			expect(result.error?.message).toContain('cannot exceed');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.message).toContain('cannot exceed');
 		});
 	});
 
@@ -450,12 +472,12 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 			});
 
-			const result = await service.deleteElective(createResult.data!.id);
+			const result = await service.deleteElective(createResult.data.id);
 
 			expect(result.success).toBe(true);
 
 			// Verify it's deleted
-			const getResult = await service.getElective(createResult.data!.id);
+			const getResult = await service.getElective(createResult.data.id);
 			expect(getResult.data).toBeNull();
 		});
 
@@ -463,7 +485,8 @@ describe('ElectiveService', () => {
 			const result = await service.deleteElective('non-existent');
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 
 		it('should cascade delete site and preceptor associations', async () => {
@@ -474,20 +497,20 @@ describe('ElectiveService', () => {
 				preceptorIds: [testPreceptorId],
 			});
 
-			await service.deleteElective(createResult.data!.id);
+			await service.deleteElective(createResult.data.id);
 
 			// Verify associations are gone
 			const electiveSites = await db
 				.selectFrom('elective_sites')
 				.selectAll()
-				.where('elective_id', '=', createResult.data!.id)
+				.where('elective_id', '=', createResult.data.id)
 				.execute();
 			expect(electiveSites).toHaveLength(0);
 
 			const electivePreceptors = await db
 				.selectFrom('elective_preceptors')
 				.selectAll()
-				.where('elective_id', '=', createResult.data!.id)
+				.where('elective_id', '=', createResult.data.id)
 				.execute();
 			expect(electivePreceptors).toHaveLength(0);
 		});
@@ -505,7 +528,7 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
-			electiveId = result.data!.id;
+			electiveId = result.data.id;
 		});
 
 		it('should add a site to an elective', async () => {
@@ -515,7 +538,7 @@ describe('ElectiveService', () => {
 
 			const sitesResult = await service.getSitesForElective(electiveId);
 			expect(sitesResult.data).toHaveLength(1);
-			expect(sitesResult.data![0].id).toBe(testSiteId);
+			expect(sitesResult.data[0].id).toBe(testSiteId);
 		});
 
 		it('should not fail when adding the same site twice', async () => {
@@ -562,21 +585,23 @@ describe('ElectiveService', () => {
 
 			const sitesResult = await service.getSitesForElective(electiveId);
 			expect(sitesResult.data).toHaveLength(1);
-			expect(sitesResult.data![0].id).toBe(secondSiteId);
+			expect(sitesResult.data[0].id).toBe(secondSiteId);
 		});
 
 		it('should reject adding site to non-existent elective', async () => {
 			const result = await service.addSiteToElective('non-existent', testSiteId);
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 
 		it('should reject adding non-existent site', async () => {
 			const result = await service.addSiteToElective(electiveId, 'non-existent');
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 	});
 
@@ -592,7 +617,7 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
-			electiveId = result.data!.id;
+			electiveId = result.data.id;
 		});
 
 		it('should add a preceptor to an elective', async () => {
@@ -602,7 +627,7 @@ describe('ElectiveService', () => {
 
 			const preceptorsResult = await service.getPreceptorsForElective(electiveId);
 			expect(preceptorsResult.data).toHaveLength(1);
-			expect(preceptorsResult.data![0].id).toBe(testPreceptorId);
+			expect(preceptorsResult.data[0].id).toBe(testPreceptorId);
 		});
 
 		it('should not fail when adding the same preceptor twice', async () => {
@@ -650,21 +675,23 @@ describe('ElectiveService', () => {
 
 			const preceptorsResult = await service.getPreceptorsForElective(electiveId);
 			expect(preceptorsResult.data).toHaveLength(1);
-			expect(preceptorsResult.data![0].id).toBe(secondPreceptorId);
+			expect(preceptorsResult.data[0].id).toBe(secondPreceptorId);
 		});
 
 		it('should reject adding preceptor to non-existent elective', async () => {
 			const result = await service.addPreceptorToElective('non-existent', testPreceptorId);
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 
 		it('should reject adding non-existent preceptor', async () => {
 			const result = await service.addPreceptorToElective(electiveId, 'non-existent');
 
 			expect(result.success).toBe(false);
-			expect(result.error?.code).toBe('NOT_FOUND');
+			if (result.success) throw new Error('Expected failure');
+			expect(result.error.code).toBe('NOT_FOUND');
 		});
 	});
 
@@ -716,10 +743,10 @@ describe('ElectiveService', () => {
 
 			expect(result.success).toBe(true);
 
-			const sitesResult = await service.getSitesForElective(result.data!.id);
+			const sitesResult = await service.getSitesForElective(result.data.id);
 			expect(sitesResult.data).toHaveLength(5);
 
-			const preceptorsResult = await service.getPreceptorsForElective(result.data!.id);
+			const preceptorsResult = await service.getPreceptorsForElective(result.data.id);
 			expect(preceptorsResult.data).toHaveLength(5);
 		});
 
@@ -730,9 +757,9 @@ describe('ElectiveService', () => {
 				siteIds: [testSiteId],
 			});
 
-			await service.setSitesForElective(createResult.data!.id, []);
+			await service.setSitesForElective(createResult.data.id, []);
 
-			const sitesResult = await service.getSitesForElective(createResult.data!.id);
+			const sitesResult = await service.getSitesForElective(createResult.data.id);
 			expect(sitesResult.data).toHaveLength(0);
 		});
 
@@ -743,9 +770,9 @@ describe('ElectiveService', () => {
 				preceptorIds: [testPreceptorId],
 			});
 
-			await service.setPreceptorsForElective(createResult.data!.id, []);
+			await service.setPreceptorsForElective(createResult.data.id, []);
 
-			const preceptorsResult = await service.getPreceptorsForElective(createResult.data!.id);
+			const preceptorsResult = await service.getPreceptorsForElective(createResult.data.id);
 			expect(preceptorsResult.data).toHaveLength(0);
 		});
 
@@ -756,7 +783,8 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.minimumDays).toBe(20);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.minimumDays).toBe(20);
 		});
 	});
 });

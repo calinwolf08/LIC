@@ -67,8 +67,9 @@ describe('TeamService', () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.members).toHaveLength(1);
-			expect(result.data!.members[0].isFallbackOnly).toBe(false);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.members).toHaveLength(1);
+			expect(result.data.members[0].isFallbackOnly).toBe(false);
 		});
 
 		it('should create team with fallback-only member', async () => {
@@ -85,10 +86,11 @@ describe('TeamService', () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.members).toHaveLength(2);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.members).toHaveLength(2);
 
-			const primary = result.data!.members.find(m => m.preceptorId === primaryId);
-			const fallback = result.data!.members.find(m => m.preceptorId === fallbackId);
+			const primary = result.data.members.find(m => m.preceptorId === primaryId);
+			const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
 
 			expect(primary!.isFallbackOnly).toBe(false);
 			expect(fallback!.isFallbackOnly).toBe(true);
@@ -106,7 +108,8 @@ describe('TeamService', () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data!.members[0].isFallbackOnly).toBe(false);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.members[0].isFallbackOnly).toBe(false);
 		});
 
 		it('should reject team with all fallback-only members', async () => {
@@ -143,15 +146,17 @@ describe('TeamService', () => {
 			});
 
 			expect(createResult.success).toBe(true);
-			const teamId = createResult.data!.id;
+			if (!createResult.success) throw new Error('Expected success');
+			const teamId = createResult.data.id;
 
 			const getResult = await service.getTeam(teamId);
 
 			expect(getResult.success).toBe(true);
-			expect(getResult.data!.members).toHaveLength(2);
+			if (!getResult.success) throw new Error('Expected success');
+			expect(getResult.data.members).toHaveLength(2);
 
-			const primary = getResult.data!.members.find(m => m.preceptorId === primaryId);
-			const fallback = getResult.data!.members.find(m => m.preceptorId === fallbackId);
+			const primary = getResult.data.members.find(m => m.preceptorId === primaryId);
+			const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
 
 			expect(primary!.isFallbackOnly).toBe(false);
 			expect(fallback!.isFallbackOnly).toBe(true);
@@ -173,7 +178,8 @@ describe('TeamService', () => {
 			});
 
 			expect(createResult.success).toBe(true);
-			const teamId = createResult.data!.id;
+			if (!createResult.success) throw new Error('Expected success');
+			const teamId = createResult.data.id;
 
 			// Update second member to fallback-only
 			const updateResult = await service.updateTeam(teamId, {
@@ -185,7 +191,7 @@ describe('TeamService', () => {
 
 			expect(updateResult.success).toBe(true);
 
-			const member2 = updateResult.data!.members.find(m => m.preceptorId === preceptor2);
+			const member2 = updateResult.data.members.find(m => m.preceptorId === preceptor2);
 			expect(member2!.isFallbackOnly).toBe(true);
 		});
 
@@ -203,7 +209,8 @@ describe('TeamService', () => {
 			});
 
 			expect(createResult.success).toBe(true);
-			const teamId = createResult.data!.id;
+			if (!createResult.success) throw new Error('Expected success');
+			const teamId = createResult.data.id;
 
 			// Try to make both fallback-only
 			const updateResult = await service.updateTeam(teamId, {
@@ -231,7 +238,8 @@ describe('TeamService', () => {
 			});
 
 			expect(createResult.success).toBe(true);
-			const teamId = createResult.data!.id;
+			if (!createResult.success) throw new Error('Expected success');
+			const teamId = createResult.data.id;
 
 			// Add fallback member
 			const addResult = await service.addTeamMember(teamId, {
@@ -241,13 +249,14 @@ describe('TeamService', () => {
 			});
 
 			expect(addResult.success).toBe(true);
-			expect(addResult.data!.isFallbackOnly).toBe(true);
+			if (!addResult.success) throw new Error('Expected success');
+			expect(addResult.data.isFallbackOnly).toBe(true);
 
 			// Verify in database
 			const getResult = await service.getTeam(teamId);
-			expect(getResult.data!.members).toHaveLength(2);
+			expect(getResult.data.members).toHaveLength(2);
 
-			const fallback = getResult.data!.members.find(m => m.preceptorId === fallbackId);
+			const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
 			expect(fallback!.isFallbackOnly).toBe(true);
 		});
 	});
@@ -269,9 +278,10 @@ describe('TeamService', () => {
 			const result = await service.getTeamsByClerkship(clerkshipId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toHaveLength(1);
 
-			const team = result.data![0];
+			const team = result.data[0];
 			const primary = team.members.find(m => m.preceptorId === primaryId);
 			const fallback = team.members.find(m => m.preceptorId === fallbackId);
 
@@ -297,9 +307,10 @@ describe('TeamService', () => {
 			const result = await service.getAllTeams();
 
 			expect(result.success).toBe(true);
-			expect(result.data!.length).toBeGreaterThanOrEqual(1);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.length).toBeGreaterThanOrEqual(1);
 
-			const team = result.data!.find(t => t.name === 'Team A');
+			const team = result.data.find(t => t.name === 'Team A');
 			expect(team).toBeDefined();
 
 			const primary = team!.members.find(m => m.preceptorId === primaryId);
@@ -339,7 +350,8 @@ describe('TeamService', () => {
 			const result = await service.getTeam(teamId);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.members[0].isFallbackOnly).toBe(false);
+			if (!result.success) throw new Error('Expected success');
+			expect(result.data.members[0].isFallbackOnly).toBe(false);
 		});
 
 		it('should correctly map is_fallback_only = 1 to true', async () => {
@@ -381,7 +393,7 @@ describe('TeamService', () => {
 
 			expect(result.success).toBe(true);
 
-			const fallback = result.data!.members.find(m => m.preceptorId === fallbackId);
+			const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
 			expect(fallback!.isFallbackOnly).toBe(true);
 		});
 	});

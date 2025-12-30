@@ -14,7 +14,7 @@
 		showForm = true;
 	}
 
-	async function handleDelete(healthSystem: HealthSystems) {
+	async function handleDelete(healthSystem: HealthSystemWithCounts) {
 		// Fetch dependencies to show cascade delete warning
 		try {
 			const depsResponse = await fetch(
