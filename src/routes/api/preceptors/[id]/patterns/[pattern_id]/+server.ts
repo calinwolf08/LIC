@@ -69,7 +69,7 @@ export const GET: RequestHandler = async ({ params }) => {
 			preceptorId,
 			patternId,
 			patternType: pattern.pattern_type,
-			isEnabled: pattern.is_enabled
+			isEnabled: Boolean(pattern.enabled)
 		});
 
 		return successResponse(parsedPattern);
@@ -138,7 +138,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 			preceptorId,
 			patternId,
 			patternType: pattern.pattern_type,
-			isEnabled: pattern.is_enabled
+			isEnabled: Boolean(pattern.enabled)
 		});
 
 		return successResponse(parsedPattern);

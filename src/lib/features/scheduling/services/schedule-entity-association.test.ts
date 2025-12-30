@@ -40,7 +40,7 @@ describe('Schedule Entity Association Service', () => {
 			end_date: '2025-12-31',
 			is_active: true
 		});
-		scheduleId = schedule1.id;
+		scheduleId = schedule1.id!; // Non-null assertion - just created
 
 		const schedule2 = await createSchedulingPeriod(db, {
 			name: 'Schedule 2026',
@@ -48,7 +48,7 @@ describe('Schedule Entity Association Service', () => {
 			end_date: '2026-12-31',
 			is_active: false
 		});
-		schedule2Id = schedule2.id;
+		schedule2Id = schedule2.id!; // Non-null assertion - just created
 	});
 
 	afterEach(async () => {

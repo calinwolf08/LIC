@@ -105,12 +105,12 @@ export const DELETE: RequestHandler = async ({ params }) => {
 
 	try {
 		// Check dependencies first
-		const dependencies = await service.getHealthSystemDependencies(params.id);
+		const dependenciesResult = await service.getHealthSystemDependencies(params.id);
 
-		if (dependencies.sites.length > 0) {
+		if (dependenciesResult.success && dependenciesResult.data.sites > 0) {
 			log.debug('Health system has dependencies', {
 				id: params.id,
-				siteCount: dependencies.sites.length
+				siteCount: dependenciesResult.data.sites
 			});
 		}
 

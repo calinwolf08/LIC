@@ -48,9 +48,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		log.info('Calendar summary fetched', {
 			startDate: params.start_date,
 			endDate: params.end_date,
-			totalStudents: summary.totalStudents,
-			totalPreceptors: summary.totalPreceptors,
-			totalAssignments: summary.totalAssignments
+			totalStudents: summary.active_students,
+			totalPreceptors: summary.active_preceptors,
+			totalAssignments: summary.total_assignments
 		});
 
 		return successResponse(summary);

@@ -37,7 +37,8 @@ export const GET: RequestHandler = async ({ params }) => {
 			id: params.id,
 			sites: result.data.sites,
 			preceptors: result.data.preceptors,
-			students: result.data.students
+			studentOnboarding: result.data.studentOnboarding,
+			total: result.data.total
 		});
 
 		return successResponse(result.data);

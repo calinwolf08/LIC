@@ -93,7 +93,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			preceptorId: id,
 			patternId: pattern.id,
 			patternType: pattern.pattern_type,
-			isEnabled: pattern.is_enabled
+			isEnabled: Boolean(pattern.enabled)
 		});
 
 		return successResponse(parsedPattern, 201);

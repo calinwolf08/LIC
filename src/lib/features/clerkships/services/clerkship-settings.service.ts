@@ -80,8 +80,8 @@ export class ClerkshipSettingsService {
 		}
 
 		// Merge overrides with defaults
-		const settings = {
-			overrideMode: 'override',
+		const settings: ClerkshipSettings = {
+			overrideMode: 'override' as const,
 			assignmentStrategy: config.override_assignment_strategy || globalDefaults.assignmentStrategy,
 			healthSystemRule: config.override_health_system_rule || globalDefaults.healthSystemRule,
 			maxStudentsPerDay: config.override_max_students_per_day ?? globalDefaults.maxStudentsPerDay,

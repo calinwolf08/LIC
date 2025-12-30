@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		log.info('Clerkship settings fetched', {
 			clerkshipId: params.id,
-			hasCustomSettings: !!settings.clerkship_id
+			hasCustomSettings: settings.overrideMode === 'override'
 		});
 
 		return successResponse(settings);
