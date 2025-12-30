@@ -229,6 +229,15 @@ export interface StudentWithUnmetRequirements {
 }
 
 /**
+ * Constraint violation statistics
+ */
+export interface ViolationStat {
+	constraintName: string;
+	count: number;
+	percentage: number;
+}
+
+/**
  * Schedule generation results summary
  */
 export interface ScheduleResultsSummary {
@@ -257,6 +266,8 @@ export interface ScheduleResultsSummary {
 		studentsAssigned: number;
 		averageDaysPerStudent: number;
 	}>;
+	/** Constraint violation statistics (only available immediately after generation) */
+	violationStats?: ViolationStat[];
 	/** Was the schedule fully successful? */
 	isComplete: boolean;
 }

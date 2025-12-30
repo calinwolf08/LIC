@@ -3,11 +3,14 @@
 	import {
 		ScheduleStatsCard,
 		UnmetRequirementsTable,
-		ClerkshipBreakdownTable
+		ClerkshipBreakdownTable,
+		ViolationStatsCard,
+		SuggestionsPanel
 	} from '$lib/features/schedules/components';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { createClientLogger } from '$lib/utils/logger.client';
+	import { generateSuggestions } from '$lib/features/scheduling/services/suggestion-generator';
 
 	const log = createClientLogger('schedule-results');
 
@@ -18,6 +21,10 @@
 	}
 
 	let { data }: Props = $props();
+
+	let suggestions = $derived(
+		data.summary.violationStats ? generateSuggestions(data.summary.violationStats) : []
+	);
 
 	function handleStudentClick(studentId: string) {
 		log.debug('Navigating to student schedule', { studentId });
@@ -61,6 +68,22 @@
 			<!-- Stats Overview -->
 			<ScheduleStatsCard stats={data.summary.stats} isComplete={data.summary.isComplete} />
 
+			<!-- Violations and Suggestions (only show if schedule incomplete) -->
+			{#if !data.summary.isComplete}
+				<div class="grid gap-6 lg:grid-cols-2">
+					<!-- Violation Stats -->
+					{#if data.summary.violationStats && data.summary.violationStats.length > 0}
+						<ViolationStatsCard violations={data.summary.violationStats} />
+					{/if}
+
+					<!-- Suggestions -->
+					{#if suggestions.length > 0}
+						<SuggestionsPanel {suggestions} />
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Unmet Requirements and Clerkship Breakdown -->
 			<div class="grid gap-6 lg:grid-cols-2">
 				<!-- Unmet Requirements -->
 				<div class="lg:col-span-1">
