@@ -153,6 +153,7 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			// Verify sites were added
 			const sitesResult = await service.getSitesForElective(result.data.id);

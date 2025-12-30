@@ -85,7 +85,7 @@ describe('RegenerateDialog', () => {
 			await waitFor(() => {
 				const smartRadio = screen
 					.getAllByRole('radio')
-					.find((r) => r.getAttribute('value') === 'smart') as HTMLInputElement;
+					.find((r: HTMLElement) => r.getAttribute('value') === 'smart') as HTMLInputElement;
 				expect(smartRadio?.checked).toBe(true);
 			});
 
@@ -108,7 +108,7 @@ describe('RegenerateDialog', () => {
 			await waitFor(() => {
 				const fullRadio = screen
 					.getAllByRole('radio')
-					.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+					.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 				expect(fullRadio?.checked).toBe(true);
 			});
 
@@ -126,10 +126,10 @@ describe('RegenerateDialog', () => {
 
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 			const smartRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'smart') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'smart') as HTMLInputElement;
 
 			// Click full mode
 			await fireEvent.click(fullRadio);
@@ -159,7 +159,7 @@ describe('RegenerateDialog', () => {
 
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 
 			await fireEvent.click(fullRadio);
 
@@ -224,7 +224,7 @@ describe('RegenerateDialog', () => {
 
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 
 			await fireEvent.click(fullRadio);
 
@@ -336,7 +336,7 @@ describe('RegenerateDialog', () => {
 			// Select full mode
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 			await fireEvent.click(fullRadio);
 
 			// Click regenerate
@@ -479,7 +479,7 @@ describe('RegenerateDialog', () => {
 			// Select full mode
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 			await fireEvent.click(fullRadio);
 
 			// Click regenerate
@@ -575,7 +575,7 @@ describe('RegenerateDialog', () => {
 
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 			await fireEvent.click(fullRadio);
 
 			const regenerateButton = screen.getByText(/Apply Regeneration/i);
@@ -662,7 +662,7 @@ describe('RegenerateDialog', () => {
 
 			const fullRadio = screen
 				.getAllByRole('radio')
-				.find((r) => r.getAttribute('value') === 'full') as HTMLInputElement;
+				.find((r: HTMLElement) => r.getAttribute('value') === 'full') as HTMLInputElement;
 			await fireEvent.click(fullRadio);
 
 			await waitFor(() => {
