@@ -216,6 +216,118 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		}
 
+		// Handle completion mode separately (no deletion, preserve all existing)
+		if (strategy === 'completion') {
+			log.info('Using completion-only strategy - preserving all existing assignments');
+
+			// Prepare completion context (loads all existing, identifies gaps)
+			const { prepareCompletionContext } = await import(
+				'$lib/features/scheduling/services/regeneration-service'
+			);
+			const completionResult = await prepareCompletionContext(
+				db,
+				legacyContext,
+				validatedData.startDate,
+				validatedData.endDate
+			);
+
+			if (completionResult.studentsWithUnmetRequirements.length === 0) {
+				log.info('All students have complete schedules - nothing to generate');
+				return successResponse({
+					assignments: [],
+					success: true,
+					unmetRequirements: [],
+					violations: [],
+					summary: {
+						totalAssignments: 0,
+						totalViolations: 0,
+						strategiesUsed: []
+					},
+					strategy: 'completion',
+					existingAssignmentsPreserved: completionResult.totalExistingAssignments,
+					newAssignmentsGenerated: 0,
+					message: 'All students already have complete schedules. No gaps to fill.'
+				});
+			}
+
+			// Get IDs for scheduling
+			const studentIds = students.map((s) => s.id!).filter(Boolean);
+			const clerkshipIds = clerkships.map((c) => c.id!).filter(Boolean);
+
+			log.info('Starting scheduling engine for completion mode', {
+				existingAssignments: completionResult.totalExistingAssignments,
+				studentsWithGaps: completionResult.studentsWithUnmetRequirements.length,
+				bypassedConstraints: validatedData.bypassedConstraints
+			});
+
+			// Run engine with bypassed constraints
+			const engine = new ConfigurableSchedulingEngine();
+			const result = await engine.generateSchedule(
+				db,
+				studentIds,
+				clerkshipIds,
+				validatedData.startDate,
+				validatedData.endDate,
+				{
+					bypassedConstraints: validatedData.bypassedConstraints || []
+				}
+			);
+
+			// Filter: only keep NEW assignments (not the preserved ones)
+			// Engine returns all assignments including preserved ones
+			const existingSet = new Set(
+				legacyContext.assignments.map((a) => `${a.studentId}-${a.date}-${a.clerkshipId}`)
+			);
+
+			const newAssignmentsOnly = result.assignments.filter(
+				(a) => !existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
+			);
+
+			log.info('Completion generation complete', {
+				totalAssignmentsFromEngine: result.assignments.length,
+				existingPreserved: completionResult.totalExistingAssignments,
+				newGenerated: newAssignmentsOnly.length
+			});
+
+			// Save ONLY new assignments
+			let savedAssignments = [];
+			if (newAssignmentsOnly.length > 0) {
+				const saveResult = await bulkCreateAssignments(db, newAssignmentsOnly);
+				if (!saveResult.success) {
+					log.error('Failed to save completion assignments', { error: saveResult.error });
+					return errorResponse(saveResult.error);
+				}
+				savedAssignments = saveResult.data || [];
+			}
+
+			// Create audit log
+			await logRegenerationEvent(db, {
+				strategy: 'completion',
+				startDate: validatedData.startDate,
+				endDate: validatedData.endDate,
+				preservedCount: completionResult.totalExistingAssignments,
+				generatedCount: newAssignmentsOnly.length,
+				deletedCount: 0,
+				bypassedConstraints: validatedData.bypassedConstraints || []
+			});
+
+			log.info('Completion mode finished successfully');
+
+			return successResponse({
+				assignments: savedAssignments,
+				success: result.success,
+				unmetRequirements: result.unmetRequirements,
+				violations: result.violations,
+				summary: result.summary,
+				strategy: 'completion',
+				existingAssignmentsPreserved: completionResult.totalExistingAssignments,
+				newAssignmentsGenerated: newAssignmentsOnly.length,
+				studentsCompleted: completionResult.studentsWithUnmetRequirements.length,
+				bypassedConstraints: validatedData.bypassedConstraints,
+				message: `Generated ${newAssignmentsOnly.length} new assignments to complete ${completionResult.studentsWithUnmetRequirements.length} students. ${completionResult.totalExistingAssignments} existing assignments preserved.`
+			});
+		}
+
 		// Clear future assignments (preserving past assignments before regenerateFromDate)
 		log.info('Clearing future assignments', { regenerateFromDate });
 		const deletedCount = await clearAllAssignments(db, regenerateFromDate);

@@ -13,12 +13,21 @@
 
 	let startDate = $state('');
 	let endDate = $state('');
-	let regenerationMode = $state<'full' | 'smart'>('smart');
+	let regenerationMode = $state<'full' | 'smart' | 'completion'>('smart');
 	let regenerateFromDate = $state('');
 	let strategy = $state<'minimal-change' | 'full-reoptimize'>('minimal-change');
+	let bypassedConstraints = $state<string[]>([]);
 	let isRegenerating = $state(false);
 	let errors = $state<string[]>([]);
 	let successMessage = $state('');
+
+	const availableConstraints = [
+		{ name: 'preceptor-capacity', label: 'Preceptor Capacity (allow exceeding max)' },
+		{ name: 'site-capacity', label: 'Site Capacity (allow exceeding max)' },
+		{ name: 'specialty-match', label: 'Specialty Matching (allow mismatches)' },
+		{ name: 'health-system-continuity', label: 'Health System Continuity (allow switches)' },
+		{ name: 'no-double-booking', label: 'Double Booking (allow same-day assignments)' }
+	];
 
 	// Initialize dates
 	$effect(() => {
@@ -36,6 +45,7 @@
 			regenerationMode = dayOfYear > 30 ? 'smart' : 'full';
 
 			strategy = 'minimal-change';
+			bypassedConstraints = [];
 			errors = [];
 			successMessage = '';
 		}
@@ -77,6 +87,9 @@
 			if (regenerationMode === 'smart') {
 				requestBody.regenerateFromDate = regenerateFromDate;
 				requestBody.strategy = strategy;
+			} else if (regenerationMode === 'completion') {
+				requestBody.strategy = 'completion';
+				requestBody.bypassedConstraints = bypassedConstraints;
 			}
 
 			const generateResponse = await fetch('/api/schedules/generate', {
@@ -95,7 +108,12 @@
 			const data = generateResult.data;
 
 			// Show appropriate success message
-			if (regenerationMode === 'smart') {
+			if (regenerationMode === 'completion') {
+				const preserved = data.existingAssignmentsPreserved || 0;
+				const newGenerated = data.newAssignmentsGenerated || 0;
+				const studentsCompleted = data.studentsCompleted || 0;
+				successMessage = `Preserved ${preserved} existing assignments. Generated ${newGenerated} new assignments to complete ${studentsCompleted} student${studentsCompleted !== 1 ? 's' : ''}.`;
+			} else if (regenerationMode === 'smart') {
 				const preserved = data.totalPastAssignments || 0;
 				const newAssignments = data.summary.totalAssignments;
 				successMessage = `Preserved ${preserved} past assignments. Generated ${newAssignments} new assignments from ${regenerateFromDate}.`;
@@ -180,6 +198,29 @@
 						</p>
 					</div>
 				</label>
+
+				<label
+					class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800"
+				>
+					<input
+						type="radio"
+						value="completion"
+						bind:group={regenerationMode}
+						disabled={isRegenerating}
+						class="mt-1"
+					/>
+					<div class="flex-1">
+						<p class="font-medium">Completion Mode (Fill Gaps Only)</p>
+						<p class="text-sm text-muted-foreground">
+							Keep ALL existing assignments. Only generate new assignments for students with unmet
+							requirements
+						</p>
+						<p class="text-xs text-muted-foreground mt-1">
+							Use when: Schedule 95% complete but blocked by strict constraints. Selectively
+							relax constraints only for gap-filling
+						</p>
+					</div>
+				</label>
 			</div>
 
 			<!-- Smart Mode Options -->
@@ -237,6 +278,46 @@
 								</p>
 							</div>
 						</label>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Completion Mode Options -->
+			{#if regenerationMode === 'completion'}
+				<div class="space-y-4 mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+					<h4 class="font-semibold text-blue-900 dark:text-blue-100">
+						Constraints to Relax (for new assignments only)
+					</h4>
+					<p class="text-sm text-muted-foreground">
+						Select which constraints to bypass when filling gaps. These relaxed rules will ONLY
+						apply to newly generated assignments, not existing ones.
+					</p>
+
+					<div class="space-y-2">
+						{#each availableConstraints as constraint}
+							<label class="flex items-start gap-2 py-1 cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/30 px-2 rounded transition-colors">
+								<input
+									type="checkbox"
+									value={constraint.name}
+									bind:group={bypassedConstraints}
+									disabled={isRegenerating}
+									class="mt-0.5"
+								/>
+								<span class="text-sm">{constraint.label}</span>
+							</label>
+						{/each}
+					</div>
+
+					<div class="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border border-blue-300 dark:border-blue-700">
+						<p class="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+							ℹ️ Completion Mode Behavior:
+						</p>
+						<ul class="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+							<li>Preserves 100% of existing assignments</li>
+							<li>Generates only for students with unmet requirements</li>
+							<li>Relaxed constraints apply ONLY to new assignments</li>
+							<li>No deletions or modifications to current schedule</li>
+						</ul>
 					</div>
 				</div>
 			{/if}
