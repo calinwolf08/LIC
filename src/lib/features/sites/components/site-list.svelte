@@ -1,10 +1,11 @@
 <script lang="ts">
+	import type { Selectable } from 'kysely';
 	import type { Sites } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { DeleteSiteDialog } from './index';
 
-	interface SiteWithHealthSystem extends Sites {
+	interface SiteWithHealthSystem extends Selectable<Sites> {
 		health_system_name?: string;
 	}
 

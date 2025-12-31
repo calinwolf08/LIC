@@ -112,7 +112,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		log.info('Elective created', {
 			id: result.data.id,
 			requirementId,
-			isRequired: result.data.is_required
+			isRequired: result.data.isRequired
 		});
 
 		return successResponse(result.data, 201);

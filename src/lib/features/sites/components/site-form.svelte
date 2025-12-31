@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Selectable } from 'kysely';
 	import type { Sites } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
@@ -9,7 +10,7 @@
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 
 	interface Props {
-		site?: Sites;
+		site?: Selectable<Sites>;
 		healthSystems: Array<{ id: string; name: string }>;
 		onSuccess?: () => void;
 		onCancel?: () => void;

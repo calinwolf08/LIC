@@ -78,8 +78,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		log.info('Requirement created', {
 			id: result.data.id,
-			clerkshipId: result.data.clerkship_id,
-			name: result.data.name
+			clerkshipId: result.data.clerkshipId,
+			requirementType: result.data.requirementType
 		});
 
 		return successResponse(result.data, 201);

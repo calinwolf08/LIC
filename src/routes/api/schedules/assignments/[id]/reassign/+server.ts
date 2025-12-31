@@ -46,7 +46,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			id,
 			newPreceptorId: new_preceptor_id,
 			dryRun: dry_run,
-			success: result.success
+			valid: result.valid,
+			hasErrors: result.errors.length > 0
 		});
 
 		return successResponse(result);

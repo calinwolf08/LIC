@@ -43,8 +43,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		log.info('Pattern dates saved', {
 			preceptorId: id,
 			savedCount,
-			startDate: validatedData.start_date,
-			endDate: validatedData.end_date
+			clearExisting: validatedData.clear_existing
 		});
 
 		return successResponse({

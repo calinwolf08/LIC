@@ -261,14 +261,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 
 			// Run engine with bypassed constraints
-			const engine = new ConfigurableSchedulingEngine();
-			const result = await engine.generateSchedule(
-				db,
+			const engine = new ConfigurableSchedulingEngine(db);
+			const result = await engine.schedule(
 				studentIds,
 				clerkshipIds,
-				validatedData.startDate,
-				validatedData.endDate,
 				{
+					startDate: validatedData.startDate,
+					endDate: validatedData.endDate,
+					dryRun: true, // We handle saving externally
 					bypassedConstraints: validatedData.bypassedConstraints || []
 				}
 			);
@@ -280,7 +280,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 
 			const newAssignmentsOnly = result.assignments.filter(
-				(a) => !existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
+				(a: { studentId: string; date: string; clerkshipId: string }) => !existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
 			);
 
 			log.info('Completion generation complete', {
@@ -290,25 +290,42 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 
 			// Save ONLY new assignments
-			let savedAssignments = [];
+			let savedAssignments: Array<{
+				id: string | null;
+				student_id: string;
+				preceptor_id: string;
+				clerkship_id: string;
+				date: string;
+				status: string;
+				created_at: string;
+				updated_at: string;
+				site_id: string | null;
+				elective_id: string | null;
+			}> = [];
 			if (newAssignmentsOnly.length > 0) {
-				const saveResult = await bulkCreateAssignments(db, newAssignmentsOnly);
-				if (!saveResult.success) {
-					log.error('Failed to save completion assignments', { error: saveResult.error });
-					return errorResponse(saveResult.error);
-				}
-				savedAssignments = saveResult.data || [];
+				const assignmentsToSave = newAssignmentsOnly.map((assignment) => ({
+					student_id: assignment.studentId,
+					preceptor_id: assignment.preceptorId,
+					clerkship_id: assignment.clerkshipId,
+					date: assignment.date,
+					status: 'scheduled'
+				}));
+				savedAssignments = await bulkCreateAssignments(db, { assignments: assignmentsToSave });
 			}
 
 			// Create audit log
 			await logRegenerationEvent(db, {
 				strategy: 'completion',
-				startDate: validatedData.startDate,
+				regenerateFromDate: validatedData.startDate,
 				endDate: validatedData.endDate,
-				preservedCount: completionResult.totalExistingAssignments,
-				generatedCount: newAssignmentsOnly.length,
-				deletedCount: 0,
-				bypassedConstraints: validatedData.bypassedConstraints || []
+				pastAssignmentsCount: completionResult.totalExistingAssignments,
+				futureAssignmentsDeleted: 0,
+				futureAssignmentsPreserved: completionResult.totalExistingAssignments,
+				affectedAssignments: 0,
+				newAssignmentsGenerated: newAssignmentsOnly.length,
+				success: true,
+				reason: 'api_request',
+				notes: `Completion mode: preserved ${completionResult.totalExistingAssignments} existing assignments, generated ${newAssignmentsOnly.length} new assignments. Bypassed constraints: ${validatedData.bypassedConstraints?.join(', ') || 'none'}`
 			});
 
 			log.info('Completion mode finished successfully');
@@ -318,7 +335,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				success: result.success,
 				unmetRequirements: result.unmetRequirements,
 				violations: result.violations,
-				summary: result.summary,
+				statistics: result.statistics,
 				strategy: 'completion',
 				existingAssignmentsPreserved: completionResult.totalExistingAssignments,
 				newAssignmentsGenerated: newAssignmentsOnly.length,

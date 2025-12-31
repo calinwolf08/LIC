@@ -176,7 +176,7 @@
 	{#if loading}
 		<div class="py-12 text-center text-muted-foreground">Loading...</div>
 	{:else}
-		<Accordion.Root class="space-y-4">
+		<Accordion.Root type="multiple" class="space-y-4">
 			<!-- Outpatient Defaults -->
 			<Accordion.Item value="outpatient">
 				<Accordion.Trigger class="text-lg font-semibold">

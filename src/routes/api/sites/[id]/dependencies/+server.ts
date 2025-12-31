@@ -18,8 +18,9 @@ export const GET: RequestHandler = async ({ params }) => {
 		log.info('Site dependencies fetched', {
 			siteId: params.id,
 			preceptors: dependencies.preceptors,
-			students: dependencies.students,
-			clerkships: dependencies.clerkships
+			electives: dependencies.electives,
+			clerkships: dependencies.clerkships,
+			total: dependencies.total
 		});
 
 		return successResponse(dependencies);

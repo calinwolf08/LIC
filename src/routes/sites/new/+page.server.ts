@@ -9,6 +9,6 @@ export const load: PageServerLoad = async () => {
 		.execute();
 
 	return {
-		healthSystems
+		healthSystems: healthSystems.map(hs => ({ id: hs.id!, name: hs.name }))
 	};
 };

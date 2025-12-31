@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 		return {
 			site,
-			healthSystems
+			healthSystems: healthSystems.map(hs => ({ id: hs.id!, name: hs.name }))
 		};
 	} catch (err) {
 		throw error(404, 'Site not found');

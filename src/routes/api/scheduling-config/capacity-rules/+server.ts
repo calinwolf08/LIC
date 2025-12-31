@@ -78,8 +78,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		log.info('Capacity rule created', {
 			id: result.data.id,
-			preceptorId: result.data.preceptor_id,
-			maxConcurrent: result.data.max_concurrent_students
+			preceptorId: result.data.preceptorId,
+			maxStudentsPerDay: result.data.maxStudentsPerDay
 		});
 
 		return successResponse(result.data, 201);

@@ -599,8 +599,7 @@ export async function prepareCompletionContext(
 			studentId: assignment.student_id,
 			preceptorId: assignment.preceptor_id,
 			clerkshipId: assignment.clerkship_id,
-			date: assignment.date,
-			siteId: assignment.site_id || undefined
+			date: assignment.date
 		};
 
 		// Add to context

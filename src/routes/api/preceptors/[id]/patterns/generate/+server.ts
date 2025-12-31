@@ -35,8 +35,8 @@ export const POST: RequestHandler = async ({ params }) => {
 
 		log.info('Pattern dates generated', {
 			preceptorId: id,
-			dateCount: result.dates?.length || 0,
-			patternCount: result.patterns?.length || 0
+			dateCount: result.preview?.length || 0,
+			generatedCount: result.generated_dates || 0
 		});
 
 		return successResponse(result);

@@ -78,8 +78,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		log.info('Fallback created', {
 			id: result.data.id,
-			primaryPreceptorId: result.data.primary_preceptor_id,
-			fallbackPreceptorId: result.data.fallback_preceptor_id,
+			primaryPreceptorId: result.data.primaryPreceptorId,
+			fallbackPreceptorId: result.data.fallbackPreceptorId,
 			priority: result.data.priority
 		});
 

@@ -39,8 +39,8 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		log.info('Requirement fetched', {
 			id: params.id,
-			clerkshipId: result.data.clerkship_id,
-			requirementType: result.data.requirement_type
+			clerkshipId: result.data.clerkshipId,
+			requirementType: result.data.requirementType
 		});
 
 		return successResponse(result.data);
@@ -78,8 +78,8 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 
 		log.info('Requirement updated', {
 			id: params.id,
-			clerkshipId: result.data.clerkship_id,
-			requirementType: result.data.requirement_type
+			clerkshipId: result.data.clerkshipId,
+			requirementType: result.data.requirementType
 		});
 
 		return successResponse(result.data);

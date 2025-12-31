@@ -1,11 +1,12 @@
 <script lang="ts">
+	import type { Selectable } from 'kysely';
 	import type { Sites } from '$lib/db/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
 	import { onMount } from 'svelte';
 
 	interface Props {
-		site: Sites;
+		site: Selectable<Sites>;
 		open: boolean;
 		onConfirm: () => void;
 		onCancel: () => void;

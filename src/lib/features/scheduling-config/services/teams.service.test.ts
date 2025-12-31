@@ -126,6 +126,7 @@ describe('TeamService', () => {
 			});
 
 			expect(result.success).toBe(false);
+			if (result.success) throw new Error('Expected failure');
 			// The error comes from schema validation
 			expect(result.error).toBeDefined();
 		});
@@ -152,14 +153,15 @@ describe('TeamService', () => {
 			const getResult = await service.getTeam(teamId);
 
 			expect(getResult.success).toBe(true);
-			if (!getResult.success) throw new Error('Expected success');
-			expect(getResult.data.members).toHaveLength(2);
+			if (getResult.success && getResult.data) {
+				expect(getResult.data.members).toHaveLength(2);
 
-			const primary = getResult.data.members.find(m => m.preceptorId === primaryId);
-			const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
+				const primary = getResult.data.members.find(m => m.preceptorId === primaryId);
+				const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
 
-			expect(primary!.isFallbackOnly).toBe(false);
-			expect(fallback!.isFallbackOnly).toBe(true);
+				expect(primary!.isFallbackOnly).toBe(false);
+				expect(fallback!.isFallbackOnly).toBe(true);
+			}
 		});
 	});
 
@@ -190,6 +192,7 @@ describe('TeamService', () => {
 			});
 
 			expect(updateResult.success).toBe(true);
+			if (!updateResult.success) throw new Error('Expected success');
 
 			const member2 = updateResult.data.members.find(m => m.preceptorId === preceptor2);
 			expect(member2!.isFallbackOnly).toBe(true);
@@ -254,10 +257,13 @@ describe('TeamService', () => {
 
 			// Verify in database
 			const getResult = await service.getTeam(teamId);
-			expect(getResult.data.members).toHaveLength(2);
+			expect(getResult.success).toBe(true);
+			if (getResult.success && getResult.data) {
+				expect(getResult.data.members).toHaveLength(2);
 
-			const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
-			expect(fallback!.isFallbackOnly).toBe(true);
+				const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
+				expect(fallback!.isFallbackOnly).toBe(true);
+			}
 		});
 	});
 
@@ -350,8 +356,9 @@ describe('TeamService', () => {
 			const result = await service.getTeam(teamId);
 
 			expect(result.success).toBe(true);
-			if (!result.success) throw new Error('Expected success');
-			expect(result.data.members[0].isFallbackOnly).toBe(false);
+			if (result.success && result.data) {
+				expect(result.data.members[0].isFallbackOnly).toBe(false);
+			}
 		});
 
 		it('should correctly map is_fallback_only = 1 to true', async () => {
@@ -392,9 +399,10 @@ describe('TeamService', () => {
 			const result = await service.getTeam(teamId);
 
 			expect(result.success).toBe(true);
-
-			const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
-			expect(fallback!.isFallbackOnly).toBe(true);
+			if (result.success && result.data) {
+				const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
+				expect(fallback!.isFallbackOnly).toBe(true);
+			}
 		});
 	});
 });

@@ -24,7 +24,7 @@
 
 	interface Props {
 		healthSystems: HealthSystemWithCounts[];
-		onDelete: (healthSystem: HealthSystemWithCounts) => void;
+		onDelete: (healthSystem: HealthSystemWithCounts) => void | Promise<void>;
 	}
 
 	let { healthSystems, onDelete }: Props = $props();

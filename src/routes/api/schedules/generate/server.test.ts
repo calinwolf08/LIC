@@ -19,6 +19,8 @@ import * as auditService from '$lib/features/scheduling/services/audit-service';
 import { db } from '$lib/db';
 import type { SchedulingContext } from '$lib/features/scheduling/types/scheduling-context';
 import type { Assignment } from '$lib/features/scheduling/types/assignment';
+import type { Selectable } from 'kysely';
+import type { ScheduleAssignments } from '$lib/db/types';
 
 // Create a proper Kysely-like mock database
 const createMockQueryBuilder = (data: any[] = []) => {
@@ -71,8 +73,7 @@ describe('POST /api/schedules/generate', () => {
 			studentId: 'student-1',
 			preceptorId: 'preceptor-1',
 			clerkshipId: 'clerkship-1',
-			date: '2025-06-15',
-			siteId: 'site-1'
+			date: '2025-06-15'
 		}
 	];
 
@@ -85,9 +86,12 @@ describe('POST /api/schedules/generate', () => {
 			id: 'period-1',
 			start_date: '2025-01-01',
 			end_date: '2025-12-31',
-			is_active: true,
+			is_active: 1,
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
+			updated_at: new Date().toISOString(),
+			name: 'Test Period',
+			user_id: null,
+			year: 2025
 		});
 	});
 
@@ -124,16 +128,20 @@ describe('POST /api/schedules/generate', () => {
 					}) as any
 			);
 
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue({
-				success: true,
-				data: mockAssignments.map((a, i) => ({
-					...a,
+			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
+				mockAssignments.map((a, i) => ({
 					id: `assignment-${i}`,
+					student_id: a.studentId,
+					preceptor_id: a.preceptorId,
+					clerkship_id: a.clerkshipId,
+					date: a.date,
+					elective_id: a.electiveId || null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
-			});
+			);
 
 			const response = await POST({ request } as any);
 			const data = await response.json();
@@ -160,26 +168,30 @@ describe('POST /api/schedules/generate', () => {
 			});
 
 			// Mock past assignments
-			const pastAssignments = [
+			const pastAssignments: Selectable<ScheduleAssignments>[] = [
 				{
 					id: 'past-1',
 					student_id: 'student-1',
 					preceptor_id: 'preceptor-1',
 					clerkship_id: 'clerkship-1',
 					date: '2025-06-01',
+					elective_id: null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
 			];
 
-			const futureAssignments = [
+			const futureAssignments: Selectable<ScheduleAssignments>[] = [
 				{
 					id: 'future-1',
 					student_id: 'student-1',
 					preceptor_id: 'preceptor-1',
 					clerkship_id: 'clerkship-1',
 					date: '2025-06-20',
+					elective_id: null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
@@ -188,20 +200,32 @@ describe('POST /api/schedules/generate', () => {
 
 			// Mock regeneration service
 			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				context: mockContext,
-				pastAssignments,
-				futureAssignments: {
-					preservable: futureAssignments,
-					affected: []
+				creditResult: {
+					totalPastAssignments: 1,
+					creditsByStudent: new Map()
 				},
-				totalPastAssignments: 1
+				preservedAssignments: 1,
+				affectedAssignments: 0
 			});
 
 			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				preservedCount: 1,
-				affectedCount: 0,
+				pastAssignments: [],
+				pastAssignmentsCount: 0,
+				futureAssignmentsToDelete: [],
 				deletedCount: 0,
-				affectedAssignments: []
+				preservableAssignments: futureAssignments,
+				preservedCount: 1,
+				affectedAssignments: [],
+				affectedCount: 0,
+				replaceableAssignments: [],
+				studentProgress: [],
+				summary: {
+					strategy: 'minimal-change',
+					regenerateFromDate: '2025-06-15',
+					totalAssignmentsImpacted: 0,
+					willPreservePast: true,
+					willPreserveFuture: true
+				}
 			});
 
 			// Mock engine
@@ -225,10 +249,7 @@ describe('POST /api/schedules/generate', () => {
 					}) as any
 			);
 
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue({
-				success: true,
-				data: []
-			});
+			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue([]);
 
 			const response = await POST({ request } as any);
 			const data = await response.json();
@@ -260,15 +281,17 @@ describe('POST /api/schedules/generate', () => {
 				})
 			});
 
-			const pastAssignments = [];
-			const preservableAssignments = [];
-			const affectedAssignments = [
+			const pastAssignments: Selectable<ScheduleAssignments>[] = [];
+			const preservableAssignments: Selectable<ScheduleAssignments>[] = [];
+			const affectedAssignments: Selectable<ScheduleAssignments>[] = [
 				{
 					id: 'affected-1',
 					student_id: 'student-1',
 					preceptor_id: 'preceptor-1', // Now unavailable
 					clerkship_id: 'clerkship-1',
 					date: '2025-06-20',
+					elective_id: null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
@@ -276,20 +299,32 @@ describe('POST /api/schedules/generate', () => {
 			];
 
 			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				context: mockContext,
-				pastAssignments,
-				futureAssignments: {
-					preservable: preservableAssignments,
-					affected: affectedAssignments
+				creditResult: {
+					totalPastAssignments: 0,
+					creditsByStudent: new Map()
 				},
-				totalPastAssignments: 0
+				preservedAssignments: 0,
+				affectedAssignments: 1
 			});
 
 			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				preservedCount: 0,
-				affectedCount: 1,
+				pastAssignments: [],
+				pastAssignmentsCount: 0,
+				futureAssignmentsToDelete: affectedAssignments,
 				deletedCount: 1,
-				affectedAssignments
+				preservableAssignments: [],
+				preservedCount: 0,
+				affectedAssignments,
+				affectedCount: 1,
+				replaceableAssignments: [],
+				studentProgress: [],
+				summary: {
+					strategy: 'minimal-change',
+					regenerateFromDate: '2025-06-15',
+					totalAssignmentsImpacted: 1,
+					willPreservePast: true,
+					willPreserveFuture: false
+				}
 			});
 
 			const mockConfigurableEngine = await import(
@@ -312,16 +347,20 @@ describe('POST /api/schedules/generate', () => {
 					}) as any
 			);
 
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue({
-				success: true,
-				data: mockAssignments.map((a, i) => ({
-					...a,
+			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
+				mockAssignments.map((a, i) => ({
 					id: `assignment-${i}`,
+					student_id: a.studentId,
+					preceptor_id: a.preceptorId,
+					clerkship_id: a.clerkshipId,
+					date: a.date,
+					elective_id: a.electiveId || null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
-			});
+			);
 
 			const response = await POST({ request } as any);
 			const data = await response.json();
@@ -346,13 +385,15 @@ describe('POST /api/schedules/generate', () => {
 				})
 			});
 
-			const pastAssignments = [
+			const pastAssignments: Selectable<ScheduleAssignments>[] = [
 				{
 					id: 'past-1',
 					student_id: 'student-1',
 					preceptor_id: 'preceptor-1',
 					clerkship_id: 'clerkship-1',
 					date: '2025-06-01',
+					elective_id: null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
@@ -360,20 +401,32 @@ describe('POST /api/schedules/generate', () => {
 			];
 
 			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				context: mockContext,
-				pastAssignments,
-				futureAssignments: {
-					preservable: [],
-					affected: []
+				creditResult: {
+					totalPastAssignments: 1,
+					creditsByStudent: new Map()
 				},
-				totalPastAssignments: 1
+				preservedAssignments: 0,
+				affectedAssignments: 0
 			});
 
 			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				preservedCount: 0,
-				affectedCount: 0,
+				pastAssignments,
+				pastAssignmentsCount: 1,
+				futureAssignmentsToDelete: [],
 				deletedCount: 5,
-				affectedAssignments: []
+				preservableAssignments: [],
+				preservedCount: 0,
+				affectedAssignments: [],
+				affectedCount: 0,
+				replaceableAssignments: [],
+				studentProgress: [],
+				summary: {
+					strategy: 'full-reoptimize',
+					regenerateFromDate: '2025-06-15',
+					totalAssignmentsImpacted: 5,
+					willPreservePast: true,
+					willPreserveFuture: false
+				}
 			});
 
 			const mockConfigurableEngine = await import(
@@ -396,16 +449,20 @@ describe('POST /api/schedules/generate', () => {
 					}) as any
 			);
 
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue({
-				success: true,
-				data: mockAssignments.map((a, i) => ({
-					...a,
+			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
+				mockAssignments.map((a, i) => ({
 					id: `assignment-${i}`,
+					student_id: a.studentId,
+					preceptor_id: a.preceptorId,
+					clerkship_id: a.clerkshipId,
+					date: a.date,
+					elective_id: a.electiveId || null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
-			});
+			);
 
 			const response = await POST({ request } as any);
 			const data = await response.json();
@@ -434,26 +491,30 @@ describe('POST /api/schedules/generate', () => {
 				})
 			});
 
-			const pastAssignments = [
+			const pastAssignments: Selectable<ScheduleAssignments>[] = [
 				{
 					id: 'past-1',
 					student_id: 'student-1',
 					preceptor_id: 'preceptor-1',
 					clerkship_id: 'clerkship-1',
 					date: '2025-06-01',
+					elective_id: null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
 			];
 
-			const affectedAssignments = [
+			const affectedAssignments: Selectable<ScheduleAssignments>[] = [
 				{
 					id: 'affected-1',
 					student_id: 'student-1',
 					preceptor_id: 'preceptor-1',
 					clerkship_id: 'clerkship-1',
 					date: '2025-06-20',
+					elective_id: null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
@@ -461,20 +522,32 @@ describe('POST /api/schedules/generate', () => {
 			];
 
 			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				context: mockContext,
-				pastAssignments,
-				futureAssignments: {
-					preservable: [],
-					affected: affectedAssignments
+				creditResult: {
+					totalPastAssignments: 1,
+					creditsByStudent: new Map()
 				},
-				totalPastAssignments: 1
+				preservedAssignments: 0,
+				affectedAssignments: 1
 			});
 
 			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				preservedCount: 0,
-				affectedCount: 1,
+				pastAssignments,
+				pastAssignmentsCount: 1,
+				futureAssignmentsToDelete: affectedAssignments,
 				deletedCount: 1,
-				affectedAssignments
+				preservableAssignments: [],
+				preservedCount: 0,
+				affectedAssignments,
+				affectedCount: 1,
+				replaceableAssignments: [],
+				studentProgress: [],
+				summary: {
+					strategy: 'minimal-change',
+					regenerateFromDate: '2025-06-15',
+					totalAssignmentsImpacted: 1,
+					willPreservePast: true,
+					willPreserveFuture: false
+				}
 			});
 
 			const response = await POST({ request } as any);
@@ -595,20 +668,32 @@ describe('POST /api/schedules/generate', () => {
 			});
 
 			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				context: mockContext,
-				pastAssignments: [],
-				futureAssignments: {
-					preservable: [],
-					affected: []
+				creditResult: {
+					totalPastAssignments: 0,
+					creditsByStudent: new Map()
 				},
-				totalPastAssignments: 0
+				preservedAssignments: 0,
+				affectedAssignments: 0
 			});
 
 			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				preservedCount: 0,
-				affectedCount: 0,
+				pastAssignments: [],
+				pastAssignmentsCount: 0,
+				futureAssignmentsToDelete: [],
 				deletedCount: 0,
-				affectedAssignments: []
+				preservableAssignments: [],
+				preservedCount: 0,
+				affectedAssignments: [],
+				affectedCount: 0,
+				replaceableAssignments: [],
+				studentProgress: [],
+				summary: {
+					strategy: 'minimal-change',
+					regenerateFromDate: '2025-06-15',
+					totalAssignmentsImpacted: 0,
+					willPreservePast: true,
+					willPreserveFuture: true
+				}
 			});
 
 			const mockConfigurableEngine = await import(
@@ -631,16 +716,20 @@ describe('POST /api/schedules/generate', () => {
 					}) as any
 			);
 
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue({
-				success: true,
-				data: mockAssignments.map((a, i) => ({
-					...a,
+			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
+				mockAssignments.map((a, i) => ({
 					id: `assignment-${i}`,
+					student_id: a.studentId,
+					preceptor_id: a.preceptorId,
+					clerkship_id: a.clerkshipId,
+					date: a.date,
+					elective_id: a.electiveId || null,
+					site_id: null,
 					status: 'scheduled' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
-			});
+			);
 
 			const createRegenerationAuditLogSpy = vi.spyOn(
 				auditService,

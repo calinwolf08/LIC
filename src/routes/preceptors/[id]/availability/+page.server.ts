@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	// Get preceptor
 	const preceptor = await getPreceptorById(db, preceptorId);
 
-	if (!preceptor) {
+	if (!preceptor || !preceptor.id) {
 		throw error(404, 'Preceptor not found');
 	}
 
@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		preceptor: {
 			id: preceptor.id,
 			name: preceptor.name,
-			sites
+			sites: sites.map(s => ({ id: s.id!, name: s.name }))
 		}
 	};
 };

@@ -51,7 +51,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			assignmentId1: assignment_id_1,
 			assignmentId2: assignment_id_2,
 			dryRun: dry_run,
-			success: result.success
+			valid: result.valid,
+			hasErrors: result.errors.length > 0
 		});
 
 		return successResponse(result);

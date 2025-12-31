@@ -35,8 +35,8 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		log.info('Fallback fetched', {
 			id: params.id,
-			primaryPreceptorId: result.data.primary_preceptor_id,
-			fallbackPreceptorId: result.data.fallback_preceptor_id,
+			primaryPreceptorId: result.data.primaryPreceptorId,
+			fallbackPreceptorId: result.data.fallbackPreceptorId,
 			priority: result.data.priority
 		});
 

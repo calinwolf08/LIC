@@ -236,12 +236,15 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.getElective(createResult.data.id);
 
 			expect(result.success).toBe(true);
 			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeDefined();
+			if (!result.data) throw new Error('Expected data');
 			expect(result.data.name).toBe('Test Elective');
 		});
 
@@ -262,12 +265,15 @@ describe('ElectiveService', () => {
 				siteIds: [testSiteId],
 				preceptorIds: [testPreceptorId],
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.getElectiveWithDetails(createResult.data.id);
 
 			expect(result.success).toBe(true);
 			if (!result.success) throw new Error('Expected success');
 			expect(result.data).toBeDefined();
+			if (!result.data) throw new Error('Expected data');
 			expect(result.data.sites).toHaveLength(1);
 			expect(result.data.sites[0].name).toBe('Test Site');
 			expect(result.data.preceptors).toHaveLength(1);
@@ -394,6 +400,8 @@ describe('ElectiveService', () => {
 				name: 'Original Name',
 				minimumDays: 10,
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.updateElective(createResult.data.id, {
 				name: 'Updated Name',
@@ -410,6 +418,8 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 				isRequired: true,
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.updateElective(createResult.data.id, {
 				isRequired: false,
@@ -425,6 +435,8 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.updateElective(createResult.data.id, {
 				siteIds: [testSiteId],
@@ -432,11 +444,16 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const sitesResult = await service.getSitesForElective(createResult.data.id);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(1);
 
 			const preceptorsResult = await service.getPreceptorsForElective(createResult.data.id);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(1);
 		});
 
@@ -455,6 +472,8 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.updateElective(createResult.data.id, {
 				minimumDays: 25, // exceeds 20 days
@@ -472,13 +491,18 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			const result = await service.deleteElective(createResult.data.id);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			// Verify it's deleted
 			const getResult = await service.getElective(createResult.data.id);
+			expect(getResult.success).toBe(true);
+			if (!getResult.success) throw new Error('Expected success');
 			expect(getResult.data).toBeNull();
 		});
 
@@ -497,6 +521,8 @@ describe('ElectiveService', () => {
 				siteIds: [testSiteId],
 				preceptorIds: [testPreceptorId],
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			await service.deleteElective(createResult.data.id);
 
@@ -529,6 +555,7 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
+			if (!result.success) throw new Error('Expected success');
 			electiveId = result.data.id;
 		});
 
@@ -536,8 +563,11 @@ describe('ElectiveService', () => {
 			const result = await service.addSiteToElective(electiveId, testSiteId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const sitesResult = await service.getSitesForElective(electiveId);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(1);
 			expect(sitesResult.data[0].id).toBe(testSiteId);
 		});
@@ -547,8 +577,11 @@ describe('ElectiveService', () => {
 			const result = await service.addSiteToElective(electiveId, testSiteId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const sitesResult = await service.getSitesForElective(electiveId);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(1);
 		});
 
@@ -557,8 +590,11 @@ describe('ElectiveService', () => {
 			const result = await service.removeSiteFromElective(electiveId, testSiteId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const sitesResult = await service.getSitesForElective(electiveId);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(0);
 		});
 
@@ -583,8 +619,11 @@ describe('ElectiveService', () => {
 			const result = await service.setSitesForElective(electiveId, [secondSiteId]);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const sitesResult = await service.getSitesForElective(electiveId);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(1);
 			expect(sitesResult.data[0].id).toBe(secondSiteId);
 		});
@@ -618,6 +657,7 @@ describe('ElectiveService', () => {
 				name: 'Test Elective',
 				minimumDays: 10,
 			});
+			if (!result.success) throw new Error('Expected success');
 			electiveId = result.data.id;
 		});
 
@@ -625,8 +665,11 @@ describe('ElectiveService', () => {
 			const result = await service.addPreceptorToElective(electiveId, testPreceptorId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const preceptorsResult = await service.getPreceptorsForElective(electiveId);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(1);
 			expect(preceptorsResult.data[0].id).toBe(testPreceptorId);
 		});
@@ -636,8 +679,11 @@ describe('ElectiveService', () => {
 			const result = await service.addPreceptorToElective(electiveId, testPreceptorId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const preceptorsResult = await service.getPreceptorsForElective(electiveId);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(1);
 		});
 
@@ -646,8 +692,11 @@ describe('ElectiveService', () => {
 			const result = await service.removePreceptorFromElective(electiveId, testPreceptorId);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const preceptorsResult = await service.getPreceptorsForElective(electiveId);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(0);
 		});
 
@@ -673,8 +722,11 @@ describe('ElectiveService', () => {
 			const result = await service.setPreceptorsForElective(electiveId, [secondPreceptorId]);
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const preceptorsResult = await service.getPreceptorsForElective(electiveId);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(1);
 			expect(preceptorsResult.data[0].id).toBe(secondPreceptorId);
 		});
@@ -743,11 +795,16 @@ describe('ElectiveService', () => {
 			});
 
 			expect(result.success).toBe(true);
+			if (!result.success) throw new Error('Expected success');
 
 			const sitesResult = await service.getSitesForElective(result.data.id);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(5);
 
 			const preceptorsResult = await service.getPreceptorsForElective(result.data.id);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(5);
 		});
 
@@ -757,10 +814,14 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 				siteIds: [testSiteId],
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			await service.setSitesForElective(createResult.data.id, []);
 
 			const sitesResult = await service.getSitesForElective(createResult.data.id);
+			expect(sitesResult.success).toBe(true);
+			if (!sitesResult.success) throw new Error('Expected success');
 			expect(sitesResult.data).toHaveLength(0);
 		});
 
@@ -770,10 +831,14 @@ describe('ElectiveService', () => {
 				minimumDays: 10,
 				preceptorIds: [testPreceptorId],
 			});
+			expect(createResult.success).toBe(true);
+			if (!createResult.success) throw new Error('Expected success');
 
 			await service.setPreceptorsForElective(createResult.data.id, []);
 
 			const preceptorsResult = await service.getPreceptorsForElective(createResult.data.id);
+			expect(preceptorsResult.success).toBe(true);
+			if (!preceptorsResult.success) throw new Error('Expected success');
 			expect(preceptorsResult.data).toHaveLength(0);
 		});
 

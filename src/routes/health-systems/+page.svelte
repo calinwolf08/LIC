@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { HealthSystems } from '$lib/db/types';
 	import { Button } from '$lib/components/ui/button';
 	import { invalidateAll } from '$app/navigation';
 	import HealthSystemTable from '$lib/features/health-systems/components/health-system-table.svelte';
@@ -14,7 +13,7 @@
 		showForm = true;
 	}
 
-	async function handleDelete(healthSystem: HealthSystemWithCounts) {
+	async function handleDelete(healthSystem: any) {
 		// Fetch dependencies to show cascade delete warning
 		try {
 			const depsResponse = await fetch(
