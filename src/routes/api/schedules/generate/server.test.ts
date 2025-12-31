@@ -22,27 +22,158 @@ import type { Assignment } from '$lib/features/scheduling/types/assignment';
 import type { Selectable } from 'kysely';
 import type { ScheduleAssignments } from '$lib/db/types';
 
-// Create a proper Kysely-like mock database
-const createMockQueryBuilder = (data: any[] = []) => {
-	const builder = {
-		selectFrom: (table: string) => builder,
-		selectAll: () => builder,
-		select: (...args: any[]) => builder,
-		where: (...args: any[]) => builder,
-		orderBy: (...args: any[]) => builder,
-		execute: vi.fn().mockResolvedValue(data),
-		then: (resolve: any) => Promise.resolve(data).then(resolve)
-	};
-	return builder;
-};
-
 // Mock dependencies
-vi.mock('$lib/db', () => ({
-	db: {
-		selectFrom: vi.fn((table: string) => createMockQueryBuilder([])),
-		transaction: vi.fn()
-	}
-}));
+vi.mock('$lib/db', () => {
+	const mockStudents = [
+		{
+			id: 'student-1',
+			name: 'Student One',
+			email: 'student1@example.com',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		},
+		{
+			id: 'student-2',
+			name: 'Student Two',
+			email: 'student2@example.com',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		}
+	];
+
+	const mockPreceptors = [
+		{
+			id: 'preceptor-1',
+			name: 'Preceptor One',
+			email: 'preceptor1@example.com',
+			health_system_id: 'hs-1',
+			max_students: 5,
+			is_global_fallback_only: 0,
+			phone: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		},
+		{
+			id: 'preceptor-2',
+			name: 'Preceptor Two',
+			email: 'preceptor2@example.com',
+			health_system_id: 'hs-1',
+			max_students: 5,
+			is_global_fallback_only: 0,
+			phone: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		}
+	];
+
+	const mockClerkships = [
+		{
+			id: 'clerkship-1',
+			name: 'Family Medicine',
+			clerkship_type: 'outpatient',
+			required_days: 20,
+			specialty: 'Family Medicine',
+			description: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		},
+		{
+			id: 'clerkship-2',
+			name: 'Internal Medicine',
+			clerkship_type: 'inpatient',
+			required_days: 30,
+			specialty: 'Internal Medicine',
+			description: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		}
+	];
+
+	const mockHealthSystems = [
+		{
+			id: 'hs-1',
+			name: 'Health System One',
+			location: 'Location 1',
+			description: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		}
+	];
+
+	const mockTeams = [
+		{
+			id: 'team-1',
+			name: 'Team One',
+			health_system_id: 'hs-1',
+			description: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		}
+	];
+
+	const mockStudentOnboarding = [
+		{
+			student_id: 'student-1',
+			health_system_id: 'hs-1',
+			is_completed: 1
+		},
+		{
+			student_id: 'student-2',
+			health_system_id: 'hs-1',
+			is_completed: 1
+		}
+	];
+
+	const mockSiteElectives: Array<{ site_id: string; elective_requirement_id: string }> = [];
+
+	const mockBlackoutDates: string[] = [];
+
+	const mockAvailabilityRecords = [
+		{
+			id: 'avail-1',
+			preceptor_id: 'preceptor-1',
+			site_id: 'site-1',
+			date: '2025-06-15',
+			is_available: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		}
+	];
+
+	const createMockQueryBuilder = (data: any[] = []) => {
+		const builder = {
+			selectFrom: (table: string) => builder,
+			selectAll: () => builder,
+			select: (...args: any[]) => builder,
+			where: (...args: any[]) => builder,
+			orderBy: (...args: any[]) => builder,
+			execute: () => Promise.resolve(data),
+			then: (resolve: any) => Promise.resolve(data).then(resolve)
+		};
+		return builder;
+	};
+
+	return {
+		db: {
+			selectFrom: (table: string) => {
+				const dataMap: Record<string, any[]> = {
+					students: mockStudents,
+					preceptors: mockPreceptors,
+					clerkships: mockClerkships,
+					health_systems: mockHealthSystems,
+					teams: mockTeams,
+					student_health_system_onboarding: mockStudentOnboarding,
+					site_electives: mockSiteElectives,
+					blackout_dates: mockBlackoutDates.map((date) => ({ date })),
+					preceptor_availability: mockAvailabilityRecords
+				};
+				const data = dataMap[table] || [];
+				return createMockQueryBuilder(data);
+			},
+			transaction: () => Promise.resolve()
+		}
+	};
+});
 
 vi.mock('$lib/features/scheduling/engine/configurable-scheduling-engine');
 vi.mock('$lib/features/scheduling/services/context-builder');
@@ -77,11 +208,43 @@ describe('POST /api/schedules/generate', () => {
 		}
 	];
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		vi.clearAllMocks();
 
 		// Setup default mocks
-		vi.mocked(contextBuilder.buildSchedulingContext).mockResolvedValue(mockContext);
+		vi.mocked(contextBuilder.buildSchedulingContext).mockReturnValue(mockContext);
+
+		// Mock regeneration service with default values
+		vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
+			creditResult: {
+				totalPastAssignments: 0,
+				creditsByStudent: new Map()
+			},
+			preservedAssignments: 0,
+			affectedAssignments: 0
+		});
+
+		vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
+			pastAssignments: [],
+			pastAssignmentsCount: 0,
+			futureAssignmentsToDelete: [],
+			deletedCount: 0,
+			preservableAssignments: [],
+			preservedCount: 0,
+			affectedAssignments: [],
+			affectedCount: 0,
+			replaceableAssignments: [],
+			studentProgress: [],
+			summary: {
+				strategy: 'full-reoptimize',
+				regenerateFromDate: '2025-01-01',
+				totalAssignmentsImpacted: 0,
+				willPreservePast: true,
+				willPreserveFuture: false
+			}
+		});
+
+		// Mock scheduling period service
 		vi.mocked(periodService.getActiveSchedulingPeriod).mockResolvedValue({
 			id: 'period-1',
 			start_date: '2025-01-01',
@@ -93,10 +256,56 @@ describe('POST /api/schedules/generate', () => {
 			user_id: null,
 			year: 2025
 		});
+
+		vi.mocked(periodService.getOverlappingPeriods).mockResolvedValue([]);
+		vi.mocked(periodService.createSchedulingPeriod).mockResolvedValue({
+			id: 'period-new',
+			start_date: '2025-01-01',
+			end_date: '2025-12-31',
+			is_active: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			name: 'New Test Period',
+			user_id: null,
+			year: 2025
+		});
+
+		// Mock audit service
+		vi.mocked(auditService.logRegenerationEvent).mockResolvedValue({
+		id: 'audit-log-1',
+		timestamp: new Date().toISOString(),
+		strategy: 'full-reoptimize',
+		regenerateFromDate: '2025-01-01',
+		endDate: '2025-12-31',
+		pastAssignmentsCount: 0,
+		futureAssignmentsDeleted: 0,
+		futureAssignmentsPreserved: 0,
+		affectedAssignments: 0,
+		newAssignmentsGenerated: 0,
+		success: true,
+		reason: 'api_request',
+		notes: ''
+	});
+		vi.mocked(auditService.createRegenerationAuditLog).mockReturnValue({
+			strategy: 'full-reoptimize',
+			regenerateFromDate: '2025-01-01',
+			endDate: '2025-12-31',
+			pastAssignmentsCount: 0,
+			futureAssignmentsDeleted: 0,
+			futureAssignmentsPreserved: 0,
+			affectedAssignments: 0,
+			newAssignmentsGenerated: 0,
+			success: true,
+			reason: 'api_request',
+			notes: ''
+		});
+
+		// Mock editing service
+		const editingService = await import('$lib/features/schedules/services/editing-service');
+		vi.mocked(editingService.clearAllAssignments).mockResolvedValue(0);
 	});
 
-	// TODO: Fix mocking for these integration tests - they need complete database and engine mocks
-	describe.skip('Full Regeneration (No regenerateFromDate)', () => {
+	describe('Full Regeneration (No regenerateFromDate)', () => {
 		it('should generate a complete schedule from scratch', async () => {
 			const request = new Request('http://localhost/api/schedules/generate', {
 				method: 'POST',
@@ -149,12 +358,13 @@ describe('POST /api/schedules/generate', () => {
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data.summary.totalAssignments).toBe(1);
-			expect(data.data.regeneratedFrom).toBeUndefined();
+			// When no regenerateFromDate is provided, it defaults to today (2025-12-31)
+			expect(data.data.regeneratedFrom).toBe('2025-12-31');
 			expect(data.data.strategy).toBe('full-reoptimize');
 		});
 	});
 
-	describe.skip('Smart Regeneration - Minimal Change Strategy', () => {
+	describe('Smart Regeneration - Minimal Change Strategy', () => {
 		it('should preserve past assignments and minimize future changes', async () => {
 			const request = new Request('http://localhost/api/schedules/generate', {
 				method: 'POST',
@@ -263,9 +473,11 @@ describe('POST /api/schedules/generate', () => {
 
 			// Verify regeneration context was prepared
 			expect(regenerationService.prepareRegenerationContext).toHaveBeenCalledWith(
-				expect.anything(),
-				'2025-06-15',
-				'minimal-change'
+				expect.anything(), // db
+				expect.anything(), // context
+				'2025-06-15', // regenerateFromDate
+				'2025-12-31', // endDate
+				'minimal-change' // strategy
 			);
 		});
 
@@ -327,6 +539,10 @@ describe('POST /api/schedules/generate', () => {
 				}
 			});
 
+			// Mock clearAllAssignments to return 1 deleted assignment
+			const editingService = await import('$lib/features/schedules/services/editing-service');
+			vi.mocked(editingService.clearAllAssignments).mockResolvedValue(1);
+
 			const mockConfigurableEngine = await import(
 				'$lib/features/scheduling/engine/configurable-scheduling-engine'
 			);
@@ -372,7 +588,7 @@ describe('POST /api/schedules/generate', () => {
 		});
 	});
 
-	describe.skip('Smart Regeneration - Full Reoptimize Strategy', () => {
+	describe('Smart Regeneration - Full Reoptimize Strategy', () => {
 		it('should preserve past but fully reoptimize future', async () => {
 			const request = new Request('http://localhost/api/schedules/generate', {
 				method: 'POST',
@@ -429,6 +645,10 @@ describe('POST /api/schedules/generate', () => {
 				}
 			});
 
+			// Mock clearAllAssignments to return 5 deleted assignments
+			const editingService = await import('$lib/features/schedules/services/editing-service');
+			vi.mocked(editingService.clearAllAssignments).mockResolvedValue(5);
+
 			const mockConfigurableEngine = await import(
 				'$lib/features/scheduling/engine/configurable-scheduling-engine'
 			);
@@ -477,7 +697,7 @@ describe('POST /api/schedules/generate', () => {
 		});
 	});
 
-	describe.skip('Preview Mode (Dry Run)', () => {
+	describe('Preview Mode (Dry Run)', () => {
 		it('should return impact analysis without making changes', async () => {
 			const request = new Request('http://localhost/api/schedules/generate', {
 				method: 'POST',
@@ -557,9 +777,9 @@ describe('POST /api/schedules/generate', () => {
 			expect(data.success).toBe(true);
 			expect(data.data.preview).toBe(true);
 			expect(data.data.impact).toBeDefined();
-			expect(data.data.impact.preservedCount).toBe(0);
-			expect(data.data.impact.affectedCount).toBe(1);
-			expect(data.data.impact.deletedCount).toBe(1);
+			expect(data.data.impact.futureAssignments.preservableCount).toBe(0);
+			expect(data.data.impact.futureAssignments.affectedCount).toBe(1);
+			expect(data.data.impact.futureAssignments.toDeleteCount).toBe(1);
 
 			// Verify no assignments were created
 			expect(assignmentService.bulkCreateAssignments).not.toHaveBeenCalled();
@@ -654,7 +874,7 @@ describe('POST /api/schedules/generate', () => {
 		});
 	});
 
-	describe.skip('Audit Logging', () => {
+	describe('Audit Logging', () => {
 		it('should create audit log for regeneration', async () => {
 			const request = new Request('http://localhost/api/schedules/generate', {
 				method: 'POST',
@@ -731,15 +951,16 @@ describe('POST /api/schedules/generate', () => {
 				}))
 			);
 
-			const createRegenerationAuditLogSpy = vi.spyOn(
-				auditService,
-				'createRegenerationAuditLog'
-			);
+			const response = await POST({ request } as any);
+			const data = await response.json();
 
-			await POST({ request } as any);
+			// Verify the request succeeded
+			expect(response.status).toBe(200);
+			expect(data.success).toBe(true);
 
-			// Verify audit log was created (if function exists)
-			// Note: Actual implementation depends on your audit logging setup
+			// Verify audit logging functions were called
+			expect(auditService.createRegenerationAuditLog).toHaveBeenCalled();
+			expect(auditService.logRegenerationEvent).toHaveBeenCalled();
 		});
 	});
 });
