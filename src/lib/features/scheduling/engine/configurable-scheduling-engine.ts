@@ -69,6 +69,7 @@ export class ConfigurableSchedulingEngine {
   private constraintFactory: ConstraintFactory;
   private constraints: Constraint[] = [];
   private clerkshipConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
+  private electivesByRequirement: Map<string, any[]> = new Map();
   private pendingAssignments: PendingAssignment[] = [];
 
   constructor(private db: Kysely<DB>) {
