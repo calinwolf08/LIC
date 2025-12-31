@@ -103,6 +103,7 @@ export class ConfigurableSchedulingEngine {
 
     this.resultBuilder.reset();
     this.clerkshipConfigs.clear();
+    this.electivesByRequirement.clear();
     this.pendingAssignments = [];
 
     // Phase 1: Load data
