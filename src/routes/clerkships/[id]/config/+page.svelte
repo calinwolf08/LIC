@@ -6,11 +6,12 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { goto } from '$app/navigation';
+	import ElectivesManager from '$lib/features/electives/components/electives-manager.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	// Tab state
-	let activeTab = $state<'basic-info' | 'scheduling' | 'sites' | 'teams'>('basic-info');
+	let activeTab = $state<'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'>('basic-info');
 
 	// Clerkship basic info (editable)
 	let name = $state(data.clerkship?.name || '');
@@ -267,6 +268,16 @@
 				}`}
 			>
 				Preceptor Teams ({data.teams?.length || 0})
+			</button>
+			<button
+				onclick={() => (activeTab = 'electives')}
+				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+					activeTab === 'electives'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+				}`}
+			>
+				Electives
 			</button>
 		</nav>
 	</div>
@@ -660,5 +671,19 @@
 				</p>
 			{/if}
 		</Card>
+	{:else if activeTab === 'electives'}
+		{#if data.requirementId}
+			<ElectivesManager
+				requirementId={data.requirementId}
+				allSites={data.allSites}
+				allPreceptors={data.allPreceptors}
+			/>
+		{:else}
+			<Card class="p-8 text-center">
+				<p class="text-muted-foreground">
+					No requirement found for this clerkship. Electives cannot be configured without a requirement.
+				</p>
+			</Card>
+		{/if}
 	{/if}
 </div>
