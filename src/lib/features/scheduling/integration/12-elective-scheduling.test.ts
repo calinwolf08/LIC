@@ -467,4 +467,157 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 			expect(elective?.specialty).toBe('Cardiology');
 		});
 	});
+
+	describe('Test 10: E2E Schedule Generation with Required Elective', () => {
+		it('should generate schedule assignments for required elective', async () => {
+			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+
+			// Create elective requirement
+			const electiveReqId = await createTestRequirement(db, clerkshipId, {
+				requirementType: 'elective',
+				requiredDays: 5,
+			});
+
+			// Create preceptors
+			const preceptorId = await createTestPreceptor(db, {
+				name: 'Dr. Cardiology',
+				healthSystemId,
+				siteId,
+			});
+
+			// Create required elective
+			const electiveId = await createElective(electiveReqId, {
+				name: 'Cardiology Required',
+				minimumDays: 5,
+				isRequired: true,
+				siteIds: [siteId],
+				preceptorIds: [preceptorId],
+			});
+
+			// Create students and availability
+			const studentIds = await createTestStudents(db, 2);
+			const dates = generateDateRange('2025-12-01', 10);
+			await createPreceptorAvailability(db, preceptorId, siteId, dates);
+
+			// Generate schedule
+			const engine = new ConfigurableSchedulingEngine(db);
+			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31',
+			});
+
+			// Verify schedule succeeded
+			expect(result.success).toBe(true);
+
+			// Verify assignments were created with elective_id
+			const assignments = await db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('elective_id', '=', electiveId)
+				.execute();
+
+			expect(assignments.length).toBeGreaterThan(0);
+
+			// Verify each student got at least the minimum days
+			for (const studentId of studentIds) {
+				const studentAssignments = assignments.filter((a) => a.student_id === studentId);
+				expect(studentAssignments.length).toBeGreaterThanOrEqual(5);
+			}
+
+			// Verify assignments use the associated site and preceptor
+			for (const assignment of assignments) {
+				expect(assignment.site_id).toBe(siteId);
+				expect(assignment.preceptor_id).toBe(preceptorId);
+			}
+		});
+	});
+
+	describe('Test 11: E2E Multiple electives for same requirement', () => {
+		it('should distribute students across multiple required electives', async () => {
+			const { healthSystemId, siteIds: [site1Id, site2Id] } = await createTestHealthSystem(
+				db,
+				'Hospital',
+				2
+			);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+
+			// Create elective requirement
+			const electiveReqId = await createTestRequirement(db, clerkshipId, {
+				requirementType: 'elective',
+				requiredDays: 10,
+			});
+
+			// Create preceptors
+			const preceptor1Id = await createTestPreceptor(db, {
+				name: 'Dr. Cardiology',
+				healthSystemId,
+				siteId: site1Id,
+			});
+
+			const preceptor2Id = await createTestPreceptor(db, {
+				name: 'Dr. Neurology',
+				healthSystemId,
+				siteId: site2Id,
+			});
+
+			// Create two required electives
+			const cardioId = await createElective(electiveReqId, {
+				name: 'Cardiology',
+				minimumDays: 5,
+				isRequired: true,
+				siteIds: [site1Id],
+				preceptorIds: [preceptor1Id],
+			});
+
+			const neuroId = await createElective(electiveReqId, {
+				name: 'Neurology',
+				minimumDays: 5,
+				isRequired: true,
+				siteIds: [site2Id],
+				preceptorIds: [preceptor2Id],
+			});
+
+			// Create students and availability
+			const studentIds = await createTestStudents(db, 2);
+			const dates = generateDateRange('2025-12-01', 20);
+			await createPreceptorAvailability(db, preceptor1Id, site1Id, dates);
+			await createPreceptorAvailability(db, preceptor2Id, site2Id, dates);
+
+			// Generate schedule
+			const engine = new ConfigurableSchedulingEngine(db);
+			const result = await engine.schedule(studentIds, [clerkshipId], {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31',
+			});
+
+			expect(result.success).toBe(true);
+
+			// Verify assignments exist for both electives
+			const cardioAssignments = await db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('elective_id', '=', cardioId)
+				.execute();
+
+			const neuroAssignments = await db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('elective_id', '=', neuroId)
+				.execute();
+
+			// Both electives should have assignments
+			expect(cardioAssignments.length).toBeGreaterThan(0);
+			expect(neuroAssignments.length).toBeGreaterThan(0);
+
+			// Each student should complete both required electives
+			for (const studentId of studentIds) {
+				const cardioForStudent = cardioAssignments.filter((a) => a.student_id === studentId);
+				const neuroForStudent = neuroAssignments.filter((a) => a.student_id === studentId);
+
+				expect(cardioForStudent.length).toBeGreaterThanOrEqual(5);
+				expect(neuroForStudent.length).toBeGreaterThanOrEqual(5);
+			}
+		});
+	});
 });
