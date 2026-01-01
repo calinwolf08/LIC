@@ -617,7 +617,7 @@ export class ConfigurableSchedulingEngine {
         requiredDays: elective.minimum_days,
       };
 
-      // Build strategy context
+      // Build strategy context (don't use its preceptor list, we'll build our own)
       const context = await this.contextBuilder.buildContext(student, clerkship, electiveConfig as any, {
         startDate: options.startDate,
         endDate: options.endDate,
@@ -625,11 +625,53 @@ export class ConfigurableSchedulingEngine {
         pendingAssignments: this.pendingAssignments,
       });
 
-      // Filter preceptors to only those associated with this elective
+      // Get dates already assigned to this student (to avoid conflicts with other electives)
+      const studentAssignedDates = new Set(
+        this.pendingAssignments
+          .filter(a => a.studentId === student.id)
+          .map(a => a.date)
+      );
+
+      // Filter context.availableDates to exclude student's assigned dates
+      context.availableDates = context.availableDates.filter(date => !studentAssignedDates.has(date));
+
+      // For electives, load preceptors directly from elective associations (not from teams)
       if (elective.preceptorIds && elective.preceptorIds.length > 0) {
-        context.availablePreceptors = context.availablePreceptors.filter(p =>
-          elective.preceptorIds.includes(p.id)
-        );
+        const preceptorRecords = await this.db
+          .selectFrom('preceptors')
+          .selectAll()
+          .where('id', 'in', elective.preceptorIds)
+          .execute();
+
+        // Get availability for these preceptors
+        const availability = await this.db
+          .selectFrom('preceptor_availability')
+          .select(['preceptor_id', 'date', 'site_id'])
+          .where('preceptor_id', 'in', elective.preceptorIds)
+          .where('is_available', '=', 1)
+          .execute();
+
+        // Build available preceptors list with their availability, excluding student's assigned dates
+        context.availablePreceptors = preceptorRecords.map(preceptor => {
+          const preceptorAvailability = availability.filter(a => a.preceptor_id === preceptor.id);
+          const availableDates = preceptorAvailability
+            .map(a => a.date)
+            .filter(date => !studentAssignedDates.has(date)); // Exclude dates student is already assigned
+
+          return {
+            id: preceptor.id,
+            name: preceptor.name,
+            healthSystemId: preceptor.health_system_id,
+            siteId: preceptor.primary_site_id,
+            siteIds: preceptor.primary_site_id ? [preceptor.primary_site_id] : [],
+            availability: availableDates,
+            currentAssignmentCount: 0,
+            maxStudentsPerDay: preceptor.max_students_per_day ?? 1,
+            maxStudentsPerYear: preceptor.max_students_per_year ?? 999,
+          };
+        });
+      } else {
+        context.availablePreceptors = [];
       }
 
       if (context.availablePreceptors.length === 0) {
@@ -839,16 +881,42 @@ export class ConfigurableSchedulingEngine {
     if (assignments.length === 0) return;
 
     const timestamp = new Date().toISOString();
-    const values = assignments.map(assignment => ({
-      id: nanoid(),
-      student_id: assignment.studentId,
-      preceptor_id: assignment.preceptorId,
-      clerkship_id: assignment.clerkshipId,
-      elective_id: assignment.electiveId || null,
-      date: assignment.date,
-      status: 'scheduled',
-      created_at: timestamp,
-    }));
+
+    // Look up site_id for each assignment based on preceptor availability
+    const preceptorIds = [...new Set(assignments.map(a => a.preceptorId))];
+    const dates = [...new Set(assignments.map(a => a.date))];
+
+    const availabilityRecords = await this.db
+      .selectFrom('preceptor_availability')
+      .select(['preceptor_id', 'date', 'site_id'])
+      .where('preceptor_id', 'in', preceptorIds)
+      .where('date', 'in', dates)
+      .where('is_available', '=', 1)
+      .execute();
+
+    // Create lookup map: preceptorId-date -> site_id
+    const siteIdLookup = new Map<string, string | null>();
+    for (const record of availabilityRecords) {
+      const key = `${record.preceptor_id}-${record.date}`;
+      siteIdLookup.set(key, record.site_id);
+    }
+
+    const values = assignments.map(assignment => {
+      const key = `${assignment.preceptorId}-${assignment.date}`;
+      const siteId = siteIdLookup.get(key) || null;
+
+      return {
+        id: nanoid(),
+        student_id: assignment.studentId,
+        preceptor_id: assignment.preceptorId,
+        clerkship_id: assignment.clerkshipId,
+        elective_id: assignment.electiveId || null,
+        site_id: siteId,
+        date: assignment.date,
+        status: 'scheduled',
+        created_at: timestamp,
+      };
+    });
 
     // Bulk insert for efficiency
     await this.db
