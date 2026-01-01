@@ -50,6 +50,44 @@ export class RequirementService {
     }
 
     try {
+      // Validate that sum of requirements doesn't exceed clerkship total
+      const clerkship = await this.db
+        .selectFrom('clerkships')
+        .select(['id', 'name', 'required_days'])
+        .where('id', '=', input.clerkshipId)
+        .executeTakeFirst();
+
+      if (!clerkship) {
+        log.warn('Clerkship not found for requirement', { clerkshipId: input.clerkshipId });
+        return Result.failure(ServiceErrors.notFound('Clerkship', input.clerkshipId));
+      }
+
+      // Get existing requirements for this clerkship
+      const existingRequirements = await this.db
+        .selectFrom('clerkship_requirements')
+        .select(['required_days'])
+        .where('clerkship_id', '=', input.clerkshipId)
+        .execute();
+
+      const currentTotal = existingRequirements.reduce((sum, req) => sum + req.required_days, 0);
+      const newTotal = currentTotal + input.requiredDays;
+
+      if (newTotal > clerkship.required_days) {
+        log.warn('Requirement creation blocked - would exceed clerkship total', {
+          clerkshipId: input.clerkshipId,
+          clerkshipTotal: clerkship.required_days,
+          currentTotal,
+          newRequirement: input.requiredDays,
+          wouldBeTotal: newTotal
+        });
+        return Result.failure(
+          ServiceErrors.conflict(
+            `Total requirement days (${newTotal}) would exceed clerkship total (${clerkship.required_days}). ` +
+            `Current requirements total ${currentTotal} days, new requirement adds ${input.requiredDays} days.`
+          )
+        );
+      }
+
       const requirement = await this.db
         .insertInto('clerkship_requirements')
         .values({
@@ -185,6 +223,48 @@ export class RequirementService {
         return Result.failure(
           ServiceErrors.validationError('Invalid requirement update', validation.error.errors)
         );
+      }
+
+      // If updating required_days, validate that sum doesn't exceed clerkship total
+      if (input.requiredDays !== undefined && input.requiredDays !== existing.required_days) {
+        const clerkship = await this.db
+          .selectFrom('clerkships')
+          .select(['id', 'name', 'required_days'])
+          .where('id', '=', existing.clerkship_id)
+          .executeTakeFirst();
+
+        if (!clerkship) {
+          log.warn('Clerkship not found for requirement update', { clerkshipId: existing.clerkship_id });
+          return Result.failure(ServiceErrors.notFound('Clerkship', existing.clerkship_id));
+        }
+
+        // Get other requirements for this clerkship (excluding this one)
+        const otherRequirements = await this.db
+          .selectFrom('clerkship_requirements')
+          .select(['required_days'])
+          .where('clerkship_id', '=', existing.clerkship_id)
+          .where('id', '!=', id)
+          .execute();
+
+        const otherTotal = otherRequirements.reduce((sum, req) => sum + req.required_days, 0);
+        const newTotal = otherTotal + input.requiredDays;
+
+        if (newTotal > clerkship.required_days) {
+          log.warn('Requirement update blocked - would exceed clerkship total', {
+            requirementId: id,
+            clerkshipId: existing.clerkship_id,
+            clerkshipTotal: clerkship.required_days,
+            otherRequirementsTotal: otherTotal,
+            newRequiredDays: input.requiredDays,
+            wouldBeTotal: newTotal
+          });
+          return Result.failure(
+            ServiceErrors.conflict(
+              `Total requirement days (${newTotal}) would exceed clerkship total (${clerkship.required_days}). ` +
+              `Other requirements total ${otherTotal} days, updated requirement would be ${input.requiredDays} days.`
+            )
+          );
+        }
       }
 
       // Build update data
