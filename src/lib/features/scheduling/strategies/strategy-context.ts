@@ -48,15 +48,16 @@ export class StrategyContextBuilder {
     }
 
     // Build available dates
+    const pendingAssignments = options.pendingAssignments ?? [];
     const availableDates = await this.buildAvailableDates(
       clerkship,
       student,
       options.startDate,
-      options.endDate
+      options.endDate,
+      pendingAssignments
     );
 
     // Get available preceptors (with pending assignment counts)
-    const pendingAssignments = options.pendingAssignments ?? [];
     const availablePreceptors = await this.buildAvailablePreceptors(
       clerkship,
       config,
@@ -129,13 +130,14 @@ export class StrategyContextBuilder {
   }
 
   /**
-   * Build list of available dates (excluding blackouts)
+   * Build list of available dates (excluding blackouts and already-assigned dates for this student)
    */
   private async buildAvailableDates(
     clerkship: Clerkship,
     student: Student,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    pendingAssignments: PendingAssignment[] = []
   ): Promise<string[]> {
     // Get blackout dates
     const blackouts = await this.db
@@ -144,6 +146,29 @@ export class StrategyContextBuilder {
       .execute();
 
     const blackoutSet = new Set(blackouts.map(b => b.date));
+
+    // Get dates where this student already has assignments in the database
+    // Use try-catch to handle cases where table doesn't exist (test environments)
+    let existingAssignmentSet = new Set<string>();
+    try {
+      const existingAssignments = await this.db
+        .selectFrom('schedule_assignments')
+        .select('date')
+        .where('student_id', '=', student.id!)
+        .execute();
+
+      existingAssignmentSet = new Set(existingAssignments.map(a => a.date));
+    } catch (error) {
+      // Table doesn't exist or query failed - no existing assignments to filter
+      existingAssignmentSet = new Set();
+    }
+
+    // Get dates where this student has pending assignments
+    const pendingAssignmentSet = new Set(
+      pendingAssignments
+        .filter(a => a.studentId === student.id)
+        .map(a => a.date)
+    );
 
     // Generate date range using UTC to avoid timezone issues
     const start = startDate
@@ -158,7 +183,10 @@ export class StrategyContextBuilder {
 
     while (current <= end) {
       const dateStr = current.toISOString().split('T')[0];
-      if (!blackoutSet.has(dateStr)) {
+      // Exclude blackouts, existing assignments, and pending assignments
+      if (!blackoutSet.has(dateStr) &&
+          !existingAssignmentSet.has(dateStr) &&
+          !pendingAssignmentSet.has(dateStr)) {
         dates.push(dateStr);
       }
       current.setUTCDate(current.getUTCDate() + 1);

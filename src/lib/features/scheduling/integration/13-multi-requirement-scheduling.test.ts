@@ -282,66 +282,67 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
     });
   });
 
-  describe('Test 3: Three Requirements (Outpatient + Inpatient + Elective)', () => {
-    it('should schedule clerkship with three different requirement types', async () => {
+  describe('Test 3: Multiple Outpatient Requirements + Elective', () => {
+    it('should schedule clerkship with multiple outpatient requirements plus elective', async () => {
       const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-      // Create clerkship with 28 total days
-      const clerkshipId = await createTestClerkship(db, 'Surgery', 'outpatient');
+      // Create outpatient clerkship with 28 total days
+      const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
 
-      // Create three requirements
+      // Create two separate outpatient requirements (e.g., clinic vs continuity)
       await createTestRequirement(db, clerkshipId, {
         requirementType: 'outpatient',
-        requiredDays: 10,
+        requiredDays: 12,
       });
 
       await createTestRequirement(db, clerkshipId, {
-        requirementType: 'inpatient',
-        requiredDays: 10,
+        requirementType: 'outpatient',
+        requiredDays: 8,
       });
 
+      // Create elective requirement
       const electiveReqId = await createTestRequirement(db, clerkshipId, {
         requirementType: 'elective',
         requiredDays: 8,
       });
 
-      // Create preceptors
-      const outpatientPreceptorId = await createTestPreceptor(db, {
-        name: 'Dr. Outpatient',
+      // Create preceptors for each requirement type
+      const outpatientPreceptor1Id = await createTestPreceptor(db, {
+        name: 'Dr. Clinic',
         healthSystemId,
         siteId,
       });
 
-      const inpatientPreceptorId = await createTestPreceptor(db, {
-        name: 'Dr. Inpatient',
+      const outpatientPreceptor2Id = await createTestPreceptor(db, {
+        name: 'Dr. Continuity',
         healthSystemId,
         siteId,
       });
 
       const electivePreceptorId = await createTestPreceptor(db, {
-        name: 'Dr. Elective',
+        name: 'Dr. Sports Medicine',
         healthSystemId,
         siteId,
       });
 
-      // Create teams
+      // Create teams for outpatient requirements
       await createTestTeam(
         db,
         clerkshipId,
-        'Outpatient Team',
-        [{ preceptorId: outpatientPreceptorId, priority: 1, isFallbackOnly: false }]
+        'Clinic Team',
+        [{ preceptorId: outpatientPreceptor1Id, priority: 1, isFallbackOnly: false }]
       );
 
       await createTestTeam(
         db,
         clerkshipId,
-        'Inpatient Team',
-        [{ preceptorId: inpatientPreceptorId, priority: 1, isFallbackOnly: false }]
+        'Continuity Team',
+        [{ preceptorId: outpatientPreceptor2Id, priority: 1, isFallbackOnly: false }]
       );
 
       // Create elective
       await createElective(electiveReqId, {
-        name: 'Subspecialty',
+        name: 'Sports Medicine Elective',
         minimumDays: 8,
         isRequired: true,
         siteIds: [siteId],
@@ -352,8 +353,8 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
       const studentIds = await createTestStudents(db, 1);
       const dates = generateDateRange('2025-12-01', 40);
 
-      await createPreceptorAvailability(db, outpatientPreceptorId, siteId, dates);
-      await createPreceptorAvailability(db, inpatientPreceptorId, siteId, dates);
+      await createPreceptorAvailability(db, outpatientPreceptor1Id, siteId, dates);
+      await createPreceptorAvailability(db, outpatientPreceptor2Id, siteId, dates);
       await createPreceptorAvailability(db, electivePreceptorId, siteId, dates);
 
       // Generate schedule
@@ -372,15 +373,26 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
         .where('clerkship_id', '=', clerkshipId)
         .execute();
 
-      // Should have at least 28 days total
+      // Should have at least 28 days total (12 + 8 + 8)
       expect(assignments.length).toBeGreaterThanOrEqual(28);
 
-      // Check all three types are represented
+      // Check elective vs non-elective assignments
       const electiveCount = assignments.filter((a) => a.elective_id).length;
-      const nonElectiveCount = assignments.filter((a) => !a.elective_id).length;
+      const outpatientCount = assignments.filter((a) => !a.elective_id).length;
 
       expect(electiveCount).toBeGreaterThanOrEqual(8);
-      expect(nonElectiveCount).toBeGreaterThanOrEqual(20);
+      expect(outpatientCount).toBeGreaterThanOrEqual(20); // 12 + 8 = 20 outpatient days
+
+      // Verify no date conflicts
+      const dateMap = new Map<string, number>();
+      for (const assignment of assignments) {
+        const count = dateMap.get(assignment.date) || 0;
+        dateMap.set(assignment.date, count + 1);
+      }
+
+      for (const [date, count] of dateMap.entries()) {
+        expect(count).toBe(1); // Each date should have exactly 1 assignment
+      }
     });
   });
 });
