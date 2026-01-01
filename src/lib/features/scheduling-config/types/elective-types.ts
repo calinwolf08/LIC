@@ -1,16 +1,20 @@
 /**
  * Type definitions for electives
+ *
+ * Electives link directly to clerkships (not through requirements).
+ * Each elective can inherit settings from its clerkship or override them.
  */
 
 export interface ClerkshipElective {
 	id: string;
-	requirementId: string;
+	clerkshipId: string;
 	name: string;
-	specialty: string | null;
+	specialty?: string;
 	minimumDays: number;
 	isRequired: boolean;
-	createdAt: string;
-	updatedAt: string;
+	overrideMode: 'inherit' | 'override';
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface ElectiveSite {

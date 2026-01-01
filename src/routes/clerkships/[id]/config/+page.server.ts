@@ -1,7 +1,8 @@
 /**
  * Clerkship Configuration Page - Server Load
  *
- * Loads clerkship details, settings, sites (associated and all), and teams
+ * Loads clerkship details, settings, sites (associated and all), and teams.
+ * Electives now link directly to clerkships (no requirement needed).
  */
 
 import type { PageServerLoad } from './$types';
@@ -10,15 +11,14 @@ import { error } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const clerkshipId = params.id;
 
-	// Fetch clerkship, settings, sites, all sites, teams, requirements, and preceptors in parallel
-	const [clerkshipRes, settingsRes, sitesRes, allSitesRes, teamsRes, requirementsRes, preceptorsRes] = await Promise.all([
+	// Fetch clerkship, settings, sites, all sites, and teams in parallel
+	// Note: requirements are no longer needed - electives link directly to clerkship
+	const [clerkshipRes, settingsRes, sitesRes, allSitesRes, teamsRes] = await Promise.all([
 		fetch(`/api/clerkships/${clerkshipId}`),
 		fetch(`/api/clerkships/${clerkshipId}/settings`),
 		fetch(`/api/clerkship-sites?clerkship_id=${clerkshipId}`),
 		fetch('/api/sites'),
-		fetch(`/api/preceptors/teams?clerkshipId=${clerkshipId}`),
-		fetch(`/api/clerkships/${clerkshipId}/requirements`),
-		fetch('/api/preceptors')
+		fetch(`/api/preceptors/teams?clerkshipId=${clerkshipId}`)
 	]);
 
 	if (!clerkshipRes.ok) {
@@ -30,20 +30,12 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 	const sites = sitesRes.ok ? await sitesRes.json() : { data: [] };
 	const allSites = allSitesRes.ok ? await allSitesRes.json() : { data: [] };
 	const teams = teamsRes.ok ? await teamsRes.json() : { data: [] };
-	const requirements = requirementsRes.ok ? await requirementsRes.json() : { data: [] };
-	const preceptors = preceptorsRes.ok ? await preceptorsRes.json() : { data: [] };
-
-	// Find the requirement matching the clerkship type for electives
-	const clerkshipType = clerkship.data?.clerkship_type;
-	const requirement = requirements.data?.find((r: any) => r.requirement_type === clerkshipType);
 
 	return {
 		clerkship: clerkship.data,
 		settings: settings.data,
 		sites: sites.data || [],
 		allSites: allSites.data || [],
-		teams: teams.data || [],
-		requirementId: requirement?.id || null,
-		allPreceptors: preceptors.data || []
+		teams: teams.data || []
 	};
 };

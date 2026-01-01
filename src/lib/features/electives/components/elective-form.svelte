@@ -11,13 +11,14 @@
 	import { ZodError } from 'zod';
 
 	interface Props {
-		requirementId: string;
+		clerkshipId: string;
 		elective?: ClerkshipElective;
+		maxDays?: number;
 		onSuccess?: () => void;
 		onCancel?: () => void;
 	}
 
-	let { requirementId, elective, onSuccess, onCancel }: Props = $props();
+	let { clerkshipId, elective, maxDays, onSuccess, onCancel }: Props = $props();
 
 	let formData = $state({
 		name: elective?.name || '',
@@ -43,6 +44,12 @@
 				specialty: formData.specialty || null
 			});
 
+			// Check if days exceed remaining days (for new electives)
+			if (!elective && maxDays !== undefined && validatedData.minimumDays > maxDays) {
+				errors.minimumDays = `Cannot exceed ${maxDays} remaining days`;
+				return;
+			}
+
 			// Prepare data for submission (ensuring specialty is string | null, not undefined)
 			const submitData = {
 				name: validatedData.name,
@@ -55,7 +62,7 @@
 			if (elective) {
 				await updateElective(elective.id, submitData);
 			} else {
-				await createElective(requirementId, submitData);
+				await createElective(clerkshipId, submitData);
 			}
 
 			onSuccess?.();

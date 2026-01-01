@@ -1,8 +1,10 @@
 /**
  * Electives API - Collection Endpoints
  *
- * GET /api/scheduling-config/electives - List electives (filtered by requirement or clerkship)
+ * GET /api/scheduling-config/electives - List electives for a clerkship
  * POST /api/scheduling-config/electives - Create new elective
+ *
+ * Electives now link directly to clerkships (not through requirements).
  */
 
 import type { RequestHandler } from './$types';
@@ -23,87 +25,78 @@ const service = new ElectiveService(db);
 
 /**
  * GET /api/scheduling-config/electives
- * Returns electives for a requirement or clerkship
+ * Returns electives for a clerkship
  * Query params:
- *   - requirementId: filter by requirement
- *   - clerkshipId: filter by clerkship (across all requirements)
+ *   - clerkshipId: filter by clerkship (required)
  *   - required: 'true' | 'false' - filter by required status
  */
 export const GET: RequestHandler = async ({ url }) => {
-	const requirementId = url.searchParams.get('requirementId');
 	const clerkshipId = url.searchParams.get('clerkshipId');
 	const requiredFilter = url.searchParams.get('required');
 
-	log.debug('Fetching electives', { requirementId, clerkshipId, requiredFilter });
+	log.debug('Fetching electives', { clerkshipId, requiredFilter });
 
 	try {
-		// Must provide either requirementId or clerkshipId
-		if (!requirementId && !clerkshipId) {
-			log.warn('Missing required query parameters');
-			return errorResponse('Either requirementId or clerkshipId query parameter is required', 400);
+		if (!clerkshipId) {
+			log.warn('Missing clerkshipId parameter');
+			return errorResponse('clerkshipId query parameter is required', 400);
 		}
 
 		let result;
 
-		if (requirementId) {
-			// Filter by required status if specified
-			if (requiredFilter === 'true') {
-				result = await service.getRequiredElectives(requirementId);
-			} else if (requiredFilter === 'false') {
-				result = await service.getOptionalElectives(requirementId);
-			} else {
-				result = await service.getElectivesByRequirement(requirementId);
-			}
-		} else if (clerkshipId) {
+		// Filter by required status if specified
+		if (requiredFilter === 'true') {
+			result = await service.getRequiredElectives(clerkshipId);
+		} else if (requiredFilter === 'false') {
+			result = await service.getOptionalElectives(clerkshipId);
+		} else {
 			result = await service.getElectivesByClerkship(clerkshipId);
 		}
 
-		if (!result || !result.success) {
+		if (!result.success) {
 			log.warn('Failed to fetch electives', {
-				error: result?.error?.message,
-				requirementId,
+				error: result.error.message,
 				clerkshipId
 			});
-			return errorResponse(result?.error?.message || 'Failed to fetch electives', 400);
+			return errorResponse(result.error.message, 400);
 		}
 
 		log.info('Electives fetched', {
 			count: result.data.length,
-			requirementId,
 			clerkshipId,
 			requiredFilter
 		});
 
 		return successResponse(result.data);
 	} catch (error) {
-		log.error('Failed to fetch electives', { requirementId, clerkshipId, error });
+		log.error('Failed to fetch electives', { clerkshipId, error });
 		return handleApiError(error);
 	}
 };
 
 /**
  * POST /api/scheduling-config/electives
- * Creates a new elective
+ * Creates a new elective for a clerkship
  */
 export const POST: RequestHandler = async ({ request, url }) => {
-	const requirementId = url.searchParams.get('requirementId');
+	const clerkshipId = url.searchParams.get('clerkshipId');
 
-	log.debug('Creating elective', { requirementId });
+	log.debug('Creating elective', { clerkshipId });
 
 	try {
-		if (!requirementId) {
-			log.warn('Missing requirementId parameter');
-			return errorResponse('requirementId query parameter is required', 400);
+		if (!clerkshipId) {
+			log.warn('Missing clerkshipId parameter');
+			return errorResponse('clerkshipId query parameter is required', 400);
 		}
 
 		const body = await request.json();
 		const validatedData = clerkshipElectiveInputSchema.parse(body);
 
-		const result = await service.createElective(requirementId, validatedData);
+		const result = await service.createElective(clerkshipId, validatedData);
 
 		if (!result.success) {
 			log.warn('Failed to create elective', {
-				requirementId,
+				clerkshipId,
 				error: result.error.message
 			});
 			return errorResponse(result.error.message, 400);
@@ -111,7 +104,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		log.info('Elective created', {
 			id: result.data.id,
-			requirementId,
+			clerkshipId,
 			isRequired: result.data.isRequired
 		});
 
@@ -119,13 +112,13 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Elective validation failed', {
-				requirementId,
+				clerkshipId,
 				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
 
-		log.error('Failed to create elective', { requirementId, error });
+		log.error('Failed to create elective', { clerkshipId, error });
 		return handleApiError(error);
 	}
 };

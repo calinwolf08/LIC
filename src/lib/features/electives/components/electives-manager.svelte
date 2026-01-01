@@ -1,16 +1,20 @@
 <script lang="ts">
 	import type { ClerkshipElective } from '$lib/features/scheduling-config/types/elective-types';
 	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
 	import ElectiveList from './elective-list.svelte';
 	import ElectiveForm from './elective-form.svelte';
 	import ElectiveSiteManager from './elective-site-manager.svelte';
 	import ElectivePreceptorManager from './elective-preceptor-manager.svelte';
 	import DeleteElectiveDialog from './delete-elective-dialog.svelte';
 	import {
-		fetchElectivesByRequirement,
+		fetchElectivesByClerkship,
 		fetchElectiveWithDetails,
+		fetchElectiveDaysSummary,
+		fetchAvailablePreceptorsForElective,
 		deleteElective,
-		type ElectiveWithDetails
+		type ElectiveWithDetails,
+		type ElectiveDaysSummary
 	} from '../services/elective-client';
 
 	interface Site {
@@ -24,14 +28,14 @@
 	}
 
 	interface Props {
-		requirementId: string;
+		clerkshipId: string;
 		allSites?: Site[];
-		allPreceptors?: Preceptor[];
 	}
 
-	let { requirementId, allSites = [], allPreceptors = [] }: Props = $props();
+	let { clerkshipId, allSites = [] }: Props = $props();
 
 	let electives = $state<ClerkshipElective[]>([]);
+	let daysSummary = $state<ElectiveDaysSummary | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
@@ -45,12 +49,18 @@
 
 	// Detail view state
 	let viewingElective = $state<ElectiveWithDetails | null>(null);
+	let availablePreceptorsForElective = $state<Array<{ id: string; name: string; siteId: string; siteName: string }>>([]);
 
 	async function loadElectives() {
 		loading = true;
 		error = null;
 		try {
-			electives = await fetchElectivesByRequirement(requirementId);
+			const [electivesData, summaryData] = await Promise.all([
+				fetchElectivesByClerkship(clerkshipId),
+				fetchElectiveDaysSummary(clerkshipId)
+			]);
+			electives = electivesData;
+			daysSummary = summaryData;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load electives';
 		} finally {
@@ -118,6 +128,8 @@
 	async function loadElectiveDetails(electiveId: string) {
 		try {
 			viewingElective = await fetchElectiveWithDetails(electiveId);
+			// Load available preceptors (filtered by elective's sites)
+			availablePreceptorsForElective = await fetchAvailablePreceptorsForElective(electiveId);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load elective details';
 		}
@@ -132,6 +144,7 @@
 
 	function handleCloseDetails() {
 		viewingElective = null;
+		availablePreceptorsForElective = [];
 	}
 
 	// Load on mount
@@ -139,18 +152,25 @@
 		loadElectives();
 	});
 
-	// Computed available sites/preceptors for current elective
+	// Computed available sites for current elective
 	let availableSites = $derived.by(() => {
 		if (!viewingElective) return [];
 		const currentSites = viewingElective.sites || [];
 		return allSites.filter((site) => !currentSites.some((s) => s.id === site.id));
 	});
 
+	// Computed available preceptors (filtered by elective's sites, excluding already assigned)
 	let availablePreceptors = $derived.by(() => {
 		if (!viewingElective) return [];
 		const currentPreceptors = viewingElective.preceptors || [];
-		return allPreceptors.filter((preceptor) => !currentPreceptors.some((p) => p.id === preceptor.id));
+		// Filter out preceptors already assigned to this elective
+		return availablePreceptorsForElective.filter(
+			(p) => !currentPreceptors.some((cp) => cp.id === p.id)
+		);
 	});
+
+	// Computed: can add more electives?
+	let canAddElective = $derived(daysSummary ? daysSummary.remainingDays > 0 : true);
 </script>
 
 <div class="space-y-6">
@@ -159,13 +179,60 @@
 		<div>
 			<h2 class="text-2xl font-bold">Electives</h2>
 			<p class="text-sm text-muted-foreground mt-1">
-				Configure optional and required elective rotations for this clerkship
+				Configure elective rotations for this clerkship
 			</p>
 		</div>
 		{#if !showForm && !viewingElective}
-			<Button onclick={handleCreate}>Create Elective</Button>
+			<Button onclick={handleCreate} disabled={!canAddElective}>
+				{canAddElective ? 'Create Elective' : 'No Days Remaining'}
+			</Button>
 		{/if}
 	</div>
+
+	<!-- Days Summary -->
+	{#if daysSummary}
+		<Card class="p-4">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-6">
+					<div>
+						<span class="text-sm text-muted-foreground">Total Clerkship Days:</span>
+						<span class="ml-2 font-semibold">{daysSummary.clerkshipRequiredDays}</span>
+					</div>
+					<div>
+						<span class="text-sm text-muted-foreground">Elective Days:</span>
+						<span class="ml-2 font-semibold">{daysSummary.totalElectiveDays}</span>
+					</div>
+					<div>
+						<span class="text-sm text-muted-foreground">Non-Elective Days:</span>
+						<span class="ml-2 font-semibold">{daysSummary.nonElectiveDays}</span>
+					</div>
+				</div>
+				<div class="text-right">
+					<span class="text-sm text-muted-foreground">Available for new electives:</span>
+					<span class="ml-2 font-semibold {daysSummary.remainingDays === 0 ? 'text-destructive' : 'text-green-600'}">
+						{daysSummary.remainingDays} days
+					</span>
+				</div>
+			</div>
+			<!-- Progress bar -->
+			<div class="mt-3 h-2 bg-muted rounded-full overflow-hidden">
+				{@const electivePercent = (daysSummary.totalElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
+				{@const nonElectivePercent = (daysSummary.nonElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
+				<div class="h-full flex">
+					<div class="bg-primary" style="width: {electivePercent}%"></div>
+					<div class="bg-muted-foreground/30" style="width: {nonElectivePercent}%"></div>
+				</div>
+			</div>
+			<div class="mt-1 flex gap-4 text-xs text-muted-foreground">
+				<span class="flex items-center gap-1">
+					<span class="w-3 h-3 bg-primary rounded-sm"></span> Elective Days
+				</span>
+				<span class="flex items-center gap-1">
+					<span class="w-3 h-3 bg-muted-foreground/30 rounded-sm"></span> Non-Elective Days
+				</span>
+			</div>
+		</Card>
+	{/if}
 
 	<!-- Error Display -->
 	{#if error}
@@ -177,8 +244,9 @@
 	<!-- Form View -->
 	{#if showForm}
 		<ElectiveForm
-			{requirementId}
+			{clerkshipId}
 			elective={editingElective}
+			maxDays={daysSummary?.remainingDays ?? undefined}
 			onSuccess={handleFormSuccess}
 			onCancel={handleFormCancel}
 		/>
@@ -211,6 +279,14 @@
 					{availablePreceptors}
 					onUpdate={handleAssociationUpdate}
 				/>
+
+				{#if viewingElective.sites?.length === 0}
+					<Card class="p-4 border-warning bg-warning/10">
+						<p class="text-sm text-warning-foreground">
+							<strong>Note:</strong> Add sites to this elective first, then preceptors who work at those sites will become available.
+						</p>
+					</Card>
+				{/if}
 			</div>
 		</div>
 	{:else}

@@ -672,18 +672,9 @@
 			{/if}
 		</Card>
 	{:else if activeTab === 'electives'}
-		{#if data.requirementId}
-			<ElectivesManager
-				requirementId={data.requirementId}
-				allSites={data.allSites}
-				allPreceptors={data.allPreceptors}
-			/>
-		{:else}
-			<Card class="p-8 text-center">
-				<p class="text-muted-foreground">
-					No requirement found for this clerkship. Electives cannot be configured without a requirement.
-				</p>
-			</Card>
-		{/if}
+		<ElectivesManager
+			clerkshipId={data.clerkship.id}
+			allSites={data.allSites}
+		/>
 	{/if}
 </div>

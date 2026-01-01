@@ -56,14 +56,23 @@ export interface ClerkshipConfigurations {
 }
 
 export interface ClerkshipElectives {
-  available_preceptor_ids: Generated<string>;
+  clerkship_id: string;
   created_at: Generated<string>;
   id: string | null;
   is_required: Generated<number>;
   minimum_days: number;
   name: string;
-  requirement_id: string;
   specialty: string | null;
+  // Settings override columns (inherit from clerkship by default)
+  override_mode: Generated<string>;
+  override_assignment_strategy: string | null;
+  override_health_system_rule: string | null;
+  override_max_students_per_day: number | null;
+  override_max_students_per_year: number | null;
+  override_allow_fallbacks: number | null;
+  override_allow_teams: number | null;
+  override_fallback_requires_approval: number | null;
+  override_fallback_allow_cross_system: number | null;
   updated_at: Generated<string>;
 }
 
@@ -81,32 +90,8 @@ export interface ElectiveSites {
   site_id: string;
 }
 
-export interface ClerkshipRequirementOverrides {
-  created_at: Generated<string>;
-  field_name: string;
-  id: string | null;
-  is_overridden: Generated<number>;
-  requirement_id: string;
-}
-
-export interface ClerkshipRequirements {
-  allow_cross_system: Generated<number>;
-  clerkship_id: string;
-  created_at: Generated<string>;
-  id: string | null;
-  override_allow_split_assignments: number | null;
-  override_assignment_strategy: string | null;
-  override_block_length_days: number | null;
-  override_health_system_rule: string | null;
-  override_mode: Generated<string>;
-  override_preceptor_continuity_preference: string | null;
-  override_team_continuity_preference: string | null;
-  require_same_preceptor_team: Generated<number>;
-  require_same_site: Generated<number>;
-  required_days: number;
-  requirement_type: string;
-  updated_at: Generated<string>;
-}
+// ClerkshipRequirements and ClerkshipRequirementOverrides removed in migration 025
+// Electives now link directly to clerkships via clerkship_id
 
 export interface Clerkships {
   clerkship_type: string;
@@ -482,8 +467,6 @@ export interface DB {
   blackout_dates: BlackoutDates;
   clerkship_configurations: ClerkshipConfigurations;
   clerkship_electives: ClerkshipElectives;
-  clerkship_requirement_overrides: ClerkshipRequirementOverrides;
-  clerkship_requirements: ClerkshipRequirements;
   clerkship_sites: ClerkshipSites;
   clerkships: Clerkships;
   elective_preceptors: ElectivePreceptors;

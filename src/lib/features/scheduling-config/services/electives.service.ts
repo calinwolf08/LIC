@@ -2,6 +2,7 @@
  * Elective Service
  *
  * Manages clerkship elective options with validation, site and preceptor associations.
+ * Electives link directly to clerkships (not through requirements).
  */
 
 import type { Kysely } from 'kysely';
@@ -34,14 +35,14 @@ export class ElectiveService {
   // ============================================
 
   /**
-   * Create a new elective
+   * Create a new elective for a clerkship
    */
   async createElective(
-    requirementId: string,
+    clerkshipId: string,
     input: ClerkshipElectiveInput
   ): Promise<ServiceResult<ClerkshipElective>> {
     log.debug('Creating elective', {
-      requirementId,
+      clerkshipId,
       name: input.name,
       minimumDays: input.minimumDays
     });
@@ -50,7 +51,7 @@ export class ElectiveService {
     const validation = clerkshipElectiveInputSchema.safeParse(input);
     if (!validation.success) {
       log.warn('Elective creation validation failed', {
-        requirementId,
+        clerkshipId,
         errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
       });
       return Result.failure(
@@ -61,39 +62,22 @@ export class ElectiveService {
     const data = validation.data;
 
     try {
-      // Check requirement exists and is elective type
-      const requirement = await this.db
-        .selectFrom('clerkship_requirements')
-        .select(['id', 'requirement_type', 'required_days'])
-        .where('id', '=', requirementId)
+      // Check clerkship exists
+      const clerkship = await this.db
+        .selectFrom('clerkships')
+        .select(['id', 'required_days'])
+        .where('id', '=', clerkshipId)
         .executeTakeFirst();
 
-      if (!requirement) {
-        log.warn('Requirement not found for elective', { requirementId });
-        return Result.failure(ServiceErrors.notFound('Requirement', requirementId));
+      if (!clerkship) {
+        log.warn('Clerkship not found for elective', { clerkshipId });
+        return Result.failure(ServiceErrors.notFound('Clerkship', clerkshipId));
       }
 
-      if (requirement.requirement_type !== 'elective') {
-        log.warn('Elective creation blocked - requirement not elective type', {
-          requirementId,
-          requirementType: requirement.requirement_type
-        });
-        return Result.failure(
-          ServiceErrors.conflict('Electives can only be added to elective requirements')
-        );
-      }
-
-      // Validate minimum days
-      if (data.minimumDays > requirement.required_days) {
-        log.warn('Elective creation blocked - minimum days exceeds requirement total', {
-          minimumDays: data.minimumDays,
-          requiredDays: requirement.required_days
-        });
-        return Result.failure(
-          ServiceErrors.conflict(
-            `Minimum days (${data.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
-          )
-        );
+      // Validate that adding this elective won't exceed clerkship total days
+      const validation = await this.validateElectiveDays(clerkshipId, data.minimumDays);
+      if (!validation.success) {
+        return validation as ServiceResult<ClerkshipElective>;
       }
 
       const electiveId = nanoid();
@@ -103,11 +87,12 @@ export class ElectiveService {
         .insertInto('clerkship_electives')
         .values({
           id: electiveId,
-          requirement_id: requirementId,
+          clerkship_id: clerkshipId,
           name: data.name,
           minimum_days: data.minimumDays,
           is_required: data.isRequired ? 1 : 0,
           specialty: data.specialty || null,
+          override_mode: 'inherit',
           created_at: now,
           updated_at: now,
         })
@@ -126,7 +111,7 @@ export class ElectiveService {
 
       log.info('Elective created', {
         id: elective.id,
-        requirementId: elective.requirement_id,
+        clerkshipId: elective.clerkship_id,
         name: elective.name,
         minimumDays: elective.minimum_days,
         siteCount: data.siteIds?.length || 0,
@@ -135,8 +120,104 @@ export class ElectiveService {
 
       return Result.success(this.mapElective(elective));
     } catch (error) {
-      log.error('Failed to create elective', { requirementId, error });
+      log.error('Failed to create elective', { clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to create elective', error));
+    }
+  }
+
+  /**
+   * Validate that adding/updating elective days won't exceed clerkship total
+   */
+  async validateElectiveDays(
+    clerkshipId: string,
+    newDays: number,
+    excludeElectiveId?: string
+  ): Promise<ServiceResult<void>> {
+    try {
+      const clerkship = await this.db
+        .selectFrom('clerkships')
+        .select(['id', 'required_days'])
+        .where('id', '=', clerkshipId)
+        .executeTakeFirst();
+
+      if (!clerkship) {
+        return Result.failure(ServiceErrors.notFound('Clerkship', clerkshipId));
+      }
+
+      // Get current sum of elective days (excluding the one being updated if applicable)
+      let query = this.db
+        .selectFrom('clerkship_electives')
+        .select(({ fn }) => [fn.sum<number>('minimum_days').as('total_days')])
+        .where('clerkship_id', '=', clerkshipId);
+
+      if (excludeElectiveId) {
+        query = query.where('id', '!=', excludeElectiveId);
+      }
+
+      const result = await query.executeTakeFirst();
+      const currentTotal = Number(result?.total_days || 0);
+      const newTotal = currentTotal + newDays;
+
+      if (newTotal > clerkship.required_days) {
+        log.warn('Elective days validation failed - exceeds clerkship total', {
+          clerkshipId,
+          currentTotal,
+          newDays,
+          newTotal,
+          clerkshipRequiredDays: clerkship.required_days
+        });
+        return Result.failure(
+          ServiceErrors.conflict(
+            `Total elective days (${newTotal}) cannot exceed clerkship required days (${clerkship.required_days}). ` +
+            `Current elective total: ${currentTotal} days, attempting to add: ${newDays} days.`
+          )
+        );
+      }
+
+      return Result.success(undefined);
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to validate elective days', error));
+    }
+  }
+
+  /**
+   * Get summary of elective days for a clerkship
+   */
+  async getElectiveDaysSummary(clerkshipId: string): Promise<ServiceResult<{
+    clerkshipRequiredDays: number;
+    totalElectiveDays: number;
+    remainingDays: number;
+    nonElectiveDays: number;
+  }>> {
+    try {
+      const clerkship = await this.db
+        .selectFrom('clerkships')
+        .select(['id', 'required_days'])
+        .where('id', '=', clerkshipId)
+        .executeTakeFirst();
+
+      if (!clerkship) {
+        return Result.failure(ServiceErrors.notFound('Clerkship', clerkshipId));
+      }
+
+      const result = await this.db
+        .selectFrom('clerkship_electives')
+        .select(({ fn }) => [fn.sum<number>('minimum_days').as('total_days')])
+        .where('clerkship_id', '=', clerkshipId)
+        .executeTakeFirst();
+
+      const totalElectiveDays = Number(result?.total_days || 0);
+      const remainingDays = clerkship.required_days - totalElectiveDays;
+      const nonElectiveDays = remainingDays; // Same as remaining days
+
+      return Result.success({
+        clerkshipRequiredDays: clerkship.required_days,
+        totalElectiveDays,
+        remainingDays,
+        nonElectiveDays,
+      });
+    } catch (error) {
+      return Result.failure(ServiceErrors.databaseError('Failed to get elective days summary', error));
     }
   }
 
@@ -219,35 +300,35 @@ export class ElectiveService {
   }
 
   /**
-   * Get all electives for a requirement
+   * Get all electives for a clerkship
    */
-  async getElectivesByRequirement(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
-    log.debug('Fetching electives for requirement', { requirementId });
+  async getElectivesByClerkship(clerkshipId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+    log.debug('Fetching electives for clerkship', { clerkshipId });
 
     try {
       const electives = await this.db
         .selectFrom('clerkship_electives')
         .selectAll()
-        .where('requirement_id', '=', requirementId)
+        .where('clerkship_id', '=', clerkshipId)
         .execute();
 
-      log.info('Electives fetched for requirement', { requirementId, count: electives.length });
+      log.info('Electives fetched for clerkship', { clerkshipId, count: electives.length });
       return Result.success(electives.map(e => this.mapElective(e)));
     } catch (error) {
-      log.error('Failed to fetch electives for requirement', { requirementId, error });
+      log.error('Failed to fetch electives for clerkship', { clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch electives', error));
     }
   }
 
   /**
-   * Get required electives for a requirement
+   * Get required electives for a clerkship
    */
-  async getRequiredElectives(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+  async getRequiredElectives(clerkshipId: string): Promise<ServiceResult<ClerkshipElective[]>> {
     try {
       const electives = await this.db
         .selectFrom('clerkship_electives')
         .selectAll()
-        .where('requirement_id', '=', requirementId)
+        .where('clerkship_id', '=', clerkshipId)
         .where('is_required', '=', 1)
         .execute();
 
@@ -258,38 +339,20 @@ export class ElectiveService {
   }
 
   /**
-   * Get optional electives for a requirement
+   * Get optional electives for a clerkship
    */
-  async getOptionalElectives(requirementId: string): Promise<ServiceResult<ClerkshipElective[]>> {
+  async getOptionalElectives(clerkshipId: string): Promise<ServiceResult<ClerkshipElective[]>> {
     try {
       const electives = await this.db
         .selectFrom('clerkship_electives')
         .selectAll()
-        .where('requirement_id', '=', requirementId)
+        .where('clerkship_id', '=', clerkshipId)
         .where('is_required', '=', 0)
         .execute();
 
       return Result.success(electives.map(e => this.mapElective(e)));
     } catch (error) {
       return Result.failure(ServiceErrors.databaseError('Failed to fetch optional electives', error));
-    }
-  }
-
-  /**
-   * Get all electives for a clerkship (across all requirements)
-   */
-  async getElectivesByClerkship(clerkshipId: string): Promise<ServiceResult<ClerkshipElective[]>> {
-    try {
-      const electives = await this.db
-        .selectFrom('clerkship_electives')
-        .innerJoin('clerkship_requirements', 'clerkship_requirements.id', 'clerkship_electives.requirement_id')
-        .selectAll('clerkship_electives')
-        .where('clerkship_requirements.clerkship_id', '=', clerkshipId)
-        .execute();
-
-      return Result.success(electives.map(e => this.mapElective(e)));
-    } catch (error) {
-      return Result.failure(ServiceErrors.databaseError('Failed to fetch electives for clerkship', error));
     }
   }
 
@@ -329,17 +392,6 @@ export class ElectiveService {
         return Result.failure(ServiceErrors.notFound('Elective', id));
       }
 
-      // Get requirement for validation
-      const requirement = await this.db
-        .selectFrom('clerkship_requirements')
-        .select(['id', 'required_days'])
-        .where('id', '=', existing.requirement_id)
-        .executeTakeFirst();
-
-      if (!requirement) {
-        return Result.failure(ServiceErrors.notFound('Requirement', existing.requirement_id));
-      }
-
       // Build update data
       const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
@@ -347,12 +399,14 @@ export class ElectiveService {
 
       if (data.name !== undefined) updateData.name = data.name;
       if (data.minimumDays !== undefined) {
-        if (data.minimumDays > requirement.required_days) {
-          return Result.failure(
-            ServiceErrors.conflict(
-              `Minimum days (${data.minimumDays}) cannot exceed requirement total (${requirement.required_days})`
-            )
-          );
+        // Validate that updating days won't exceed clerkship total
+        const daysValidation = await this.validateElectiveDays(
+          existing.clerkship_id,
+          data.minimumDays,
+          id
+        );
+        if (!daysValidation.success) {
+          return daysValidation as ServiceResult<ClerkshipElective>;
         }
         updateData.minimum_days = data.minimumDays;
       }
@@ -681,11 +735,9 @@ export class ElectiveService {
   }
 
   /**
-   * Get available preceptors for an elective
-   *
-   * Note: Returns all preceptors since specialty matching is disabled.
+   * Get available preceptors for an elective (filtered by elective's sites)
    */
-  async getAvailablePreceptors(electiveId: string): Promise<ServiceResult<Array<{ id: string; name: string }>>> {
+  async getAvailablePreceptorsForElective(electiveId: string): Promise<ServiceResult<Array<{ id: string; name: string; siteId: string; siteName: string }>>> {
     try {
       const elective = await this.db
         .selectFrom('clerkship_electives')
@@ -697,13 +749,35 @@ export class ElectiveService {
         return Result.failure(ServiceErrors.notFound('Elective', electiveId));
       }
 
-      // Return all preceptors (specialty matching disabled)
-      const preceptors = await this.db
-        .selectFrom('preceptors')
-        .select(['id', 'name'])
+      // Get sites associated with this elective
+      const electiveSites = await this.db
+        .selectFrom('elective_sites')
+        .select('site_id')
+        .where('elective_id', '=', electiveId)
         .execute();
 
-      return Result.success(preceptors.map(p => ({ id: p.id!, name: p.name })));
+      const electiveSiteIds = electiveSites.map(s => s.site_id);
+
+      if (electiveSiteIds.length === 0) {
+        // No sites, return empty list
+        return Result.success([]);
+      }
+
+      // Get preceptors who have availability at these sites
+      const preceptors = await this.db
+        .selectFrom('preceptors')
+        .innerJoin('preceptor_sites', 'preceptor_sites.preceptor_id', 'preceptors.id')
+        .innerJoin('sites', 'sites.id', 'preceptor_sites.site_id')
+        .select(['preceptors.id', 'preceptors.name', 'sites.id as siteId', 'sites.name as siteName'])
+        .where('preceptor_sites.site_id', 'in', electiveSiteIds)
+        .execute();
+
+      return Result.success(preceptors.map(p => ({
+        id: p.id!,
+        name: p.name,
+        siteId: p.siteId!,
+        siteName: p.siteName,
+      })));
     } catch (error) {
       return Result.failure(ServiceErrors.databaseError('Failed to fetch available preceptors', error));
     }
@@ -719,11 +793,12 @@ export class ElectiveService {
   private mapElective(row: any): ClerkshipElective {
     return {
       id: row.id,
-      requirementId: row.requirement_id,
+      clerkshipId: row.clerkship_id,
       name: row.name,
       minimumDays: row.minimum_days,
       isRequired: Boolean(row.is_required),
       specialty: row.specialty || undefined,
+      overrideMode: row.override_mode || 'inherit',
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

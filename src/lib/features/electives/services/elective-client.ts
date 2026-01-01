@@ -1,6 +1,8 @@
 /**
  * Client-side service for elective operations
  * All API logic in testable functions
+ *
+ * Electives link directly to clerkships (not through requirements).
  */
 
 import type { ClerkshipElective } from '$lib/features/scheduling-config/types/elective-types';
@@ -17,14 +19,21 @@ export interface ElectiveWithDetails extends ClerkshipElective {
 	preceptors?: Array<{ id: string; name: string }>;
 }
 
+export interface ElectiveDaysSummary {
+	clerkshipRequiredDays: number;
+	totalElectiveDays: number;
+	remainingDays: number;
+	nonElectiveDays: number;
+}
+
 /**
- * Fetch electives for a requirement
+ * Fetch electives for a clerkship
  */
-export async function fetchElectivesByRequirement(
-	requirementId: string
+export async function fetchElectivesByClerkship(
+	clerkshipId: string
 ): Promise<ClerkshipElective[]> {
 	const response = await fetch(
-		`/api/scheduling-config/electives?requirementId=${requirementId}`
+		`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`
 	);
 
 	if (!response.ok) {
@@ -34,6 +43,25 @@ export async function fetchElectivesByRequirement(
 
 	const result = await response.json();
 	return result.data || [];
+}
+
+/**
+ * Fetch elective days summary for a clerkship
+ */
+export async function fetchElectiveDaysSummary(
+	clerkshipId: string
+): Promise<ElectiveDaysSummary> {
+	const response = await fetch(
+		`/api/scheduling-config/electives/summary?clerkshipId=${clerkshipId}`
+	);
+
+	if (!response.ok) {
+		const error = await response.json();
+		throw new Error(error.error?.message || 'Failed to fetch elective days summary');
+	}
+
+	const result = await response.json();
+	return result.data;
 }
 
 /**
@@ -56,14 +84,14 @@ export async function fetchElectiveWithDetails(
 }
 
 /**
- * Create new elective
+ * Create new elective for a clerkship
  */
 export async function createElective(
-	requirementId: string,
+	clerkshipId: string,
 	data: ElectiveFormData
 ): Promise<ClerkshipElective> {
 	const response = await fetch(
-		`/api/scheduling-config/electives?requirementId=${requirementId}`,
+		`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`,
 		{
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -198,4 +226,23 @@ export async function removePreceptorFromElective(
 		const error = await response.json();
 		throw new Error(error.error?.message || 'Failed to remove preceptor');
 	}
+}
+
+/**
+ * Fetch available preceptors for an elective (filtered by elective's sites)
+ */
+export async function fetchAvailablePreceptorsForElective(
+	electiveId: string
+): Promise<Array<{ id: string; name: string; siteId: string; siteName: string }>> {
+	const response = await fetch(
+		`/api/scheduling-config/electives/${electiveId}/available-preceptors`
+	);
+
+	if (!response.ok) {
+		const error = await response.json();
+		throw new Error(error.error?.message || 'Failed to fetch available preceptors');
+	}
+
+	const result = await response.json();
+	return result.data || [];
 }
