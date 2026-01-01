@@ -37,12 +37,23 @@
 	let totalAllocatedDays = $derived(requirements.reduce((sum, r) => sum + r.requiredDays, 0));
 	let remainingDays = $derived(clerkshipTotalDays - totalAllocatedDays);
 	let percentageAllocated = $derived((totalAllocatedDays / clerkshipTotalDays) * 100);
-	let canAddMore = $derived(remainingDays > 0);
+
+	// Track which requirement types already exist (only one per type allowed)
+	let existingTypes = $derived(new Set(requirements.map((r) => r.requirementType)));
+	let availableTypes = $derived.by(() => {
+		const allTypes: Array<'outpatient' | 'inpatient' | 'elective'> = ['outpatient', 'inpatient', 'elective'];
+		return allTypes.filter((t) => !existingTypes.has(t));
+	});
+	let canAddMore = $derived(remainingDays > 0 && availableTypes.length > 0);
+
+	// Check if selected type is already used
+	let isTypeAlreadyUsed = $derived(existingTypes.has(newRequirementType));
 
 	// Validation
 	let isNewRequirementValid = $derived.by(() => {
 		if (newRequirementDays <= 0) return false;
 		if (newRequirementDays > remainingDays) return false;
+		if (isTypeAlreadyUsed) return false;
 		return true;
 	});
 
@@ -50,6 +61,13 @@
 		if (newRequirementDays <= 0) return 'Days must be greater than 0';
 		if (newRequirementDays > remainingDays) {
 			return `Cannot exceed remaining ${remainingDays} days (would be ${totalAllocatedDays + newRequirementDays}/${clerkshipTotalDays})`;
+		}
+		return null;
+	});
+
+	let typeValidationMessage = $derived.by(() => {
+		if (isTypeAlreadyUsed) {
+			return `A ${newRequirementType} requirement already exists for this clerkship. Only one requirement per type is allowed.`;
 		}
 		return null;
 	});
@@ -125,6 +143,15 @@
 
 	function formatType(type: string): string {
 		return type.charAt(0).toUpperCase() + type.slice(1);
+	}
+
+	function openAddForm() {
+		// Auto-select first available type
+		if (availableTypes.length > 0) {
+			newRequirementType = availableTypes[0];
+		}
+		newRequirementDays = 1;
+		showAddForm = true;
 	}
 
 	function getTypeColor(
@@ -280,12 +307,21 @@
 							<select
 								id="requirement-type"
 								bind:value={newRequirementType}
-								class="w-full mt-1 px-3 py-2 border rounded-md"
+								class="w-full mt-1 px-3 py-2 border rounded-md {isTypeAlreadyUsed ? 'border-destructive' : ''}"
 							>
-								<option value="outpatient">Outpatient</option>
-								<option value="inpatient">Inpatient</option>
-								<option value="elective">Elective</option>
+								<option value="outpatient" disabled={existingTypes.has('outpatient')}>
+									Outpatient {existingTypes.has('outpatient') ? '(already added)' : ''}
+								</option>
+								<option value="inpatient" disabled={existingTypes.has('inpatient')}>
+									Inpatient {existingTypes.has('inpatient') ? '(already added)' : ''}
+								</option>
+								<option value="elective" disabled={existingTypes.has('elective')}>
+									Elective {existingTypes.has('elective') ? '(already added)' : ''}
+								</option>
 							</select>
+							{#if typeValidationMessage}
+								<p class="text-xs text-destructive mt-1">{typeValidationMessage}</p>
+							{/if}
 						</div>
 
 						<!-- Days Input -->
