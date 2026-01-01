@@ -17,6 +17,7 @@ export interface ProposedAssignment {
   clerkshipId: string;
   date: string; // YYYY-MM-DD
   requirementType?: 'outpatient' | 'inpatient' | 'elective';
+  electiveId?: string | null; // For elective assignments
   blockNumber?: number; // For block-based strategies
   teamId?: string; // For team strategies
   metadata?: {
