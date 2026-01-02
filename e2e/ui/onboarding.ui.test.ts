@@ -189,4 +189,17 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		});
 		await expect(clerkshipRow).toBeVisible({ timeout: 5000 });
 	});
+
+	test('Step 6: Navigate to calendar page', async ({ page }) => {
+		// Navigate to calendar page
+		await gotoAndWait(page, '/calendar');
+
+		// Verify calendar page loads correctly
+		await expect(page.getByRole('heading', { name: 'Schedule Calendar' })).toBeVisible();
+
+		// Verify key controls are visible
+		await expect(page.getByRole('button', { name: 'Regenerate Schedule' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Schedule Results' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Export to Excel' })).toBeVisible();
+	});
 });
