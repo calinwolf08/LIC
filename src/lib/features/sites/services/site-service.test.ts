@@ -83,12 +83,24 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-	// Create site_electives table
+	// Create clerkship_electives table (required for elective_sites foreign key)
 	await db.schema
-		.createTable('site_electives')
+		.createTable('clerkship_electives')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id'))
+		.addColumn('clerkship_id', 'text', (col) => col.notNull().references('clerkships.id'))
 		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('minimum_days', 'integer', (col) => col.notNull())
+		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(1))
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Create elective_sites table (links electives to sites)
+	await db.schema
+		.createTable('elective_sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('elective_id', 'text', (col) => col.notNull().references('clerkship_electives.id'))
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.execute();
 
@@ -496,14 +508,32 @@ describe('SiteService', () => {
 
 		it('throws ConflictError when site has electives', async () => {
 			const site = await createSiteDirect(db);
+			const clerkship = await createClerkshipDirect(db);
+			const timestamp = new Date().toISOString();
 
-			await db
-				.insertInto('site_electives')
+			// Create elective first
+			const elective = await db
+				.insertInto('clerkship_electives')
 				.values({
 					id: nanoid(),
-					site_id: site.id,
+					clerkship_id: clerkship.id,
 					name: 'Test Elective',
-					created_at: new Date().toISOString()
+					minimum_days: 5,
+					is_required: 1,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
+
+			// Link elective to site
+			await db
+				.insertInto('elective_sites')
+				.values({
+					id: nanoid(),
+					elective_id: elective.id,
+					site_id: site.id,
+					created_at: timestamp
 				})
 				.execute();
 
@@ -566,14 +596,32 @@ describe('SiteService', () => {
 
 		it('returns false when site has electives', async () => {
 			const site = await createSiteDirect(db);
+			const clerkship = await createClerkshipDirect(db);
+			const timestamp = new Date().toISOString();
 
-			await db
-				.insertInto('site_electives')
+			// Create elective first
+			const elective = await db
+				.insertInto('clerkship_electives')
 				.values({
 					id: nanoid(),
-					site_id: site.id,
+					clerkship_id: clerkship.id,
 					name: 'Test Elective',
-					created_at: new Date().toISOString()
+					minimum_days: 5,
+					is_required: 1,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
+
+			// Link elective to site
+			await db
+				.insertInto('elective_sites')
+				.values({
+					id: nanoid(),
+					elective_id: elective.id,
+					site_id: site.id,
+					created_at: timestamp
 				})
 				.execute();
 

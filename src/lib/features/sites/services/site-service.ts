@@ -233,10 +233,10 @@ export class SiteService {
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 
-		// Check site electives
+		// Check elective associations (elective_sites links electives to sites)
 		const electiveCount = await this.db
-			.selectFrom('site_electives')
-			.select(({ fn }) => [fn.count<number>('site_id').as('count')])
+			.selectFrom('elective_sites')
+			.select(({ fn }) => [fn.count<number>('elective_id').as('count')])
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 

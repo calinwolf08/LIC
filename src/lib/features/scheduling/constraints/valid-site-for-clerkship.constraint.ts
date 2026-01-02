@@ -57,14 +57,12 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		violationTracker: ViolationTracker
 	): boolean {
 		// Check if site is associated with this elective
-		if (!context.siteElectiveAssociations) {
-			return true; // No association data available
+		if (!context.electiveSites || !assignment.electiveId) {
+			return true; // No association data available or not an elective assignment
 		}
 
-		const siteElectives = context.siteElectiveAssociations.get(siteId);
-		const isValid = !!(
-			siteElectives && Array.from(siteElectives).some((req) => req === assignment.clerkshipId)
-		);
+		const electiveSiteSet = context.electiveSites.get(assignment.electiveId);
+		const isValid = !!(electiveSiteSet && electiveSiteSet.has(siteId));
 
 		if (!isValid) {
 			this.recordViolation(assignment, context, siteId, violationTracker, true);

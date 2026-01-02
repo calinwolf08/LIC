@@ -47,6 +47,10 @@ export interface OptionalContextData {
 		preceptor_id: string;
 		team_id: string;
 	}>;
+	electiveSites?: Array<{
+		elective_id: string;
+		site_id: string;
+	}>;
 }
 
 /**
@@ -241,6 +245,19 @@ export function buildSchedulingContext(
 				preceptorTeams.get(record.preceptor_id)!.add(record.team_id);
 			}
 			context.preceptorTeams = preceptorTeams;
+		}
+
+		// Build elective-site associations map
+		// Map: electiveId -> Set of site IDs where elective is offered
+		if (optionalData.electiveSites) {
+			const electiveSites = new Map<string, Set<string>>();
+			for (const record of optionalData.electiveSites) {
+				if (!electiveSites.has(record.elective_id)) {
+					electiveSites.set(record.elective_id, new Set());
+				}
+				electiveSites.get(record.elective_id)!.add(record.site_id);
+			}
+			context.electiveSites = electiveSites;
 		}
 	}
 

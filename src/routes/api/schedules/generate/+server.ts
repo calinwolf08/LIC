@@ -103,7 +103,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		log.debug('Fetching scheduling data', { isPreview });
 
 		// Fetch required data for preview/context building
-		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding] =
+		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding, electiveSites] =
 			await Promise.all([
 				db.selectFrom('students').selectAll().execute(),
 				db.selectFrom('preceptors').selectAll().execute(),
@@ -113,6 +113,10 @@ export const POST: RequestHandler = async ({ request }) => {
 				db
 					.selectFrom('student_health_system_onboarding')
 					.select(['student_id', 'health_system_id', 'is_completed'])
+					.execute(),
+				db
+					.selectFrom('elective_sites')
+					.select(['elective_id', 'site_id'])
 					.execute()
 			]);
 
@@ -130,7 +134,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		const optionalData: OptionalContextData = {
 			healthSystems,
 			teams,
-			studentOnboarding
+			studentOnboarding,
+			electiveSites
 		};
 
 		log.info('Data loaded', {

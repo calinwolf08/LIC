@@ -163,7 +163,7 @@ vi.mock('$lib/db', () => {
 					health_systems: mockHealthSystems,
 					teams: mockTeams,
 					student_health_system_onboarding: mockStudentOnboarding,
-					site_electives: mockSiteElectives,
+					elective_sites: mockSiteElectives,
 					blackout_dates: mockBlackoutDates.map((date) => ({ date })),
 					preceptor_availability: mockAvailabilityRecords
 				};
