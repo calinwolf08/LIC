@@ -4,16 +4,24 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { createClerkshipSchema } from '../schemas.js';
 	import { ZodError } from 'zod';
 
+	interface Site {
+		id: string;
+		name: string;
+	}
+
 	interface Props {
 		clerkship?: Clerkships;
+		sites: Site[];
+		initialSiteIds?: string[];
 		onSuccess?: () => void;
 		onCancel?: () => void;
 	}
 
-	let { clerkship, onSuccess, onCancel }: Props = $props();
+	let { clerkship, sites, initialSiteIds = [], onSuccess, onCancel }: Props = $props();
 
 	let formData = $state({
 		name: clerkship?.name || '',
@@ -22,9 +30,19 @@
 		description: clerkship?.description || ''
 	});
 
+	let selectedSiteIds = $state<string[]>(initialSiteIds);
+
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
 	let generalError = $state<string | null>(null);
+
+	function toggleSite(siteId: string) {
+		if (selectedSiteIds.includes(siteId)) {
+			selectedSiteIds = selectedSiteIds.filter((id) => id !== siteId);
+		} else {
+			selectedSiteIds = [...selectedSiteIds, siteId];
+		}
+	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -33,8 +51,11 @@
 		isSubmitting = true;
 
 		try {
-			// Validate form data
-			const validatedData = createClerkshipSchema.parse(formData);
+			// Validate form data with site_ids
+			const validatedData = createClerkshipSchema.parse({
+				...formData,
+				site_ids: selectedSiteIds
+			});
 
 			// Determine endpoint and method
 			const url = clerkship ? `/api/clerkships/${clerkship.id}` : '/api/clerkships';
@@ -168,6 +189,30 @@
 				/>
 				{#if errors.description}
 					<p class="text-sm text-destructive">{errors.description}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2">
+				<Label>Sites <span class="text-destructive">*</span></Label>
+				<p class="text-sm text-muted-foreground">Select at least one site where this clerkship takes place</p>
+				{#if sites.length === 0}
+					<p class="text-sm text-muted-foreground italic">No sites available. Please create a site first.</p>
+				{:else}
+					<div class="space-y-2 max-h-40 overflow-y-auto border rounded-md p-3">
+						{#each sites as site}
+							<label class="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded">
+								<Checkbox
+									checked={selectedSiteIds.includes(site.id)}
+									onCheckedChange={() => toggleSite(site.id)}
+									disabled={isSubmitting}
+								/>
+								<span class="text-sm">{site.name}</span>
+							</label>
+						{/each}
+					</div>
+				{/if}
+				{#if errors.site_ids}
+					<p class="text-sm text-destructive">{errors.site_ids}</p>
 				{/if}
 			</div>
 

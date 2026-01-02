@@ -1,29 +1,35 @@
 /**
  * Clerkships Page Load Function
  *
- * Fetches all clerkships from the API
+ * Fetches all clerkships and sites from the API
  */
 
 import type { PageLoad } from './$types';
-import type { Clerkships } from '$lib/db/types';
+import type { Clerkships, Sites } from '$lib/db/types';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
-		const response = await fetch('/api/clerkships');
+		const [clerkshipsRes, sitesRes] = await Promise.all([
+			fetch('/api/clerkships'),
+			fetch('/api/sites')
+		]);
 
-		if (!response.ok) {
+		if (!clerkshipsRes.ok) {
 			throw new Error('Failed to fetch clerkships');
 		}
 
-		const result = await response.json();
+		const clerkshipsResult = await clerkshipsRes.json();
+		const sitesResult = sitesRes.ok ? await sitesRes.json() : { data: [] };
 
 		return {
-			clerkships: result.data as Clerkships[]
+			clerkships: clerkshipsResult.data as Clerkships[],
+			sites: (sitesResult.data || []) as Sites[]
 		};
 	} catch (error) {
 		console.error('Error loading clerkships:', error);
 		return {
-			clerkships: [] as Clerkships[]
+			clerkships: [] as Clerkships[],
+			sites: [] as Sites[]
 		};
 	}
 };

@@ -190,6 +190,10 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		await page.locator('input#required_days').fill('20');
 		await page.locator('input#description').fill('Core family medicine rotation');
 
+		// Select site (required) - click the label containing the site name
+		const siteLabel = page.locator('label', { hasText: siteName });
+		await siteLabel.click();
+
 		// Submit form
 		await page.getByRole('button', { name: 'Create' }).click();
 
@@ -209,6 +213,8 @@ test.describe('Complete Onboarding UI Workflow', () => {
 			(c: { name: string }) => c.name === clerkshipName
 		);
 		clerkshipId = createdClerkship.id;
+
+		// Note: Site association is now done as part of clerkship creation (required field)
 
 		// ========================================
 		// STEP 6: Create Elective through UI
@@ -344,6 +350,21 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		await page.waitForURL('/calendar', { timeout: 10000 });
 
 		// ========================================
+		// DEBUG: Check data setup before generation
+		// ========================================
+		const clerkshipSitesRes = await request.get(`/api/clerkship-sites?clerkship_id=${clerkshipId}`);
+		const clerkshipSites = await clerkshipSitesRes.json();
+		console.log('DEBUG: Clerkship-site associations:', JSON.stringify(clerkshipSites.data));
+		console.log('DEBUG: Expected siteId:', siteId);
+
+		const preceptorAvailRes = await request.get(`/api/preceptors/${preceptorId}/availability`);
+		const preceptorAvail = await preceptorAvailRes.json();
+		console.log('DEBUG: Preceptor availability count:', preceptorAvail.data?.length || 0);
+		if (preceptorAvail.data?.length > 0) {
+			console.log('DEBUG: First availability record:', JSON.stringify(preceptorAvail.data[0]));
+		}
+
+		// ========================================
 		// STEP 10: Generate Schedule through UI
 		// ========================================
 		await expect(page.getByRole('heading', { name: 'Schedule Calendar' })).toBeVisible();
@@ -369,14 +390,85 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		// Verify we're back on calendar page
 		await expect(page.getByRole('heading', { name: 'Schedule Calendar' })).toBeVisible();
 
+		// Give a moment for any async updates to complete
+		await page.waitForTimeout(1000);
+
 		// ========================================
-		// VERIFICATION: Complete flow succeeded
+		// VALIDATION 1: Verify assignments were created
 		// ========================================
-		// The test reaching this point means:
-		// - All entities were created through UI
-		// - Elective was added to clerkship
-		// - Blackout date was configured
-		// - Schedule was created through wizard
-		// - Schedule generation completed without errors
+		const completionStatsRes = await request.get('/api/students/completion-stats');
+		const completionStats = await completionStatsRes.json();
+		const studentStats = completionStats.data[studentId];
+
+		// Student should have scheduled days > 0
+		expect(studentStats).toBeDefined();
+		expect(studentStats.scheduledDays).toBeGreaterThan(0);
+
+		// ========================================
+		// VALIDATION 2: Verify blackout date has no assignments
+		// ========================================
+		const conflictsRes = await request.post('/api/blackout-dates/conflicts', {
+			data: { date: blackoutDateStr }
+		});
+		const conflicts = await conflictsRes.json();
+
+		// Blackout date should have no assignments
+		expect(conflicts.data.hasConflicts).toBe(false);
+		expect(conflicts.data.count).toBe(0);
+
+		// ========================================
+		// VALIDATION 3: Test gap-filling regeneration
+		// ========================================
+		// Get current assignment count for the student
+		const initialScheduledDays = studentStats.scheduledDays;
+
+		// Find and delete one assignment via API
+		// First, get an assignment to delete by checking a date that should have one
+		const tomorrow = new Date();
+		tomorrow.setDate(tomorrow.getDate() + 1);
+		const checkDate = tomorrow.toISOString().split('T')[0];
+
+		const checkConflictsRes = await request.post('/api/blackout-dates/conflicts', {
+			data: { date: checkDate }
+		});
+		const checkConflicts = await checkConflictsRes.json();
+
+		if (checkConflicts.data.hasConflicts && checkConflicts.data.assignments.length > 0) {
+			const assignmentToDelete = checkConflicts.data.assignments[0];
+
+			// Delete the assignment
+			await request.delete(`/api/schedules/assignments/${assignmentToDelete.id}`);
+
+			// Verify assignment count decreased
+			const afterDeleteRes = await request.get('/api/students/completion-stats');
+			const afterDeleteStats = await afterDeleteRes.json();
+			expect(afterDeleteStats.data[studentId].scheduledDays).toBe(initialScheduledDays - 1);
+
+			// Use Fill Gaps regeneration to restore
+			await page.getByRole('button', { name: 'Regenerate Schedule' }).click();
+			await expect(page.getByText('Regeneration Mode')).toBeVisible();
+
+			// Select Fill Gaps mode
+			await page.locator('input[value="fill_gaps"]').click();
+
+			// Apply regeneration
+			await page.getByRole('button', { name: 'Apply Regeneration' }).click();
+			await expect(page.getByText('Regenerating schedule...')).toBeVisible({ timeout: 10000 });
+			await expect(page.getByText('Regeneration Mode')).not.toBeVisible({ timeout: 30000 });
+
+			// Verify assignment count restored
+			const afterFillRes = await request.get('/api/students/completion-stats');
+			const afterFillStats = await afterFillRes.json();
+			expect(afterFillStats.data[studentId].scheduledDays).toBe(initialScheduledDays);
+		}
+
+		// ========================================
+		// FINAL: Complete flow succeeded with validations
+		// ========================================
+		// Test has verified:
+		// - All entities created through UI
+		// - Schedule generation created assignments
+		// - Blackout date was respected (no assignments)
+		// - Gap-filling regeneration works
 	});
 });
