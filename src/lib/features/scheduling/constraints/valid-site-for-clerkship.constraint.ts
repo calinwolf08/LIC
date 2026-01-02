@@ -24,7 +24,8 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		violationTracker: ViolationTracker
 	): boolean {
 		// Only applies if context has site association data
-		if (!context.clerkshipSites && !context.preceptorClerkshipAssociations) {
+		// Note: clerkshipSites is no longer used - team membership is authoritative
+		if (!context.preceptorClerkshipAssociations) {
 			return true; // Skip check if site associations not loaded
 		}
 
@@ -78,19 +79,16 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		violationTracker: ViolationTracker
 	): boolean {
 		// Check if preceptor is associated with this clerkship at this site
+		// Note: Team membership is now authoritative for preceptor-clerkship associations.
+		// The preceptor_site_clerkships table was dropped. When team-based constraint
+		// checking is implemented, it should:
+		// 1. Get preceptor's team(s) from team_members
+		// 2. Check if team handles the clerkship (team_clerkships)
+		// 3. Check if team operates at the site (team_sites)
 		if (!context.preceptorClerkshipAssociations) {
-			// Fallback to checking if site is valid for clerkship
-			if (context.clerkshipSites) {
-				const clerkshipSites = context.clerkshipSites.get(assignment.clerkshipId);
-				const isValid = !!(clerkshipSites && clerkshipSites.has(siteId));
-
-				if (!isValid) {
-					this.recordViolation(assignment, context, siteId, violationTracker, false);
-				}
-
-				return isValid;
-			}
-			return true; // No association data available
+			// No association data available - allow assignment
+			// TODO: Implement team-based association checking
+			return true;
 		}
 
 		// Check three-way association: preceptor + site + clerkship

@@ -99,15 +99,6 @@ export async function createClerkship(
 			})
 			.execute();
 
-		// 3. Create clerkship-site associations
-		if (data.site_ids && data.site_ids.length > 0) {
-			const siteAssociations = data.site_ids.map((siteId) => ({
-				clerkship_id: clerkshipId,
-				site_id: siteId
-			}));
-			await trx.insertInto('clerkship_sites').values(siteAssociations).execute();
-		}
-
 		return inserted;
 	});
 }

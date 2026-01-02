@@ -190,10 +190,6 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		await page.locator('input#required_days').fill('20');
 		await page.locator('input#description').fill('Core family medicine rotation');
 
-		// Select site (required) - click the label containing the site name
-		const siteLabel = page.locator('label', { hasText: siteName });
-		await siteLabel.click();
-
 		// Submit form
 		await page.getByRole('button', { name: 'Create' }).click();
 
@@ -213,8 +209,6 @@ test.describe('Complete Onboarding UI Workflow', () => {
 			(c: { name: string }) => c.name === clerkshipName
 		);
 		clerkshipId = createdClerkship.id;
-
-		// Note: Site association is now done as part of clerkship creation (required field)
 
 		// ========================================
 		// STEP 6: Create Elective through UI
@@ -350,21 +344,6 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		await page.waitForURL('/calendar', { timeout: 10000 });
 
 		// ========================================
-		// DEBUG: Check data setup before generation
-		// ========================================
-		const clerkshipSitesRes = await request.get(`/api/clerkship-sites?clerkship_id=${clerkshipId}`);
-		const clerkshipSites = await clerkshipSitesRes.json();
-		console.log('DEBUG: Clerkship-site associations:', JSON.stringify(clerkshipSites.data));
-		console.log('DEBUG: Expected siteId:', siteId);
-
-		const preceptorAvailRes = await request.get(`/api/preceptors/${preceptorId}/availability`);
-		const preceptorAvail = await preceptorAvailRes.json();
-		console.log('DEBUG: Preceptor availability count:', preceptorAvail.data?.length || 0);
-		if (preceptorAvail.data?.length > 0) {
-			console.log('DEBUG: First availability record:', JSON.stringify(preceptorAvail.data[0]));
-		}
-
-		// ========================================
 		// STEP 10: Generate Schedule through UI
 		// ========================================
 		await expect(page.getByRole('heading', { name: 'Schedule Calendar' })).toBeVisible();
@@ -399,6 +378,17 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		const completionStatsRes = await request.get('/api/students/completion-stats');
 		const completionStats = await completionStatsRes.json();
 		const studentStats = completionStats.data[studentId];
+
+		// Debug: Log scheduling results
+		console.log('DEBUG: Student stats:', JSON.stringify(studentStats));
+
+		// Check schedule generation results
+		const schedulesRes = await request.get('/api/schedules/assignments');
+		const schedulesData = await schedulesRes.json();
+		const studentAssignments = schedulesData.data?.filter(
+			(a: { student_id: string }) => a.student_id === studentId
+		);
+		console.log('DEBUG: Student assignments count:', studentAssignments?.length || 0);
 
 		// Student should have scheduled days > 0
 		expect(studentStats).toBeDefined();

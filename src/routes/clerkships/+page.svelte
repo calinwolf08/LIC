@@ -113,7 +113,6 @@
 	<div class="fixed inset-0 z-50 bg-black/50" onclick={handleFormCancel} role="presentation"></div>
 	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
 		<ClerkshipForm
-			sites={data.sites}
 			onSuccess={handleFormSuccess}
 			onCancel={handleFormCancel}
 		/>

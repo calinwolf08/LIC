@@ -26,8 +26,7 @@ export const createClerkshipSchema = z.object({
 	name: nameSchema,
 	clerkship_type: clerkshipTypeSchema,
 	required_days: requiredDaysSchema,
-	description: z.string().optional(),
-	site_ids: z.array(cuid2Schema).min(1, 'At least one site must be selected')
+	description: z.string().optional()
 });
 
 /**
