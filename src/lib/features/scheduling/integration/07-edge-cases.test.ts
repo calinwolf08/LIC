@@ -11,7 +11,7 @@ import {
 	createTestStudents,
 	createTestPreceptors,
 	createTestHealthSystem,
-	createTestRequirement,
+	// createTestRequirement, // No longer needed - now a no-op
 	createCapacityRule,
 	createBlackoutDates,
 	clearAllTestData,
@@ -42,7 +42,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle case where there are more students than capacity', async () => {
 			// Setup: Many students, limited preceptors
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Small Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Geriatrics', 'Geriatrics');
+			const clerkshipId = await createTestClerkship(db, 'Geriatrics', 'Geriatrics', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 5); // 5 students
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				// Only 2 preceptors
@@ -52,11 +52,12 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Set capacity that allows some but not all students
 			for (const preceptorId of preceptorIds) {
@@ -97,16 +98,17 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 	describe('Test 2: No Available Preceptors', () => {
 		it('should gracefully handle case where no preceptors have availability', async () => {
 			// Setup: Preceptors exist but have no availability records
-			const clerkshipId = await createTestClerkship(db, 'Neurosurgery', 'Neurosurgery');
+			const clerkshipId = await createTestClerkship(db, 'Neurosurgery', 'Neurosurgery', { requiredDays: 28 });
 			const studentIds = await createTestStudents(db, 3);
 			// Create preceptors but don't create availability
 			await createTestPreceptors(db, 2, { clerkshipId });
 
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 28,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 28,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Execute scheduling
 			const result = await engine.schedule(studentIds, [clerkshipId], {
@@ -139,7 +141,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle preceptors with limited availability windows', async () => {
 			// Setup - single student
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Busy Practice');
-			const clerkshipId = await createTestClerkship(db, 'Primary Care', 'Family Medicine');
+			const clerkshipId = await createTestClerkship(db, 'Primary Care', 'Family Medicine', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
@@ -148,12 +150,13 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
 			// Use daily_rotation which can work with non-consecutive availability
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'daily_rotation',
-			});
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'daily_rotation',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -205,7 +208,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle case where preceptor capacity is limited', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Full Practice');
-			const clerkshipId = await createTestClerkship(db, 'Ophthalmology', 'Ophthalmology');
+			const clerkshipId = await createTestClerkship(db, 'Ophthalmology', 'Ophthalmology', { requiredDays: 14 });
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
@@ -213,11 +216,12 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Set reasonable capacity - max 2 students per day
 			for (const preceptorId of preceptorIds) {
@@ -261,7 +265,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle requirement with minimum (1 day) gracefully', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'One Day Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Observation', 'General');
+			const clerkshipId = await createTestClerkship(db, 'Observation', 'General', { requiredDays: 1 });
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
@@ -269,12 +273,13 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
 			// Create requirement with minimum 1 day
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 1,
-				assignmentStrategy: 'continuous_single',
-			});
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 1,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Create preceptor availability
 			const availabilityDates = generateDateRange(startDate, 30);
@@ -301,7 +306,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle long rotation periods', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Long-term Facility');
-			const clerkshipId = await createTestClerkship(db, 'Longitudinal Care', 'Family Medicine');
+			const clerkshipId = await createTestClerkship(db, 'Longitudinal Care', 'Family Medicine', { requiredDays: 60 });
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
@@ -310,12 +315,13 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
 			// Moderate rotation: 60 days (2 months) - fits within start/end date range
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 60,
-				assignmentStrategy: 'continuous_single',
-			});
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 60,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -357,18 +363,19 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle empty student list gracefully', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Empty Test Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Empty Test', 'General');
+			const clerkshipId = await createTestClerkship(db, 'Empty Test', 'General', { requiredDays: 14 });
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId: siteIds[0],
 				clerkshipId,
 			});
 
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Create preceptor availability
 			const availabilityDates = generateDateRange(startDate, 30);
@@ -414,7 +421,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should not persist assignments in dry run mode', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Test Rotation', 'General');
+			const clerkshipId = await createTestClerkship(db, 'Test Rotation', 'General', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
@@ -423,11 +430,12 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Create preceptor availability
 			const availabilityDates = generateDateRange(startDate, 30);
@@ -462,7 +470,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should complete scheduling even with some missing data', async () => {
 			// Setup - test that engine handles edge cases in data
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Edge Case Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Edge Test', 'General');
+			const clerkshipId = await createTestClerkship(db, 'Edge Test', 'General', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
@@ -470,11 +478,12 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 				clerkshipId,
 			});
 
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Only create availability for one preceptor (not both)
 			const availabilityDates = generateDateRange(startDate, 30);

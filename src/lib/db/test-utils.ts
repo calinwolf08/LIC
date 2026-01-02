@@ -59,6 +59,9 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	const { up: migration020 } = await import('./migrations/020_add_fallback_only_flag');
 	const { up: migration021 } = await import('./migrations/021_elective_enhancements');
 	const { up: migration022 } = await import('./migrations/022_schedule_scoping');
+	const { up: migration023 } = await import('./migrations/023_schedule_user_ownership');
+	const { up: migration024 } = await import('./migrations/024_add_active_schedule_to_user');
+	const { up: migration025 } = await import('./migrations/025_electives_direct_clerkship_link');
 
 	await migration001(db);
 	await migration002(db);
@@ -82,6 +85,9 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	await migration020(db);
 	await migration021(db);
 	await migration022(db);
+	await migration023(db);
+	await migration024(db);
+	await migration025(db);
 }
 
 /**

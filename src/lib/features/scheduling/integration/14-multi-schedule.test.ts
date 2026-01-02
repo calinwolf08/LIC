@@ -16,7 +16,6 @@ import {
 	createTestClerkship,
 	createTestHealthSystem,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	createTestPreceptor,
 	createTestTeam,
@@ -370,19 +369,13 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
 			// Create clerkship
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId
-			});
-
-			// Create requirement
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5
 			});
 
 			// Create team

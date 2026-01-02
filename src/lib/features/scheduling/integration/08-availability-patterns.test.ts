@@ -16,7 +16,6 @@ import {
 	createTestHealthSystem,
 	createTestPreceptors,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	clearAllTestData,
 	generateDateRange,
@@ -44,14 +43,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with continuous_single strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -97,14 +89,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with continuous_single strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -159,14 +144,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with daily_rotation strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'daily_rotation',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -217,14 +195,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 4-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with daily_rotation strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 4,
-				assignmentStrategy: 'daily_rotation',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 4 });
 
 			// Create 2 preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {
@@ -268,14 +239,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with continuous_single strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create 2 preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {
@@ -322,14 +286,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create preceptor (but NO availability records)
 			await createTestPreceptors(db, 1, {
@@ -363,14 +320,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {

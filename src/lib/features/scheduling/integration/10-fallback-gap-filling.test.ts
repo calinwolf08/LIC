@@ -21,7 +21,6 @@ import {
 	createTestClerkship,
 	createTestHealthSystem,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	createTestTeam,
 	clearAllTestData,
@@ -49,12 +48,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create 2 preceptors on same team
 			const preceptor1 = nanoid();
@@ -111,12 +105,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup - Two teams in same health system
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors
 			const teamAPreceptor = nanoid();
@@ -175,12 +164,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor with capacity limit
 			const preceptorId = nanoid();
@@ -236,12 +220,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorId = nanoid();
@@ -285,12 +264,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Disable fallbacks in global defaults
 			await db
@@ -343,12 +317,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorId = nanoid();
@@ -392,12 +361,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor
 			const preceptorId = nanoid();
@@ -450,12 +414,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			const { healthSystemId: hs1, siteIds: [site1] } = await createTestHealthSystem(db, 'Hospital A', 1);
 			const { healthSystemId: hs2, siteIds: [site2] } = await createTestHealthSystem(db, 'Hospital B', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors in different health systems
 			const hs1Preceptor = nanoid();
@@ -517,12 +476,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			const { healthSystemId: hs1, siteIds: [site1] } = await createTestHealthSystem(db, 'Hospital A', 1);
 			const { healthSystemId: hs2, siteIds: [site2] } = await createTestHealthSystem(db, 'Hospital B', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Disable cross-system fallback (only affects fallback phase)
 			await db
@@ -588,12 +542,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
 			// Create clerkship with NO teams
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor but DO NOT add to any team
 			const preceptorId = nanoid();
@@ -630,12 +579,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor with daily capacity limit of 2
 			const preceptorId = nanoid();
@@ -696,12 +640,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptor with 5 consecutive days
 			const preceptorId = nanoid();

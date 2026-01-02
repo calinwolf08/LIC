@@ -99,7 +99,7 @@ export async function clearTestData(db: Kysely<DB>): Promise<void> {
 	await retryWithBackoff(() => db.deleteFrom('site_electives').execute());
 	await retryWithBackoff(() => db.deleteFrom('clerkship_sites').execute());
 	await retryWithBackoff(() => db.deleteFrom('clerkship_electives').execute());
-	await retryWithBackoff(() => db.deleteFrom('clerkship_requirements').execute());
+	// clerkship_requirements table removed in migration 025
 	await retryWithBackoff(() => db.deleteFrom('preceptors').execute());
 	await retryWithBackoff(() => db.deleteFrom('students').execute());
 	await retryWithBackoff(() => db.deleteFrom('clerkships').execute());

@@ -13,7 +13,6 @@ import {
 	createTestClerkship,
 	createTestHealthSystem,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	createTestPreceptor,
 	createTestTeam,
@@ -67,17 +66,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 1: Single blackout date is skipped', () => {
 		it('should not schedule on a single blackout date', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -113,17 +107,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 2: Multiple blackout dates are skipped', () => {
 		it('should not schedule on any blackout dates', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -160,18 +149,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 3: Blackout dates reduce available scheduling days', () => {
 		it('should schedule available days even when blackouts reduce total below requirement', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			// Require only 3 days so we can meet it
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 3,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -210,17 +193,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 4: Blackout date at start of range', () => {
 		it('should skip blackout at the start of scheduling range', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 3,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -253,17 +231,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 5: Blackout date at end of range', () => {
 		it('should skip blackout at the end of scheduling range', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 3,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -294,17 +267,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 6: Consecutive blackout dates (holiday week)', () => {
 		it('should skip entire consecutive blackout period', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -341,18 +309,13 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 7: Multiple students with blackout dates', () => {
 		it('should respect blackouts for all students', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
 				maxStudents: 2, // Can handle 2 students per day
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 3,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -412,17 +375,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 9: Assignments persisted correctly exclude blackouts', () => {
 		it('should persist assignments without any on blackout dates', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -457,17 +415,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 10: No blackout dates allows normal scheduling', () => {
 		it('should schedule normally when no blackout dates exist', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -504,17 +457,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 	describe('Test 11: Blackout outside scheduling range has no effect', () => {
 		it('should ignore blackout dates outside the scheduling window', async () => {
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-			});
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);

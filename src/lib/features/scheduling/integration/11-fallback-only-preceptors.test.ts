@@ -18,7 +18,6 @@ import {
 	createTestClerkship,
 	createTestHealthSystem,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	createTestTeam,
 	createTestPreceptor,
@@ -47,12 +46,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors
 			const primaryPreceptor = await createTestPreceptor(db, {
@@ -108,12 +102,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors
 			const primaryPreceptor = await createTestPreceptor(db, {
@@ -170,12 +159,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 6,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 6 });
 
 			// Create preceptors
 			const primary1 = await createTestPreceptor(db, {
@@ -244,12 +228,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors - one regular, one globally marked as fallback-only
 			const regularPreceptor = await createTestPreceptor(db, {
@@ -306,12 +285,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors
 			const regularPreceptor = await createTestPreceptor(db, {
@@ -370,12 +344,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 4,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 4 });
 
 			// Create preceptors
 			const primary = await createTestPreceptor(db, {
@@ -444,12 +413,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
 
 			// Create preceptors
 			const primary = await createTestPreceptor(db, {
@@ -519,12 +483,7 @@ describe('Integration Suite 11: Fallback-Only Preceptors', () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 3,
-				assignmentStrategy: 'team_continuity',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
 
 			// Create preceptors
 			const primary = await createTestPreceptor(db, {

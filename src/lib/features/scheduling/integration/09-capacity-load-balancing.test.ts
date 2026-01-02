@@ -14,7 +14,6 @@ import {
 	createTestHealthSystem,
 	createTestPreceptors,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	clearAllTestData,
 	generateDateRange,
@@ -42,14 +41,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with continuous_single strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max_students_per_day = 1
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -114,13 +106,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max 1 student per day
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -183,13 +169,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create TWO preceptors with max 1 student per day each
 			const preceptorIds = await createTestPreceptors(db, 2, {
@@ -253,13 +233,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max 1 student per day
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -311,13 +285,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max 7 students per year
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -373,13 +341,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create TWO preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {

@@ -97,8 +97,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 
 	// Step 6: Drop clerkship_requirements table (no longer needed)
-	// First drop the dependent table
+	// First drop all dependent tables
 	await db.schema.dropTable('clerkship_requirement_overrides').ifExists().execute();
+	await db.schema.dropTable('site_electives').ifExists().execute();
 	await db.schema.dropTable('clerkship_requirements').execute();
 }
 
