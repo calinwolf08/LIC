@@ -76,13 +76,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			return errorResponse(result.error.message, 400);
 		}
 
-		log.info('Requirement created', {
-			id: result.data.id,
-			clerkshipId: result.data.clerkshipId,
-			requirementType: result.data.requirementType
-		});
+		// Requirements are deprecated - this should not be reached
+		log.info('Requirement created (deprecated)');
 
-		return successResponse(result.data, 201);
+		return successResponse({}, 201);
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Requirement validation failed', {

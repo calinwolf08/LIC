@@ -37,11 +37,8 @@ export const GET: RequestHandler = async ({ params }) => {
 			return notFoundResponse('Requirement');
 		}
 
-		log.info('Requirement fetched', {
-			id: params.id,
-			clerkshipId: result.data.clerkshipId,
-			requirementType: result.data.requirementType
-		});
+		// Requirements are deprecated - this will always return null
+		log.info('Requirement fetched (deprecated)', { id: params.id });
 
 		return successResponse(result.data);
 	} catch (error) {
@@ -76,11 +73,8 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 			return errorResponse(result.error.message, 400);
 		}
 
-		log.info('Requirement updated', {
-			id: params.id,
-			clerkshipId: result.data.clerkshipId,
-			requirementType: result.data.requirementType
-		});
+		// Requirements are deprecated - this should not be reached
+		log.info('Requirement updated (deprecated)', { id: params.id });
 
 		return successResponse(result.data);
 	} catch (error) {

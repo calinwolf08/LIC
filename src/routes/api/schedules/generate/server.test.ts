@@ -358,8 +358,10 @@ describe('POST /api/schedules/generate', () => {
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data.summary.totalAssignments).toBe(1);
-			// When no regenerateFromDate is provided, it defaults to today (2025-12-31)
-			expect(data.data.regeneratedFrom).toBe('2025-12-31');
+			// When no regenerateFromDate is provided, it defaults to today
+			// Use today's date for comparison instead of hardcoded value
+			const today = new Date().toISOString().split('T')[0];
+			expect(data.data.regeneratedFrom).toBe(today);
 			expect(data.data.strategy).toBe('full-reoptimize');
 		});
 	});

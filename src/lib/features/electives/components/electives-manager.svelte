@@ -191,6 +191,8 @@
 
 	<!-- Days Summary -->
 	{#if daysSummary}
+		{@const electivePercent = (daysSummary.totalElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
+		{@const nonElectivePercent = (daysSummary.nonElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
 		<Card class="p-4">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-6">
@@ -216,8 +218,6 @@
 			</div>
 			<!-- Progress bar -->
 			<div class="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-				{@const electivePercent = (daysSummary.totalElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
-				{@const nonElectivePercent = (daysSummary.nonElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
 				<div class="h-full flex">
 					<div class="bg-primary" style="width: {electivePercent}%"></div>
 					<div class="bg-muted-foreground/30" style="width: {nonElectivePercent}%"></div>

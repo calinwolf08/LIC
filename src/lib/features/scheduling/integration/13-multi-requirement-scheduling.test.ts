@@ -1,8 +1,11 @@
 /**
  * Integration Test: Multi-Requirement Scheduling
  *
- * Tests that clerkships with multiple requirements (e.g., outpatient + elective)
- * are properly scheduled, with each requirement counting toward the clerkship's total.
+ * Tests that clerkships with electives are properly scheduled,
+ * with both elective and non-elective days counting toward the clerkship's total.
+ *
+ * NOTE: Updated for the new model where electives link directly to clerkships
+ * via clerkship_id instead of through a separate requirements table.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -12,7 +15,6 @@ import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/t
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import {
   createTestClerkship,
-  createTestRequirement,
   createTestStudents,
   createTestPreceptor,
   createTestHealthSystem,
@@ -37,9 +39,11 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
 
   /**
    * Helper to create an elective with associations
+   *
+   * NOTE: In the new model, electives link directly to clerkships via clerkship_id
    */
   async function createElective(
-    requirementId: string,
+    clerkshipId: string,
     options: {
       name: string;
       minimumDays: number;
@@ -54,11 +58,12 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
       .insertInto('clerkship_electives')
       .values({
         id: electiveId,
-        requirement_id: requirementId,
+        clerkship_id: clerkshipId,
         name: options.name,
         minimum_days: options.minimumDays,
         specialty: null,
         is_required: options.isRequired ? 1 : 0,
+        override_mode: 'inherit',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -93,33 +98,24 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
     return electiveId;
   }
 
-  describe('Test 1: Clerkship with Outpatient + Elective Requirements', () => {
-    it('should schedule both outpatient and elective requirements for the same clerkship', async () => {
+  describe('Test 1: Clerkship with Non-Elective + Elective Days', () => {
+    it('should schedule both non-elective and elective days for the same clerkship', async () => {
       const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
       // Create clerkship with 20 total required days
-      const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-
-      // Create outpatient requirement (15 days)
-      const outpatientReqId = await createTestRequirement(db, clerkshipId, {
-        requirementType: 'outpatient',
-        requiredDays: 15,
+      // 15 non-elective days + 5 elective days
+      const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+        requiredDays: 20,
       });
 
-      // Create elective requirement (5 days)
-      const electiveReqId = await createTestRequirement(db, clerkshipId, {
-        requirementType: 'elective',
-        requiredDays: 5,
-      });
-
-      // Create preceptor for outpatient
+      // Create preceptor for non-elective days
       const outpatientPreceptorId = await createTestPreceptor(db, {
         name: 'Dr. Outpatient',
         healthSystemId,
         siteId,
       });
 
-      // Create team for outpatient requirement
+      // Create team for non-elective days
       await createTestTeam(
         db,
         clerkshipId,
@@ -134,8 +130,8 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
         siteId,
       });
 
-      // Create elective
-      const electiveId = await createElective(electiveReqId, {
+      // Create elective (5 days), leaving 15 non-elective days
+      const electiveId = await createElective(clerkshipId, {
         name: 'Cardiology Elective',
         minimumDays: 5,
         isRequired: true,
@@ -193,23 +189,13 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
     });
   });
 
-  describe('Test 2: Multiple Students with Multi-Requirement Clerkship', () => {
-    it('should schedule multiple students to clerkship with outpatient and elective requirements', async () => {
+  describe('Test 2: Multiple Students with Elective Clerkship', () => {
+    it('should schedule multiple students to clerkship with non-elective and elective days', async () => {
       const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
-      // Create clerkship
-      const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'outpatient');
-
-      // Create outpatient requirement (10 days)
-      await createTestRequirement(db, clerkshipId, {
-        requirementType: 'outpatient',
-        requiredDays: 10,
-      });
-
-      // Create elective requirement (5 days)
-      const electiveReqId = await createTestRequirement(db, clerkshipId, {
-        requirementType: 'elective',
-        requiredDays: 5,
+      // Create clerkship with 15 total days (10 non-elective + 5 elective)
+      const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'outpatient', {
+        requiredDays: 15,
       });
 
       // Create preceptors
@@ -225,7 +211,7 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
         siteId,
       });
 
-      // Create team for outpatient
+      // Create team for non-elective days
       await createTestTeam(
         db,
         clerkshipId,
@@ -233,8 +219,8 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
         [{ preceptorId: preceptor1Id, priority: 1, isFallbackOnly: false }]
       );
 
-      // Create elective
-      await createElective(electiveReqId, {
+      // Create elective (5 days), leaving 10 non-elective days
+      await createElective(clerkshipId, {
         name: 'Cardiology',
         minimumDays: 5,
         isRequired: true,
@@ -282,31 +268,17 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
     });
   });
 
-  describe('Test 3: Multiple Outpatient Requirements + Elective', () => {
-    it('should schedule clerkship with multiple outpatient requirements plus elective', async () => {
+  describe('Test 3: Non-Elective Days + Elective', () => {
+    it('should schedule clerkship with non-elective days plus elective', async () => {
       const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
       // Create outpatient clerkship with 28 total days
-      const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient');
-
-      // Create two separate outpatient requirements (e.g., clinic vs continuity)
-      await createTestRequirement(db, clerkshipId, {
-        requirementType: 'outpatient',
-        requiredDays: 12,
+      // 20 non-elective days + 8 elective days
+      const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+        requiredDays: 28,
       });
 
-      await createTestRequirement(db, clerkshipId, {
-        requirementType: 'outpatient',
-        requiredDays: 8,
-      });
-
-      // Create elective requirement
-      const electiveReqId = await createTestRequirement(db, clerkshipId, {
-        requirementType: 'elective',
-        requiredDays: 8,
-      });
-
-      // Create preceptors for each requirement type
+      // Create preceptors
       const outpatientPreceptor1Id = await createTestPreceptor(db, {
         name: 'Dr. Clinic',
         healthSystemId,
@@ -325,7 +297,7 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
         siteId,
       });
 
-      // Create teams for outpatient requirements
+      // Create teams for non-elective days
       await createTestTeam(
         db,
         clerkshipId,
@@ -340,8 +312,8 @@ describe('Integration Suite 13: Multi-Requirement Scheduling', () => {
         [{ preceptorId: outpatientPreceptor2Id, priority: 1, isFallbackOnly: false }]
       );
 
-      // Create elective
-      await createElective(electiveReqId, {
+      // Create elective (8 days), leaving 20 non-elective days
+      await createElective(clerkshipId, {
         name: 'Sports Medicine Elective',
         minimumDays: 8,
         isRequired: true,

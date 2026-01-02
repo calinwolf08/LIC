@@ -1,142 +1,43 @@
 /**
- * Clerkship Requirements Fixtures
+ * Clerkship Requirements Fixtures (DEPRECATED)
  *
- * Sample requirements demonstrating different override modes.
+ * NOTE: The clerkship_requirements table has been removed. Clerkships now define
+ * their type (inpatient/outpatient) directly, and electives link directly to
+ * clerkships via clerkship_id.
+ *
+ * This file is kept for backward compatibility but should not be used.
+ * Use clerkship fixtures and elective fixtures instead.
  */
 
-import type { ClerkshipRequirement } from '../types';
-
 /**
- * Internal Medicine - Inherits all defaults
+ * @deprecated Use clerkship fixtures instead. Requirements are no longer used.
  */
-export const internalMedicineOutpatientRequirement: ClerkshipRequirement = {
-  id: 'req-im-outpatient',
-  clerkshipId: 'clerkship-internal-medicine',
-  requirementType: 'outpatient',
-  requiredDays: 40,
-  overrideMode: 'inherit', // Uses all global defaults
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-export const internalMedicineInpatientRequirement: ClerkshipRequirement = {
-  id: 'req-im-inpatient',
-  clerkshipId: 'clerkship-internal-medicine',
-  requirementType: 'inpatient',
-  requiredDays: 20,
-  overrideMode: 'inherit',
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-/**
- * Surgery - Override specific fields for outpatient (uses teams)
- */
-export const surgeryOutpatientRequirement: ClerkshipRequirement = {
-  id: 'req-surgery-outpatient',
-  clerkshipId: 'clerkship-surgery',
-  requirementType: 'outpatient',
-  requiredDays: 30,
-  overrideMode: 'override_fields',
-  // Override to use teams instead of single preceptor
-  overrideAssignmentStrategy: 'continuous_team',
-  overrideAllowTeams: true,
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-export const surgeryInpatientRequirement: ClerkshipRequirement = {
-  id: 'req-surgery-inpatient',
-  clerkshipId: 'clerkship-surgery',
-  requirementType: 'inpatient',
-  requiredDays: 30,
-  overrideMode: 'override_fields',
-  // Override to allow higher capacity for busy surgical service
-  overrideMaxStudentsPerDay: 3,
-  overrideMaxStudentsPerYear: 25,
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
+export interface LegacyClerkshipRequirement {
+  id: string;
+  clerkshipId: string;
+  requirementType: 'inpatient' | 'outpatient' | 'elective';
+  requiredDays: number;
+  overrideMode: 'inherit' | 'override_fields' | 'override_section';
+  createdAt: Date;
+  updatedAt: Date;
+  // Override fields (optional)
+  overrideAssignmentStrategy?: string;
+  overrideHealthSystemRule?: string;
+  overrideMaxStudentsPerDay?: number;
+  overrideMaxStudentsPerYear?: number;
+  overrideBlockSizeDays?: number;
+  overrideAllowPartialBlocks?: boolean;
+  overridePreferContinuousBlocks?: boolean;
+  overrideAllowTeams?: boolean;
+  overrideAllowFallbacks?: boolean;
+  overrideFallbackRequiresApproval?: boolean;
+  overrideFallbackAllowCrossSystem?: boolean;
+}
 
 /**
- * Pediatrics - Fully customized (override section)
- */
-export const pediatricsOutpatientRequirement: ClerkshipRequirement = {
-  id: 'req-peds-outpatient',
-  clerkshipId: 'clerkship-pediatrics',
-  requirementType: 'outpatient',
-  requiredDays: 35,
-  overrideMode: 'override_section',
-  // Completely custom configuration
-  overrideAssignmentStrategy: 'block_based',
-  overrideHealthSystemRule: 'prefer_same_system',
-  overrideMaxStudentsPerDay: 2,
-  overrideMaxStudentsPerYear: 15,
-  overrideBlockSizeDays: 7,
-  overrideAllowPartialBlocks: true,
-  overridePreferContinuousBlocks: false,
-  overrideAllowTeams: false,
-  overrideAllowFallbacks: true,
-  overrideFallbackRequiresApproval: true,
-  overrideFallbackAllowCrossSystem: false,
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-export const pediatricsInpatientRequirement: ClerkshipRequirement = {
-  id: 'req-peds-inpatient',
-  clerkshipId: 'clerkship-pediatrics',
-  requirementType: 'inpatient',
-  requiredDays: 25,
-  overrideMode: 'inherit', // Pediatrics inpatient uses defaults
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-/**
- * Family Medicine - Mixed override modes
- */
-export const familyMedicineOutpatientRequirement: ClerkshipRequirement = {
-  id: 'req-fm-outpatient',
-  clerkshipId: 'clerkship-family-medicine',
-  requirementType: 'outpatient',
-  requiredDays: 50,
-  overrideMode: 'inherit',
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-export const familyMedicineElectiveRequirement: ClerkshipRequirement = {
-  id: 'req-fm-elective',
-  clerkshipId: 'clerkship-family-medicine',
-  requirementType: 'elective',
-  requiredDays: 10,
-  overrideMode: 'override_fields',
-  // Allow cross-system for electives
-  overrideFallbackAllowCrossSystem: true,
-  overrideMaxStudentsPerDay: 3,
-  createdAt: new Date('2025-01-01T00:00:00Z'),
-  updatedAt: new Date('2025-01-01T00:00:00Z'),
-};
-
-/**
- * All fixtures grouped by clerkship
+ * @deprecated Requirements are no longer used. These fixtures are kept only for
+ * reference and backward compatibility during migration.
  */
 export const requirementsFixtures = {
-  internalMedicine: {
-    outpatient: internalMedicineOutpatientRequirement,
-    inpatient: internalMedicineInpatientRequirement,
-  },
-  surgery: {
-    outpatient: surgeryOutpatientRequirement,
-    inpatient: surgeryInpatientRequirement,
-  },
-  pediatrics: {
-    outpatient: pediatricsOutpatientRequirement,
-    inpatient: pediatricsInpatientRequirement,
-  },
-  familyMedicine: {
-    outpatient: familyMedicineOutpatientRequirement,
-    elective: familyMedicineElectiveRequirement,
-  },
+  // Empty - requirements have been removed from the system
 };

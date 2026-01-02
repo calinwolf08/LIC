@@ -39,7 +39,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		log.info('Clerkship configuration fetched', {
 			clerkshipId: params.id,
-			requirementCount: result.data.requirements?.length || 0
+			electiveCount: result.data.electives?.length || 0
 		});
 
 		return successResponse(result.data);

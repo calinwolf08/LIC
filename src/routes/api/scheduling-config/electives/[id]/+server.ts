@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
 			log.info('Elective with details fetched', {
 				id: params.id,
-				requirementId: result.data.requirementId
+				clerkshipId: result.data.clerkshipId
 			});
 
 			return successResponse(result.data);
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
 		log.info('Elective fetched', {
 			id: params.id,
-			requirementId: result.data.requirementId
+			clerkshipId: result.data.clerkshipId
 		});
 
 		return successResponse(result.data);

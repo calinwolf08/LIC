@@ -248,7 +248,7 @@ describe('ElectiveService', () => {
 			if (!createResult.success) return;
 
 			// Add site association
-			await service.addSite(createResult.data.id, testSiteId);
+			await service.addSiteToElective(createResult.data.id, testSiteId);
 
 			// Delete elective
 			const deleteResult = await service.deleteElective(createResult.data.id);
@@ -281,7 +281,7 @@ describe('ElectiveService', () => {
 			expect(electiveResult.success).toBe(true);
 			if (!electiveResult.success) return;
 
-			const addResult = await service.addSite(electiveResult.data.id, testSiteId);
+			const addResult = await service.addSiteToElective(electiveResult.data.id, testSiteId);
 			expect(addResult.success).toBe(true);
 
 			// Verify association exists
@@ -304,8 +304,8 @@ describe('ElectiveService', () => {
 			if (!electiveResult.success) return;
 
 			// Add then remove
-			await service.addSite(electiveResult.data.id, testSiteId);
-			const removeResult = await service.removeSite(electiveResult.data.id, testSiteId);
+			await service.addSiteToElective(electiveResult.data.id, testSiteId);
+			const removeResult = await service.removeSiteFromElective(electiveResult.data.id, testSiteId);
 			expect(removeResult.success).toBe(true);
 
 			// Verify association removed
@@ -330,10 +330,10 @@ describe('ElectiveService', () => {
 			if (!electiveResult.success) return;
 
 			// First add site (preceptors must be at associated sites)
-			await service.addSite(electiveResult.data.id, testSiteId);
+			await service.addSiteToElective(electiveResult.data.id, testSiteId);
 
 			// Now add preceptor
-			const addResult = await service.addPreceptor(electiveResult.data.id, testPreceptorId);
+			const addResult = await service.addPreceptorToElective(electiveResult.data.id, testPreceptorId);
 			expect(addResult.success).toBe(true);
 
 			// Verify association exists
@@ -389,7 +389,7 @@ describe('ElectiveService', () => {
 			expect(electiveResult.success).toBe(true);
 			if (!electiveResult.success) return;
 
-			await service.addSite(electiveResult.data.id, testSiteId);
+			await service.addSiteToElective(electiveResult.data.id, testSiteId);
 
 			// Get available preceptors - should only include testPreceptorId
 			const result = await service.getAvailablePreceptorsForElective(electiveResult.data.id);
