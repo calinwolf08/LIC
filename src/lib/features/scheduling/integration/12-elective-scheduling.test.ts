@@ -330,9 +330,9 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				endDate: '2025-12-31',
 			});
 
-			// Scheduling should work for the outpatient requirement
+			// Scheduling should work: 5 non-elective days + 3 elective days = 8 total
 			expect(result.success).toBe(true);
-			expect(result.assignments.length).toBe(5);
+			expect(result.assignments.length).toBe(8);
 		});
 	});
 

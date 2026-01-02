@@ -19,6 +19,7 @@ import {
 	clearAllTestData,
 	createPreceptorAvailability,
 	generateDateRange,
+	setOutpatientAssignmentStrategy,
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -262,12 +263,14 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 	describe('Scenario 4: Daily Rotation Strategy', () => {
 		it('should rotate students across different preceptors daily', async () => {
 			// Daily rotation strategy test
+			// Configure global defaults to use daily_rotation strategy
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
 
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Regional Network', 1);
 
 			// Create clerkship
-			const emergencyId = await createTestClerkship(db, 'Emergency Medicine', 'Emergency Medicine', { requiredDays: 14 });
+			const emergencyId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', { requiredDays: 14 });
 
 			// Create students (small group)
 			const studentIds = await createTestStudents(db, 3);
@@ -342,8 +345,8 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				1
 			);
 
-			// Create single clerkship
-			const internalMedId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine', { requiredDays: 14 });
+			// Create single clerkship (inpatient uses block_based strategy by default)
+			const internalMedId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 14 });
 
 			// Create students (large cohort)
 			const studentIds = await createTestStudents(db, 20);
@@ -401,8 +404,8 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				const assignments = await getStudentAssignments(db, studentId);
 				expect(assignments.length).toBe(14);
 
-				// Verify block-based strategy
-				await assertBlockBasedStrategy(db, studentId, internalMedId, 7);
+				// Verify block-based strategy (inpatient defaults to 14-day blocks)
+				await assertBlockBasedStrategy(db, studentId, internalMedId, 14);
 
 				// No date conflicts
 				await assertNoDateConflicts(db, studentId);

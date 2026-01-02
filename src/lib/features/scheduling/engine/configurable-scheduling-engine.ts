@@ -301,7 +301,7 @@ export class ConfigurableSchedulingEngine {
       healthSystemRule: defaults?.health_system_rule || 'no_preference',
       maxStudentsPerDay: defaults?.default_max_students_per_day || 2,
       maxStudentsPerYear: defaults?.default_max_students_per_year || 50,
-      blockSizeDays: defaults?.block_length_days,
+      blockSizeDays: defaults?.block_size_days,
       allowPartialBlocks: defaults?.allow_partial_blocks === 1,
       preferContinuousBlocks: defaults?.prefer_continuous_blocks === 1,
       allowTeams: defaults?.allow_teams === 1,
@@ -335,7 +335,7 @@ export class ConfigurableSchedulingEngine {
       healthSystemRule: defaults?.health_system_rule || 'no_preference',
       maxStudentsPerDay: defaults?.default_max_students_per_day || 2,
       maxStudentsPerYear: defaults?.default_max_students_per_year || 50,
-      blockSizeDays: defaults?.block_length_days,
+      blockSizeDays: defaults?.block_size_days,
       allowPartialBlocks: defaults?.allow_partial_blocks === 1,
       preferContinuousBlocks: defaults?.prefer_continuous_blocks === 1,
       allowTeams: defaults?.allow_teams === 1,
@@ -355,8 +355,8 @@ export class ConfigurableSchedulingEngine {
         config.healthSystemRule = elective.override_health_system_rule;
         config.source = 'partial_override';
       }
-      if (elective.override_block_length_days !== null && elective.override_block_length_days !== undefined) {
-        config.blockSizeDays = elective.override_block_length_days;
+      if (elective.override_block_size_days !== null && elective.override_block_size_days !== undefined) {
+        config.blockSizeDays = elective.override_block_size_days;
         config.source = 'partial_override';
       }
     }
@@ -727,8 +727,9 @@ export class ConfigurableSchedulingEngine {
               siteIds: [], // Sites determined by availability
               availability: availableDates,
               currentAssignmentCount: 0,
-              maxStudentsPerDay: preceptor.max_students ?? 1,
-              maxStudentsPerYear: preceptor.max_students ?? 999,
+              // Use sensible defaults matching the context builder's defaults for regular scheduling
+              maxStudentsPerDay: 2,
+              maxStudentsPerYear: 50,
             };
           });
       } else {

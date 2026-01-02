@@ -20,6 +20,7 @@ import {
 	clearAllTestData,
 	createPreceptorAvailability,
 	generateDateRange,
+	setOutpatientAssignmentStrategy,
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -115,7 +116,8 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should create assignments in fixed-size blocks', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'University Hospital');
-			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine', { requiredDays: 28 });
+			// Inpatient clerkships use block_based strategy by default
+			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 28 });
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
@@ -167,9 +169,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 
 	describe('Test 3: Daily Rotation Strategy End-to-End', () => {
 		it('should rotate students across different preceptors daily', async () => {
+			// Configure global defaults to use daily_rotation strategy
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Surgery Center');
-			const clerkshipId = await createTestClerkship(db, 'Surgery', 'Surgery', { requiredDays: 42 });
+			const clerkshipId = await createTestClerkship(db, 'Surgery', 'outpatient', { requiredDays: 42 });
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 4, {
 				healthSystemId,

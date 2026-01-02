@@ -19,6 +19,7 @@ import {
 	createPreceptorAvailability,
 	clearAllTestData,
 	generateDateRange,
+	setOutpatientAssignmentStrategy,
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -190,12 +191,15 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 
 	describe('Test 3b: Daily Rotation with Multiple Preceptors', () => {
 		it('should rotate between preceptors and not repeat same preceptor consecutively', async () => {
+			// Configure global defaults to use daily_rotation strategy
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+
 			// Setup: Health system and site
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Hospital', 1);
 			const siteId = siteIds[0];
 
 			// Create clerkship with 4-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 4 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 4 });
 
 			// Create 2 preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {

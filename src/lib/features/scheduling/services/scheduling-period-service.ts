@@ -213,6 +213,12 @@ export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promis
 		throw new NotFoundError('Scheduling Period');
 	}
 
+	// Cannot delete an active period
+	if (period.is_active === 1) {
+		log.warn('Cannot delete active scheduling period', { id, name: period.name });
+		throw new ConflictError('Cannot delete an active scheduling period. Deactivate it first.');
+	}
+
 	// Clear any user's active_schedule_id that points to this schedule
 	// Note: user table may not exist in test environments
 	try {

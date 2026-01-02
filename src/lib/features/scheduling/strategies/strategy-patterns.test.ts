@@ -19,6 +19,7 @@ import {
 	createTestTeam,
 	clearAllTestData,
 	createPreceptorAvailability,
+	setOutpatientAssignmentStrategy,
 } from '$lib/testing/integration-helpers';
 import {
 	assertContinuousSingleStrategy,
@@ -134,12 +135,14 @@ describe('Strategy Pattern Tests', () => {
 	describe('team_continuity strategy', () => {
 		it('should maximize assignments with primary preceptor and fill gaps with team members', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 14 });
+			// Use outpatient which defaults to team_continuity/continuous_single strategy
+			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'outpatient', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
+				clerkshipId, // Associate preceptors with clerkship via team
 			});
 
 			// Create a team with 3 members
@@ -262,6 +265,9 @@ describe('Strategy Pattern Tests', () => {
 
 	describe('daily_rotation strategy', () => {
 		it('should assign different preceptors each day', async () => {
+			// Configure global defaults to use daily_rotation strategy
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
 			const clerkshipId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', { requiredDays: 10 });
 			const studentIds = await createTestStudents(db, 1);

@@ -566,3 +566,37 @@ export async function clearAllTestData(db: Kysely<DB>) {
 		// Table may not exist - ignore
 	}
 }
+
+/**
+ * Sets the global outpatient default assignment strategy
+ *
+ * @param db Database connection
+ * @param strategy The assignment strategy to use (continuous_single, team_continuity, block_based, daily_rotation)
+ */
+export async function setOutpatientAssignmentStrategy(
+	db: Kysely<DB>,
+	strategy: 'continuous_single' | 'team_continuity' | 'block_based' | 'daily_rotation'
+): Promise<void> {
+	await db
+		.updateTable('global_outpatient_defaults')
+		.set({ assignment_strategy: strategy })
+		.where('school_id', '=', 'default')
+		.execute();
+}
+
+/**
+ * Sets the global inpatient default assignment strategy
+ *
+ * @param db Database connection
+ * @param strategy The assignment strategy to use (continuous_single, team_continuity, block_based, daily_rotation)
+ */
+export async function setInpatientAssignmentStrategy(
+	db: Kysely<DB>,
+	strategy: 'continuous_single' | 'team_continuity' | 'block_based' | 'daily_rotation'
+): Promise<void> {
+	await db
+		.updateTable('global_inpatient_defaults')
+		.set({ assignment_strategy: strategy })
+		.where('school_id', '=', 'default')
+		.execute();
+}
