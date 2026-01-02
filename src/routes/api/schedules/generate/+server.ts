@@ -103,7 +103,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		log.debug('Fetching scheduling data', { isPreview });
 
 		// Fetch required data for preview/context building
-		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding, siteElectives] =
+		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding] =
 			await Promise.all([
 				db.selectFrom('students').selectAll().execute(),
 				db.selectFrom('preceptors').selectAll().execute(),
@@ -113,8 +113,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				db
 					.selectFrom('student_health_system_onboarding')
 					.select(['student_id', 'health_system_id', 'is_completed'])
-					.execute(),
-				db.selectFrom('site_electives').select(['site_id', 'elective_requirement_id']).execute()
+					.execute()
 			]);
 
 		// Get blackout dates separately
@@ -131,8 +130,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const optionalData: OptionalContextData = {
 			healthSystems,
 			teams,
-			studentOnboarding,
-			siteElectives
+			studentOnboarding
 		};
 
 		log.info('Data loaded', {

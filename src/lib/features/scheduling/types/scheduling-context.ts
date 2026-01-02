@@ -130,7 +130,6 @@ export interface SchedulingContext {
 	/**
 	 * Preceptor-elective associations (optional, DEPRECATED)
 	 * Map: preceptorId -> Set of elective requirement IDs they can teach
-	 * NOTE: This is deprecated in favor of siteElectiveAssociations
 	 * Used by PreceptorClerkshipAssociationConstraint for electives (backward compatibility)
 	 */
 	preceptorElectiveAssociations?: Map<string, Set<string>>;
@@ -141,13 +140,6 @@ export interface SchedulingContext {
 	 * Used by ValidSiteForClerkshipConstraint
 	 */
 	clerkshipSites?: Map<string, Set<string>>;
-
-	/**
-	 * Site-elective associations (optional)
-	 * Map: siteId -> Set of elective requirement IDs offered at that site
-	 * Used by ValidSiteForClerkshipConstraint for electives
-	 */
-	siteElectiveAssociations?: Map<string, Set<string>>;
 
 	/**
 	 * Preceptor-team membership (optional)

@@ -190,16 +190,107 @@ test.describe('Complete Onboarding UI Workflow', () => {
 		await expect(clerkshipRow).toBeVisible({ timeout: 5000 });
 	});
 
-	test('Step 6: Navigate to calendar page', async ({ page }) => {
-		// Navigate to calendar page
-		await gotoAndWait(page, '/calendar');
+	test('Step 6: Generate schedule through the UI', async ({ page, request }) => {
+		const timestamp = Date.now();
 
-		// Verify calendar page loads correctly
+		// Helper to generate dates for availability
+		function getDatesInRange(startDate: Date, days: number): string[] {
+			const dates: string[] = [];
+			for (let i = 0; i < days; i++) {
+				const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+				dates.push(date.toISOString().split('T')[0]);
+			}
+			return dates;
+		}
+
+		// 1. Create student via API
+		const studentRes = await request.post('/api/students', {
+			data: { name: `Schedule Student ${timestamp}`, email: `student.${timestamp}@test.edu` }
+		});
+		const student = (await studentRes.json()).data;
+
+		// 2. Create health system via API
+		const hsRes = await request.post('/api/health-systems', {
+			data: { name: `Schedule HS ${timestamp}` }
+		});
+		const healthSystem = (await hsRes.json()).data;
+
+		// 3. Create site via API
+		const siteRes = await request.post('/api/sites', {
+			data: { name: `Schedule Site ${timestamp}`, health_system_id: healthSystem.id }
+		});
+		const site = (await siteRes.json()).data;
+
+		// 4. Create preceptor via API
+		const preceptorRes = await request.post('/api/preceptors', {
+			data: {
+				name: `Dr. Schedule ${timestamp}`,
+				email: `dr.schedule.${timestamp}@test.edu`,
+				health_system_id: healthSystem.id,
+				max_students: 5,
+				site_ids: [site.id]
+			}
+		});
+		const preceptor = (await preceptorRes.json()).data;
+
+		// 5. Create clerkship via API
+		const clerkshipRes = await request.post('/api/clerkships', {
+			data: { name: `Schedule Clerkship ${timestamp}`, clerkship_type: 'outpatient', required_days: 5 }
+		});
+		const clerkship = (await clerkshipRes.json()).data;
+
+		// 6. Set preceptor availability for next 30 days
+		const today = new Date();
+		const startDate = today.toISOString().split('T')[0];
+		const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+		const dates = getDatesInRange(today, 30);
+
+		await request.post(`/api/preceptors/${preceptor.id}/availability`, {
+			data: {
+				site_id: site.id,
+				availability: dates.map((date) => ({ date, is_available: true }))
+			}
+		});
+
+		// 7. Create scheduling period with all entities via API
+		await request.post('/api/scheduling-periods', {
+			data: {
+				name: `Test Schedule ${timestamp}`,
+				start_date: startDate,
+				end_date: endDate,
+				year: today.getFullYear(),
+				is_active: true,
+				students: [student.id],
+				preceptors: [preceptor.id],
+				sites: [site.id],
+				healthSystems: [healthSystem.id],
+				clerkships: [clerkship.id]
+			}
+		});
+
+		// 8. Navigate to calendar page
+		await gotoAndWait(page, '/calendar');
 		await expect(page.getByRole('heading', { name: 'Schedule Calendar' })).toBeVisible();
 
-		// Verify key controls are visible
-		await expect(page.getByRole('button', { name: 'Regenerate Schedule' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Schedule Results' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Export to Excel' })).toBeVisible();
+		// 9. Click Regenerate Schedule button
+		await page.getByRole('button', { name: 'Regenerate Schedule' }).click();
+
+		// 10. Wait for regenerate dialog to appear
+		await expect(page.getByText('Regeneration Mode')).toBeVisible();
+
+		// 11. Select Full Regeneration mode (it may already be selected)
+		await page.locator('input[value="full"]').click();
+
+		// 12. Click Apply Regeneration button
+		await page.getByRole('button', { name: 'Apply Regeneration' }).click();
+
+		// 13. Wait for regeneration to start (shows "Regenerating schedule...")
+		await expect(page.getByText('Regenerating schedule...')).toBeVisible({ timeout: 10000 });
+
+		// 14. Wait for dialog to close (either success or error will close it eventually)
+		await expect(page.getByText('Regeneration Mode')).not.toBeVisible({ timeout: 30000 });
+
+		// 15. Verify we're back on calendar page
+		await expect(page.getByRole('heading', { name: 'Schedule Calendar' })).toBeVisible();
 	});
 });

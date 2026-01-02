@@ -390,12 +390,6 @@ export interface SiteCapacityRules {
   updated_at: Generated<string>;
 }
 
-export interface SiteElectives {
-  created_at: Generated<string>;
-  elective_requirement_id: string;
-  site_id: string;
-}
-
 export interface Sites {
   address: string | null;
   contact_email: string | null;
@@ -496,7 +490,6 @@ export interface DB {
   site_availability: SiteAvailability;
   site_availability_patterns: SiteAvailabilityPatterns;
   site_capacity_rules: SiteCapacityRules;
-  site_electives: SiteElectives;
   sites: Sites;
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;

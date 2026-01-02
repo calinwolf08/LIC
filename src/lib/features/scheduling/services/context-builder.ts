@@ -41,10 +41,6 @@ export interface OptionalContextData {
 		clerkship_id: string;
 		site_id: string;
 	}>;
-	siteElectives?: Array<{
-		site_id: string;
-		elective_requirement_id: string;
-	}>;
 	siteAvailability?: Selectable<SiteAvailability>[];
 	siteCapacityRules?: Selectable<SiteCapacityRules>[];
 	preceptorTeamMembers?: Array<{
@@ -205,18 +201,6 @@ export function buildSchedulingContext(
 				clerkshipSites.get(record.clerkship_id)!.add(record.site_id);
 			}
 			context.clerkshipSites = clerkshipSites;
-		}
-
-		// Build site-elective associations map
-		if (optionalData.siteElectives) {
-			const siteElectiveAssociations = new Map<string, Set<string>>();
-			for (const record of optionalData.siteElectives) {
-				if (!siteElectiveAssociations.has(record.site_id)) {
-					siteElectiveAssociations.set(record.site_id, new Set());
-				}
-				siteElectiveAssociations.get(record.site_id)!.add(record.elective_requirement_id);
-			}
-			context.siteElectiveAssociations = siteElectiveAssociations;
 		}
 
 		// Build site availability map
