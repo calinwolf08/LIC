@@ -268,24 +268,10 @@ async function seed(db: Kysely<DB>) {
 	}
 	console.log(`  Created/found ${clerkshipIds.length} clerkships`);
 
-	// Step 6: Create clerkship requirements
-	console.log('\nCreating clerkship requirements...');
-	for (let i = 0; i < clerkshipIds.length; i++) {
-		const existing = await db.selectFrom('clerkship_requirements').select('id').where('clerkship_id', '=', clerkshipIds[i]).executeTakeFirst();
-		if (!existing) {
-			await db.insertInto('clerkship_requirements').values({
-				id: nanoid(),
-				clerkship_id: clerkshipIds[i],
-				requirement_type: clerkshipsData[i].clerkship_type,
-				required_days: clerkshipsData[i].required_days,
-				override_mode: 'override_section',
-				override_assignment_strategy: 'team_continuity',
-				created_at: timestamp,
-				updated_at: timestamp,
-			}).execute();
-		}
-	}
-	console.log(`  Created/found ${clerkshipIds.length} clerkship requirements`);
+	// Step 6: Clerkship requirements removed
+	// NOTE: clerkship_requirements table has been removed. Clerkships now define
+	// their type (inpatient/outpatient) directly. Electives link directly to clerkships.
+	console.log('\n[Skipped] Clerkship requirements (deprecated - clerkships define type directly)');
 
 	// Step 7: Create Students
 	console.log('\nCreating students...');

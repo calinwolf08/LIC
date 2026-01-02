@@ -381,7 +381,7 @@ describe('Form Helpers', () => {
 				isRequired: false
 			};
 
-			let clientErrors = {};
+			let clientErrors: Record<string, string> = {};
 			try {
 				validateElectiveForm(formData, electiveFormSchema);
 			} catch (error) {
@@ -397,7 +397,7 @@ describe('Form Helpers', () => {
 			const serverErrors = extractApiErrors(apiErrorResponse);
 
 			// Combine errors (server overwrites client)
-			const allErrors = { ...clientErrors, ...serverErrors };
+			const allErrors: Record<string, string> = { ...clientErrors, ...serverErrors };
 
 			expect(allErrors.name).toBe('Name conflicts with existing elective');
 		});

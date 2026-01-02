@@ -1,9 +1,12 @@
 /**
  * Constraint Factory Service
  *
- * Bridges database-stored requirements and runtime constraint instances.
+ * Bridges database-stored clerkship configuration and runtime constraint instances.
  * Implements the factory pattern to dynamically instantiate constraints
- * based on clerkship requirements and global configuration.
+ * based on clerkship settings and global configuration.
+ *
+ * NOTE: clerkship_requirements table has been removed. Constraints are now
+ * built based on the clerkship's type (inpatient/outpatient) and settings.
  */
 
 import type { Kysely } from 'kysely';
@@ -28,23 +31,11 @@ import { SiteCapacityConstraint } from '../constraints/site-capacity.constraint'
 import { ValidSiteForClerkshipConstraint } from '../constraints/valid-site-for-clerkship.constraint';
 import { SamePreceptorTeamConstraint } from '../constraints/same-preceptor-team.constraint';
 
-interface ClerkshipRequirement {
+interface Clerkship {
 	id: string | null;
-	clerkship_id: string;
-	requirement_type: string;
+	name: string;
+	clerkship_type: string;
 	required_days: number;
-	allow_cross_system: number;
-	require_same_site: number;
-	require_same_preceptor_team: number;
-	override_mode: string;
-	override_assignment_strategy: string | null;
-	override_health_system_rule: string | null;
-	override_block_length_days: number | null;
-	override_allow_split_assignments: number | null;
-	override_preceptor_continuity_preference: string | null;
-	override_team_continuity_preference: string | null;
-	created_at: string;
-	updated_at: string;
 }
 
 interface GlobalDefaults {
@@ -57,9 +48,8 @@ interface GlobalDefaults {
 }
 
 interface ResolvedConfiguration {
-	requirementId: string | null;
 	clerkshipId: string;
-	requirementType: string;
+	clerkshipType: string;
 	requiredDays: number;
 	allowCrossSystem: boolean;
 	assignmentStrategy: string;
@@ -107,8 +97,8 @@ export class ConstraintFactory {
 			constraints.push(new ValidSiteForClerkshipConstraint());
 		}
 
-		// 2. Load requirements for the given clerkships
-		const requirements = await this.loadRequirements(clerkshipIds);
+		// 2. Load clerkships
+		const clerkships = await this.loadClerkships(clerkshipIds);
 
 		// 3. Load global defaults
 		const [outpatientDefaults, inpatientDefaults, electiveDefaults] = await Promise.all([
@@ -117,16 +107,16 @@ export class ConstraintFactory {
 			this.loadGlobalDefaults('elective')
 		]);
 
-		// 4. Build requirement-specific constraints
-		for (const requirement of requirements) {
-			// Skip requirements without IDs (shouldn't happen in practice)
-			if (!requirement.id) {
+		// 4. Build clerkship-specific constraints
+		for (const clerkship of clerkships) {
+			// Skip clerkships without IDs (shouldn't happen in practice)
+			if (!clerkship.id) {
 				continue;
 			}
 
-			// Resolve configuration by merging global defaults with requirement overrides
+			// Resolve configuration by merging global defaults with clerkship type
 			const config = this.resolveConfiguration(
-				requirement,
+				clerkship,
 				outpatientDefaults,
 				inpatientDefaults,
 				electiveDefaults
@@ -135,10 +125,10 @@ export class ConstraintFactory {
 			// Instantiate constraints based on resolved configuration
 
 			// Health system continuity constraint
-			if (config.healthSystemRule === 'enforce_same_system' && config.requirementId) {
+			if (config.healthSystemRule === 'enforce_same_system') {
 				constraints.push(
 					new HealthSystemContinuityConstraint(
-						config.requirementId,
+						clerkship.id, // Use clerkshipId as the identifier
 						config.clerkshipId,
 						config.allowCrossSystem
 					)
@@ -146,44 +136,19 @@ export class ConstraintFactory {
 			}
 
 			// Student onboarding constraint (if context has onboarding data)
-			if (context.studentOnboarding && config.requirementId) {
+			if (context.studentOnboarding) {
 				constraints.push(
-					new StudentOnboardingConstraint(config.requirementId, config.clerkshipId)
+					new StudentOnboardingConstraint(clerkship.id, config.clerkshipId)
 				);
 			}
 
 			// Preceptor association constraint (if context has association data)
-			if (
-				(context.preceptorClerkshipAssociations || context.preceptorElectiveAssociations) &&
-				config.requirementId
-			) {
+			if (context.preceptorClerkshipAssociations || context.preceptorElectiveAssociations) {
 				constraints.push(
 					new PreceptorClerkshipAssociationConstraint(
-						config.requirementId,
+						clerkship.id,
 						config.clerkshipId,
-						config.requirementType as 'inpatient' | 'outpatient' | 'elective'
-					)
-				);
-			}
-
-			// Site continuity constraint
-			if (requirement.require_same_site === 1 && config.requirementId) {
-				constraints.push(
-					new SiteContinuityConstraint(
-						config.requirementId,
-						config.clerkshipId,
-						true
-					)
-				);
-			}
-
-			// Same preceptor team constraint
-			if (requirement.require_same_preceptor_team === 1 && config.requirementId) {
-				constraints.push(
-					new SamePreceptorTeamConstraint(
-						config.requirementId,
-						config.clerkshipId,
-						true
+						config.clerkshipType as 'inpatient' | 'outpatient' | 'elective'
 					)
 				);
 			}
@@ -194,18 +159,20 @@ export class ConstraintFactory {
 	}
 
 	/**
-	 * Load requirements for given clerkships from database
+	 * Load clerkships from database
 	 */
-	private async loadRequirements(clerkshipIds: string[]): Promise<ClerkshipRequirement[]> {
+	private async loadClerkships(clerkshipIds: string[]): Promise<Clerkship[]> {
 		if (clerkshipIds.length === 0) {
 			return [];
 		}
 
-		return await this.db
-			.selectFrom('clerkship_requirements')
-			.selectAll()
-			.where('clerkship_id', 'in', clerkshipIds)
+		const results = await this.db
+			.selectFrom('clerkships')
+			.select(['id', 'name', 'clerkship_type', 'required_days'])
+			.where('id', 'in', clerkshipIds)
 			.execute();
+
+		return results as Clerkship[];
 	}
 
 	/**
@@ -231,31 +198,30 @@ export class ConstraintFactory {
 	}
 
 	/**
-	 * Resolve configuration by merging global defaults with requirement overrides
+	 * Resolve configuration by merging global defaults with clerkship type
 	 */
 	private resolveConfiguration(
-		requirement: ClerkshipRequirement,
+		clerkship: Clerkship,
 		outpatientDefaults: GlobalDefaults | null,
 		inpatientDefaults: GlobalDefaults | null,
 		electiveDefaults: GlobalDefaults | null
 	): ResolvedConfiguration {
-		// Select appropriate global defaults based on requirement type
+		// Select appropriate global defaults based on clerkship type
 		let globalDefaults: GlobalDefaults | null = null;
-		if (requirement.requirement_type === 'outpatient') {
+		const clerkshipType = clerkship.clerkship_type || 'outpatient';
+
+		if (clerkshipType === 'outpatient') {
 			globalDefaults = outpatientDefaults;
-		} else if (requirement.requirement_type === 'inpatient') {
+		} else if (clerkshipType === 'inpatient') {
 			globalDefaults = inpatientDefaults;
-		} else if (requirement.requirement_type === 'elective') {
-			globalDefaults = electiveDefaults;
 		}
 
 		// Start with global defaults or sensible fallbacks
 		const resolved: ResolvedConfiguration = {
-			requirementId: requirement.id,
-			clerkshipId: requirement.clerkship_id,
-			requirementType: requirement.requirement_type,
-			requiredDays: requirement.required_days,
-			allowCrossSystem: requirement.allow_cross_system === 1,
+			clerkshipId: clerkship.id!,
+			clerkshipType: clerkshipType,
+			requiredDays: clerkship.required_days,
+			allowCrossSystem: false, // Default to not allowing cross-system
 			assignmentStrategy: globalDefaults?.assignment_strategy || 'continuous_single',
 			healthSystemRule: globalDefaults?.health_system_rule || 'enforce_same_system',
 			blockLengthDays: globalDefaults?.block_length_days || undefined,
@@ -265,47 +231,21 @@ export class ConstraintFactory {
 			teamContinuityPreference: globalDefaults?.team_continuity_preference || 'prefer_same'
 		};
 
-		// If override mode is 'inherit', return as-is
-		if (requirement.override_mode === 'inherit') {
-			return resolved;
-		}
-
-		// Apply field-specific overrides
-		if (requirement.override_assignment_strategy) {
-			resolved.assignmentStrategy = requirement.override_assignment_strategy;
-		}
-		if (requirement.override_health_system_rule) {
-			resolved.healthSystemRule = requirement.override_health_system_rule;
-		}
-		if (requirement.override_block_length_days !== null) {
-			resolved.blockLengthDays = requirement.override_block_length_days || undefined;
-		}
-		if (requirement.override_allow_split_assignments !== null) {
-			resolved.allowSplitAssignments = requirement.override_allow_split_assignments === 1;
-		}
-		if (requirement.override_preceptor_continuity_preference) {
-			resolved.preceptorContinuityPreference =
-				requirement.override_preceptor_continuity_preference;
-		}
-		if (requirement.override_team_continuity_preference) {
-			resolved.teamContinuityPreference = requirement.override_team_continuity_preference;
-		}
-
 		return resolved;
 	}
 
 	/**
-	 * Get resolved configuration for a specific requirement (for UI display)
+	 * Get resolved configuration for a specific clerkship (for UI display)
 	 */
-	async getResolvedConfiguration(requirementId: string): Promise<ResolvedConfiguration | null> {
-		// Load the requirement
-		const requirement = await this.db
-			.selectFrom('clerkship_requirements')
-			.selectAll()
-			.where('id', '=', requirementId)
+	async getResolvedConfiguration(clerkshipId: string): Promise<ResolvedConfiguration | null> {
+		// Load the clerkship
+		const clerkship = await this.db
+			.selectFrom('clerkships')
+			.select(['id', 'name', 'clerkship_type', 'required_days'])
+			.where('id', '=', clerkshipId)
 			.executeTakeFirst();
 
-		if (!requirement) {
+		if (!clerkship) {
 			return null;
 		}
 
@@ -318,7 +258,7 @@ export class ConstraintFactory {
 
 		// Resolve and return
 		return this.resolveConfiguration(
-			requirement as ClerkshipRequirement,
+			clerkship as Clerkship,
 			outpatientDefaults,
 			inpatientDefaults,
 			electiveDefaults

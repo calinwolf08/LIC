@@ -2,6 +2,11 @@
  * Integration Test Suite 1: Complete Configuration Workflows
  *
  * Tests the full lifecycle of configuration creation, update, and deletion.
+ *
+ * NOTE: Updated for the new model where:
+ * - Clerkships define their type (inpatient/outpatient) directly
+ * - Electives link directly to clerkships via clerkship_id
+ * - clerkship_requirements table has been removed
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -10,15 +15,14 @@ import {
 	createTestClerkship,
 	createTestHealthSystem,
 	createTestPreceptors,
-	createTestRequirement,
 	createCapacityRule,
 	createTestTeam,
 	createFallbackChain,
-	clearAllTestData,
+	clearAllTestData
 } from '$lib/testing/integration-helpers';
 import { HealthSystemService } from '$lib/features/scheduling-config/services/health-systems.service';
 import { ConfigurationService } from '$lib/features/scheduling-config/services/configuration.service';
-import { RequirementService } from '$lib/features/scheduling-config/services/requirements.service';
+import { ElectiveService } from '$lib/features/scheduling-config/services/electives.service';
 import { CapacityRuleService } from '$lib/features/scheduling-config/services/capacity.service';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { FallbackService } from '$lib/features/scheduling-config/services/fallbacks.service';
@@ -29,7 +33,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 	let db: Kysely<DB>;
 	let healthSystemService: HealthSystemService;
 	let configService: ConfigurationService;
-	let requirementService: RequirementService;
+	let electiveService: ElectiveService;
 	let capacityService: CapacityRuleService;
 	let teamService: TeamService;
 	let fallbackService: FallbackService;
@@ -38,7 +42,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 		db = await createTestDatabaseWithMigrations();
 		healthSystemService = new HealthSystemService(db);
 		configService = new ConfigurationService(db);
-		requirementService = new RequirementService(db);
+		electiveService = new ElectiveService(db);
 		capacityService = new CapacityRuleService(db);
 		teamService = new TeamService(db);
 		fallbackService = new FallbackService(db);
@@ -54,7 +58,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			// 1. Create health systems
 			const hsResult = await healthSystemService.createHealthSystem({
 				name: 'Test Medical Center',
-				location: 'Test City',
+				location: 'Test City'
 			});
 			expect(hsResult.success).toBe(true);
 			if (!hsResult.success) return;
@@ -63,7 +67,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			// 2. Create sites
 			const siteResult = await healthSystemService.createSite(healthSystemId, {
 				name: 'Main Campus',
-				address: '123 Test St',
+				address: '123 Test St'
 			});
 			expect(siteResult.success).toBe(true);
 			if (!siteResult.success) return;
@@ -73,27 +77,30 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId,
-				maxStudents: 3,
+				maxStudents: 3
 			});
 			expect(preceptorIds.length).toBe(3);
 
-			// 4. Create clerkship
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// 5. Create clerkship requirement
-			const requirementId = await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 20,
-				assignmentStrategy: 'continuous_single',
-				healthSystemRule: 'prefer_same_system',
+			// 4. Create clerkship (now includes type directly)
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 20
 			});
-			expect(requirementId).toBeDefined();
+
+			// 5. Create electives (now link directly to clerkship)
+			const electiveResult = await electiveService.createElective(clerkshipId, {
+				name: 'Geriatrics Elective',
+				specialty: 'Geriatrics',
+				minimumDays: 5,
+				isRequired: true
+			});
+			expect(electiveResult.success).toBe(true);
 
 			// 6. Create capacity rules (hierarchical)
 			const generalRuleResult = await capacityService.createCapacityRule({
 				preceptorId: preceptorIds[0],
 				maxStudentsPerDay: 2,
-				maxStudentsPerYear: 10,
+				maxStudentsPerYear: 10
 			});
 			expect(generalRuleResult.success).toBe(true);
 
@@ -101,7 +108,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 				preceptorId: preceptorIds[1],
 				clerkshipId,
 				maxStudentsPerDay: 3,
-				maxStudentsPerYear: 12,
+				maxStudentsPerYear: 12
 			});
 			expect(clerkshipRuleResult.success).toBe(true);
 
@@ -114,8 +121,8 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 				requiresAdminApproval: false,
 				members: preceptorIds.map((id, i) => ({
 					preceptorId: id,
-					priority: i + 1,
-				})),
+					priority: i + 1
+				}))
 			});
 			expect(teamResult.success).toBe(true);
 			if (!teamResult.success) return;
@@ -123,7 +130,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			// 8. Create fallback chain
 			const fallbackIds = await createFallbackChain(db, preceptorIds[0], [
 				preceptorIds[1],
-				preceptorIds[2],
+				preceptorIds[2]
 			]);
 			expect(fallbackIds.length).toBe(2);
 
@@ -132,21 +139,26 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			expect(configResult.success).toBe(true);
 			if (!configResult.success) return;
 
-			expect(configResult.data!.requirements.length).toBe(1);
-			expect(configResult.data!.requirements[0].requirement.requirementType).toBe('outpatient');
-			expect(configResult.data!.requirements[0].requirement.requiredDays).toBe(20);
+			// Verify clerkship configuration
+			expect(configResult.data!.clerkshipType).toBe('outpatient');
+			expect(configResult.data!.totalRequiredDays).toBe(20);
+			expect(configResult.data!.electives.length).toBe(1);
+			expect(configResult.data!.electiveDays).toBe(5);
+			expect(configResult.data!.nonElectiveDays).toBe(15);
 
-			// 10. Verify all relationships intact
-			const requirementsResult = await requirementService.getRequirementsByClerkship(clerkshipId);
-			expect(requirementsResult.success).toBe(true);
-			if (!requirementsResult.success) return;
-			expect(requirementsResult.data.length).toBe(1);
+			// 10. Verify electives
+			const electivesResult = await electiveService.getElectivesByClerkship(clerkshipId);
+			expect(electivesResult.success).toBe(true);
+			if (!electivesResult.success) return;
+			expect(electivesResult.data.length).toBe(1);
 
+			// 11. Verify teams
 			const teamsResult = await teamService.getTeamsByClerkship(clerkshipId);
 			expect(teamsResult.success).toBe(true);
 			if (!teamsResult.success) return;
 			expect(teamsResult.data.length).toBe(1);
 
+			// 12. Verify capacity rules
 			const capacityRulesResult = await capacityService.getCapacityRulesByPreceptor(
 				preceptorIds[0]
 			);
@@ -156,51 +168,64 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 		});
 	});
 
-	describe('Test 2: Update Configuration Cascade', () => {
-		it('should update configuration and cascade changes appropriately', async () => {
-			// Create initial configuration
-			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine');
-			const requirementId = await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 28,
-				assignmentStrategy: 'block_based',
-				blockSizeDays: 14,
+	describe('Test 2: Update Elective Configuration', () => {
+		it('should update elective and validate days constraint', async () => {
+			// Create clerkship with 20 required days
+			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine', {
+				clerkshipType: 'inpatient',
+				requiredDays: 28
 			});
 
-			// Verify initial state
-			let reqResult = await requirementService.getRequirement(requirementId);
-			expect(reqResult.success).toBe(true);
-			if (!reqResult.success) return;
-			expect(reqResult.data?.overrideAssignmentStrategy).toBe('block_based');
-			expect(reqResult.data?.overrideBlockSizeDays).toBe(14);
+			// Create an elective with 10 days
+			const electiveResult = await electiveService.createElective(clerkshipId, {
+				name: 'ICU Rotation',
+				specialty: 'Critical Care',
+				minimumDays: 10,
+				isRequired: true
+			});
+			expect(electiveResult.success).toBe(true);
+			if (!electiveResult.success) return;
 
-			// Update requirement - change strategy to continuous_single
-			const updateResult = await requirementService.updateRequirement(requirementId, {
-				overrideAssignmentStrategy: 'continuous_single',
+			// Update elective to have more days
+			const updateResult = await electiveService.updateElective(electiveResult.data.id, {
+				minimumDays: 14
 			});
 			expect(updateResult.success).toBe(true);
 
 			// Verify update persisted
-			reqResult = await requirementService.getRequirement(requirementId);
-			expect(reqResult.success).toBe(true);
-			if (!reqResult.success) return;
-			expect(reqResult.data?.overrideAssignmentStrategy).toBe('continuous_single');
-			// The required days should remain unchanged
-			expect(reqResult.data?.requiredDays).toBe(28);
+			const fetchResult = await electiveService.getElective(electiveResult.data.id);
+			expect(fetchResult.success).toBe(true);
+			if (!fetchResult.success) return;
+			expect(fetchResult.data?.minimumDays).toBe(14);
+
+			// Verify days summary
+			const summaryResult = await electiveService.getElectiveDaysSummary(clerkshipId);
+			expect(summaryResult.success).toBe(true);
+			if (!summaryResult.success) return;
+			expect(summaryResult.data.totalElectiveDays).toBe(14);
+			expect(summaryResult.data.nonElectiveDays).toBe(14);
+			expect(summaryResult.data.remainingDays).toBe(14);
 		});
 	});
 
 	describe('Test 3: Delete Configuration Cascade', () => {
-		it('should delete configuration and cascade to child entities', async () => {
+		it('should delete electives and cascade to child entities', async () => {
 			// Create complete configuration
-			const clerkshipId = await createTestClerkship(db, 'Surgery', 'Surgery');
+			const clerkshipId = await createTestClerkship(db, 'Surgery', 'Surgery', {
+				clerkshipType: 'inpatient',
+				requiredDays: 42
+			});
 			const preceptorIds = await createTestPreceptors(db, 2);
 
-			const requirementId = await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 42,
-				assignmentStrategy: 'daily_rotation',
+			// Create elective
+			const electiveResult = await electiveService.createElective(clerkshipId, {
+				name: 'Trauma Surgery',
+				specialty: 'Trauma',
+				minimumDays: 14,
+				isRequired: true
 			});
+			expect(electiveResult.success).toBe(true);
+			if (!electiveResult.success) return;
 
 			// Create team for this clerkship
 			const teamId = await createTestTeam(db, clerkshipId, 'Surgery Team', preceptorIds);
@@ -212,24 +237,24 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 				expect(teamResult.data).not.toBeNull();
 			}
 
-			let reqResult = await requirementService.getRequirement(requirementId);
-			expect(reqResult.success).toBe(true);
-			if (reqResult.success) {
-				expect(reqResult.data).not.toBeNull();
+			let elecResult = await electiveService.getElective(electiveResult.data.id);
+			expect(elecResult.success).toBe(true);
+			if (elecResult.success) {
+				expect(elecResult.data).not.toBeNull();
 			}
 
-			// Delete requirement
-			const deleteResult = await requirementService.deleteRequirement(requirementId);
+			// Delete elective
+			const deleteResult = await electiveService.deleteElective(electiveResult.data.id);
 			expect(deleteResult.success).toBe(true);
 
-			// Verify requirement deleted
-			reqResult = await requirementService.getRequirement(requirementId);
-			expect(reqResult.success).toBe(true);
-			if (reqResult.success) {
-				expect(reqResult.data).toBeNull();
+			// Verify elective deleted
+			elecResult = await electiveService.getElective(electiveResult.data.id);
+			expect(elecResult.success).toBe(true);
+			if (elecResult.success) {
+				expect(elecResult.data).toBeNull();
 			}
 
-			// Note: Team should still exist as it's associated with clerkship, not requirement
+			// Note: Team should still exist as it's associated with clerkship, not elective
 			teamResult = await teamService.getTeam(teamId);
 			expect(teamResult.success).toBe(true);
 			if (teamResult.success) {
@@ -246,10 +271,13 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 				'Pediatrics Hospital',
 				1
 			);
-			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'Pediatrics');
+			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'Pediatrics', {
+				clerkshipType: 'outpatient',
+				requiredDays: 20
+			});
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
-				siteId: siteIds[0],
+				siteId: siteIds[0]
 			});
 
 			// Create a team with validation rules and members
@@ -261,8 +289,8 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 				requiresAdminApproval: false,
 				members: preceptorIds.map((id, i) => ({
 					preceptorId: id,
-					priority: i + 1,
-				})),
+					priority: i + 1
+				}))
 			});
 			expect(teamResult.success).toBe(true);
 			if (!teamResult.success) return;
@@ -277,7 +305,15 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 
 	describe('Test 5: Hierarchical Capacity Rules', () => {
 		it('should correctly resolve hierarchical capacity rules', async () => {
-			const clerkshipId = await createTestClerkship(db, 'Emergency Medicine', 'Emergency Medicine');
+			const clerkshipId = await createTestClerkship(
+				db,
+				'Emergency Medicine',
+				'Emergency Medicine',
+				{
+					clerkshipType: 'inpatient',
+					requiredDays: 28
+				}
+			);
 			const preceptorIds = await createTestPreceptors(db, 1);
 			const preceptorId = preceptorIds[0];
 
@@ -286,7 +322,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 			const generalRule = await capacityService.createCapacityRule({
 				preceptorId,
 				maxStudentsPerDay: 2,
-				maxStudentsPerYear: 10,
+				maxStudentsPerYear: 10
 			});
 			expect(generalRule.success).toBe(true);
 
@@ -295,7 +331,7 @@ describe('Integration Suite 1: Configuration Workflows', () => {
 				preceptorId,
 				clerkshipId,
 				maxStudentsPerDay: 3,
-				maxStudentsPerYear: 15,
+				maxStudentsPerYear: 15
 			});
 			expect(clerkshipRule.success).toBe(true);
 

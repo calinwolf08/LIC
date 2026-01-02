@@ -27,10 +27,8 @@ export type {
   GlobalElectiveDefaults,
 } from './global-defaults';
 
-// Requirements
+// Electives (requirements removed - clerkships now link directly to electives)
 export type {
-  ClerkshipRequirement,
-  ClerkshipRequirementOverride,
   ClerkshipElective,
   ClerkshipElectiveWithDetails,
 } from './requirements';

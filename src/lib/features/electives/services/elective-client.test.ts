@@ -1,11 +1,13 @@
 /**
  * Unit tests for elective-client.ts
  * Tests all client-side API functions with mocked fetch
+ *
+ * NOTE: Updated to use clerkshipId instead of requirementId
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
-	fetchElectivesByRequirement,
+	fetchElectivesByClerkship,
 	fetchElectiveWithDetails,
 	createElective,
 	updateElective,
@@ -30,18 +32,19 @@ describe('Elective Client Service', () => {
 		vi.restoreAllMocks();
 	});
 
-	describe('fetchElectivesByRequirement()', () => {
-		it('should fetch electives for a requirement', async () => {
+	describe('fetchElectivesByClerkship()', () => {
+		it('should fetch electives for a clerkship', async () => {
 			const mockElectives: ClerkshipElective[] = [
 				{
 					id: 'elec-1',
-					requirementId: 'req-1',
+					clerkshipId: 'clerk-1',
 					name: 'Cardiology',
 					specialty: 'Cardiology',
 					minimumDays: 5,
 					isRequired: true,
-					createdAt: '2025-01-01T00:00:00Z',
-					updatedAt: '2025-01-01T00:00:00Z'
+					overrideMode: 'inherit',
+					createdAt: new Date('2025-01-01T00:00:00Z'),
+					updatedAt: new Date('2025-01-01T00:00:00Z')
 				}
 			];
 
@@ -50,19 +53,19 @@ describe('Elective Client Service', () => {
 				json: async () => ({ data: mockElectives })
 			});
 
-			const result = await fetchElectivesByRequirement('req-1');
+			const result = await fetchElectivesByClerkship('clerk-1');
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/scheduling-config/electives?requirementId=req-1');
+			expect(mockFetch).toHaveBeenCalledWith('/api/scheduling-config/electives?clerkshipId=clerk-1');
 			expect(result).toEqual(mockElectives);
 		});
 
 		it('should throw error on failed fetch', async () => {
 			mockFetch.mockResolvedValueOnce({
 				ok: false,
-				json: async () => ({ error: { message: 'Requirement not found' } })
+				json: async () => ({ error: { message: 'Clerkship not found' } })
 			});
 
-			await expect(fetchElectivesByRequirement('invalid')).rejects.toThrow('Requirement not found');
+			await expect(fetchElectivesByClerkship('invalid')).rejects.toThrow('Clerkship not found');
 		});
 	});
 
@@ -77,10 +80,14 @@ describe('Elective Client Service', () => {
 
 			const mockCreatedElective: ClerkshipElective = {
 				id: 'elec-new',
-				requirementId: 'req-1',
-				...formData,
-				createdAt: '2025-01-01T00:00:00Z',
-				updatedAt: '2025-01-01T00:00:00Z'
+				clerkshipId: 'clerk-1',
+				name: formData.name,
+				specialty: formData.specialty || undefined,
+				minimumDays: formData.minimumDays,
+				isRequired: formData.isRequired,
+				overrideMode: 'inherit',
+				createdAt: new Date('2025-01-01T00:00:00Z'),
+				updatedAt: new Date('2025-01-01T00:00:00Z')
 			};
 
 			mockFetch.mockResolvedValueOnce({
@@ -88,7 +95,7 @@ describe('Elective Client Service', () => {
 				json: async () => ({ data: mockCreatedElective })
 			});
 
-			const result = await createElective('req-1', formData);
+			const result = await createElective('clerk-1', formData);
 
 			expect(result).toEqual(mockCreatedElective);
 		});
@@ -103,10 +110,9 @@ describe('Elective Client Service', () => {
 
 			await deleteElective('elec-1');
 
-			expect(mockFetch).toHaveBeenCalledWith(
-				'/api/scheduling-config/electives/elec-1',
-				{ method: 'DELETE' }
-			);
+			expect(mockFetch).toHaveBeenCalledWith('/api/scheduling-config/electives/elec-1', {
+				method: 'DELETE'
+			});
 		});
 	});
 });

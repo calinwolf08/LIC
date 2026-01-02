@@ -11,26 +11,50 @@ import type { DB } from '$lib/db/types';
 /**
  * Creates a complete test clerkship with all necessary data
  * Note: clerkshipType must be 'inpatient' or 'outpatient' per database constraint
+ *
+ * @param db Database connection
+ * @param name Clerkship name
+ * @param clerkshipType Legacy parameter (use options.clerkshipType instead)
+ * @param options Optional configuration for clerkship type and required days
  */
 export async function createTestClerkship(
 	db: Kysely<DB>,
 	name: string,
-	clerkshipType: 'inpatient' | 'outpatient' | string = 'outpatient'
+	clerkshipTypeOrOptions?: 'inpatient' | 'outpatient' | string | { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number },
+	options?: { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number }
 ) {
 	const id = nanoid();
-	// Ensure valid clerkship type - default to 'outpatient' if invalid
-	const validType = (clerkshipType === 'inpatient' || clerkshipType === 'outpatient')
-		? clerkshipType
-		: 'outpatient';
+
+	// Handle both old signature (string) and new signature (object)
+	let clerkshipType: 'inpatient' | 'outpatient' = 'outpatient';
+	let requiredDays = 28;
+
+	if (typeof clerkshipTypeOrOptions === 'object' && clerkshipTypeOrOptions !== null) {
+		// New signature: options object in third param
+		clerkshipType = clerkshipTypeOrOptions.clerkshipType || 'outpatient';
+		requiredDays = clerkshipTypeOrOptions.requiredDays || 28;
+	} else if (typeof clerkshipTypeOrOptions === 'string') {
+		// Legacy signature: string type in third param
+		clerkshipType = (clerkshipTypeOrOptions === 'inpatient' || clerkshipTypeOrOptions === 'outpatient')
+			? clerkshipTypeOrOptions
+			: 'outpatient';
+		// Check if fourth param has options
+		if (options) {
+			requiredDays = options.requiredDays || 28;
+			if (options.clerkshipType) {
+				clerkshipType = options.clerkshipType;
+			}
+		}
+	}
 
 	await db
 		.insertInto('clerkships')
 		.values({
 			id,
 			name,
-			clerkship_type: validType,
-			required_days: 28,
-			description: `Test ${name} clerkship`,
+			clerkship_type: clerkshipType,
+			required_days: requiredDays,
+			description: `Test ${name} clerkship`
 		})
 		.execute();
 
@@ -212,12 +236,20 @@ export async function createTestHealthSystem(
 }
 
 /**
- * Creates a clerkship requirement
+ * Creates a clerkship requirement (DEPRECATED)
+ *
+ * NOTE: clerkship_requirements table has been removed. Clerkships now define
+ * their type (inpatient/outpatient) directly. Use createTestElective for electives.
+ *
+ * This function now returns a synthetic ID and does nothing. Tests using this
+ * should be updated to work with the new model.
+ *
+ * @deprecated Use clerkship's clerkship_type directly instead
  */
 export async function createTestRequirement(
-	db: Kysely<DB>,
+	_db: Kysely<DB>,
 	clerkshipId: string,
-	options: {
+	_options: {
 		requirementType: 'inpatient' | 'outpatient' | 'elective';
 		requiredDays: number;
 		assignmentStrategy?: 'team_continuity' | 'continuous_single' | 'continuous_team' | 'block_based' | 'daily_rotation';
@@ -225,22 +257,9 @@ export async function createTestRequirement(
 		blockSizeDays?: number;
 	}
 ) {
-	const id = nanoid();
-	await db
-		.insertInto('clerkship_requirements')
-		.values({
-			id,
-			clerkship_id: clerkshipId,
-			requirement_type: options.requirementType,
-			required_days: options.requiredDays,
-			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_fields' : 'inherit',
-			override_assignment_strategy: options.assignmentStrategy,
-			override_health_system_rule: options.healthSystemRule,
-			override_block_length_days: options.blockSizeDays,
-					})
-		.execute();
-
-	return id;
+	// Return clerkshipId as the "requirement ID" for backward compatibility
+	// Tests should be updated to use clerkship directly
+	return clerkshipId;
 }
 
 /**
@@ -533,7 +552,7 @@ export async function clearAllTestData(db: Kysely<DB>) {
 	await db.deleteFrom('preceptor_availability').execute();
 	await db.deleteFrom('blackout_dates').execute();
 	await db.deleteFrom('clerkship_electives').execute();
-	await db.deleteFrom('clerkship_requirements').execute();
+	// clerkship_requirements table has been removed
 	await db.deleteFrom('preceptor_sites').execute();
 	await db.deleteFrom('sites').execute();
 	await db.deleteFrom('health_systems').execute();
