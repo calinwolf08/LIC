@@ -253,4 +253,62 @@ test.describe('Authentication', () => {
 		);
 		expect(session).toBeDefined();
 	});
+
+	// =========================================================================
+	// Test 7: should login with valid credentials
+	// =========================================================================
+	test('should login with valid credentials', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('login-test');
+
+		// First, register the user via API to set up test data
+		const signUpResponse = await page.request.post('/api/auth/sign-up/email', {
+			data: {
+				name: testUser.name,
+				email: testUser.email,
+				password: testUser.password
+			}
+		});
+		expect(signUpResponse.ok()).toBeTruthy();
+
+		// Clear any existing session by navigating to a page and clearing cookies
+		await page.context().clearCookies();
+
+		// Navigate to login page
+		await page.goto('/login');
+		await page.waitForLoadState('networkidle');
+
+		// Wait for SvelteKit hydration
+		await page.waitForTimeout(1000);
+
+		// Fill in login credentials
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+
+		// Wait a bit for values to register
+		await page.waitForTimeout(500);
+
+		// Submit the form
+		const submitButton = page.getByRole('button', { name: /sign in/i });
+		await expect(submitButton).toBeEnabled();
+		await submitButton.dispatchEvent('click');
+
+		// Wait for login to complete and redirect
+		await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
+
+		// Verify we're no longer on login page
+		await expect(page).not.toHaveURL(/login/);
+
+		// Verify user exists in database
+		const user = await executeWithRetry(() =>
+			db.selectFrom('user').selectAll().where('email', '=', testUser.email).executeTakeFirst()
+		);
+		expect(user).toBeDefined();
+
+		// Verify a new session was created for the login
+		const session = await executeWithRetry(() =>
+			db.selectFrom('session').selectAll().where('userId', '=', user!.id).executeTakeFirst()
+		);
+		expect(session).toBeDefined();
+	});
 });
