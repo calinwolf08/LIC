@@ -461,4 +461,37 @@ test.describe('Authentication', () => {
 		// After logout, accessing protected routes should redirect to login
 		await expect(page).toHaveURL(/login/);
 	});
+
+	// =========================================================================
+	// Test 11: should protect routes from unauthenticated access
+	// =========================================================================
+	test('should protect routes from unauthenticated access', async ({ page }) => {
+		// List of protected routes to test
+		const protectedRoutes = [
+			'/schedules',
+			'/students',
+			'/preceptors',
+			'/clerkships',
+			'/health-systems',
+			'/sites',
+			'/calendar'
+		];
+
+		// Ensure we're not logged in
+		await page.context().clearCookies();
+
+		// Test each protected route
+		for (const route of protectedRoutes) {
+			await page.goto(route);
+			await page.waitForLoadState('networkidle');
+
+			// Should redirect to login with redirectTo parameter
+			await expect(page).toHaveURL(/login/);
+
+			// Verify redirectTo parameter is set correctly
+			const url = new URL(page.url());
+			const redirectTo = url.searchParams.get('redirectTo');
+			expect(redirectTo).toBe(route);
+		}
+	});
 });
