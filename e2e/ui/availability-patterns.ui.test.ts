@@ -144,6 +144,19 @@ test.describe('Availability Patterns UI', () => {
 		expect(data.data).toBeDefined();
 		expect(Array.isArray(data.data)).toBe(true);
 		expect(data.data.length).toBe(1);
+
+		// Verify availability persisted in database
+		const dbAvailability = await executeWithRetry(() =>
+			db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.where('preceptor_id', '=', entities.preceptorId)
+				.where('date', '=', availDate)
+				.executeTakeFirst()
+		);
+		expect(dbAvailability).toBeDefined();
+		expect(dbAvailability?.is_available).toBe(1);
+		expect(dbAvailability?.site_id).toBe(entities.siteId);
 	});
 
 	test('should update availability for existing date', async ({ request }) => {
@@ -163,6 +176,17 @@ test.describe('Availability Patterns UI', () => {
 		);
 		expect(createResponse.ok()).toBe(true);
 
+		// Verify initial state in database
+		let dbAvailability = await executeWithRetry(() =>
+			db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.where('preceptor_id', '=', entities.preceptorId)
+				.where('date', '=', availDate)
+				.executeTakeFirst()
+		);
+		expect(dbAvailability?.is_available).toBe(1);
+
 		// Update to unavailable
 		const updateResponse = await request.post(
 			`/api/preceptors/${entities.preceptorId}/availability`,
@@ -177,6 +201,17 @@ test.describe('Availability Patterns UI', () => {
 
 		const data = await updateResponse.json();
 		expect(data.data[0].is_available).toBe(0); // SQLite stores as 0/1
+
+		// Verify update persisted in database
+		dbAvailability = await executeWithRetry(() =>
+			db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.where('preceptor_id', '=', entities.preceptorId)
+				.where('date', '=', availDate)
+				.executeTakeFirst()
+		);
+		expect(dbAvailability?.is_available).toBe(0);
 	});
 
 	test('should bulk update multiple availability dates', async ({ request }) => {
@@ -204,6 +239,23 @@ test.describe('Availability Patterns UI', () => {
 
 		const data = await response.json();
 		expect(data.data.length).toBe(3);
+
+		// Verify all records persisted correctly in database
+		const dbRecords = await executeWithRetry(() =>
+			db
+				.selectFrom('preceptor_availability')
+				.selectAll()
+				.where('preceptor_id', '=', entities.preceptorId)
+				.where('date', 'in', [date1, date2, date3])
+				.execute()
+		);
+		expect(dbRecords.length).toBe(3);
+
+		// Verify each date has correct availability value
+		const recordMap = new Map(dbRecords.map((r) => [r.date, r.is_available]));
+		expect(recordMap.get(date1)).toBe(1); // true
+		expect(recordMap.get(date2)).toBe(0); // false
+		expect(recordMap.get(date3)).toBe(1); // true
 	});
 
 	test('should get availability by date range', async ({ request }) => {

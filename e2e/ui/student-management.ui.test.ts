@@ -65,19 +65,33 @@ test.describe('Student Management UI', () => {
 
 	test('should create student via API', async ({ request }) => {
 		const timestamp = Date.now();
+		const studentName = `Test Student ${timestamp}`;
+		const studentEmail = `teststudent.${timestamp}@test.edu`;
 
 		const response = await request.post('/api/students', {
 			data: {
-				name: `Test Student ${timestamp}`,
-				email: `teststudent.${timestamp}@test.edu`
+				name: studentName,
+				email: studentEmail
 			}
 		});
 		expect(response.ok()).toBe(true);
 
 		const data = await response.json();
 		expect(data.data.id).toBeDefined();
-		expect(data.data.name).toBe(`Test Student ${timestamp}`);
-		expect(data.data.email).toBe(`teststudent.${timestamp}@test.edu`);
+		expect(data.data.name).toBe(studentName);
+		expect(data.data.email).toBe(studentEmail);
+
+		// Verify student persisted in database
+		const dbStudent = await executeWithRetry(() =>
+			db
+				.selectFrom('students')
+				.selectAll()
+				.where('id', '=', data.data.id)
+				.executeTakeFirst()
+		);
+		expect(dbStudent).toBeDefined();
+		expect(dbStudent?.name).toBe(studentName);
+		expect(dbStudent?.email).toBe(studentEmail);
 	});
 
 	test('should get student by ID', async ({ request }) => {
@@ -105,6 +119,7 @@ test.describe('Student Management UI', () => {
 
 	test('should update student via API', async ({ request }) => {
 		const timestamp = Date.now();
+		const updatedName = `Updated Student ${timestamp}`;
 
 		// Create student
 		const createResponse = await request.post('/api/students', {
@@ -119,12 +134,23 @@ test.describe('Student Management UI', () => {
 
 		// Update student
 		const updateResponse = await request.patch(`/api/students/${studentId}`, {
-			data: { name: `Updated Student ${timestamp}` }
+			data: { name: updatedName }
 		});
 		expect(updateResponse.ok()).toBe(true);
 
 		const updateData = await updateResponse.json();
-		expect(updateData.data.name).toBe(`Updated Student ${timestamp}`);
+		expect(updateData.data.name).toBe(updatedName);
+
+		// Verify update persisted in database
+		const dbStudent = await executeWithRetry(() =>
+			db
+				.selectFrom('students')
+				.selectAll()
+				.where('id', '=', studentId)
+				.executeTakeFirst()
+		);
+		expect(dbStudent).toBeDefined();
+		expect(dbStudent?.name).toBe(updatedName);
 	});
 
 	test('should delete student via API', async ({ request }) => {
@@ -141,13 +167,33 @@ test.describe('Student Management UI', () => {
 		const createData = await createResponse.json();
 		const studentId = createData.data.id;
 
+		// Verify student exists in database before delete
+		let dbStudent = await executeWithRetry(() =>
+			db
+				.selectFrom('students')
+				.selectAll()
+				.where('id', '=', studentId)
+				.executeTakeFirst()
+		);
+		expect(dbStudent).toBeDefined();
+
 		// Delete student
 		const deleteResponse = await request.delete(`/api/students/${studentId}`);
 		expect(deleteResponse.ok()).toBe(true);
 
-		// Verify deleted
+		// Verify deleted via API
 		const getResponse = await request.get(`/api/students/${studentId}`);
 		expect(getResponse.status()).toBe(404);
+
+		// Verify deleted from database
+		dbStudent = await executeWithRetry(() =>
+			db
+				.selectFrom('students')
+				.selectAll()
+				.where('id', '=', studentId)
+				.executeTakeFirst()
+		);
+		expect(dbStudent).toBeUndefined();
 	});
 
 	test('should list all students', async ({ request }) => {
@@ -235,6 +281,7 @@ test.describe('Student Management UI', () => {
 	test('should onboard student to health system via API', async ({ request }) => {
 		const timestamp = Date.now();
 		const healthSystemId = await createHealthSystem(request, timestamp);
+		const completedDate = new Date().toISOString().split('T')[0];
 
 		// Create student
 		const studentResponse = await request.post('/api/students', {
@@ -253,10 +300,23 @@ test.describe('Student Management UI', () => {
 				student_id: studentId,
 				health_system_id: healthSystemId,
 				is_completed: true,
-				completed_date: new Date().toISOString().split('T')[0]
+				completed_date: completedDate
 			}
 		});
 		expect(onboardResponse.ok()).toBe(true);
+
+		// Verify onboarding persisted in database
+		const dbOnboarding = await executeWithRetry(() =>
+			db
+				.selectFrom('student_health_system_onboarding')
+				.selectAll()
+				.where('student_id', '=', studentId)
+				.where('health_system_id', '=', healthSystemId)
+				.executeTakeFirst()
+		);
+		expect(dbOnboarding).toBeDefined();
+		expect(dbOnboarding?.is_completed).toBe(1);
+		expect(dbOnboarding?.completed_date).toBe(completedDate);
 	});
 
 	test('should list all student health system onboarding', async ({ request }) => {
@@ -290,6 +350,24 @@ test.describe('Student Management UI', () => {
 		const listData = await listResponse.json();
 		expect(listData.data).toBeDefined();
 		expect(Array.isArray(listData.data)).toBe(true);
+
+		// Verify the onboarding record is in database
+		const dbOnboarding = await executeWithRetry(() =>
+			db
+				.selectFrom('student_health_system_onboarding')
+				.selectAll()
+				.where('student_id', '=', studentId)
+				.where('health_system_id', '=', healthSystemId)
+				.executeTakeFirst()
+		);
+		expect(dbOnboarding).toBeDefined();
+
+		// Verify our record is in the API response
+		const found = listData.data.some(
+			(record: any) =>
+				record.student_id === studentId && record.health_system_id === healthSystemId
+		);
+		expect(found).toBe(true);
 	});
 
 	// =========================================================================

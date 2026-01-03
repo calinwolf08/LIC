@@ -227,6 +227,17 @@ test.describe('Schedule Constraints UI', () => {
 		const data = await response.json();
 		expect(data.data.valid).toBe(true);
 		expect(data.data.assignment.preceptor_id).toBe(capacityPreceptorId);
+
+		// Verify preceptor change persisted in database
+		const dbAssignment = await executeWithRetry(() =>
+			db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('id', '=', assignmentId)
+				.executeTakeFirst()
+		);
+		expect(dbAssignment).toBeDefined();
+		expect(dbAssignment?.preceptor_id).toBe(capacityPreceptorId);
 	});
 
 	// =========================================================================
@@ -395,12 +406,25 @@ test.describe('Schedule Constraints UI', () => {
 			availableDate
 		);
 
-		// Verify assignment was created
+		// Verify assignment was created via API
 		const response = await request.get(`/api/schedules/assignments/${assignmentId}`);
 		expect(response.ok()).toBe(true);
 
 		const data = await response.json();
 		expect(data.data.date).toBe(availableDate);
+
+		// Verify assignment persisted correctly in database
+		const dbAssignment = await executeWithRetry(() =>
+			db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('id', '=', assignmentId)
+				.executeTakeFirst()
+		);
+		expect(dbAssignment).toBeDefined();
+		expect(dbAssignment?.date).toBe(availableDate);
+		expect(dbAssignment?.preceptor_id).toBe(entities.preceptorId);
+		expect(dbAssignment?.student_id).toBe(entities.studentId);
 	});
 
 	// =========================================================================
@@ -494,6 +518,17 @@ test.describe('Schedule Constraints UI', () => {
 
 		const data = await response.json();
 		expect(data.data.date).toBe(newDate);
+
+		// Verify date change persisted in database
+		const dbAssignment = await executeWithRetry(() =>
+			db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('id', '=', assignmentId)
+				.executeTakeFirst()
+		);
+		expect(dbAssignment).toBeDefined();
+		expect(dbAssignment?.date).toBe(newDate);
 	});
 
 	// =========================================================================
@@ -635,11 +670,22 @@ test.describe('Schedule Constraints UI', () => {
 		expect(data.data.errors.length).toBeGreaterThan(0);
 		expect(data.data.assignment).toBeUndefined(); // No modification in dry run
 
-		// Verify original assignment unchanged
+		// Verify original assignment unchanged via API
 		const checkResponse = await request.get(`/api/schedules/assignments/${assignmentId}`);
 		expect(checkResponse.ok()).toBe(true);
 		const checkData = await checkResponse.json();
 		expect(checkData.data.preceptor_id).toBe(entities.preceptorId); // Original preceptor
+
+		// Verify database was NOT modified by dry_run
+		const dbAssignment = await executeWithRetry(() =>
+			db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('id', '=', assignmentId)
+				.executeTakeFirst()
+		);
+		expect(dbAssignment).toBeDefined();
+		expect(dbAssignment?.preceptor_id).toBe(entities.preceptorId); // Still original preceptor
 	});
 
 	// =========================================================================
