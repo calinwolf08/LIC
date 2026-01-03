@@ -41,10 +41,20 @@ export async function up(db: Kysely<any>): Promise<void> {
 	`.execute(db);
 
 	if (userTableExists.rows[0]?.count > 0) {
-		await db.schema
-			.alterTable('user')
-			.addColumn('active_schedule_id', 'text')
-			.execute();
+		// Check if active_schedule_id column already exists (may be created by 000_auth_tables)
+		const columnExists = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM pragma_table_info('user')
+			WHERE name='active_schedule_id'
+		`.execute(db);
+
+		if (columnExists.rows[0]?.count === 0) {
+			await db.schema
+				.alterTable('user')
+				.addColumn('active_schedule_id', 'text')
+				.execute();
+		} else {
+			console.log('active_schedule_id column already exists in user table, skipping');
+		}
 	}
 
 	// Note: Existing schedules will have NULL user_id.

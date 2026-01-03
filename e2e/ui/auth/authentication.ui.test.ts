@@ -183,4 +183,74 @@ test.describe('Authentication', () => {
 		// The form should not have navigated away
 		await expect(page.getByText('Welcome back')).toBeVisible();
 	});
+
+	// =========================================================================
+	// Test 6: should register new user successfully
+	// =========================================================================
+	test('should register new user successfully', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('auth-test');
+
+		// Navigate to register
+		await page.goto('/register');
+		await page.waitForLoadState('networkidle');
+
+		// Wait for SvelteKit hydration
+		await page.waitForTimeout(1000);
+
+		// Fill out registration form
+		await page.fill('#name', testUser.name);
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+		await page.fill('#confirmPassword', testUser.password);
+
+		// Wait a bit for values to be registered
+		await page.waitForTimeout(500);
+
+		// Click the submit button and monitor network
+		const submitButton = page.getByRole('button', { name: /create account/i });
+
+		// Ensure button is not disabled
+		await expect(submitButton).toBeEnabled();
+
+		// Use dispatchEvent to click the button
+		await submitButton.dispatchEvent('click');
+
+		// Wait a bit for form to process
+		await page.waitForTimeout(3000);
+
+		// Check if we navigated away or if there's an error
+		const currentUrl = page.url();
+		const isStillOnRegister = currentUrl.includes('register');
+
+		if (isStillOnRegister) {
+			// Check for validation errors or alerts
+			const errorVisible = await page.locator('[role="alert"]').isVisible().catch(() => false);
+			if (errorVisible) {
+				const errorText = await page.locator('[role="alert"]').textContent();
+				console.log('Registration error:', errorText);
+			}
+		}
+
+		// Wait for navigation after successful registration
+		// Should redirect to / or /schedules/new (the app may redirect elsewhere)
+		await page.waitForURL(url => !url.pathname.includes('register'), { timeout: 20000 });
+
+		// Verify we're no longer on register page
+		await expect(page).not.toHaveURL(/register/);
+
+		// Verify user was created in database
+		const user = await executeWithRetry(() =>
+			db.selectFrom('user').selectAll().where('email', '=', testUser.email).executeTakeFirst()
+		);
+		expect(user).toBeDefined();
+		expect(user?.email).toBe(testUser.email);
+		expect(user?.name).toBe(testUser.name);
+
+		// Verify session was created
+		const session = await executeWithRetry(() =>
+			db.selectFrom('session').selectAll().where('userId', '=', user!.id).executeTakeFirst()
+		);
+		expect(session).toBeDefined();
+	});
 });
