@@ -19,52 +19,21 @@ import type { DB } from '../../src/lib/db/types';
 let db: Kysely<DB>;
 
 test.describe('Preceptor Management UI', () => {
-	let healthSystemId: string;
-	let healthSystemName: string;
-	let siteId: string;
-	let siteName: string;
-
 	test.beforeAll(async () => {
 		db = await getTestDb();
 	});
 
-	test.beforeEach(async () => {
+	test('should create a preceptor and verify in database', async ({ page, request }) => {
 		const timestamp = Date.now();
-		healthSystemName = `Test HS ${timestamp}`;
-		siteName = `Test Site ${timestamp}`;
 
-		// Create health system via DB for test setup
-		healthSystemId = `hs_${timestamp}`;
-		await executeWithRetry(() =>
-			db
-				.insertInto('health_systems')
-				.values({
-					id: healthSystemId,
-					name: healthSystemName,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		// Create health system via API
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+		const hsData = await hsResponse.json();
+		const healthSystemId = hsData.data.id;
 
-		// Create site via DB for test setup
-		siteId = `site_${timestamp}`;
-		await executeWithRetry(() =>
-			db
-				.insertInto('sites')
-				.values({
-					id: siteId,
-					name: siteName,
-					health_system_id: healthSystemId,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
-	});
-
-	test('should create a preceptor and verify in database', async ({ page }) => {
-		const timestamp = Date.now();
 		const preceptorName = `Dr. Test Preceptor ${timestamp}`;
 		const preceptorEmail = `dr.test.${timestamp}@hospital.edu`;
 
@@ -108,28 +77,31 @@ test.describe('Preceptor Management UI', () => {
 		expect(dbPreceptor!.max_students).toBe(3);
 	});
 
-	test('should edit preceptor details and verify in database', async ({ page }) => {
+	test('should edit preceptor details and verify in database', async ({ page, request }) => {
 		const timestamp = Date.now();
 
-		// Create preceptor via DB first
-		const preceptorId = `preceptor_${timestamp}`;
+		// Create health system via API
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+		const hsData = await hsResponse.json();
+		const healthSystemId = hsData.data.id;
+
+		// Create preceptor via API
 		const originalName = `Dr. Original ${timestamp}`;
 		const originalEmail = `original.${timestamp}@hospital.edu`;
-
-		await executeWithRetry(() =>
-			db
-				.insertInto('preceptors')
-				.values({
-					id: preceptorId,
-					name: originalName,
-					email: originalEmail,
-					health_system_id: healthSystemId,
-					max_students: 2,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		const preceptorResponse = await request.post('/api/preceptors', {
+			data: {
+				name: originalName,
+				email: originalEmail,
+				health_system_id: healthSystemId,
+				max_students: 2
+			}
+		});
+		expect(preceptorResponse.ok()).toBe(true);
+		const preceptorData = await preceptorResponse.json();
+		const preceptorId = preceptorData.data.id;
 
 		// Navigate to preceptors page
 		await gotoAndWait(page, '/preceptors');
@@ -174,36 +146,35 @@ test.describe('Preceptor Management UI', () => {
 	test('should set preceptor availability via API and verify in database', async ({ request }) => {
 		const timestamp = Date.now();
 
-		// Create preceptor via DB first
-		const preceptorId = `preceptor_${timestamp}`;
+		// Create health system via API
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+		const hsData = await hsResponse.json();
+		const healthSystemId = hsData.data.id;
 
-		await executeWithRetry(() =>
-			db
-				.insertInto('preceptors')
-				.values({
-					id: preceptorId,
-					name: `Dr. Availability ${timestamp}`,
-					email: `avail.${timestamp}@hospital.edu`,
-					health_system_id: healthSystemId,
-					max_students: 2,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		// Create site via API
+		const siteResponse = await request.post('/api/sites', {
+			data: { name: `Test Site ${timestamp}`, health_system_id: healthSystemId }
+		});
+		expect(siteResponse.ok()).toBe(true);
+		const siteData = await siteResponse.json();
+		const siteId = siteData.data.id;
 
-		// Associate preceptor with site
-		await executeWithRetry(() =>
-			db
-				.insertInto('preceptor_sites')
-				.values({
-					id: `ps_${timestamp}`,
-					preceptor_id: preceptorId,
-					site_id: siteId,
-					created_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		// Create preceptor via API with site association
+		const preceptorResponse = await request.post('/api/preceptors', {
+			data: {
+				name: `Dr. Availability ${timestamp}`,
+				email: `avail.${timestamp}@hospital.edu`,
+				health_system_id: healthSystemId,
+				site_ids: [siteId],
+				max_students: 2
+			}
+		});
+		expect(preceptorResponse.ok()).toBe(true);
+		const preceptorData = await preceptorResponse.json();
+		const preceptorId = preceptorData.data.id;
 
 		// Set availability for next 7 days via API
 		const today = new Date();
@@ -238,27 +209,28 @@ test.describe('Preceptor Management UI', () => {
 		});
 	});
 
-	test('should show delete confirmation dialog', async ({ page }) => {
+	test('should show delete confirmation dialog', async ({ page, request }) => {
 		const timestamp = Date.now();
 
-		// Create preceptor via DB
-		const preceptorId = `preceptor_${timestamp}`;
-		const preceptorName = `Dr. ToDelete ${timestamp}`;
+		// Create health system via API
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+		const hsData = await hsResponse.json();
+		const healthSystemId = hsData.data.id;
 
-		await executeWithRetry(() =>
-			db
-				.insertInto('preceptors')
-				.values({
-					id: preceptorId,
-					name: preceptorName,
-					email: `todelete.${timestamp}@hospital.edu`,
-					health_system_id: healthSystemId,
-					max_students: 2,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		// Create preceptor via API
+		const preceptorName = `Dr. ToDelete ${timestamp}`;
+		const preceptorResponse = await request.post('/api/preceptors', {
+			data: {
+				name: preceptorName,
+				email: `todelete.${timestamp}@hospital.edu`,
+				health_system_id: healthSystemId,
+				max_students: 2
+			}
+		});
+		expect(preceptorResponse.ok()).toBe(true);
 
 		// Navigate to preceptors page
 		await gotoAndWait(page, '/preceptors');
@@ -271,31 +243,36 @@ test.describe('Preceptor Management UI', () => {
 		await row.getByRole('button', { name: 'Delete' }).click();
 
 		// Delete dialog should appear with "Delete Preceptor" heading
-		await expect(page.getByRole('heading', { name: 'Delete Preceptor' })).toBeVisible({ timeout: 5000 });
+		await expect(page.getByRole('heading', { name: 'Delete Preceptor' })).toBeVisible({
+			timeout: 5000
+		});
 		await expect(page.locator('text=Are you sure')).toBeVisible();
 	});
 
-	test('should delete preceptor and verify removal from database', async ({ page }) => {
+	test('should delete preceptor and verify removal from database', async ({ page, request }) => {
 		const timestamp = Date.now();
 
-		// Create preceptor via DB (no dependencies)
-		const preceptorId = `preceptor_${timestamp}`;
-		const preceptorName = `Dr. Deletable ${timestamp}`;
+		// Create health system via API
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+		const hsData = await hsResponse.json();
+		const healthSystemId = hsData.data.id;
 
-		await executeWithRetry(() =>
-			db
-				.insertInto('preceptors')
-				.values({
-					id: preceptorId,
-					name: preceptorName,
-					email: `deletable.${timestamp}@hospital.edu`,
-					health_system_id: healthSystemId,
-					max_students: 2,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		// Create preceptor via API
+		const preceptorName = `Dr. Deletable ${timestamp}`;
+		const preceptorResponse = await request.post('/api/preceptors', {
+			data: {
+				name: preceptorName,
+				email: `deletable.${timestamp}@hospital.edu`,
+				health_system_id: healthSystemId,
+				max_students: 2
+			}
+		});
+		expect(preceptorResponse.ok()).toBe(true);
+		const preceptorData = await preceptorResponse.json();
+		const preceptorId = preceptorData.data.id;
 
 		// Navigate to preceptors page
 		await gotoAndWait(page, '/preceptors');
@@ -308,13 +285,17 @@ test.describe('Preceptor Management UI', () => {
 		await row.getByRole('button', { name: 'Delete' }).click();
 
 		// Wait for delete dialog
-		await expect(page.getByRole('heading', { name: 'Delete Preceptor' })).toBeVisible({ timeout: 5000 });
+		await expect(page.getByRole('heading', { name: 'Delete Preceptor' })).toBeVisible({
+			timeout: 5000
+		});
 
 		// Click the Delete button in the dialog (the destructive one)
 		await page.locator('.fixed button:has-text("Delete")').click();
 
-		// Wait for deletion
-		await page.waitForTimeout(2000);
+		// Wait for deletion and dialog to close
+		await expect(page.getByRole('heading', { name: 'Delete Preceptor' })).not.toBeVisible({
+			timeout: 5000
+		});
 
 		// Verify preceptor removed from UI
 		await expect(page.locator(`text=${preceptorName}`)).not.toBeVisible({ timeout: 5000 });
@@ -361,27 +342,27 @@ test.describe('Preceptor Management UI', () => {
 		expect(dbPreceptor).toBeUndefined();
 	});
 
-	test('should display preceptor list with columns', async ({ page }) => {
+	test('should display preceptor list with columns', async ({ page, request }) => {
 		const timestamp = Date.now();
 
-		// Create preceptor via DB
-		const preceptorId = `preceptor_${timestamp}`;
-		const preceptorName = `Dr. Listed ${timestamp}`;
+		// Create health system via API
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+		const hsData = await hsResponse.json();
+		const healthSystemId = hsData.data.id;
 
-		await executeWithRetry(() =>
-			db
-				.insertInto('preceptors')
-				.values({
-					id: preceptorId,
-					name: preceptorName,
-					email: `listed.${timestamp}@hospital.edu`,
-					health_system_id: healthSystemId,
-					max_students: 4,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				})
-				.execute()
-		);
+		// Create preceptor via API
+		const preceptorName = `Dr. Listed ${timestamp}`;
+		await request.post('/api/preceptors', {
+			data: {
+				name: preceptorName,
+				email: `listed.${timestamp}@hospital.edu`,
+				health_system_id: healthSystemId,
+				max_students: 4
+			}
+		});
 
 		// Navigate to preceptors page
 		await gotoAndWait(page, '/preceptors');
