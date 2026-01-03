@@ -55,4 +55,41 @@ test.describe('Authentication', () => {
 		// Verify link to register exists
 		await expect(page.getByRole('link', { name: /sign up/i })).toBeVisible();
 	});
+
+	// =========================================================================
+	// Test 2: should display register page
+	// =========================================================================
+	test('should display register page', async ({ page }) => {
+		// Navigate to register
+		await page.goto('/register');
+		await page.waitForLoadState('networkidle');
+
+		// Verify register form is visible
+		await expect(page.getByText('Create an account')).toBeVisible();
+		await expect(page.getByText(/enter your information to get started/i)).toBeVisible();
+
+		// Verify name field exists
+		const nameField = page.locator('#name');
+		await expect(nameField).toBeVisible();
+		await expect(nameField).toHaveAttribute('type', 'text');
+
+		// Verify email field exists
+		const emailField = page.locator('#email');
+		await expect(emailField).toBeVisible();
+		await expect(emailField).toHaveAttribute('type', 'email');
+
+		// Verify password field exists
+		const passwordField = page.locator('#password');
+		await expect(passwordField).toBeVisible();
+
+		// Verify confirm password field exists
+		const confirmPasswordField = page.locator('#confirmPassword');
+		await expect(confirmPasswordField).toBeVisible();
+
+		// Verify submit button exists
+		await expect(page.getByRole('button', { name: /create account/i })).toBeVisible();
+
+		// Verify link to login exists
+		await expect(page.getByRole('link', { name: /sign in/i })).toBeVisible();
+	});
 });
