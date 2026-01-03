@@ -113,4 +113,24 @@ test.describe('Authentication', () => {
 		// Verify password error message appears
 		await expect(page.getByText(/password must be at least 8 characters/i)).toBeVisible();
 	});
+
+	// =========================================================================
+	// Test 4: should show validation error for invalid email format
+	// =========================================================================
+	test('should show validation error for invalid email format', async ({ page }) => {
+		// Navigate to login
+		await page.goto('/login');
+		await page.waitForLoadState('networkidle');
+
+		// Enter invalid email format
+		await page.fill('#email', 'not-a-valid-email');
+		await page.fill('#password', 'validpassword123');
+
+		// Blur the email field to trigger validation
+		await page.locator('#password').focus();
+		await page.waitForTimeout(300);
+
+		// Verify email format error appears
+		await expect(page.getByText(/please enter a valid email address/i)).toBeVisible();
+	});
 });
