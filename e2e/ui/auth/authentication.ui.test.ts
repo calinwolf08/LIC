@@ -494,4 +494,67 @@ test.describe('Authentication', () => {
 			expect(redirectTo).toBe(route);
 		}
 	});
+
+	// =========================================================================
+	// Test 12: should show remember me functionality
+	// =========================================================================
+	test('should show remember me functionality', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('remember-me');
+
+		// Register the user via API
+		const signUpResponse = await page.request.post('/api/auth/sign-up/email', {
+			data: {
+				name: testUser.name,
+				email: testUser.email,
+				password: testUser.password
+			}
+		});
+		expect(signUpResponse.ok()).toBeTruthy();
+
+		// Clear session
+		await page.context().clearCookies();
+
+		// Navigate to login page
+		await page.goto('/login');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		// Verify "Remember me" checkbox exists
+		const rememberMeCheckbox = page.locator('#rememberMe');
+		await expect(rememberMeCheckbox).toBeVisible();
+
+		// Fill in login credentials
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+
+		// Check the "Remember me" checkbox
+		await rememberMeCheckbox.check();
+
+		// Verify it's checked
+		await expect(rememberMeCheckbox).toBeChecked();
+
+		// Submit the form
+		await page.getByRole('button', { name: /sign in/i }).dispatchEvent('click');
+
+		// Wait for login to complete
+		await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
+
+		// Verify we're logged in
+		await expect(page).not.toHaveURL(/login/);
+
+		// Verify session exists
+		const user = await executeWithRetry(() =>
+			db.selectFrom('user').selectAll().where('email', '=', testUser.email).executeTakeFirst()
+		);
+		expect(user).toBeDefined();
+
+		const session = await executeWithRetry(() =>
+			db.selectFrom('session').selectAll().where('userId', '=', user!.id).executeTakeFirst()
+		);
+		expect(session).toBeDefined();
+
+		// Note: Actual "remember me" behavior (extended session expiry) is difficult to test
+		// in E2E without waiting for session expiry. This test validates the UI interaction.
+	});
 });
