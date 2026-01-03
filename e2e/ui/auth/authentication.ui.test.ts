@@ -92,4 +92,25 @@ test.describe('Authentication', () => {
 		// Verify link to login exists
 		await expect(page.getByRole('link', { name: /sign in/i })).toBeVisible();
 	});
+
+	// =========================================================================
+	// Test 3: should show validation errors for empty login
+	// =========================================================================
+	test('should show validation errors for empty login', async ({ page }) => {
+		// Navigate to login
+		await page.goto('/login');
+		await page.waitForLoadState('networkidle');
+
+		// Click submit without filling any fields
+		await page.getByRole('button', { name: /sign in/i }).click();
+
+		// Wait for validation errors to appear
+		await page.waitForTimeout(500);
+
+		// Verify email error message appears
+		await expect(page.getByText(/please enter a valid email address/i)).toBeVisible();
+
+		// Verify password error message appears
+		await expect(page.getByText(/password must be at least 8 characters/i)).toBeVisible();
+	});
 });
