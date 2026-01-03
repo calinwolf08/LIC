@@ -1,6 +1,8 @@
 <script lang="ts">
 	import LoginForm from "$lib/features/auth/login/components/login-form.svelte";
 	import * as Card from "$lib/components/ui/card";
+
+	let { data } = $props();
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-muted/40 p-4">
@@ -10,7 +12,7 @@
 			<Card.Description>Sign in to your account to continue</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<LoginForm />
+			<LoginForm redirectTo={data.redirectTo} />
 		</Card.Content>
 	</Card.Root>
 </div>

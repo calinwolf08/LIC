@@ -364,4 +364,44 @@ test.describe('Authentication', () => {
 		);
 		expect(session).toBeDefined();
 	});
+
+	// =========================================================================
+	// Test 9: should redirect to original URL after login
+	// =========================================================================
+	test('should redirect to original URL after login', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('redirect-test');
+
+		// Register the user via API
+		const signUpResponse = await page.request.post('/api/auth/sign-up/email', {
+			data: {
+				name: testUser.name,
+				email: testUser.email,
+				password: testUser.password
+			}
+		});
+		expect(signUpResponse.ok()).toBeTruthy();
+
+		// Clear session
+		await page.context().clearCookies();
+
+		// Navigate directly to login with a redirectTo parameter
+		const targetUrl = '/schedules/new';
+		await page.goto(`/login?redirectTo=${encodeURIComponent(targetUrl)}`);
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		// Fill in login credentials
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+
+		// Submit the form
+		await page.getByRole('button', { name: /sign in/i }).dispatchEvent('click');
+
+		// Wait for redirect to the target URL
+		await page.waitForURL(url => url.pathname.includes(targetUrl), { timeout: 20000 });
+
+		// Verify we landed on the correct page
+		expect(page.url()).toContain(targetUrl);
+	});
 });
