@@ -9,14 +9,14 @@ export const load: LayoutServerLoad = async ({ locals, url, request }) => {
     const publicRoutes = [PageSlugs.login, PageSlugs.register];
     const isPublicRoute = publicRoutes.some(route => url.pathname.startsWith(route));
 
-    // Allow bypass during E2E testing
-    const isE2ETesting = process.env.E2E_TESTING === 'true';
-
-    // Check if the user is authenticated
-    if (!locals.session?.user && !isPublicRoute && !isE2ETesting) {
+    // Check if the user is authenticated (E2E tests use real auth flows)
+    if (!locals.session?.user && !isPublicRoute) {
         console.log('redirecting')
         throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
     }
+
+    // Allow bypass during E2E testing for schedule-related checks only
+    const isE2ETesting = process.env.E2E_TESTING === 'true';
 
     // Schedule-first architecture: Check if user has an active schedule
     // If not, redirect to create schedule (unless already on schedule pages or auth routes)

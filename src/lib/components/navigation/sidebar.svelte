@@ -1,6 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { authClient } from '$lib/auth-client';
 	import ScheduleSelector from '$lib/features/schedules/components/schedule-selector.svelte';
+
+	async function handleLogout() {
+		await authClient.signOut({
+			fetchOptions: {
+				onSuccess: () => {
+					window.location.href = '/login';
+				}
+			}
+		});
+	}
 
 	let currentPath = $derived($page.url.pathname);
 
@@ -50,6 +61,18 @@
 				</a>
 			{/each}
 		</nav>
+
+		<!-- User Actions -->
+		<div class="p-4 border-t border-gray-800">
+			<button
+				type="button"
+				onclick={handleLogout}
+				class="flex items-center gap-3 w-full px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
+			>
+				<span class="text-lg">🚪</span>
+				<span class="font-medium">Logout</span>
+			</button>
+		</div>
 
 		<!-- Footer -->
 		<div class="p-4 text-xs text-gray-500 border-t border-gray-800">

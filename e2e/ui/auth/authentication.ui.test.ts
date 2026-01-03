@@ -404,4 +404,61 @@ test.describe('Authentication', () => {
 		// Verify we landed on the correct page
 		expect(page.url()).toContain(targetUrl);
 	});
+
+	// =========================================================================
+	// Test 10: should logout successfully
+	// =========================================================================
+	test('should logout successfully', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('logout-test');
+
+		// Register the user via API
+		const signUpResponse = await page.request.post('/api/auth/sign-up/email', {
+			data: {
+				name: testUser.name,
+				email: testUser.email,
+				password: testUser.password
+			}
+		});
+		expect(signUpResponse.ok()).toBeTruthy();
+
+		// Clear cookies and login via UI
+		await page.context().clearCookies();
+		await page.goto('/login');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+		await page.getByRole('button', { name: /sign in/i }).dispatchEvent('click');
+
+		// Wait for login to complete
+		await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
+
+		// Navigate to a page that has the sidebar (desktop view)
+		await page.goto('/schedules');
+		await page.waitForLoadState('networkidle');
+
+		// Set viewport to desktop size to see the sidebar
+		await page.setViewportSize({ width: 1280, height: 720 });
+		await page.waitForTimeout(500);
+
+		// Click the logout button in the sidebar
+		const logoutButton = page.getByRole('button', { name: /logout/i });
+		await expect(logoutButton).toBeVisible();
+		await logoutButton.click();
+
+		// Wait for redirect to login page
+		await page.waitForURL(/login/, { timeout: 20000 });
+
+		// Verify we're on the login page
+		await expect(page).toHaveURL(/login/);
+
+		// Verify we can't access protected routes anymore
+		await page.goto('/schedules');
+		await page.waitForLoadState('networkidle');
+
+		// After logout, accessing protected routes should redirect to login
+		await expect(page).toHaveURL(/login/);
+	});
 });
