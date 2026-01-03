@@ -311,4 +311,57 @@ test.describe('Authentication', () => {
 		);
 		expect(session).toBeDefined();
 	});
+
+	// =========================================================================
+	// Test 8: should persist session across page refresh
+	// =========================================================================
+	test('should persist session across page refresh', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('session-persist');
+
+		// Register the user via API
+		const signUpResponse = await page.request.post('/api/auth/sign-up/email', {
+			data: {
+				name: testUser.name,
+				email: testUser.email,
+				password: testUser.password
+			}
+		});
+		expect(signUpResponse.ok()).toBeTruthy();
+
+		// Clear session and login via UI
+		await page.context().clearCookies();
+		await page.goto('/login');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+		await page.getByRole('button', { name: /sign in/i }).dispatchEvent('click');
+
+		// Wait for login to complete
+		await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
+
+		// Remember the URL we landed on after login
+		const afterLoginUrl = page.url();
+
+		// Refresh the page
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		// Verify we're still on the same page (not redirected to login)
+		expect(page.url()).not.toContain('/login');
+		expect(page.url()).not.toContain('/register');
+
+		// Verify session still exists in database
+		const user = await executeWithRetry(() =>
+			db.selectFrom('user').selectAll().where('email', '=', testUser.email).executeTakeFirst()
+		);
+		expect(user).toBeDefined();
+
+		const session = await executeWithRetry(() =>
+			db.selectFrom('session').selectAll().where('userId', '=', user!.id).executeTakeFirst()
+		);
+		expect(session).toBeDefined();
+	});
 });
