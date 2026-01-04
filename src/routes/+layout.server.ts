@@ -8,10 +8,11 @@ export const load: LayoutServerLoad = async ({ locals, url, request }) => {
     // Pages that don't require authentication
     const publicRoutes = [PageSlugs.login, PageSlugs.register];
     const isPublicRoute = publicRoutes.some(route => url.pathname.startsWith(route));
+    const isHomepage = url.pathname === '/';
 
     // Check if the user is authenticated (E2E tests use real auth flows)
-    if (!locals.session?.user && !isPublicRoute) {
-        console.log('redirecting')
+    // Allow homepage for unauthenticated users to see landing page
+    if (!locals.session?.user && !isPublicRoute && !isHomepage) {
         throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
     }
 
