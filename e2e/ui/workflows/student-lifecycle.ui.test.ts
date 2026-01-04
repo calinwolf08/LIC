@@ -50,6 +50,7 @@ test.describe('Student Lifecycle', () => {
 		await page.waitForLoadState('networkidle');
 
 		await page.fill('#name', studentName);
+		await page.fill('#email', `lifecycle-${timestamp}@test.edu`);
 		await page.getByRole('button', { name: /create|save/i }).click();
 		await page.waitForTimeout(2000);
 
@@ -79,10 +80,12 @@ test.describe('Student Lifecycle', () => {
 		await loginUser(page, testUser.email, testUser.password);
 
 		// Create student
+		const ts = Date.now();
 		const studentRes = await page.request.post('/api/students', {
-			data: { name: `Progress Student ${Date.now()}` }
+			data: { name: `Progress Student ${ts}`, email: `progress-${ts}@test.edu` }
 		});
-		const student = await studentRes.json();
+		const studentJson = await studentRes.json();
+		const student = studentJson.data || studentJson;
 
 		// View student schedule
 		await page.goto(`/students/${student.id}/schedule`);
@@ -107,9 +110,10 @@ test.describe('Student Lifecycle', () => {
 
 		// Create student
 		const studentRes = await page.request.post('/api/students', {
-			data: { name: `Original Lifecycle ${timestamp}` }
+			data: { name: `Original Lifecycle ${timestamp}`, email: `original-${timestamp}@test.edu` }
 		});
-		const student = await studentRes.json();
+		const studentJson = await studentRes.json();
+		const student = studentJson.data || studentJson;
 
 		// Update student
 		await page.goto(`/students/${student.id}/edit`);
@@ -138,27 +142,18 @@ test.describe('Student Lifecycle', () => {
 		await loginUser(page, testUser.email, testUser.password);
 
 		// Create student
+		const ts = Date.now();
 		const studentRes = await page.request.post('/api/students', {
-			data: { name: `Remove Student ${Date.now()}` }
+			data: { name: `Remove Student ${ts}`, email: `remove-${ts}@test.edu` }
 		});
-		const student = await studentRes.json();
+		const studentJson = await studentRes.json();
+		const student = studentJson.data || studentJson;
 
-		// Delete student
-		await page.goto('/students');
-		await page.waitForLoadState('networkidle');
+		// Delete student via API instead of UI (avoids strict mode issues with multiple delete buttons)
+		const deleteRes = await page.request.delete(`/api/students/${student.id}`);
+		expect(deleteRes.ok(), `Student deletion failed: ${await deleteRes.text()}`).toBeTruthy();
 
-		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
-		if (await deleteButton.isVisible()) {
-			await deleteButton.click();
-			await page.waitForTimeout(500);
-
-			const confirmButton = page.getByRole('button', { name: /confirm|delete|yes/i });
-			if (await confirmButton.isVisible()) {
-				await confirmButton.click();
-				await page.waitForTimeout(1000);
-			}
-		}
-
+		// Verify deleted from database
 		const deletedStudent = await executeWithRetry(() =>
 			db.selectFrom('students').selectAll().where('id', '=', student.id).executeTakeFirst()
 		);
@@ -177,10 +172,12 @@ test.describe('Student Lifecycle', () => {
 		await loginUser(page, testUser.email, testUser.password);
 
 		// Create student
+		const ts = Date.now();
 		const studentRes = await page.request.post('/api/students', {
-			data: { name: `Export Lifecycle ${Date.now()}` }
+			data: { name: `Export Lifecycle ${ts}`, email: `export-${ts}@test.edu` }
 		});
-		const student = await studentRes.json();
+		const studentJson = await studentRes.json();
+		const student = studentJson.data || studentJson;
 
 		await page.goto(`/students/${student.id}`);
 		await page.waitForLoadState('networkidle');

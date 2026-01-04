@@ -98,32 +98,38 @@ test.describe('Multi-Schedule Management', () => {
 	});
 
 	// =========================================================================
-	// Test 4: should create new schedule
+	// Test 4: should create new schedule via API
 	// =========================================================================
 	test('should create new schedule', async ({ page }) => {
 		const testUser = generateTestUser('sched-create');
-		const schedName = `New Schedule ${Date.now()}`;
+		const timestamp = Date.now();
+		const schedName = `New Schedule ${timestamp}`;
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/schedules/new');
-		await page.waitForLoadState('networkidle');
+		// Create scheduling period via API (correct endpoint)
+		const today = new Date();
+		const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+		const schedRes = await page.request.post('/api/scheduling-periods', {
+			data: {
+				name: schedName,
+				start_date: today.toISOString().split('T')[0],
+				end_date: endDate.toISOString().split('T')[0]
+			}
+		});
+		expect(schedRes.ok(), `Schedule creation failed: ${await schedRes.text()}`).toBeTruthy();
+		const schedJson = await schedRes.json();
+		expect(schedJson.data?.id).toBeDefined();
 
-		await page.fill('#name', schedName);
-
-		const submitButton = page.getByRole('button', { name: /create|next|save/i }).first();
-		if (await submitButton.isVisible()) {
-			await submitButton.click();
-			await page.waitForTimeout(2000);
-		}
-
+		// Verify in database
 		const schedule = await executeWithRetry(() =>
-			db.selectFrom('schedules').selectAll().where('name', '=', schedName).executeTakeFirst()
+			db.selectFrom('scheduling_periods').selectAll().where('name', '=', schedName).executeTakeFirst()
 		);
 		expect(schedule).toBeDefined();
+		expect(schedule?.name).toBe(schedName);
 	});
 
 	// =========================================================================
@@ -151,70 +157,81 @@ test.describe('Multi-Schedule Management', () => {
 	});
 
 	// =========================================================================
-	// Test 6: should rename schedule
+	// Test 6: should rename schedule via API
 	// =========================================================================
 	test('should rename schedule', async ({ page }) => {
 		const testUser = generateTestUser('sched-rename');
-		const newName = `Renamed Schedule ${Date.now()}`;
+		const timestamp = Date.now();
+		const originalName = `Original ${timestamp}`;
+		const newName = `Renamed Schedule ${timestamp}`;
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create a schedule first
-		const schedRes = await page.request.post('/api/schedules', {
-			data: { name: `Original ${Date.now()}` }
+		// Create a scheduling period first
+		const today = new Date();
+		const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+		const schedRes = await page.request.post('/api/scheduling-periods', {
+			data: {
+				name: originalName,
+				start_date: today.toISOString().split('T')[0],
+				end_date: endDate.toISOString().split('T')[0]
+			}
 		});
-		const schedule = await schedRes.json();
+		expect(schedRes.ok(), `Schedule creation failed: ${await schedRes.text()}`).toBeTruthy();
+		const schedJson = await schedRes.json();
+		const scheduleId = schedJson.data?.id;
+		expect(scheduleId).toBeDefined();
 
-		await page.goto(`/schedules/${schedule.id}/edit`);
-		await page.waitForLoadState('networkidle');
+		// Update via PUT (API uses PUT not PATCH)
+		const updateRes = await page.request.put(`/api/scheduling-periods/${scheduleId}`, {
+			data: { name: newName }
+		});
+		expect(updateRes.ok(), `Schedule update failed: ${await updateRes.text()}`).toBeTruthy();
 
-		await page.fill('#name', newName);
-		await page.getByRole('button', { name: /save|update/i }).click();
-		await page.waitForTimeout(2000);
-
+		// Verify in database
 		const updatedSchedule = await executeWithRetry(() =>
-			db.selectFrom('schedules').selectAll().where('id', '=', schedule.id).executeTakeFirst()
+			db.selectFrom('scheduling_periods').selectAll().where('id', '=', scheduleId).executeTakeFirst()
 		);
 		expect(updatedSchedule?.name).toBe(newName);
 	});
 
 	// =========================================================================
-	// Test 7: should delete schedule
+	// Test 7: should delete schedule via API
 	// =========================================================================
 	test('should delete schedule', async ({ page }) => {
 		const testUser = generateTestUser('sched-delete');
+		const timestamp = Date.now();
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create a schedule to delete
-		const schedRes = await page.request.post('/api/schedules', {
-			data: { name: `Delete Schedule ${Date.now()}` }
-		});
-		const schedule = await schedRes.json();
-
-		await page.goto('/schedules');
-		await page.waitForLoadState('networkidle');
-
-		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
-		if (await deleteButton.isVisible()) {
-			await deleteButton.click();
-			await page.waitForTimeout(500);
-
-			const confirmButton = page.getByRole('button', { name: /confirm|delete|yes/i });
-			if (await confirmButton.isVisible()) {
-				await confirmButton.click();
-				await page.waitForTimeout(1000);
+		// Create a scheduling period to delete
+		const today = new Date();
+		const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+		const schedRes = await page.request.post('/api/scheduling-periods', {
+			data: {
+				name: `Delete Schedule ${timestamp}`,
+				start_date: today.toISOString().split('T')[0],
+				end_date: endDate.toISOString().split('T')[0]
 			}
-		}
+		});
+		expect(schedRes.ok(), `Schedule creation failed: ${await schedRes.text()}`).toBeTruthy();
+		const schedJson = await schedRes.json();
+		const scheduleId = schedJson.data?.id;
+		expect(scheduleId).toBeDefined();
 
+		// Delete via API
+		const deleteRes = await page.request.delete(`/api/scheduling-periods/${scheduleId}`);
+		expect(deleteRes.ok(), `Schedule deletion failed: ${await deleteRes.text()}`).toBeTruthy();
+
+		// Verify deleted from database
 		const deletedSchedule = await executeWithRetry(() =>
-			db.selectFrom('schedules').selectAll().where('id', '=', schedule.id).executeTakeFirst()
+			db.selectFrom('scheduling_periods').selectAll().where('id', '=', scheduleId).executeTakeFirst()
 		);
 		expect(deletedSchedule).toBeUndefined();
 	});

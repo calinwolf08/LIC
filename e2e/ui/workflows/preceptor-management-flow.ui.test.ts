@@ -45,24 +45,25 @@ test.describe('Preceptor Management Flow', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create preceptor via UI
-		await page.goto('/preceptors/new');
-		await page.waitForLoadState('networkidle');
-
-		await page.fill('#name', preceptorName);
-		const emailField = page.locator('#email');
-		if (await emailField.isVisible()) {
-			await emailField.fill(`setup.${timestamp}@hospital.edu`);
-		}
-
-		await page.getByRole('button', { name: /create|save/i }).click();
-		await page.waitForTimeout(2000);
+		// Create preceptor via API (no UI form for creating preceptors)
+		const precRes = await page.request.post('/api/preceptors', {
+			data: { name: preceptorName, email: `setup.${timestamp}@hospital.edu` }
+		});
+		expect(precRes.ok(), `Preceptor creation failed: ${await precRes.text()}`).toBeTruthy();
 
 		// Verify in DB
 		const preceptor = await executeWithRetry(() =>
 			db.selectFrom('preceptors').selectAll().where('name', '=', preceptorName).executeTakeFirst()
 		);
 		expect(preceptor).toBeDefined();
+
+		// Navigate to preceptor page
+		await page.goto('/preceptors');
+		await page.waitForLoadState('networkidle');
+
+		// Verify preceptor shows in list
+		const pageContent = await page.textContent('body') || '';
+		expect(pageContent).toContain(preceptorName);
 	});
 
 	// =========================================================================

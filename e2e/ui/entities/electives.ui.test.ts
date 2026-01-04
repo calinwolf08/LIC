@@ -1,11 +1,12 @@
 /**
  * E2E UI Test - Elective Management
  *
- * Elective CRUD and configuration.
+ * Elective CRUD through clerkship configuration page.
  *
  * Methodology:
  * - Real Authentication: Uses actual better-auth flows
- * - UI-Driven Actions: Create/edit/delete through UI forms
+ * - Full Data Hierarchy: Creates Clerkship → Electives via config page
+ * - UI-Driven Actions: Tests actual page loads and form interactions
  * - Database Verification: Confirms data persisted in SQLite
  */
 
@@ -27,11 +28,23 @@ async function loginUser(page: any, email: string, password: string) {
 	await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
 }
 
-function generateElective(prefix: string) {
+/**
+ * Creates a clerkship with required_days for testing electives
+ */
+async function createClerkship(page: any, prefix: string) {
 	const timestamp = Date.now();
-	return {
-		name: `${prefix} Elective ${timestamp}`
-	};
+	const clerkshipRes = await page.request.post('/api/clerkships', {
+		data: {
+			name: `${prefix} Clerkship ${timestamp}`,
+			clerkship_type: 'outpatient',
+			required_days: 30 // Required for elective day calculations
+		}
+	});
+	expect(clerkshipRes.ok(), `Clerkship creation failed: ${await clerkshipRes.text()}`).toBeTruthy();
+	const clerkshipJson = await clerkshipRes.json();
+	const clerkshipId = clerkshipJson.data?.id;
+	expect(clerkshipId, 'Clerkship ID missing from response').toBeDefined();
+	return { clerkshipId, timestamp };
 }
 
 test.describe('Elective Management', () => {
@@ -40,260 +53,277 @@ test.describe('Elective Management', () => {
 	});
 
 	// =========================================================================
-	// Test 1: should display electives list
+	// Test 1: should display clerkship config electives tab
 	// =========================================================================
-	test('should display electives list', async ({ page }) => {
-		const testUser = generateTestUser('elec-list');
+	test('should display clerkship config electives tab', async ({ page }) => {
+		const testUser = generateTestUser('elec-config');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/electives');
+		// Create a clerkship
+		const { clerkshipId } = await createClerkship(page, 'ConfigElec');
+
+		// Navigate to clerkship config page
+		await page.goto(`/clerkships/${clerkshipId}/config`);
 		await page.waitForLoadState('networkidle');
 
+		// Click on Electives tab
+		await page.getByRole('button', { name: /Electives/i }).click();
+		await page.waitForTimeout(500);
+
+		// Verify electives section loads
 		const pageContent = await page.textContent('body') || '';
 		expect(pageContent.toLowerCase()).toContain('elective');
 	});
 
 	// =========================================================================
-	// Test 2: should create elective
+	// Test 2: should create elective via API
 	// =========================================================================
-	test('should create elective', async ({ page }) => {
+	test('should create elective via API', async ({ page }) => {
 		const testUser = generateTestUser('elec-create');
-		const electiveData = generateElective('created');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create clerkship first (electives may require clerkship)
-		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Elective Test Clerkship ${Date.now()}`, clerkship_type: 'outpatient' }
+		// Create a clerkship
+		const { clerkshipId, timestamp } = await createClerkship(page, 'CreateElec');
+		const electiveName = `Test Elective ${timestamp}`;
+
+		// Create elective via API
+		const electiveRes = await page.request.post(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+			data: {
+				name: electiveName,
+				minimumDays: 5,
+				isRequired: true
+			}
 		});
-		const clerkship = await clerkshipRes.json();
+		expect(electiveRes.ok(), `Elective creation failed: ${await electiveRes.text()}`).toBeTruthy();
+		const electiveJson = await electiveRes.json();
+		expect(electiveJson.data?.id).toBeDefined();
 
-		await page.goto('/electives/new');
-		await page.waitForLoadState('networkidle');
-
-		await page.fill('#name', electiveData.name);
-
-		// Select clerkship if available
-		const clerkshipSelect = page.locator('select').first();
-		if (await clerkshipSelect.isVisible()) {
-			await clerkshipSelect.selectOption(clerkship.id);
-		}
-
-		await page.getByRole('button', { name: /create|save/i }).click();
-		await page.waitForTimeout(2000);
-
+		// Verify in database
 		const elective = await executeWithRetry(() =>
-			db.selectFrom('electives').selectAll().where('name', '=', electiveData.name).executeTakeFirst()
+			db.selectFrom('clerkship_electives').selectAll().where('name', '=', electiveName).executeTakeFirst()
 		);
 		expect(elective).toBeDefined();
+		expect(elective?.name).toBe(electiveName);
 	});
 
 	// =========================================================================
-	// Test 3: should link elective to clerkship
+	// Test 3: should display create elective form
 	// =========================================================================
-	test('should link elective to clerkship', async ({ page }) => {
-		const testUser = generateTestUser('elec-link');
+	test('should display create elective form', async ({ page }) => {
+		const testUser = generateTestUser('elec-form');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/electives/new');
+		// Create a clerkship
+		const { clerkshipId } = await createClerkship(page, 'FormElec');
+
+		// Navigate to clerkship config page
+		await page.goto(`/clerkships/${clerkshipId}/config`);
 		await page.waitForLoadState('networkidle');
 
-		// Check for clerkship selection
-		const clerkshipSelect = page.locator('select');
-		const hasClerkshipSelect = await clerkshipSelect.isVisible().catch(() => false);
+		// Click on Electives tab
+		await page.getByRole('button', { name: /Electives/i }).click();
+		await page.waitForTimeout(500);
 
-		expect(hasClerkshipSelect || true).toBeTruthy();
+		// Click Create Elective button
+		await page.getByRole('button', { name: /Create Elective/i }).click();
+		await page.waitForTimeout(500);
+
+		// Verify form elements are visible
+		await expect(page.locator('#name')).toBeVisible();
+		await expect(page.locator('#minimumDays')).toBeVisible();
+		await expect(page.getByRole('button', { name: /Cancel/i })).toBeVisible();
 	});
 
 	// =========================================================================
-	// Test 4: should set elective requirements
+	// Test 4: should view elective in clerkship config
 	// =========================================================================
-	test('should set elective requirements', async ({ page }) => {
-		const testUser = generateTestUser('elec-req');
-		const electiveData = generateElective('requirements');
+	test('should view elective in clerkship config', async ({ page }) => {
+		const testUser = generateTestUser('elec-view');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create clerkship and elective
-		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Elective Req Clerkship ${Date.now()}`, clerkship_type: 'outpatient' }
-		});
-		const clerkship = await clerkshipRes.json();
+		// Create a clerkship
+		const { clerkshipId, timestamp } = await createClerkship(page, 'ViewElec');
+		const electiveName = `View Elective ${timestamp}`;
 
-		const electiveRes = await page.request.post('/api/electives', {
-			data: { name: electiveData.name, clerkship_id: clerkship.id }
+		// Create elective via API
+		await page.request.post(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+			data: {
+				name: electiveName,
+				minimumDays: 5,
+				isRequired: false
+			}
 		});
-		const elective = await electiveRes.json();
 
-		await page.goto(`/electives/${elective.id}`);
+		// Navigate to clerkship config page
+		await page.goto(`/clerkships/${clerkshipId}/config`);
 		await page.waitForLoadState('networkidle');
 
+		// Click on Electives tab
+		await page.getByRole('button', { name: /Electives/i }).click();
+		await page.waitForTimeout(1000);
+
+		// Verify elective appears in the list
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.length > 0).toBeTruthy();
+		expect(pageContent).toContain(electiveName);
 	});
 
 	// =========================================================================
-	// Test 5: should set available preceptors
+	// Test 5: should update elective via API (PATCH)
 	// =========================================================================
-	test('should set available preceptors', async ({ page }) => {
-		const testUser = generateTestUser('elec-prec');
-		const electiveData = generateElective('preceptors');
-
-		await page.request.post('/api/auth/sign-up/email', {
-			data: { name: testUser.name, email: testUser.email, password: testUser.password }
-		});
-		await loginUser(page, testUser.email, testUser.password);
-
-		// Create clerkship and elective
-		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Elective Prec Clerkship ${Date.now()}`, clerkship_type: 'outpatient' }
-		});
-		const clerkship = await clerkshipRes.json();
-
-		const electiveRes = await page.request.post('/api/electives', {
-			data: { name: electiveData.name, clerkship_id: clerkship.id }
-		});
-		const elective = await electiveRes.json();
-
-		await page.goto(`/electives/${elective.id}`);
-		await page.waitForLoadState('networkidle');
-
-		// Look for preceptor selection
-		const preceptorCheckboxes = page.locator('input[type="checkbox"]');
-		if (await preceptorCheckboxes.count() > 0) {
-			// Preceptor selection exists
-		}
-
-		expect(true).toBeTruthy();
-	});
-
-	// =========================================================================
-	// Test 6: should update elective
-	// =========================================================================
-	test('should update elective', async ({ page }) => {
+	test('should update elective via API', async ({ page }) => {
 		const testUser = generateTestUser('elec-update');
-		const electiveData = generateElective('update');
-		const updatedName = `Updated Elective ${Date.now()}`;
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create clerkship and elective
-		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Elective Update Clerkship ${Date.now()}`, clerkship_type: 'outpatient' }
+		// Create a clerkship and elective
+		const { clerkshipId, timestamp } = await createClerkship(page, 'UpdateElec');
+		const originalName = `Update Elective ${timestamp}`;
+		const updatedName = `Updated Elective ${timestamp}`;
+
+		const electiveRes = await page.request.post(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+			data: {
+				name: originalName,
+				minimumDays: 5,
+				isRequired: true
+			}
 		});
-		const clerkship = await clerkshipRes.json();
+		expect(electiveRes.ok()).toBeTruthy();
+		const electiveJson = await electiveRes.json();
+		const electiveId = electiveJson.data?.id;
+		expect(electiveId).toBeDefined();
 
-		const electiveRes = await page.request.post('/api/electives', {
-			data: { name: electiveData.name, clerkship_id: clerkship.id }
+		// Update via PATCH
+		const updateRes = await page.request.patch(`/api/scheduling-config/electives/${electiveId}`, {
+			data: { name: updatedName }
 		});
-		const elective = await electiveRes.json();
+		expect(updateRes.ok(), `Elective update failed: ${await updateRes.text()}`).toBeTruthy();
 
-		await page.goto(`/electives/${elective.id}/edit`);
-		await page.waitForLoadState('networkidle');
-
-		await page.fill('#name', updatedName);
-		await page.getByRole('button', { name: /update|save/i }).click();
-		await page.waitForTimeout(2000);
-
+		// Verify in database
 		const updatedElective = await executeWithRetry(() =>
-			db.selectFrom('electives').selectAll().where('id', '=', elective.id).executeTakeFirst()
+			db.selectFrom('clerkship_electives').selectAll().where('id', '=', electiveId).executeTakeFirst()
 		);
 		expect(updatedElective?.name).toBe(updatedName);
 	});
 
 	// =========================================================================
-	// Test 7: should delete elective
+	// Test 6: should delete elective via API
 	// =========================================================================
-	test('should delete elective', async ({ page }) => {
+	test('should delete elective via API', async ({ page }) => {
 		const testUser = generateTestUser('elec-delete');
-		const electiveData = generateElective('delete');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create clerkship and elective
-		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Elective Delete Clerkship ${Date.now()}`, clerkship_type: 'outpatient' }
-		});
-		const clerkship = await clerkshipRes.json();
+		// Create a clerkship and elective
+		const { clerkshipId, timestamp } = await createClerkship(page, 'DeleteElec');
+		const electiveName = `Delete Elective ${timestamp}`;
 
-		const electiveRes = await page.request.post('/api/electives', {
-			data: { name: electiveData.name, clerkship_id: clerkship.id }
-		});
-		const elective = await electiveRes.json();
-
-		await page.goto('/electives');
-		await page.waitForLoadState('networkidle');
-
-		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
-		if (await deleteButton.isVisible()) {
-			await deleteButton.click();
-			await page.waitForTimeout(500);
-
-			const confirmButton = page.getByRole('button', { name: /confirm|delete|yes/i });
-			if (await confirmButton.isVisible()) {
-				await confirmButton.click();
-				await page.waitForTimeout(1000);
+		const electiveRes = await page.request.post(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+			data: {
+				name: electiveName,
+				minimumDays: 5,
+				isRequired: false
 			}
-		}
+		});
+		expect(electiveRes.ok()).toBeTruthy();
+		const electiveJson = await electiveRes.json();
+		const electiveId = electiveJson.data?.id;
+		expect(electiveId).toBeDefined();
 
+		// Delete via API
+		const deleteRes = await page.request.delete(`/api/scheduling-config/electives/${electiveId}`);
+		expect(deleteRes.ok(), `Elective deletion failed: ${await deleteRes.text()}`).toBeTruthy();
+
+		// Verify deleted from database
 		const deletedElective = await executeWithRetry(() =>
-			db.selectFrom('electives').selectAll().where('id', '=', elective.id).executeTakeFirst()
+			db.selectFrom('clerkship_electives').selectAll().where('id', '=', electiveId).executeTakeFirst()
 		);
 		expect(deletedElective).toBeUndefined();
 	});
 
 	// =========================================================================
-	// Test 8: should toggle elective availability
+	// Test 7: should show days summary for electives
 	// =========================================================================
-	test('should toggle elective availability', async ({ page }) => {
-		const testUser = generateTestUser('elec-toggle');
-		const electiveData = generateElective('toggle');
+	test('should show days summary for electives', async ({ page }) => {
+		const testUser = generateTestUser('elec-days');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		// Create clerkship and elective
-		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Elective Toggle Clerkship ${Date.now()}`, clerkship_type: 'outpatient' }
-		});
-		const clerkship = await clerkshipRes.json();
+		// Create a clerkship with specific required_days
+		const { clerkshipId, timestamp } = await createClerkship(page, 'DaysElec');
 
-		const electiveRes = await page.request.post('/api/electives', {
-			data: { name: electiveData.name, clerkship_id: clerkship.id }
+		// Create an elective
+		await page.request.post(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+			data: {
+				name: `Days Elective ${timestamp}`,
+				minimumDays: 10,
+				isRequired: true
+			}
 		});
-		const elective = await electiveRes.json();
 
-		await page.goto(`/electives/${elective.id}`);
+		// Navigate to clerkship config page
+		await page.goto(`/clerkships/${clerkshipId}/config`);
 		await page.waitForLoadState('networkidle');
 
-		// Look for toggle/active switch
-		const toggleSwitch = page.locator('input[type="checkbox"], button[role="switch"]').first();
-		if (await toggleSwitch.isVisible().catch(() => false)) {
-			// Toggle functionality exists
-		}
+		// Click on Electives tab
+		await page.getByRole('button', { name: /Electives/i }).click();
+		await page.waitForTimeout(1000);
 
-		expect(true).toBeTruthy();
+		// Verify days summary is displayed (looking for day-related text)
+		const pageContent = await page.textContent('body') || '';
+		expect(pageContent.toLowerCase()).toMatch(/day/i);
+	});
+
+	// =========================================================================
+	// Test 8: should require minimum days for elective
+	// =========================================================================
+	test('should require minimum days for elective', async ({ page }) => {
+		const testUser = generateTestUser('elec-mindays');
+
+		await page.request.post('/api/auth/sign-up/email', {
+			data: { name: testUser.name, email: testUser.email, password: testUser.password }
+		});
+		await loginUser(page, testUser.email, testUser.password);
+
+		// Create a clerkship
+		const { clerkshipId, timestamp } = await createClerkship(page, 'MinDaysElec');
+
+		// Try to create elective without minimumDays (or with invalid minimumDays)
+		const electiveRes = await page.request.post(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+			data: {
+				name: `No Min Days Elective ${timestamp}`,
+				minimumDays: 0, // Invalid - should be positive
+				isRequired: true
+			}
+		});
+
+		// Should fail validation
+		expect(electiveRes.ok()).toBeFalsy();
+		const errorJson = await electiveRes.json();
+		expect(JSON.stringify(errorJson).toLowerCase()).toMatch(/minimum|days|positive/i);
 	});
 });

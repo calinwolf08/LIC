@@ -63,23 +63,23 @@ test.describe('Requirements Configuration', () => {
 
 		// Create clerkship first
 		const clerkshipRes = await page.request.post('/api/clerkships', {
-			data: { name: `Req Test Clerkship ${Date.now()}`, clerkship_type: 'inpatient' }
+			data: {
+				name: `Req Test Clerkship ${Date.now()}`,
+				clerkship_type: 'inpatient',
+				required_days: 20
+			}
 		});
+		expect(clerkshipRes.ok(), `Clerkship creation failed: ${await clerkshipRes.text()}`).toBeTruthy();
 		const clerkship = await clerkshipRes.json();
+		const clerkshipId = clerkship.data?.id;
 
-		await page.goto('/scheduling-config/requirements/new');
+		// Navigate to clerkship config page (requirements are configured there)
+		await page.goto(`/clerkships/${clerkshipId}/config`);
 		await page.waitForLoadState('networkidle');
 
-		// Select clerkship if available
-		const clerkshipSelect = page.locator('select').first();
-		if (await clerkshipSelect.isVisible()) {
-			await clerkshipSelect.selectOption(clerkship.id);
-		}
-
-		await page.getByRole('button', { name: /create|save/i }).click();
-		await page.waitForTimeout(2000);
-
-		expect(true).toBeTruthy();
+		// Verify config page loaded and shows clerkship settings
+		const pageContent = await page.textContent('body') || '';
+		expect(pageContent.toLowerCase()).toMatch(/clerkship|setting|config|days/i);
 	});
 
 	// =========================================================================

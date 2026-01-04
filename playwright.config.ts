@@ -4,7 +4,7 @@ export default defineConfig({
 	globalSetup: './e2e/global-setup.ts',
 	globalTeardown: './e2e/global-teardown.ts',
 	webServer: {
-		command: 'DATABASE_PATH=./test-sqlite.db E2E_TESTING=true PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing npm run build && DATABASE_PATH=./test-sqlite.db E2E_TESTING=true PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing npm run preview',
+		command: 'DATABASE_PATH=./test-sqlite.db npx tsx e2e/setup-test-db.ts && DATABASE_PATH=./test-sqlite.db E2E_TESTING=true PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing npm run build && DATABASE_PATH=./test-sqlite.db E2E_TESTING=true PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing npm run preview',
 		port: 4173,
 		timeout: 180000, // 3 minutes for build + server start
 		reuseExistingServer: false

@@ -5,7 +5,8 @@
  *
  * Methodology:
  * - Real Authentication: Uses actual better-auth flows
- * - UI-Driven Actions: Configure through UI forms
+ * - API-Driven: Capacity rules are managed per-preceptor via API
+ * - UI Navigation: Access through preceptor schedule page
  * - Database Verification: Confirms data persisted in SQLite
  */
 
@@ -27,15 +28,52 @@ async function loginUser(page: any, email: string, password: string) {
 	await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
 }
 
+/**
+ * Creates a preceptor for capacity rule testing
+ */
+async function createPreceptor(page: any, prefix: string) {
+	const timestamp = Date.now();
+
+	// Create Health System
+	const hsRes = await page.request.post('/api/health-systems', {
+		data: { name: `${prefix} Health System ${timestamp}` }
+	});
+	expect(hsRes.ok()).toBeTruthy();
+	const hsJson = await hsRes.json();
+	const healthSystemId = hsJson.data?.id;
+
+	// Create Site
+	const siteRes = await page.request.post('/api/sites', {
+		data: { name: `${prefix} Site ${timestamp}`, health_system_id: healthSystemId }
+	});
+	expect(siteRes.ok()).toBeTruthy();
+	const siteJson = await siteRes.json();
+	const siteId = siteJson.data?.id;
+
+	// Create Preceptor
+	const preceptorRes = await page.request.post('/api/preceptors', {
+		data: {
+			name: `${prefix} Preceptor ${timestamp}`,
+			email: `${prefix.toLowerCase().replace(/\s+/g, '-')}-cap-${timestamp}@test.com`,
+			site_ids: [siteId]
+		}
+	});
+	expect(preceptorRes.ok(), `Preceptor creation failed: ${await preceptorRes.text()}`).toBeTruthy();
+	const preceptorJson = await preceptorRes.json();
+	const preceptorId = preceptorJson.data?.id;
+
+	return { preceptorId, siteId, healthSystemId, timestamp };
+}
+
 test.describe('Capacity Rules Configuration', () => {
 	test.beforeAll(async () => {
 		db = await getTestDb();
 	});
 
 	// =========================================================================
-	// Test 1: should display capacity rules page
+	// Test 1: should display preceptor schedule page with capacity options
 	// =========================================================================
-	test('should display capacity rules page', async ({ page }) => {
+	test('should display preceptor schedule page with capacity options', async ({ page }) => {
 		const testUser = generateTestUser('cap-list');
 
 		await page.request.post('/api/auth/sign-up/email', {
@@ -43,17 +81,21 @@ test.describe('Capacity Rules Configuration', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
+		// Create a preceptor to view
+		const { preceptorId } = await createPreceptor(page, 'CapList');
+
+		await page.goto(`/preceptors/${preceptorId}/schedule`);
 		await page.waitForLoadState('networkidle');
 
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.toLowerCase()).toMatch(/capacity|rules|config/);
+		// Verify we're on the schedule page (not 404)
+		expect(pageContent.toLowerCase()).toMatch(/schedule|preceptor|capacity|student/i);
 	});
 
 	// =========================================================================
-	// Test 2: should create capacity rule
+	// Test 2: should create capacity rule via API
 	// =========================================================================
-	test('should create capacity rule', async ({ page }) => {
+	test('should create capacity rule via API', async ({ page }) => {
 		const testUser = generateTestUser('cap-create');
 
 		await page.request.post('/api/auth/sign-up/email', {
@@ -61,24 +103,27 @@ test.describe('Capacity Rules Configuration', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules/new');
-		await page.waitForLoadState('networkidle');
+		// Create a preceptor
+		const { preceptorId, timestamp } = await createPreceptor(page, 'CapCreate');
 
-		// Fill capacity rule form
-		const nameField = page.locator('#name, input[name="name"]').first();
-		if (await nameField.isVisible()) {
-			await nameField.fill(`Capacity Rule ${Date.now()}`);
-		}
+		// Create capacity rule via API
+		const ruleRes = await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptorId,
+				maxStudentsPerDay: 2,
+				maxStudentsPerYear: 20
+			}
+		});
+		expect(ruleRes.ok(), `Capacity rule creation failed: ${await ruleRes.text()}`).toBeTruthy();
+		const ruleJson = await ruleRes.json();
+		expect(ruleJson.data?.id).toBeDefined();
 
-		const limitField = page.locator('#max_students, input[name="max_students"], input[type="number"]').first();
-		if (await limitField.isVisible()) {
-			await limitField.fill('3');
-		}
-
-		await page.getByRole('button', { name: /create|save/i }).click();
-		await page.waitForTimeout(2000);
-
-		expect(true).toBeTruthy();
+		// Verify in database
+		const rule = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('preceptor_id', '=', preceptorId).executeTakeFirst()
+		);
+		expect(rule).toBeDefined();
+		expect(rule?.max_students_per_day).toBe(2);
 	});
 
 	// =========================================================================
@@ -92,39 +137,53 @@ test.describe('Capacity Rules Configuration', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
-		await page.waitForLoadState('networkidle');
+		// Create a preceptor and capacity rule
+		const { preceptorId } = await createPreceptor(page, 'CapDaily');
 
-		// Look for daily limit configuration
-		const dailyInput = page.locator('input[name*="daily"], input[placeholder*="daily"]').first();
-		if (await dailyInput.isVisible()) {
-			await dailyInput.fill('2');
-		}
+		const ruleRes = await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptorId,
+				maxStudentsPerDay: 3,
+				maxStudentsPerYear: 30
+			}
+		});
+		expect(ruleRes.ok()).toBeTruthy();
 
-		expect(true).toBeTruthy();
+		// Verify daily limit
+		const rule = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('preceptor_id', '=', preceptorId).executeTakeFirst()
+		);
+		expect(rule?.max_students_per_day).toBe(3);
 	});
 
 	// =========================================================================
-	// Test 4: should set weekly capacity limit
+	// Test 4: should set yearly capacity limit
 	// =========================================================================
-	test('should set weekly capacity limit', async ({ page }) => {
-		const testUser = generateTestUser('cap-weekly');
+	test('should set yearly capacity limit', async ({ page }) => {
+		const testUser = generateTestUser('cap-yearly');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
-		await page.waitForLoadState('networkidle');
+		// Create a preceptor and capacity rule
+		const { preceptorId } = await createPreceptor(page, 'CapYearly');
 
-		// Look for weekly limit configuration
-		const weeklyInput = page.locator('input[name*="weekly"], input[placeholder*="weekly"]').first();
-		if (await weeklyInput.isVisible()) {
-			await weeklyInput.fill('10');
-		}
+		const ruleRes = await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptorId,
+				maxStudentsPerDay: 2,
+				maxStudentsPerYear: 50
+			}
+		});
+		expect(ruleRes.ok()).toBeTruthy();
 
-		expect(true).toBeTruthy();
+		// Verify yearly limit
+		const rule = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('preceptor_id', '=', preceptorId).executeTakeFirst()
+		);
+		expect(rule?.max_students_per_year).toBe(50);
 	});
 
 	// =========================================================================
@@ -138,33 +197,59 @@ test.describe('Capacity Rules Configuration', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
-		await page.waitForLoadState('networkidle');
+		// Create two preceptors
+		const { preceptorId: preceptor1 } = await createPreceptor(page, 'CapPrec1');
+		const { preceptorId: preceptor2 } = await createPreceptor(page, 'CapPrec2');
 
-		// Look for preceptor selection
-		const preceptorSelect = page.locator('select');
-		if (await preceptorSelect.first().isVisible()) {
-			// Selection functionality exists
-		}
+		// Create rule for preceptor 1 only
+		const ruleRes = await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptor1,
+				maxStudentsPerDay: 1,
+				maxStudentsPerYear: 10
+			}
+		});
+		expect(ruleRes.ok()).toBeTruthy();
 
-		expect(true).toBeTruthy();
+		// Verify rule is only for preceptor 1
+		const rule1 = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('preceptor_id', '=', preceptor1).executeTakeFirst()
+		);
+		expect(rule1).toBeDefined();
+
+		const rule2 = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('preceptor_id', '=', preceptor2).executeTakeFirst()
+		);
+		expect(rule2).toBeUndefined();
 	});
 
 	// =========================================================================
-	// Test 6: should apply rule to preceptor group
+	// Test 6: should get capacity rules for preceptor
 	// =========================================================================
-	test('should apply rule to preceptor group', async ({ page }) => {
-		const testUser = generateTestUser('cap-group');
+	test('should get capacity rules for preceptor', async ({ page }) => {
+		const testUser = generateTestUser('cap-get');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
-		await page.waitForLoadState('networkidle');
+		// Create preceptor with capacity rule
+		const { preceptorId } = await createPreceptor(page, 'CapGet');
 
-		expect(true).toBeTruthy();
+		await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptorId,
+				maxStudentsPerDay: 4,
+				maxStudentsPerYear: 40
+			}
+		});
+
+		// Get rules via API
+		const getRes = await page.request.get(`/api/scheduling-config/capacity-rules?preceptorId=${preceptorId}`);
+		expect(getRes.ok()).toBeTruthy();
+		const getJson = await getRes.json();
+		expect(getJson.data).toBeDefined();
 	});
 
 	// =========================================================================
@@ -178,17 +263,31 @@ test.describe('Capacity Rules Configuration', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
-		await page.waitForLoadState('networkidle');
+		// Create preceptor and capacity rule
+		const { preceptorId } = await createPreceptor(page, 'CapUpdate');
 
-		// Look for edit button
-		const editButton = page.getByRole('button', { name: /edit/i }).first();
-		if (await editButton.isVisible()) {
-			await editButton.click();
-			await page.waitForTimeout(500);
-		}
+		const createRes = await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptorId,
+				maxStudentsPerDay: 2,
+				maxStudentsPerYear: 20
+			}
+		});
+		expect(createRes.ok()).toBeTruthy();
+		const createJson = await createRes.json();
+		const ruleId = createJson.data?.id;
 
-		expect(true).toBeTruthy();
+		// Update via PATCH
+		const updateRes = await page.request.patch(`/api/scheduling-config/capacity-rules/${ruleId}`, {
+			data: { maxStudentsPerDay: 5 }
+		});
+		expect(updateRes.ok(), `Capacity rule update failed: ${await updateRes.text()}`).toBeTruthy();
+
+		// Verify update
+		const rule = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('id', '=', ruleId).executeTakeFirst()
+		);
+		expect(rule?.max_students_per_day).toBe(5);
 	});
 
 	// =========================================================================
@@ -202,21 +301,28 @@ test.describe('Capacity Rules Configuration', () => {
 		});
 		await loginUser(page, testUser.email, testUser.password);
 
-		await page.goto('/scheduling-config/capacity-rules');
-		await page.waitForLoadState('networkidle');
+		// Create preceptor and capacity rule
+		const { preceptorId } = await createPreceptor(page, 'CapDelete');
 
-		const deleteButton = page.getByRole('button', { name: /delete/i }).first();
-		if (await deleteButton.isVisible()) {
-			await deleteButton.click();
-			await page.waitForTimeout(500);
-
-			const confirmButton = page.getByRole('button', { name: /confirm|delete|yes/i });
-			if (await confirmButton.isVisible()) {
-				await confirmButton.click();
-				await page.waitForTimeout(1000);
+		const createRes = await page.request.post('/api/scheduling-config/capacity-rules', {
+			data: {
+				preceptorId: preceptorId,
+				maxStudentsPerDay: 2,
+				maxStudentsPerYear: 20
 			}
-		}
+		});
+		expect(createRes.ok()).toBeTruthy();
+		const createJson = await createRes.json();
+		const ruleId = createJson.data?.id;
 
-		expect(true).toBeTruthy();
+		// Delete via API
+		const deleteRes = await page.request.delete(`/api/scheduling-config/capacity-rules/${ruleId}`);
+		expect(deleteRes.ok(), `Capacity rule deletion failed: ${await deleteRes.text()}`).toBeTruthy();
+
+		// Verify deletion
+		const deletedRule = await executeWithRetry(() =>
+			db.selectFrom('preceptor_capacity_rules').selectAll().where('id', '=', ruleId).executeTakeFirst()
+		);
+		expect(deletedRule).toBeUndefined();
 	});
 });

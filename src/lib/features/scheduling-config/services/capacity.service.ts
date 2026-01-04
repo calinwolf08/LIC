@@ -278,15 +278,15 @@ export class CapacityRuleService {
         updateData.max_blocks_per_year = input.maxBlocksPerYear;
       }
 
-      // Validate updated rule
+      // Validate updated rule (convert null to undefined for optional fields)
       const mergedRule = {
         preceptorId: existing.preceptor_id,
         clerkshipId: existing.clerkship_id || undefined,
         requirementType: existing.requirement_type || undefined,
         maxStudentsPerDay: updateData.max_students_per_day ?? existing.max_students_per_day,
         maxStudentsPerYear: updateData.max_students_per_year ?? existing.max_students_per_year,
-        maxStudentsPerBlock: updateData.max_students_per_block ?? existing.max_students_per_block,
-        maxBlocksPerYear: updateData.max_blocks_per_year ?? existing.max_blocks_per_year,
+        maxStudentsPerBlock: (updateData.max_students_per_block ?? existing.max_students_per_block) || undefined,
+        maxBlocksPerYear: (updateData.max_blocks_per_year ?? existing.max_blocks_per_year) || undefined,
       };
 
       const validation = preceptorCapacityRuleInputSchema.safeParse(mergedRule);
