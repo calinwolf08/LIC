@@ -25,8 +25,7 @@ export default defineConfig({
 				'--disable-dev-shm-usage',
 				'--disable-gpu',
 				'--disable-software-rasterizer',
-				'--disable-extensions',
-				'--single-process'
+				'--disable-extensions'
 			]
 		}
 	}

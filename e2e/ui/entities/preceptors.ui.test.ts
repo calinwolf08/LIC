@@ -57,7 +57,7 @@ test.describe('Preceptor Management', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByRole('heading', { name: /preceptors/i })).toBeVisible();
-		await expect(page.getByRole('link', { name: /add preceptor/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /add preceptor/i })).toBeVisible();
 	});
 
 	// =========================================================================
