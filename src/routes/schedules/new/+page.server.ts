@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const sourceScheduleId = url.searchParams.get('source');
 
 	// Load all entities
-	const [studentsRaw, preceptorsRaw, sitesRaw, healthSystemsRaw, clerkshipsRaw, teamsRaw, configurationsRaw] =
+	const [studentsRaw, preceptorsRaw, sitesRaw, healthSystemsRaw, clerkshipsRaw, teamsRaw, configurationsRaw, preceptorSitesRaw, teamMembersRaw] =
 		await Promise.all([
 			db.selectFrom('students').select(['id', 'name', 'email']).orderBy('name').execute(),
 			db.selectFrom('preceptors').select(['id', 'name', 'email']).orderBy('name').execute(),
@@ -22,6 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				.select([
 					'sites.id',
 					'sites.name',
+					'sites.health_system_id',
 					'health_systems.name as health_system_name'
 				])
 				.orderBy('sites.name')
@@ -38,6 +39,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				.select([
 					'preceptor_teams.id',
 					'preceptor_teams.name',
+					'preceptor_teams.clerkship_id',
 					'clerkships.name as clerkship_name'
 				])
 				.orderBy('preceptor_teams.name')
@@ -49,6 +51,14 @@ export const load: PageServerLoad = async ({ url }) => {
 					'clerkship_configurations.id',
 					'clerkships.name as clerkship_name'
 				])
+				.execute(),
+			db
+				.selectFrom('preceptor_sites')
+				.select(['preceptor_id', 'site_id'])
+				.execute(),
+			db
+				.selectFrom('preceptor_team_members')
+				.select(['preceptor_id', 'team_id'])
 				.execute()
 		]);
 
@@ -133,13 +143,39 @@ export const load: PageServerLoad = async ({ url }) => {
 		.filter((s): s is typeof s & { id: string } => s.id !== null)
 		.map((s) => ({ id: s.id, name: s.name, email: s.email }));
 
+	// Build preceptor site associations map
+	const preceptorSitesMap = new Map<string, string[]>();
+	for (const ps of preceptorSitesRaw) {
+		if (ps.preceptor_id) {
+			const existing = preceptorSitesMap.get(ps.preceptor_id) || [];
+			existing.push(ps.site_id);
+			preceptorSitesMap.set(ps.preceptor_id, existing);
+		}
+	}
+
+	// Build preceptor team membership map
+	const preceptorTeamMap = new Map<string, string[]>();
+	for (const tm of teamMembersRaw) {
+		if (tm.preceptor_id) {
+			const existing = preceptorTeamMap.get(tm.preceptor_id) || [];
+			existing.push(tm.team_id);
+			preceptorTeamMap.set(tm.preceptor_id, existing);
+		}
+	}
+
 	const preceptors = preceptorsRaw
 		.filter((p): p is typeof p & { id: string } => p.id !== null)
-		.map((p) => ({ id: p.id, name: p.name, email: p.email }));
+		.map((p) => ({
+			id: p.id,
+			name: p.name,
+			email: p.email,
+			site_ids: preceptorSitesMap.get(p.id) || [],
+			team_ids: preceptorTeamMap.get(p.id) || []
+		}));
 
 	const sites = sitesRaw
 		.filter((s): s is typeof s & { id: string } => s.id !== null)
-		.map((s) => ({ id: s.id, name: s.name, health_system_name: s.health_system_name }));
+		.map((s) => ({ id: s.id, name: s.name, health_system_id: s.health_system_id, health_system_name: s.health_system_name }));
 
 	const healthSystems = healthSystemsRaw
 		.filter((h): h is typeof h & { id: string } => h.id !== null)
@@ -151,7 +187,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const teams = teamsRaw
 		.filter((t): t is typeof t & { id: string } => t.id !== null)
-		.map((t) => ({ id: t.id, name: t.name, clerkship_name: t.clerkship_name }));
+		.map((t) => ({ id: t.id, name: t.name, clerkship_id: t.clerkship_id, clerkship_name: t.clerkship_name }));
 
 	const configurations = configurationsRaw
 		.filter((c): c is typeof c & { id: string } => c.id !== null)

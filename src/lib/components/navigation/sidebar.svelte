@@ -15,14 +15,15 @@
 
 	let currentPath = $derived($page.url.pathname);
 
+	// Navigation order matches entity dependency hierarchy
 	const navItems = [
 		{ href: '/', label: 'Dashboard', icon: '📊' },
 		{ href: '/schedules', label: 'Schedules', icon: '📆' },
-		{ href: '/students', label: 'Students', icon: '👨‍🎓' },
-		{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
-		{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
 		{ href: '/health-systems', label: 'Health Systems', icon: '🏥' },
 		{ href: '/sites', label: 'Sites', icon: '📍' },
+		{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
+		{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
+		{ href: '/students', label: 'Students', icon: '👨‍🎓' },
 		{ href: '/calendar', label: 'Calendar', icon: '📅' }
 	];
 
