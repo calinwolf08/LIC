@@ -1,21 +1,11 @@
 /**
- * Dashboard Home Page - Server Load
- * Shows landing page for unauthenticated users, dashboard for authenticated users
+ * Dashboard Page - Server Load
  */
 
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// For unauthenticated users, return minimal data for landing page
-	if (!locals.session?.user) {
-		return {
-			isAuthenticated: false,
-			stats: null,
-			activeSchedule: null
-		};
-	}
-
 	// Get the user's active schedule for the welcome modal
 	let activeSchedule: { id: string; name: string; start_date: string; end_date: string } | null =
 		null;
@@ -45,7 +35,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 				}
 			}
 		} catch (error) {
-			// Ignore if active_schedule_id column doesn't exist yet
 			console.warn('Could not load active schedule:', error);
 		}
 	}
@@ -86,7 +75,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	return {
-		isAuthenticated: true,
 		stats: {
 			total_students: students.length,
 			total_preceptors: preceptors.length,
