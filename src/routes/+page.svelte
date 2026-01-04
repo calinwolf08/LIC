@@ -2,11 +2,31 @@
 	import type { PageData } from './$types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { browser } from '$app/environment';
+	import WelcomeScheduleModal from '$lib/features/schedules/components/welcome-schedule-modal.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let stats = $derived(data.stats);
+
+	// Check if this is first visit (schedule not configured yet)
+	let showWelcome = $state(false);
+
+	$effect(() => {
+		if (browser && data.activeSchedule) {
+			const configured = localStorage.getItem('schedule_configured');
+			// Show welcome if schedule has default name and not previously configured
+			if (!configured && data.activeSchedule.name === 'My Schedule') {
+				showWelcome = true;
+			}
+		}
+	});
+
+	function handleWelcomeComplete() {
+		showWelcome = false;
+		invalidateAll();
+	}
 
 	function navigateTo(path: string) {
 		goto(path);
@@ -171,3 +191,12 @@
 		</Card>
 	{/if}
 </div>
+
+<!-- Welcome Modal for new users -->
+{#if showWelcome && data.activeSchedule}
+	<WelcomeScheduleModal
+		open={showWelcome}
+		schedule={data.activeSchedule}
+		onComplete={handleWelcomeComplete}
+	/>
+{/if}

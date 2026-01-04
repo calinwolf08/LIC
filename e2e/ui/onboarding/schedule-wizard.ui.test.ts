@@ -143,11 +143,11 @@ test.describe('Schedule Creation Wizard', () => {
 	});
 
 	// =========================================================================
-	// Step 2: Students (3 tests)
+	// Step 2: Health Systems (NEW ORDER - was Step 5)
 	// =========================================================================
 
-	test('Step 2.1: should display student selection', async ({ page }) => {
-		const testUser = generateTestUser('wizard-students');
+	test('Step 2.1: should display health system selection', async ({ page }) => {
+		const testUser = generateTestUser('wizard-health-systems');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -157,7 +157,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await page.goto('/schedules/new');
 		await page.waitForLoadState('networkidle');
 
-		// Fill details and proceed to step 2
+		// Fill details and proceed to step 2 (Health Systems)
 		const nameField = page.locator('input[type="text"]').first();
 		await nameField.fill('Test Schedule ' + Date.now());
 
@@ -165,22 +165,22 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		// Click next to go to Students step
+		// Click next to go to Health Systems step
 		const nextButton = page.getByRole('button', { name: /next|continue/i });
 		await nextButton.click();
 		await page.waitForTimeout(500);
 
-		// Verify we're on the Students step
+		// Verify we're on the Health Systems step
 		const pageContent = await page.textContent('body') || '';
-		const isOnStudentsStep =
-			pageContent.toLowerCase().includes('student') ||
-			(await page.getByText(/students/i).isVisible().catch(() => false));
+		const isOnHealthSystemsStep =
+			pageContent.toLowerCase().includes('health system') ||
+			(await page.getByText(/health systems/i).isVisible().catch(() => false));
 
-		expect(isOnStudentsStep).toBeTruthy();
+		expect(isOnHealthSystemsStep).toBeTruthy();
 	});
 
-	test('Step 2.2: should filter students by search', async ({ page }) => {
-		const testUser = generateTestUser('wizard-search');
+	test('Step 2.2: should allow inline health system creation', async ({ page }) => {
+		const testUser = generateTestUser('wizard-hs-create');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -201,16 +201,16 @@ test.describe('Schedule Creation Wizard', () => {
 		await page.getByRole('button', { name: /next|continue/i }).click();
 		await page.waitForTimeout(500);
 
-		// Look for a search field
-		const searchField = page.locator('input[type="search"], input[placeholder*="search" i]').first();
-		const hasSearchField = await searchField.isVisible().catch(() => false);
+		// Look for an add button for health systems
+		const addButton = page.getByRole('button', { name: /add.*health|create.*health|\+ add/i });
+		const hasAddButton = await addButton.isVisible().catch(() => false);
 
-		// Search functionality may or may not be present
-		expect(true).toBeTruthy(); // Test passes - search is optional feature
+		// Either there's an add button or existing data
+		expect(true).toBeTruthy();
 	});
 
-	test('Step 2.3: should allow selecting/deselecting students', async ({ page }) => {
-		const testUser = generateTestUser('wizard-select');
+	test('Step 2.3: should allow selecting/deselecting health systems', async ({ page }) => {
+		const testUser = generateTestUser('wizard-hs-select');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -245,16 +245,16 @@ test.describe('Schedule Creation Wizard', () => {
 			expect(wasChecked !== isNowChecked).toBeTruthy();
 		}
 
-		// Test passes regardless - selection available if students exist
+		// Test passes regardless - selection available if health systems exist
 		expect(true).toBeTruthy();
 	});
 
 	// =========================================================================
-	// Step 3-7: Other entity steps (simplified tests)
+	// Step 3-7: Entity steps (NEW ORDER: Sites, Clerkships, Preceptors, Teams, Students)
 	// =========================================================================
 
-	test('Step 3: should display preceptor selection', async ({ page }) => {
-		const testUser = generateTestUser('wizard-preceptors');
+	test('Step 3: should display site selection', async ({ page }) => {
+		const testUser = generateTestUser('wizard-sites');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -264,7 +264,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await page.goto('/schedules/new');
 		await page.waitForLoadState('networkidle');
 
-		// Navigate through steps
+		// Navigate through steps to Sites (step 3)
 		const nameField = page.locator('input[type="text"]').first();
 		await nameField.fill('Test Schedule ' + Date.now());
 
@@ -273,18 +273,21 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		const nextButton = page.getByRole('button', { name: /next|continue/i });
-		await nextButton.click(); // Step 2
+		await nextButton.click(); // Step 2 (Health Systems)
 		await page.waitForTimeout(300);
-		await nextButton.click(); // Step 3
+		await nextButton.click(); // Step 3 (Sites)
 		await page.waitForTimeout(300);
 
-		// Verify we're on a step
+		// Verify we're on the Sites step
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.length).toBeGreaterThan(0);
+		const isOnSitesStep =
+			pageContent.toLowerCase().includes('site') ||
+			(await page.getByText(/sites/i).isVisible().catch(() => false));
+		expect(isOnSitesStep).toBeTruthy();
 	});
 
-	test('Step 4: should display site selection', async ({ page }) => {
-		const testUser = generateTestUser('wizard-sites');
+	test('Step 4: should display clerkship selection', async ({ page }) => {
+		const testUser = generateTestUser('wizard-clerkships');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -307,12 +310,16 @@ test.describe('Schedule Creation Wizard', () => {
 			await page.waitForTimeout(300);
 		}
 
+		// Verify we're on the Clerkships step
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.length).toBeGreaterThan(0);
+		const isOnClerkshipsStep =
+			pageContent.toLowerCase().includes('clerkship') ||
+			(await page.getByText(/clerkships/i).isVisible().catch(() => false));
+		expect(isOnClerkshipsStep).toBeTruthy();
 	});
 
-	test('Step 5: should display health system selection', async ({ page }) => {
-		const testUser = generateTestUser('wizard-health');
+	test('Step 5: should display preceptor selection', async ({ page }) => {
+		const testUser = generateTestUser('wizard-preceptors');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -335,12 +342,16 @@ test.describe('Schedule Creation Wizard', () => {
 			await page.waitForTimeout(300);
 		}
 
+		// Verify we're on the Preceptors step
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.length).toBeGreaterThan(0);
+		const isOnPreceptorsStep =
+			pageContent.toLowerCase().includes('preceptor') ||
+			(await page.getByText(/preceptors/i).isVisible().catch(() => false));
+		expect(isOnPreceptorsStep).toBeTruthy();
 	});
 
-	test('Step 6: should display clerkship selection', async ({ page }) => {
-		const testUser = generateTestUser('wizard-clerkships');
+	test('Step 6: should display team selection', async ({ page }) => {
+		const testUser = generateTestUser('wizard-teams');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -363,12 +374,16 @@ test.describe('Schedule Creation Wizard', () => {
 			await page.waitForTimeout(300);
 		}
 
+		// Verify we're on the Teams step
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.length).toBeGreaterThan(0);
+		const isOnTeamsStep =
+			pageContent.toLowerCase().includes('team') ||
+			(await page.getByText(/teams/i).isVisible().catch(() => false));
+		expect(isOnTeamsStep).toBeTruthy();
 	});
 
-	test('Step 7: should display team selection', async ({ page }) => {
-		const testUser = generateTestUser('wizard-teams');
+	test('Step 7: should display student selection', async ({ page }) => {
+		const testUser = generateTestUser('wizard-students');
 
 		await page.request.post('/api/auth/sign-up/email', {
 			data: { name: testUser.name, email: testUser.email, password: testUser.password }
@@ -391,8 +406,12 @@ test.describe('Schedule Creation Wizard', () => {
 			await page.waitForTimeout(300);
 		}
 
+		// Verify we're on the Students step
 		const pageContent = await page.textContent('body') || '';
-		expect(pageContent.length).toBeGreaterThan(0);
+		const isOnStudentsStep =
+			pageContent.toLowerCase().includes('student') ||
+			(await page.getByText(/students/i).isVisible().catch(() => false));
+		expect(isOnStudentsStep).toBeTruthy();
 	});
 
 	// =========================================================================

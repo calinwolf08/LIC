@@ -5,7 +5,36 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	// Get the user's active schedule for the welcome modal
+	let activeSchedule: { id: string; name: string; start_date: string; end_date: string } | null =
+		null;
+
+	if (locals.session?.user?.id) {
+		try {
+			const user = await db
+				.selectFrom('user')
+				.select('active_schedule_id')
+				.where('id', '=', locals.session.user.id)
+				.executeTakeFirst();
+
+			if (user?.active_schedule_id) {
+				const schedule = await db
+					.selectFrom('scheduling_periods')
+					.select(['id', 'name', 'start_date', 'end_date'])
+					.where('id', '=', user.active_schedule_id)
+					.executeTakeFirst();
+
+				if (schedule) {
+					activeSchedule = schedule;
+				}
+			}
+		} catch (error) {
+			// Ignore if active_schedule_id column doesn't exist yet
+			console.warn('Could not load active schedule:', error);
+		}
+	}
+
 	// Fetch all counts
 	const [students, preceptors, clerkships, assignments] = await Promise.all([
 		db.selectFrom('students').selectAll().execute(),
@@ -50,6 +79,7 @@ export const load: PageServerLoad = async () => {
 			fully_scheduled_students: fullyScheduled,
 			partially_scheduled_students: partiallyScheduled,
 			unscheduled_students: unscheduled
-		}
+		},
+		activeSchedule
 	};
 };

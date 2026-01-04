@@ -31,17 +31,12 @@ export const load: LayoutServerLoad = async ({ locals, url, request }) => {
                 .where('id', '=', locals.session.user.id)
                 .executeTakeFirst();
 
-            // Check if user has schedules accessible to them
+            // Check if user has their own schedules (not including orphan schedules)
             if (!user?.active_schedule_id) {
                 const hasSchedules = await db
                     .selectFrom('scheduling_periods')
                     .select('id')
-                    .where((eb) =>
-                        eb.or([
-                            eb('user_id', '=', locals.session!.user.id),
-                            eb('user_id', 'is', null)
-                        ])
-                    )
+                    .where('user_id', '=', locals.session!.user.id)
                     .limit(1)
                     .executeTakeFirst();
 
