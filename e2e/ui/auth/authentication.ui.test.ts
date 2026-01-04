@@ -520,19 +520,19 @@ test.describe('Authentication', () => {
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(1000);
 
-		// Verify "Remember me" checkbox exists
-		const rememberMeCheckbox = page.locator('#rememberMe');
+		// Verify "Remember me" checkbox exists (bits-ui checkbox renders as button with role="checkbox")
+		const rememberMeCheckbox = page.getByRole('checkbox', { name: /remember me/i });
 		await expect(rememberMeCheckbox).toBeVisible();
 
 		// Fill in login credentials
 		await page.fill('#email', testUser.email);
 		await page.fill('#password', testUser.password);
 
-		// Check the "Remember me" checkbox
-		await rememberMeCheckbox.check();
+		// Check the "Remember me" checkbox by clicking it
+		await rememberMeCheckbox.click();
 
-		// Verify it's checked
-		await expect(rememberMeCheckbox).toBeChecked();
+		// Verify it's checked (bits-ui uses data-state="checked")
+		await expect(rememberMeCheckbox).toHaveAttribute('data-state', 'checked');
 
 		// Submit the form
 		await page.getByRole('button', { name: /sign in/i }).dispatchEvent('click');

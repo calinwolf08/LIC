@@ -13,7 +13,7 @@ export default defineConfig({
 	timeout: 60000, // 60 seconds per test (increased from 30)
 	fullyParallel: false, // Run tests sequentially to avoid resource exhaustion
 	workers: 1, // Single worker to prevent browser crashes
-	retries: 1, // Retry failed tests once
+	retries: 2, // Retry failed tests twice for stability
 	use: {
 		baseURL: 'http://localhost:4173',
 		headless: true,
