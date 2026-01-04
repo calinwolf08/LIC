@@ -63,28 +63,35 @@ export const GET: RequestHandler = async ({ params }) => {
 };
 
 /**
- * PUT /api/scheduling-periods/[id]
- * Update a scheduling period
+ * Helper function for updating scheduling period (shared by PUT and PATCH)
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+async function handleUpdate(params: { id: string }, request: Request) {
 	log.debug('Updating scheduling period', { id: params.id });
 
+	const id = cuid2Schema.parse(params.id);
+
+	// Parse and validate request body
+	const body = await request.json();
+	const validatedData = updateSchedulingPeriodSchema.parse(body);
+
+	const period = await updateSchedulingPeriod(db, id, validatedData);
+
+	log.info('Scheduling period updated', {
+		id,
+		name: period.name,
+		updatedFields: Object.keys(validatedData)
+	});
+
+	return successResponse(period);
+}
+
+/**
+ * PUT /api/scheduling-periods/[id]
+ * Update a scheduling period (full update)
+ */
+export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
-		const id = cuid2Schema.parse(params.id);
-
-		// Parse and validate request body
-		const body = await request.json();
-		const validatedData = updateSchedulingPeriodSchema.parse(body);
-
-		const period = await updateSchedulingPeriod(db, id, validatedData);
-
-		log.info('Scheduling period updated', {
-			id,
-			name: period.name,
-			updatedFields: Object.keys(validatedData)
-		});
-
-		return successResponse(period);
+		return await handleUpdate(params, request);
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Scheduling period update validation failed', {
@@ -108,6 +115,40 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		}
 
 		log.error('Failed to update scheduling period', { id: params.id, error });
+		return handleApiError(error);
+	}
+};
+
+/**
+ * PATCH /api/scheduling-periods/[id]
+ * Update a scheduling period (partial update)
+ */
+export const PATCH: RequestHandler = async ({ params, request }) => {
+	try {
+		return await handleUpdate(params, request);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			log.warn('Scheduling period patch validation failed', {
+				id: params.id,
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
+			return validationErrorResponse(error);
+		}
+
+		if (error instanceof NotFoundError) {
+			log.warn('Scheduling period not found for patch', { id: params.id });
+			return errorResponse(error.message, 404);
+		}
+
+		if (error instanceof ConflictError) {
+			log.warn('Scheduling period patch conflict', {
+				id: params.id,
+				message: error.message
+			});
+			return errorResponse(error.message, 409);
+		}
+
+		log.error('Failed to patch scheduling period', { id: params.id, error });
 		return handleApiError(error);
 	}
 };

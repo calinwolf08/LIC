@@ -25,9 +25,9 @@ test.describe('First-Time User Journey', () => {
 	});
 
 	// =========================================================================
-	// Test 1: should redirect new user to schedule creation
+	// Test 1: should auto-create schedule and redirect to dashboard after signup
 	// =========================================================================
-	test('should redirect new user to schedule creation', async ({ page }) => {
+	test('should auto-create schedule and redirect to dashboard after signup', async ({ page }) => {
 		// Generate unique test user
 		const testUser = generateTestUser('first-time');
 
@@ -48,17 +48,33 @@ test.describe('First-Time User Journey', () => {
 		// Wait for registration to complete and redirect
 		await page.waitForURL(url => !url.pathname.includes('register'), { timeout: 30000 });
 
-		// New users should be redirected away from register page
-		// They may land on dashboard, schedules, or schedule creation page
+		// New users should be redirected to dashboard (not /schedules/new) since schedule is auto-created
 		const url = page.url();
 		expect(url).not.toContain('register');
 		expect(url).not.toContain('login');
+		// With auto-create schedule, users should land on dashboard
+		expect(url.endsWith('/') || url.includes('dashboard')).toBeTruthy();
 
 		// Verify user was created in database
 		const user = await executeWithRetry(() =>
 			db.selectFrom('user').selectAll().where('email', '=', testUser.email).executeTakeFirst()
 		);
 		expect(user).toBeDefined();
+		expect(user!.id).toBeDefined();
+
+		// Verify a default schedule was auto-created for the user
+		const schedule = await executeWithRetry(() =>
+			db
+				.selectFrom('scheduling_periods')
+				.selectAll()
+				.where('user_id', '=', user!.id)
+				.executeTakeFirst()
+		);
+		expect(schedule).toBeDefined();
+		expect(schedule!.name).toBe('My Schedule');
+
+		// Verify user has active_schedule_id set
+		expect(user!.active_schedule_id).toBe(schedule!.id);
 
 		// Verify session was created
 		const session = await executeWithRetry(() =>
@@ -381,5 +397,155 @@ test.describe('First-Time User Journey', () => {
 		// The exact behavior depends on implementation
 		const pageAccessible = await page.locator('body').isVisible();
 		expect(pageAccessible).toBeTruthy();
+	});
+
+	// =========================================================================
+	// Test 9: should show welcome modal for unconfigured schedule
+	// =========================================================================
+	test('should show welcome modal for unconfigured schedule', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('welcome-modal');
+
+		// Register via UI - this creates the auto-generated schedule
+		await page.goto('/register');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		await page.fill('#name', testUser.name);
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+		await page.fill('#confirmPassword', testUser.password);
+
+		await page.getByRole('button', { name: /create account/i }).dispatchEvent('click');
+		await page.waitForURL(url => !url.pathname.includes('register'), { timeout: 30000 });
+
+		// User should land on dashboard
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(500);
+
+		// Welcome modal should appear for unconfigured schedule
+		const welcomeHeading = page.getByText('Welcome to LIC Scheduler!');
+		await expect(welcomeHeading).toBeVisible({ timeout: 5000 });
+
+		// Modal should have schedule name field pre-filled with "My Schedule"
+		const nameField = page.locator('#schedule-name');
+		await expect(nameField).toHaveValue('My Schedule');
+
+		// Modal should have start and end date fields
+		await expect(page.locator('#start-date')).toBeVisible();
+		await expect(page.locator('#end-date')).toBeVisible();
+
+		// Should have "Get Started" button
+		await expect(page.getByRole('button', { name: /get started/i })).toBeVisible();
+	});
+
+	// =========================================================================
+	// Test 10: should save configuration from welcome modal
+	// =========================================================================
+	test('should save configuration from welcome modal', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('modal-save');
+		const customScheduleName = `Test Schedule ${Date.now()}`;
+
+		// Register via UI
+		await page.goto('/register');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		await page.fill('#name', testUser.name);
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+		await page.fill('#confirmPassword', testUser.password);
+
+		await page.getByRole('button', { name: /create account/i }).dispatchEvent('click');
+		await page.waitForURL(url => !url.pathname.includes('register'), { timeout: 30000 });
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(500);
+
+		// Wait for welcome modal
+		const welcomeHeading = page.getByText('Welcome to LIC Scheduler!');
+		await expect(welcomeHeading).toBeVisible({ timeout: 5000 });
+
+		// Update the schedule name
+		const nameField = page.locator('#schedule-name');
+		await nameField.clear();
+		await nameField.fill(customScheduleName);
+
+		// Update dates
+		await page.locator('#start-date').fill('2025-07-01');
+		await page.locator('#end-date').fill('2026-06-30');
+
+		// Submit the form
+		await page.getByRole('button', { name: /get started/i }).click();
+
+		// Wait for modal to close
+		await expect(welcomeHeading).not.toBeVisible({ timeout: 5000 });
+
+		// Verify schedule was updated in database
+		const user = await executeWithRetry(() =>
+			db.selectFrom('user').selectAll().where('email', '=', testUser.email).executeTakeFirst()
+		);
+		expect(user).toBeDefined();
+
+		const schedule = await executeWithRetry(() =>
+			db
+				.selectFrom('scheduling_periods')
+				.selectAll()
+				.where('user_id', '=', user!.id)
+				.executeTakeFirst()
+		);
+		expect(schedule).toBeDefined();
+		expect(schedule!.name).toBe(customScheduleName);
+		expect(schedule!.start_date).toBe('2025-07-01');
+		expect(schedule!.end_date).toBe('2026-06-30');
+	});
+
+	// =========================================================================
+	// Test 11: should not show welcome modal after configuration
+	// =========================================================================
+	test('should not show welcome modal after configuration', async ({ page }) => {
+		// Generate unique test user
+		const testUser = generateTestUser('modal-no-reappear');
+
+		// Register via UI
+		await page.goto('/register');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(1000);
+
+		await page.fill('#name', testUser.name);
+		await page.fill('#email', testUser.email);
+		await page.fill('#password', testUser.password);
+		await page.fill('#confirmPassword', testUser.password);
+
+		await page.getByRole('button', { name: /create account/i }).dispatchEvent('click');
+		await page.waitForURL(url => !url.pathname.includes('register'), { timeout: 30000 });
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(500);
+
+		// Wait for welcome modal and complete configuration
+		const welcomeHeading = page.getByText('Welcome to LIC Scheduler!');
+		await expect(welcomeHeading).toBeVisible({ timeout: 5000 });
+
+		// Update name and submit
+		await page.locator('#schedule-name').clear();
+		await page.locator('#schedule-name').fill('Configured Schedule');
+		await page.getByRole('button', { name: /get started/i }).click();
+
+		// Wait for modal to close
+		await expect(welcomeHeading).not.toBeVisible({ timeout: 5000 });
+
+		// Navigate away and back to dashboard
+		await page.goto('/students');
+		await page.waitForLoadState('networkidle');
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await page.waitForTimeout(500);
+
+		// Welcome modal should NOT appear again
+		await expect(welcomeHeading).not.toBeVisible();
+
+		// Verify localStorage was set (via page.evaluate)
+		const configured = await page.evaluate(() => localStorage.getItem('schedule_configured'));
+		expect(configured).toBe('true');
 	});
 });

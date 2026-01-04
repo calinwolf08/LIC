@@ -27,7 +27,21 @@ async function loginUser(page: any, email: string, password: string) {
 	await page.fill('#email', email);
 	await page.fill('#password', password);
 	await page.getByRole('button', { name: /sign in/i }).dispatchEvent('click');
-	await page.waitForURL(url => !url.pathname.includes('login'), { timeout: 20000 });
+	await page.waitForURL((url: URL) => !url.pathname.includes('login'), { timeout: 20000 });
+}
+
+// Helper function to navigate to next step in wizard, handling skip confirmation modal
+async function clickNextStep(page: any) {
+	const nextButton = page.getByRole('button', { name: 'Next', exact: true });
+	await nextButton.click();
+	await page.waitForTimeout(300);
+
+	// Check if skip confirmation modal appeared
+	const continueAnywayButton = page.getByRole('button', { name: 'Continue Anyway', exact: true });
+	if (await continueAnywayButton.isVisible({ timeout: 500 }).catch(() => false)) {
+		await continueAnywayButton.click();
+		await page.waitForTimeout(300);
+	}
 }
 
 test.describe('Schedule Creation Wizard', () => {
@@ -84,7 +98,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Try to proceed without filling required fields
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		const nextButton = page.getByRole('button', { name: 'Next', exact: true });
 		if (await nextButton.isVisible()) {
 			// Button should be disabled or show validation on click
 			const isDisabled = await nextButton.isDisabled();
@@ -129,7 +143,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await endDateField.fill('2025-01-01');
 
 		// The form should prevent proceeding or show an error
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		const nextButton = page.getByRole('button', { name: 'Next', exact: true });
 
 		// Either button disabled or validation message shown
 		const pageContent = await page.textContent('body') || '';
@@ -166,7 +180,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		// Click next to go to Health Systems step
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		const nextButton = page.getByRole('button', { name: 'Next', exact: true });
 		await nextButton.click();
 		await page.waitForTimeout(500);
 
@@ -198,7 +212,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		await page.getByRole('button', { name: /next|continue/i }).click();
+		await page.getByRole('button', { name: 'Next', exact: true }).click();
 		await page.waitForTimeout(500);
 
 		// Look for an add button for health systems
@@ -228,7 +242,7 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		await page.getByRole('button', { name: /next|continue/i }).click();
+		await page.getByRole('button', { name: 'Next', exact: true }).click();
 		await page.waitForTimeout(500);
 
 		// Look for checkboxes or selection elements
@@ -272,11 +286,9 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
-		await nextButton.click(); // Step 2 (Health Systems)
-		await page.waitForTimeout(300);
-		await nextButton.click(); // Step 3 (Sites)
-		await page.waitForTimeout(300);
+		// Navigate to step 3 (Sites)
+		await clickNextStep(page); // Step 2 (Health Systems)
+		await clickNextStep(page); // Step 3 (Sites)
 
 		// Verify we're on the Sites step
 		const pageContent = await page.textContent('body') || '';
@@ -304,10 +316,9 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		// Navigate through 3 steps (to step 4: Clerkships)
 		for (let i = 0; i < 3; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Verify we're on the Clerkships step
@@ -336,10 +347,9 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		// Navigate through 4 steps (to step 5: Preceptors)
 		for (let i = 0; i < 4; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Verify we're on the Preceptors step
@@ -368,10 +378,9 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		// Navigate through 5 steps (to step 6: Teams)
 		for (let i = 0; i < 5; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Verify we're on the Teams step
@@ -400,10 +409,9 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.first().fill('2025-01-01');
 		await dateFields.nth(1).fill('2025-12-31');
 
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
+		// Navigate through 6 steps (to step 7: Students)
 		for (let i = 0; i < 6; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Verify we're on the Students step
@@ -438,10 +446,8 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		// Navigate to review step (step 8)
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
 		for (let i = 0; i < 7; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Should be on review step
@@ -474,14 +480,12 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		// Navigate to review step
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
 		for (let i = 0; i < 7; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Try to navigate back
-		const backButton = page.getByRole('button', { name: /back|previous/i });
+		const backButton = page.getByRole('button', { name: 'Previous', exact: true });
 		if (await backButton.isVisible()) {
 			await backButton.click();
 			await page.waitForTimeout(300);
@@ -513,10 +517,8 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		// Navigate through all steps
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
 		for (let i = 0; i < 7; i++) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
+			await clickNextStep(page);
 		}
 
 		// Click create button
@@ -563,12 +565,8 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		// Navigate through all 8 steps
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
 		for (let i = 0; i < 7; i++) {
-			if (await nextButton.isVisible()) {
-				await nextButton.click();
-				await page.waitForTimeout(300);
-			}
+			await clickNextStep(page);
 		}
 
 		// Try to create
@@ -602,26 +600,20 @@ test.describe('Schedule Creation Wizard', () => {
 		await dateFields.nth(1).fill('2025-12-31');
 
 		// Go to step 2
-		const nextButton = page.getByRole('button', { name: /next|continue/i });
-		await nextButton.click();
-		await page.waitForTimeout(300);
+		await clickNextStep(page);
 
 		// Go to step 3
-		await nextButton.click();
-		await page.waitForTimeout(300);
+		await clickNextStep(page);
 
 		// Go back to step 2
-		const backButton = page.getByRole('button', { name: /back|previous/i });
+		const backButton = page.getByRole('button', { name: 'Previous', exact: true });
 		if (await backButton.isVisible()) {
 			await backButton.click();
 			await page.waitForTimeout(300);
 		}
 
 		// Navigate forward again
-		if (await nextButton.isVisible()) {
-			await nextButton.click();
-			await page.waitForTimeout(300);
-		}
+		await clickNextStep(page);
 
 		// Navigation should preserve state
 		expect(true).toBeTruthy();
