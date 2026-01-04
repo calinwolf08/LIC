@@ -25,8 +25,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 					.where('id', '=', user.active_schedule_id)
 					.executeTakeFirst();
 
-				if (schedule) {
-					activeSchedule = schedule;
+				if (schedule && schedule.id) {
+					activeSchedule = {
+						id: schedule.id,
+						name: schedule.name,
+						start_date: schedule.start_date,
+						end_date: schedule.end_date
+					};
 				}
 			}
 		} catch (error) {
