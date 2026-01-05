@@ -575,47 +575,40 @@ export class ConfigurableSchedulingEngine {
       console.log(`[Engine] Using strategy: ${strategy.getName()} for ${clerkship.name} (non-elective days)`);
       const result = await strategy.generateAssignments(context);
 
-      if (!result.success) {
-        this.resultBuilder.addUnmetRequirement({
-          studentId: student.id!,
-          studentName: student.name,
-          clerkshipId: clerkship.id!,
-          clerkshipName: clerkship.name,
-          requirementType: config.requirementType,
-          requiredDays: config.requiredDays,
-          assignedDays: 0,
-          remainingDays: config.requiredDays,
-          reason: result.error || 'Strategy execution failed',
-        });
-        return;
+      // Process any assignments (even partial ones when success=false)
+      const assignmentsToProcess = result.assignments || [];
+
+      if (assignmentsToProcess.length > 0) {
+        // Validate assignments against constraints
+        const validationResult = await this.validateAssignments(
+          assignmentsToProcess,
+          options.bypassedConstraints
+        );
+
+        if (validationResult.isValid) {
+          // Add assignments to result and track as pending for future students
+          assignmentsToProcess.forEach(assignment => {
+            this.resultBuilder.addAssignment(assignment);
+            // Track pending assignment for capacity calculations
+            this.pendingAssignments.push({
+              studentId: assignment.studentId,
+              preceptorId: assignment.preceptorId,
+              clerkshipId: assignment.clerkshipId,
+              date: assignment.date,
+            });
+          });
+          console.log(`[Engine] Successfully assigned ${assignmentsToProcess.length} non-elective days for ${student.name} to ${clerkship.name}`);
+        } else {
+          // Record violations
+          validationResult.violations.forEach(violation => {
+            this.resultBuilder.addViolation(violation);
+          });
+        }
       }
 
-      // Validate assignments against constraints
-      const validationResult = await this.validateAssignments(
-        result.assignments,
-        options.bypassedConstraints
-      );
-
-      if (validationResult.isValid) {
-        // Add assignments to result and track as pending for future students
-        result.assignments.forEach(assignment => {
-          this.resultBuilder.addAssignment(assignment);
-          // Track pending assignment for capacity calculations
-          this.pendingAssignments.push({
-            studentId: assignment.studentId,
-            preceptorId: assignment.preceptorId,
-            clerkshipId: assignment.clerkshipId,
-            date: assignment.date,
-          });
-        });
-        console.log(`[Engine] Successfully assigned ${result.assignments.length} non-elective days for ${student.name} to ${clerkship.name}`);
-      } else {
-        // Record violations
-        validationResult.violations.forEach(violation => {
-          this.resultBuilder.addViolation(violation);
-        });
-
-        // Record unmet requirement
+      // Record unmet requirement if we didn't meet the full requirement
+      if (!result.success || assignmentsToProcess.length < config.requiredDays) {
+        const assignedDays = assignmentsToProcess.length;
         this.resultBuilder.addUnmetRequirement({
           studentId: student.id!,
           studentName: student.name,
@@ -623,9 +616,9 @@ export class ConfigurableSchedulingEngine {
           clerkshipName: clerkship.name,
           requirementType: config.requirementType,
           requiredDays: config.requiredDays,
-          assignedDays: 0,
-          remainingDays: config.requiredDays,
-          reason: `Validation failed: ${validationResult.violations.map(v => v.message).join(', ')}`,
+          assignedDays,
+          remainingDays: config.requiredDays - assignedDays,
+          reason: result.error || `Only ${assignedDays} of ${config.requiredDays} days could be assigned`,
         });
       }
     } catch (error) {
@@ -771,50 +764,44 @@ export class ConfigurableSchedulingEngine {
 
       const result = await strategy.generateAssignments(context);
 
-      if (!result.success) {
-        this.resultBuilder.addUnmetRequirement({
-          studentId: student.id,
-          studentName: student.name,
-          clerkshipId: clerkship.id,
-          clerkshipName: `${clerkship.name} - ${elective.name}`,
-          requirementType: 'elective',
-          requiredDays: elective.minimum_days,
-          assignedDays: 0,
-          remainingDays: elective.minimum_days,
-          reason: result.error || 'Strategy execution failed',
-        });
-        return;
+      // Process any assignments (even partial ones when success=false)
+      const assignmentsToProcess = result.assignments || [];
+
+      if (assignmentsToProcess.length > 0) {
+        // Add elective_id to all assignments
+        const electiveAssignments = assignmentsToProcess.map(assignment => ({
+          ...assignment,
+          electiveId: elective.id,
+          requirementType: 'elective' as const,
+        }));
+
+        // Validate assignments
+        const validationResult = await this.validateAssignments(
+          electiveAssignments,
+          options.bypassedConstraints
+        );
+
+        if (validationResult.isValid) {
+          electiveAssignments.forEach(assignment => {
+            this.resultBuilder.addAssignment(assignment);
+            this.pendingAssignments.push({
+              studentId: assignment.studentId,
+              preceptorId: assignment.preceptorId,
+              clerkshipId: assignment.clerkshipId,
+              date: assignment.date,
+            });
+          });
+          console.log(`[Engine] Successfully assigned ${electiveAssignments.length} days for "${elective.name}" to ${student.name}`);
+        } else {
+          validationResult.violations.forEach(violation => {
+            this.resultBuilder.addViolation(violation);
+          });
+        }
       }
 
-      // Add elective_id to all assignments
-      const electiveAssignments = result.assignments.map(assignment => ({
-        ...assignment,
-        electiveId: elective.id,
-        requirementType: 'elective' as const,
-      }));
-
-      // Validate assignments
-      const validationResult = await this.validateAssignments(
-        electiveAssignments,
-        options.bypassedConstraints
-      );
-
-      if (validationResult.isValid) {
-        electiveAssignments.forEach(assignment => {
-          this.resultBuilder.addAssignment(assignment);
-          this.pendingAssignments.push({
-            studentId: assignment.studentId,
-            preceptorId: assignment.preceptorId,
-            clerkshipId: assignment.clerkshipId,
-            date: assignment.date,
-          });
-        });
-        console.log(`[Engine] Successfully assigned ${electiveAssignments.length} days for "${elective.name}" to ${student.name}`);
-      } else {
-        validationResult.violations.forEach(violation => {
-          this.resultBuilder.addViolation(violation);
-        });
-
+      // Record unmet requirement if we didn't meet the full requirement
+      if (!result.success || assignmentsToProcess.length < elective.minimum_days) {
+        const assignedDays = assignmentsToProcess.length;
         this.resultBuilder.addUnmetRequirement({
           studentId: student.id,
           studentName: student.name,
@@ -822,9 +809,9 @@ export class ConfigurableSchedulingEngine {
           clerkshipName: `${clerkship.name} - ${elective.name}`,
           requirementType: 'elective',
           requiredDays: elective.minimum_days,
-          assignedDays: 0,
-          remainingDays: elective.minimum_days,
-          reason: `Validation failed: ${validationResult.violations.map(v => v.message).join(', ')}`,
+          assignedDays,
+          remainingDays: elective.minimum_days - assignedDays,
+          reason: result.error || `Only ${assignedDays} of ${elective.minimum_days} elective days could be assigned`,
         });
       }
     } catch (error) {

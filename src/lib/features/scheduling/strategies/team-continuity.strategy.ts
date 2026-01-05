@@ -163,17 +163,30 @@ export class TeamContinuityStrategy extends BaseStrategy {
       assignments.push(...additionalAssignments);
     }
 
-    // Final check
+    // Final check - return partial assignments even if requirement not fully met
     if (assignments.length < requiredDays) {
+      // Return partial success with whatever assignments we could make
+      // This ensures all available capacity is used even when full requirement can't be met
+      const primaryPreceptorDays = assignments.filter(a => a.preceptorId === primaryPreceptorId).length;
+      const continuityPercent = assignments.length > 0
+        ? Math.round((primaryPreceptorDays / assignments.length) * 100)
+        : 0;
+
       return {
         success: false,
-        assignments: [],
+        assignments, // Return partial assignments instead of empty array
         error: `Could only assign ${assignments.length} of ${requiredDays} required days. Team members have insufficient availability.`,
         metadata: {
           strategyUsed: this.getName(),
           preceptorsConsidered: teamMembers.length,
           assignmentCount: assignments.length,
-        },
+          requiredDays,
+          isPartial: true,
+          primaryPreceptorId,
+          primaryPreceptorDays,
+          continuityPercent,
+          preceptorsUsedCount: preceptorsUsed.length,
+        } as any,
       };
     }
 
