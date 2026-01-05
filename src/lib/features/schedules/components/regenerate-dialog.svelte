@@ -5,11 +5,13 @@
 
 	interface Props {
 		open: boolean;
+		scheduleStartDate?: string;
+		scheduleEndDate?: string;
 		onConfirm?: () => void;
 		onCancel?: () => void;
 	}
 
-	let { open, onConfirm, onCancel }: Props = $props();
+	let { open, scheduleStartDate, scheduleEndDate, onConfirm, onCancel }: Props = $props();
 
 	let startDate = $state('');
 	let endDate = $state('');
@@ -33,16 +35,28 @@
 	$effect(() => {
 		if (open) {
 			const today = new Date();
-			const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-			const lastDayOfYear = new Date(today.getFullYear(), 11, 31);
 
-			startDate = formatDateForInput(firstDayOfYear);
-			endDate = formatDateForInput(lastDayOfYear);
+			// Use schedule dates if provided, otherwise fall back to year boundaries
+			if (scheduleStartDate) {
+				startDate = scheduleStartDate;
+			} else {
+				const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+				startDate = formatDateForInput(firstDayOfYear);
+			}
+
+			if (scheduleEndDate) {
+				endDate = scheduleEndDate;
+			} else {
+				const lastDayOfYear = new Date(today.getFullYear(), 11, 31);
+				endDate = formatDateForInput(lastDayOfYear);
+			}
+
 			regenerateFromDate = formatDateForInput(today);
 
-			// Default to smart mode if mid-year
-			const dayOfYear = Math.floor((today.getTime() - firstDayOfYear.getTime()) / (1000 * 60 * 60 * 24));
-			regenerationMode = dayOfYear > 30 ? 'smart' : 'full';
+			// Default to smart mode if we're past the start date
+			const scheduleStart = new Date(startDate);
+			const daysSinceStart = Math.floor((today.getTime() - scheduleStart.getTime()) / (1000 * 60 * 60 * 24));
+			regenerationMode = daysSinceStart > 30 ? 'smart' : 'full';
 
 			strategy = 'minimal-change';
 			bypassedConstraints = [];

@@ -636,6 +636,8 @@
 
 <RegenerateDialog
 	open={showRegenerateDialog}
+	scheduleStartDate={data.activeSchedule?.startDate}
+	scheduleEndDate={data.activeSchedule?.endDate}
 	onConfirm={handleRegenerateConfirm}
 	onCancel={handleRegenerateCancel}
 />

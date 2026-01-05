@@ -282,6 +282,10 @@ export class StrategyContextBuilder {
       // Skip preceptors without valid IDs
       if (!preceptor.id) continue;
 
+      // Use preceptor's max_students as the default for max_students_per_day
+      // Fall back to capacity rule if it exists, otherwise use preceptor setting
+      const defaultMaxPerDay = preceptor.max_students ?? 1;
+
       result.push({
         id: preceptor.id,
         name: preceptor.name,
@@ -290,8 +294,8 @@ export class StrategyContextBuilder {
         siteIds: preceptorSites.map(ps => ps.site_id),
         availability: availabilityDates,
         currentAssignmentCount: totalAssignmentCount,
-        maxStudentsPerDay: capacityRule?.max_students_per_day ?? 2,
-        maxStudentsPerYear: capacityRule?.max_students_per_year ?? 20,
+        maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
+        maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,
         isGlobalFallbackOnly: Boolean(preceptor.is_global_fallback_only),
       });
     }

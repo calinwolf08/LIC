@@ -205,7 +205,8 @@ export class TeamContinuityStrategy extends BaseStrategy {
    * 1. Primary members (isFallbackOnly = false, isGlobalFallbackOnly = false) sorted by priority
    * 2. Fallback-only members (isFallbackOnly = true OR isGlobalFallbackOnly = true) sorted by priority
    *
-   * Falls back to all available preceptors sorted by load if no team exists.
+   * Now aggregates members from ALL teams for the clerkship, not just the first one.
+   * Falls back to all available preceptors sorted by load if no teams exist.
    */
   private getTeamMembersSortedByPriority(
     context: StrategyContext
@@ -221,31 +222,41 @@ export class TeamContinuityStrategy extends BaseStrategy {
       return teamMemberFallbackOnly ?? false;
     };
 
-    // Look for a team associated with this clerkship
-    const clerkshipTeam = teams?.find(team => {
-      // Check if any team member is in available preceptors
+    // Find ALL teams that have members in available preceptors
+    const matchingTeams = teams?.filter(team => {
       return team.members.some(m =>
         availablePreceptors.some(p => p.id === m.preceptorId)
       );
-    });
+    }) ?? [];
 
-    if (clerkshipTeam && clerkshipTeam.members.length > 0) {
-      // Get available team members
-      const availableMembers = clerkshipTeam.members
-        .filter(m => availablePreceptors.some(p => p.id === m.preceptorId))
-        .map(m => ({
-          preceptorId: m.preceptorId,
-          priority: m.priority,
-          teamId: clerkshipTeam.id,
-          isFallbackOnly: isFallbackOnlyPreceptor(m.preceptorId, m.isFallbackOnly),
-        }));
+    if (matchingTeams.length > 0) {
+      // Aggregate members from ALL matching teams
+      // Track preceptors we've already added to avoid duplicates
+      const addedPreceptorIds = new Set<string>();
+      const allMembers: Array<{ preceptorId: string; priority: number; teamId: string; isFallbackOnly: boolean }> = [];
+
+      for (const team of matchingTeams) {
+        for (const member of team.members) {
+          // Only add if preceptor is available and not already added
+          if (!addedPreceptorIds.has(member.preceptorId) &&
+              availablePreceptors.some(p => p.id === member.preceptorId)) {
+            allMembers.push({
+              preceptorId: member.preceptorId,
+              priority: member.priority,
+              teamId: team.id,
+              isFallbackOnly: isFallbackOnlyPreceptor(member.preceptorId, member.isFallbackOnly),
+            });
+            addedPreceptorIds.add(member.preceptorId);
+          }
+        }
+      }
 
       // Separate into primary and fallback-only members
-      const primaryMembers = availableMembers
+      const primaryMembers = allMembers
         .filter(m => !m.isFallbackOnly)
         .sort((a, b) => a.priority - b.priority);
 
-      const fallbackOnlyMembers = availableMembers
+      const fallbackOnlyMembers = allMembers
         .filter(m => m.isFallbackOnly)
         .sort((a, b) => a.priority - b.priority);
 
@@ -253,7 +264,7 @@ export class TeamContinuityStrategy extends BaseStrategy {
       return [...primaryMembers, ...fallbackOnlyMembers];
     }
 
-    // No team found - treat all available preceptors as an implicit team
+    // No teams found - treat all available preceptors as an implicit team
     // Filter out global fallback-only preceptors for primary selection
     const primaryPreceptors = availablePreceptors.filter(p => !p.isGlobalFallbackOnly);
     const fallbackOnlyPreceptors = availablePreceptors.filter(p => p.isGlobalFallbackOnly);

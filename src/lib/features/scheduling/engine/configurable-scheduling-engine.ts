@@ -727,8 +727,8 @@ export class ConfigurableSchedulingEngine {
               siteIds: [], // Sites determined by availability
               availability: availableDates,
               currentAssignmentCount: 0,
-              // Use sensible defaults matching the context builder's defaults for regular scheduling
-              maxStudentsPerDay: 2,
+              // Use preceptor's max_students setting for daily capacity
+              maxStudentsPerDay: preceptor.max_students ?? 1,
               maxStudentsPerYear: 50,
             };
           });

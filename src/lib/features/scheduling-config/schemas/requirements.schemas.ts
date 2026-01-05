@@ -158,7 +158,7 @@ export const clerkshipElectiveInputSchema = z.object({
     message: 'Minimum days must be a positive integer',
   }),
   isRequired: z.boolean().default(true),
-  specialty: z.string().max(200).optional(),
+  specialty: z.string().max(200).nullable().optional(),
   siteIds: z.array(z.string()).optional(),
   preceptorIds: z.array(z.string()).optional(),
 });
