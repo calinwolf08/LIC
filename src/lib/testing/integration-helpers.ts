@@ -11,26 +11,50 @@ import type { DB } from '$lib/db/types';
 /**
  * Creates a complete test clerkship with all necessary data
  * Note: clerkshipType must be 'inpatient' or 'outpatient' per database constraint
+ *
+ * @param db Database connection
+ * @param name Clerkship name
+ * @param clerkshipType Legacy parameter (use options.clerkshipType instead)
+ * @param options Optional configuration for clerkship type and required days
  */
 export async function createTestClerkship(
 	db: Kysely<DB>,
 	name: string,
-	clerkshipType: 'inpatient' | 'outpatient' | string = 'outpatient'
+	clerkshipTypeOrOptions?: 'inpatient' | 'outpatient' | string | { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number },
+	options?: { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number }
 ) {
 	const id = nanoid();
-	// Ensure valid clerkship type - default to 'outpatient' if invalid
-	const validType = (clerkshipType === 'inpatient' || clerkshipType === 'outpatient')
-		? clerkshipType
-		: 'outpatient';
+
+	// Handle both old signature (string) and new signature (object)
+	let clerkshipType: 'inpatient' | 'outpatient' = 'outpatient';
+	let requiredDays = 28;
+
+	if (typeof clerkshipTypeOrOptions === 'object' && clerkshipTypeOrOptions !== null) {
+		// New signature: options object in third param
+		clerkshipType = clerkshipTypeOrOptions.clerkshipType || 'outpatient';
+		requiredDays = clerkshipTypeOrOptions.requiredDays || 28;
+	} else if (typeof clerkshipTypeOrOptions === 'string') {
+		// Legacy signature: string type in third param
+		clerkshipType = (clerkshipTypeOrOptions === 'inpatient' || clerkshipTypeOrOptions === 'outpatient')
+			? clerkshipTypeOrOptions
+			: 'outpatient';
+		// Check if fourth param has options
+		if (options) {
+			requiredDays = options.requiredDays || 28;
+			if (options.clerkshipType) {
+				clerkshipType = options.clerkshipType;
+			}
+		}
+	}
 
 	await db
 		.insertInto('clerkships')
 		.values({
 			id,
 			name,
-			clerkship_type: validType,
-			required_days: 28,
-			description: `Test ${name} clerkship`,
+			clerkship_type: clerkshipType,
+			required_days: requiredDays,
+			description: `Test ${name} clerkship`
 		})
 		.execute();
 
@@ -130,6 +154,50 @@ export async function createTestPreceptors(
 }
 
 /**
+ * Creates a single test preceptor with detailed options
+ */
+export async function createTestPreceptor(
+	db: Kysely<DB>,
+	options: {
+		name?: string;
+		email?: string;
+		healthSystemId?: string;
+		siteId?: string;
+		maxStudents?: number;
+		isGlobalFallbackOnly?: boolean;
+	} = {}
+): Promise<string> {
+	const id = nanoid();
+	const values: any = {
+		id,
+		name: options.name ?? `Dr. Test ${id.slice(0, 6)}`,
+		email: options.email ?? `preceptor-${id}@test.edu`,
+	};
+
+	if (options.maxStudents !== undefined) {
+		values.max_students = options.maxStudents;
+	}
+	if (options.healthSystemId) {
+		values.health_system_id = options.healthSystemId;
+	}
+	if (options.isGlobalFallbackOnly) {
+		values.is_global_fallback_only = 1;
+	}
+
+	await db.insertInto('preceptors').values(values).execute();
+
+	// If siteId is provided, create the site association via junction table
+	if (options.siteId) {
+		await db.insertInto('preceptor_sites').values({
+			preceptor_id: id,
+			site_id: options.siteId,
+		}).execute();
+	}
+
+	return id;
+}
+
+/**
  * Creates a test health system with sites
  */
 export async function createTestHealthSystem(
@@ -168,12 +236,20 @@ export async function createTestHealthSystem(
 }
 
 /**
- * Creates a clerkship requirement
+ * Creates a clerkship requirement (DEPRECATED)
+ *
+ * NOTE: clerkship_requirements table has been removed. Clerkships now define
+ * their type (inpatient/outpatient) directly. Use createTestElective for electives.
+ *
+ * This function now returns a synthetic ID and does nothing. Tests using this
+ * should be updated to work with the new model.
+ *
+ * @deprecated Use clerkship's clerkship_type directly instead
  */
 export async function createTestRequirement(
-	db: Kysely<DB>,
+	_db: Kysely<DB>,
 	clerkshipId: string,
-	options: {
+	_options: {
 		requirementType: 'inpatient' | 'outpatient' | 'elective';
 		requiredDays: number;
 		assignmentStrategy?: 'team_continuity' | 'continuous_single' | 'continuous_team' | 'block_based' | 'daily_rotation';
@@ -181,22 +257,9 @@ export async function createTestRequirement(
 		blockSizeDays?: number;
 	}
 ) {
-	const id = nanoid();
-	await db
-		.insertInto('clerkship_requirements')
-		.values({
-			id,
-			clerkship_id: clerkshipId,
-			requirement_type: options.requirementType,
-			required_days: options.requiredDays,
-			override_mode: options.assignmentStrategy || options.healthSystemRule ? 'override_fields' : 'inherit',
-			override_assignment_strategy: options.assignmentStrategy,
-			override_health_system_rule: options.healthSystemRule,
-			override_block_length_days: options.blockSizeDays,
-					})
-		.execute();
-
-	return id;
+	// Return clerkshipId as the "requirement ID" for backward compatibility
+	// Tests should be updated to use clerkship directly
+	return clerkshipId;
 }
 
 /**
@@ -229,13 +292,27 @@ export async function createCapacityRule(
 }
 
 /**
+ * Team member configuration for createTestTeam
+ */
+export interface TeamMemberConfig {
+	preceptorId: string;
+	priority?: number;
+	isFallbackOnly?: boolean;
+	role?: string;
+}
+
+/**
  * Creates a preceptor team
+ *
+ * Supports two modes:
+ * 1. Simple mode: Pass array of preceptor IDs (string[]) - all become primary members
+ * 2. Advanced mode: Pass array of TeamMemberConfig objects for fine-grained control
  */
 export async function createTestTeam(
 	db: Kysely<DB>,
 	clerkshipId: string,
 	name: string,
-	memberIds: string[],
+	members: string[] | TeamMemberConfig[],
 	options?: {
 		requireSameHealthSystem?: boolean;
 		requireSameSite?: boolean;
@@ -252,18 +329,30 @@ export async function createTestTeam(
 			require_same_health_system: options?.requireSameHealthSystem ? 1 : 0,
 			require_same_site: options?.requireSameSite ? 1 : 0,
 			require_same_specialty: options?.requireSameSpecialty ? 1 : 0,
-					})
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		})
 		.execute();
 
+	// Normalize members to TeamMemberConfig format
+	const normalizedMembers: TeamMemberConfig[] = members.map((m, i) => {
+		if (typeof m === 'string') {
+			return { preceptorId: m, priority: i + 1, isFallbackOnly: false };
+		}
+		return { ...m, priority: m.priority ?? i + 1 };
+	});
+
 	// Add team members
-	for (let i = 0; i < memberIds.length; i++) {
+	for (const member of normalizedMembers) {
 		await db
 			.insertInto('preceptor_team_members')
 			.values({
 				id: nanoid(),
 				team_id: teamId,
-				preceptor_id: memberIds[i],
-				priority: i + 1,
+				preceptor_id: member.preceptorId,
+				priority: member.priority!,
+				role: member.role ?? null,
+				is_fallback_only: member.isFallbackOnly ? 1 : 0,
 				created_at: new Date().toISOString(),
 			})
 			.execute();
@@ -437,10 +526,25 @@ export function generateDateRange(startDate: string, days: number): string[] {
 
 /**
  * Clears all test data from database
+ * Note: Uses try/catch for newer tables that may not exist in all test databases
  */
 export async function clearAllTestData(db: Kysely<DB>) {
 	// Delete in reverse dependency order
 	await db.deleteFrom('schedule_assignments').execute();
+
+	// Clear schedule scoping junction tables (may not exist in older test DBs)
+	try {
+		await db.deleteFrom('schedule_students').execute();
+		await db.deleteFrom('schedule_preceptors').execute();
+		await db.deleteFrom('schedule_sites').execute();
+		await db.deleteFrom('schedule_health_systems').execute();
+		await db.deleteFrom('schedule_clerkships').execute();
+		await db.deleteFrom('schedule_teams').execute();
+		await db.deleteFrom('schedule_configurations').execute();
+	} catch {
+		// Tables may not exist yet - ignore
+	}
+
 	await db.deleteFrom('preceptor_team_members').execute();
 	await db.deleteFrom('preceptor_teams').execute();
 	await db.deleteFrom('preceptor_fallbacks').execute();
@@ -448,11 +552,51 @@ export async function clearAllTestData(db: Kysely<DB>) {
 	await db.deleteFrom('preceptor_availability').execute();
 	await db.deleteFrom('blackout_dates').execute();
 	await db.deleteFrom('clerkship_electives').execute();
-	await db.deleteFrom('clerkship_requirements').execute();
+	// clerkship_requirements table has been removed
 	await db.deleteFrom('preceptor_sites').execute();
 	await db.deleteFrom('sites').execute();
 	await db.deleteFrom('health_systems').execute();
 	await db.deleteFrom('preceptors').execute();
 	await db.deleteFrom('students').execute();
 	await db.deleteFrom('clerkships').execute();
+
+	try {
+		await db.deleteFrom('scheduling_periods').execute();
+	} catch {
+		// Table may not exist - ignore
+	}
+}
+
+/**
+ * Sets the global outpatient default assignment strategy
+ *
+ * @param db Database connection
+ * @param strategy The assignment strategy to use (continuous_single, team_continuity, block_based, daily_rotation)
+ */
+export async function setOutpatientAssignmentStrategy(
+	db: Kysely<DB>,
+	strategy: 'continuous_single' | 'team_continuity' | 'block_based' | 'daily_rotation'
+): Promise<void> {
+	await db
+		.updateTable('global_outpatient_defaults')
+		.set({ assignment_strategy: strategy })
+		.where('school_id', '=', 'default')
+		.execute();
+}
+
+/**
+ * Sets the global inpatient default assignment strategy
+ *
+ * @param db Database connection
+ * @param strategy The assignment strategy to use (continuous_single, team_continuity, block_based, daily_rotation)
+ */
+export async function setInpatientAssignmentStrategy(
+	db: Kysely<DB>,
+	strategy: 'continuous_single' | 'team_continuity' | 'block_based' | 'daily_rotation'
+): Promise<void> {
+	await db
+		.updateTable('global_inpatient_defaults')
+		.set({ assignment_strategy: strategy })
+		.where('school_id', '=', 'default')
+		.execute();
 }

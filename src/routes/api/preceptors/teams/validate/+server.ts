@@ -13,8 +13,11 @@ import {
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { TeamValidator } from '$lib/features/scheduling/team-formation';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { z } from 'zod';
 import { ZodError } from 'zod';
+
+const log = createServerLogger('api:preceptors:teams:validate');
 
 /**
  * Team validation request schema
@@ -77,9 +80,17 @@ const validateTeamSchema = z.object({
  * }
  */
 export const POST: RequestHandler = async ({ request }) => {
+	log.debug('Validating team configuration');
+
 	try {
 		const body = await request.json();
 		const validatedData = validateTeamSchema.parse(body);
+
+		log.debug('Running team validation', {
+			memberCount: validatedData.members.length,
+			config: validatedData.config,
+			clerkshipId: validatedData.options?.clerkshipId
+		});
 
 		const validator = new TeamValidator(db);
 
@@ -89,12 +100,23 @@ export const POST: RequestHandler = async ({ request }) => {
 			validatedData.options || {}
 		);
 
+		log.info('Team validation complete', {
+			isValid: result.isValid,
+			errorCount: result.errors.length,
+			warningCount: result.warnings.length,
+			requiresApproval: result.requiresApproval
+		});
+
 		return successResponse(result);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Team validation schema failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
+		log.error('Failed to validate team', { error });
 		return handleApiError(error);
 	}
 };

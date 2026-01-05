@@ -13,6 +13,9 @@ import { getPreceptorById } from '$lib/features/preceptors/services/preceptor-se
 import { getClerkshipById } from '$lib/features/clerkships/services/clerkship-service';
 import { isDateBlackedOut } from '$lib/features/blackout-dates/services/blackout-date-service';
 import { getAvailabilityByDate } from '$lib/features/preceptors/services/availability-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:schedules:assignment');
 
 /**
  * Get all assignments with optional filters
@@ -120,9 +123,20 @@ export async function createAssignment(
 	db: Kysely<DB>,
 	data: CreateAssignmentInput
 ): Promise<Selectable<ScheduleAssignments>> {
+	log.debug('Creating assignment', {
+		studentId: data.student_id,
+		preceptorId: data.preceptor_id,
+		clerkshipId: data.clerkship_id,
+		date: data.date
+	});
+
 	// Validate assignment
 	const validation = await validateAssignment(db, data);
 	if (!validation.valid) {
+		log.warn('Assignment creation validation failed', {
+			studentId: data.student_id,
+			errors: validation.errors
+		});
 		throw new ValidationError(validation.errors.join('; '));
 	}
 
@@ -143,6 +157,13 @@ export async function createAssignment(
 		.values(newAssignment)
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	log.info('Assignment created', {
+		id: inserted.id,
+		studentId: inserted.student_id,
+		preceptorId: inserted.preceptor_id,
+		date: inserted.date
+	});
 
 	return inserted;
 }
@@ -233,8 +254,13 @@ export async function bulkCreateAssignments(
 	db: Kysely<DB>,
 	data: BulkAssignmentInput
 ): Promise<Selectable<ScheduleAssignments>[]> {
+	log.debug('Bulk creating assignments', {
+		assignmentCount: data.assignments.length
+	});
+
 	// Handle empty array case
 	if (data.assignments.length === 0) {
+		log.info('Bulk create called with empty array');
 		return [];
 	}
 
@@ -264,6 +290,12 @@ export async function bulkCreateAssignments(
 		.values(assignments)
 		.returningAll()
 		.execute();
+
+	log.info('Bulk assignments created', {
+		originalCount: data.assignments.length,
+		dedupedCount: dedupedAssignments.length,
+		insertedCount: inserted.length
+	});
 
 	return inserted;
 }

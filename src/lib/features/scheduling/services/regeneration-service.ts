@@ -9,11 +9,14 @@ import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { SchedulingContext, Assignment } from '../types';
 import { getAssignmentsByDateRange } from '$lib/features/schedules/services/assignment-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:regeneration');
 
 /**
  * Regeneration strategy types
  */
-export type RegenerationStrategy = 'minimal-change' | 'full-reoptimize';
+export type RegenerationStrategy = 'minimal-change' | 'full-reoptimize' | 'completion';
 
 /**
  * Result of crediting past assignments to requirements
@@ -46,6 +49,11 @@ export function creditPastAssignmentsToRequirements(
 	context: SchedulingContext,
 	pastAssignments: Selectable<ScheduleAssignments>[]
 ): RequirementCreditResult {
+	log.debug('Crediting past assignments to requirements', {
+		pastAssignmentsCount: pastAssignments.length,
+		studentCount: context.students.length
+	});
+
 	const creditsByStudent = new Map<string, Map<string, number>>();
 
 	for (const assignment of pastAssignments) {
@@ -66,6 +74,11 @@ export function creditPastAssignmentsToRequirements(
 			studentCredits.set(assignment.clerkship_id, currentCredit + 1);
 		}
 	}
+
+	log.info('Past assignments credited', {
+		totalPastAssignments: pastAssignments.length,
+		studentsWithCredits: creditsByStudent.size
+	});
 
 	return {
 		totalPastAssignments: pastAssignments.length,
@@ -90,6 +103,12 @@ export async function identifyAffectedAssignments(
 	regenerateFromDate: string,
 	endDate: string
 ): Promise<AffectedAssignmentsResult> {
+	log.debug('Identifying affected assignments', {
+		regenerateFromDate,
+		endDate,
+		preceptorCount: context.preceptors.length
+	});
+
 	// Get all future assignments (not yet cleared)
 	const futureAssignments = await getAssignmentsByDateRange(
 		db,
@@ -135,6 +154,13 @@ export async function identifyAffectedAssignments(
 		// Assignment appears valid - can be preserved
 		preservableAssignments.push(assignment);
 	}
+
+	log.info('Affected assignments identified', {
+		futureAssignmentsTotal: futureAssignments.length,
+		affectedCount: affectedAssignments.length,
+		preservableCount: preservableAssignments.length,
+		unavailablePreceptorCount: unavailablePreceptorIds.size
+	});
 
 	return {
 		affectedAssignments,
@@ -299,6 +325,14 @@ export async function prepareRegenerationContext(
 	preservedAssignments: number;
 	affectedAssignments: number;
 }> {
+	log.debug('Preparing regeneration context', {
+		regenerateFromDate,
+		endDate,
+		strategy,
+		studentCount: context.students.length,
+		preceptorCount: context.preceptors.length
+	});
+
 	// Get all past assignments (before regeneration date)
 	const startDate = context.startDate || '1900-01-01'; // Fallback to very old date
 	const pastAssignments = await getAssignmentsByDateRange(
@@ -336,6 +370,14 @@ export async function prepareRegenerationContext(
 		);
 	}
 	// For 'full-reoptimize', we don't preserve any future assignments
+
+	log.info('Regeneration context prepared', {
+		strategy,
+		pastAssignmentsCount: creditResult.totalPastAssignments,
+		preservedAssignments,
+		affectedAssignments,
+		studentsWithProgress: creditResult.creditsByStudent.size
+	});
 
 	return {
 		creditResult,
@@ -399,6 +441,12 @@ export async function analyzeRegenerationImpact(
 	endDate: string,
 	strategy: RegenerationStrategy
 ): Promise<RegenerationImpact> {
+	log.debug('Analyzing regeneration impact', {
+		regenerateFromDate,
+		endDate,
+		strategy
+	});
+
 	// Get all existing assignments
 	const assignments = await getAssignmentsByDateRange(db, context.startDate, endDate);
 
@@ -467,6 +515,17 @@ export async function analyzeRegenerationImpact(
 	const totalImpacted =
 		futureAssignments.length - (strategy === 'minimal-change' ? preservableAssignments.length : 0);
 
+	log.info('Regeneration impact analyzed', {
+		strategy,
+		regenerateFromDate,
+		pastAssignmentsCount: pastAssignments.length,
+		futureAssignmentsCount: futureAssignments.length,
+		preservableCount: preservableAssignments.length,
+		affectedCount: affectedAssignments.length,
+		totalImpacted,
+		studentsWithProgress: studentProgress.length
+	});
+
 	return {
 		pastAssignments,
 		pastAssignmentsCount: pastAssignments.length,
@@ -485,5 +544,125 @@ export async function analyzeRegenerationImpact(
 			willPreservePast: true,
 			willPreserveFuture: strategy === 'minimal-change' && preservableAssignments.length > 0
 		}
+	};
+}
+
+/**
+ * Result of completion context preparation
+ */
+export interface CompletionContextResult {
+	totalExistingAssignments: number;
+	studentsWithUnmetRequirements: string[];
+	unmetRequirementsByStudent: Map<string, Map<string, number>>;
+}
+
+/**
+ * Prepare context for completion-only generation
+ *
+ * Unlike minimal-change, this strategy:
+ * - Keeps 100% of existing assignments (no validation)
+ * - Only generates for students with unmet requirements
+ * - Uses bypassed constraints only for new assignments
+ *
+ * @param db - Database connection
+ * @param context - Scheduling context
+ * @param startDate - Period start date
+ * @param endDate - Period end date
+ * @returns Result with existing assignments count and incomplete students
+ */
+export async function prepareCompletionContext(
+	db: Kysely<DB>,
+	context: SchedulingContext,
+	startDate: string,
+	endDate: string
+): Promise<CompletionContextResult> {
+	log.debug('Preparing completion-only context', {
+		startDate,
+		endDate,
+		studentCount: context.students.length
+	});
+
+	// Get ALL existing assignments (no date filtering)
+	const allExistingAssignments = await getAssignmentsByDateRange(db, startDate, endDate);
+
+	log.debug('Loaded existing assignments', {
+		count: allExistingAssignments.length
+	});
+
+	// Credit ALL existing work to requirements
+	creditPastAssignmentsToRequirements(context, allExistingAssignments);
+
+	// Add ALL existing assignments to context
+	// This makes the engine aware of them and work around them
+	for (const assignment of allExistingAssignments) {
+		const preservedAssignment: Assignment = {
+			studentId: assignment.student_id,
+			preceptorId: assignment.preceptor_id,
+			clerkshipId: assignment.clerkship_id,
+			date: assignment.date
+		};
+
+		// Add to context
+		context.assignments.push(preservedAssignment);
+
+		// Update tracking maps
+		if (!context.assignmentsByDate.has(assignment.date)) {
+			context.assignmentsByDate.set(assignment.date, []);
+		}
+		context.assignmentsByDate.get(assignment.date)!.push(preservedAssignment);
+
+		if (!context.assignmentsByStudent.has(assignment.student_id)) {
+			context.assignmentsByStudent.set(assignment.student_id, []);
+		}
+		context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
+
+		if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
+			context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
+		}
+		context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
+	}
+
+	// Identify students with unmet requirements
+	const studentsWithUnmetRequirements: string[] = [];
+	const unmetRequirementsByStudent = new Map<string, Map<string, number>>();
+
+	for (const student of context.students) {
+		const requirements = context.studentRequirements.get(student.id!);
+		if (!requirements) continue;
+
+		const unmetForStudent = new Map<string, number>();
+		let hasUnmet = false;
+
+		for (const [clerkshipId, daysNeeded] of requirements.entries()) {
+			if (daysNeeded > 0) {
+				hasUnmet = true;
+				unmetForStudent.set(clerkshipId, daysNeeded);
+			}
+		}
+
+		if (hasUnmet) {
+			studentsWithUnmetRequirements.push(student.id!);
+			unmetRequirementsByStudent.set(student.id!, unmetForStudent);
+		}
+	}
+
+	const completionRate =
+		context.students.length > 0
+			? ((context.students.length - studentsWithUnmetRequirements.length) /
+					context.students.length) *
+				100
+			: 100;
+
+	log.info('Completion context prepared', {
+		totalExistingAssignments: allExistingAssignments.length,
+		studentsWithGaps: studentsWithUnmetRequirements.length,
+		totalStudents: context.students.length,
+		completionRate: completionRate.toFixed(1) + '%'
+	});
+
+	return {
+		totalExistingAssignments: allExistingAssignments.length,
+		studentsWithUnmetRequirements,
+		unmetRequirementsByStudent
 	};
 }

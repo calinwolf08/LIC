@@ -4,8 +4,8 @@
  * Assembles all information needed by scheduling strategies.
  */
 
-import type { Kysely } from 'kysely';
-import type { DB } from '$lib/db/types';
+import type { Kysely, Selectable } from 'kysely';
+import type { DB, Preceptors } from '$lib/db/types';
 import type { Student } from '$lib/features/students/types';
 import type { Clerkship } from '$lib/features/clerkships/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
@@ -48,15 +48,16 @@ export class StrategyContextBuilder {
     }
 
     // Build available dates
+    const pendingAssignments = options.pendingAssignments ?? [];
     const availableDates = await this.buildAvailableDates(
       clerkship,
       student,
       options.startDate,
-      options.endDate
+      options.endDate,
+      pendingAssignments
     );
 
     // Get available preceptors (with pending assignment counts)
-    const pendingAssignments = options.pendingAssignments ?? [];
     const availablePreceptors = await this.buildAvailablePreceptors(
       clerkship,
       config,
@@ -65,8 +66,8 @@ export class StrategyContextBuilder {
       pendingAssignments
     );
 
-    // Build daily assignment counts per preceptor
-    const assignmentsByPreceptorDate = this.buildAssignmentsByPreceptorDate(pendingAssignments);
+    // Build daily assignment counts per preceptor (includes both DB and pending)
+    const assignmentsByPreceptorDate = await this.buildAssignmentsByPreceptorDate(pendingAssignments);
 
     // Get teams if needed
     const teams = await this.buildTeams(clerkship.id);
@@ -92,13 +93,30 @@ export class StrategyContextBuilder {
   }
 
   /**
-   * Build daily assignment counts per preceptor from pending assignments
+   * Build daily assignment counts per preceptor from both DB and pending assignments
    */
-  private buildAssignmentsByPreceptorDate(
+  private async buildAssignmentsByPreceptorDate(
     pendingAssignments: PendingAssignment[]
-  ): Map<string, Map<string, number>> {
+  ): Promise<Map<string, Map<string, number>>> {
     const result = new Map<string, Map<string, number>>();
 
+    // First, load existing assignments from the database
+    const dbAssignments = await this.db
+      .selectFrom('schedule_assignments')
+      .select(['preceptor_id', 'date'])
+      .execute();
+
+    // Add DB assignments to the map
+    for (const assignment of dbAssignments) {
+      if (!result.has(assignment.preceptor_id)) {
+        result.set(assignment.preceptor_id, new Map());
+      }
+      const dateMap = result.get(assignment.preceptor_id)!;
+      const currentCount = dateMap.get(assignment.date) ?? 0;
+      dateMap.set(assignment.date, currentCount + 1);
+    }
+
+    // Then add pending assignments from the current batch
     for (const assignment of pendingAssignments) {
       if (!result.has(assignment.preceptorId)) {
         result.set(assignment.preceptorId, new Map());
@@ -112,13 +130,14 @@ export class StrategyContextBuilder {
   }
 
   /**
-   * Build list of available dates (excluding blackouts)
+   * Build list of available dates (excluding blackouts and already-assigned dates for this student)
    */
   private async buildAvailableDates(
     clerkship: Clerkship,
     student: Student,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    pendingAssignments: PendingAssignment[] = []
   ): Promise<string[]> {
     // Get blackout dates
     const blackouts = await this.db
@@ -127,6 +146,29 @@ export class StrategyContextBuilder {
       .execute();
 
     const blackoutSet = new Set(blackouts.map(b => b.date));
+
+    // Get dates where this student already has assignments in the database
+    // Use try-catch to handle cases where table doesn't exist (test environments)
+    let existingAssignmentSet = new Set<string>();
+    try {
+      const existingAssignments = await this.db
+        .selectFrom('schedule_assignments')
+        .select('date')
+        .where('student_id', '=', student.id!)
+        .execute();
+
+      existingAssignmentSet = new Set(existingAssignments.map(a => a.date));
+    } catch (error) {
+      // Table doesn't exist or query failed - no existing assignments to filter
+      existingAssignmentSet = new Set();
+    }
+
+    // Get dates where this student has pending assignments
+    const pendingAssignmentSet = new Set(
+      pendingAssignments
+        .filter(a => a.studentId === student.id)
+        .map(a => a.date)
+    );
 
     // Generate date range using UTC to avoid timezone issues
     const start = startDate
@@ -141,7 +183,10 @@ export class StrategyContextBuilder {
 
     while (current <= end) {
       const dateStr = current.toISOString().split('T')[0];
-      if (!blackoutSet.has(dateStr)) {
+      // Exclude blackouts, existing assignments, and pending assignments
+      if (!blackoutSet.has(dateStr) &&
+          !existingAssignmentSet.has(dateStr) &&
+          !pendingAssignmentSet.has(dateStr)) {
         dates.push(dateStr);
       }
       current.setUTCDate(current.getUTCDate() + 1);
@@ -171,7 +216,7 @@ export class StrategyContextBuilder {
 
     const validPreceptorIds = new Set(teamMemberPreceptorIds.map(r => r.preceptor_id));
 
-    let preceptors;
+    let preceptors: Selectable<Preceptors>[] = [];
     if (validPreceptorIds.size > 0) {
       // Filter to only preceptors associated with this clerkship via team membership
       preceptors = await this.db
@@ -215,7 +260,7 @@ export class StrategyContextBuilder {
 
       // Add pending assignments to get total current count
       const dbCount = dbAssignmentCount?.count ?? 0;
-      const pendingCount = pendingCountByPreceptor.get(preceptor.id) ?? 0;
+      const pendingCount = pendingCountByPreceptor.get(preceptor.id!) ?? 0;
       const totalAssignmentCount = dbCount + pendingCount;
 
       // Get capacity rules (simplified - would need to resolve hierarchy)
@@ -237,6 +282,10 @@ export class StrategyContextBuilder {
       // Skip preceptors without valid IDs
       if (!preceptor.id) continue;
 
+      // Use preceptor's max_students as the default for max_students_per_day
+      // Fall back to capacity rule if it exists, otherwise use preceptor setting
+      const defaultMaxPerDay = preceptor.max_students ?? 1;
+
       result.push({
         id: preceptor.id,
         name: preceptor.name,
@@ -245,8 +294,9 @@ export class StrategyContextBuilder {
         siteIds: preceptorSites.map(ps => ps.site_id),
         availability: availabilityDates,
         currentAssignmentCount: totalAssignmentCount,
-        maxStudentsPerDay: capacityRule?.max_students_per_day ?? 2,
-        maxStudentsPerYear: capacityRule?.max_students_per_year ?? 20,
+        maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
+        maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,
+        isGlobalFallbackOnly: Boolean(preceptor.is_global_fallback_only),
       });
     }
 
@@ -282,6 +332,7 @@ export class StrategyContextBuilder {
           preceptorId: m.preceptor_id,
           priority: m.priority,
           role: m.role || undefined,
+          isFallbackOnly: Boolean(m.is_fallback_only),
         })),
         requireSameHealthSystem: Boolean(team.require_same_health_system),
         requireSameSite: Boolean(team.require_same_site),

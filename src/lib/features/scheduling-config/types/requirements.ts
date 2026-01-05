@@ -1,69 +1,38 @@
 /**
  * Requirement Configuration Types
  *
- * Per-clerkship requirement types with override tracking.
+ * NOTE: ClerkshipRequirements have been removed in favor of direct
+ * clerkship → elective relationships. Clerkships now define their type
+ * (inpatient/outpatient) directly, and electives link directly to clerkships.
  */
 
-import type { RequirementType, OverrideMode, AssignmentStrategy, HealthSystemRule } from './enums';
-
-/**
- * Clerkship Requirement with Override Tracking
- *
- * Defines a specific requirement within a clerkship (e.g., "40 days outpatient").
- * Can inherit global defaults or override specific fields.
- */
-export interface ClerkshipRequirement {
-  id: string;
-  clerkshipId: string;
-  requirementType: RequirementType;
-  requiredDays: number;
-
-  // Override Control (NEW)
-  overrideMode: OverrideMode;
-
-  // Override Values (only populated if overrideMode != 'inherit')
-  overrideAssignmentStrategy?: AssignmentStrategy;
-  overrideHealthSystemRule?: HealthSystemRule;
-  overrideMaxStudentsPerDay?: number;
-  overrideMaxStudentsPerYear?: number;
-  overrideMaxStudentsPerBlock?: number;
-  overrideMaxBlocksPerYear?: number;
-  overrideBlockSizeDays?: number;
-  overrideAllowPartialBlocks?: boolean;
-  overridePreferContinuousBlocks?: boolean;
-  overrideAllowTeams?: boolean;
-  overrideAllowFallbacks?: boolean;
-  overrideFallbackRequiresApproval?: boolean;
-  overrideFallbackAllowCrossSystem?: boolean;
-
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Field-Level Override Tracking
- *
- * Tracks which specific fields are overridden (used for override_fields mode).
- */
-export interface ClerkshipRequirementOverride {
-  id: string;
-  requirementId: string;
-  fieldName: string; // e.g., 'assignmentStrategy', 'healthSystemRule'
-  isOverridden: boolean;
-  createdAt: Date;
-}
+// ClerkshipRequirement and ClerkshipRequirementOverride removed in migration 025
+// The clerkship itself now defines whether it's inpatient or outpatient
+// Electives link directly to clerkships via clerkship_id
 
 /**
  * Clerkship Elective
  *
- * Defines an elective option within an elective requirement.
+ * Defines an elective within a clerkship.
+ * Electives link directly to clerkships (not through requirements).
+ * Each elective can inherit settings from its parent clerkship or override them.
  */
 export interface ClerkshipElective {
   id: string;
-  requirementId: string; // Links to requirement where type = 'elective'
+  clerkshipId: string;
   name: string;
   minimumDays: number;
+  isRequired: boolean;
   specialty?: string;
+  overrideMode: 'inherit' | 'override';
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Clerkship Elective with associated sites and preceptors
+ */
+export interface ClerkshipElectiveWithDetails extends ClerkshipElective {
+  sites: Array<{ id: string; name: string }>;
+  preceptors: Array<{ id: string; name: string }>;
 }

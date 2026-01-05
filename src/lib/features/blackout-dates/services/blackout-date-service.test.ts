@@ -33,10 +33,9 @@ async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('blackout_dates')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('date', 'text', (col) => col.notNull().unique())
 		.addColumn('reason', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
-		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 }
 
@@ -55,12 +54,11 @@ async function createBlackoutDateDirect(
 	data: Partial<BlackoutDates> = {}
 ): Promise<BlackoutDates> {
 	const timestamp = new Date().toISOString();
-	const blackoutDate: BlackoutDates = {
+	const blackoutDate = {
 		id: crypto.randomUUID(),
 		date: '2024-12-25',
 		reason: null,
 		created_at: timestamp,
-		updated_at: timestamp,
 		...data
 	};
 
@@ -231,16 +229,14 @@ describe('Blackout Date Service', () => {
 			expect(created.reason).toBeNull();
 		});
 
-		it('allows duplicate dates', async () => {
-			// Multiple blackout entries for same date are allowed
-			// (e.g., different reasons or systems)
+		it('rejects duplicate dates', async () => {
+			// Blackout dates must be unique - can't have two entries for same date
 			const data = createMockBlackoutDateData({ date: '2024-12-25' });
 
-			const first = await createBlackoutDate(db, data);
-			const second = await createBlackoutDate(db, data);
+			await createBlackoutDate(db, data);
 
-			expect(first.id).not.toBe(second.id);
-			expect(first.date).toBe(second.date);
+			// Second insert should fail due to unique constraint
+			await expect(createBlackoutDate(db, data)).rejects.toThrow();
 		});
 
 		it('sets created_at timestamp', async () => {
@@ -301,15 +297,6 @@ describe('Blackout Date Service', () => {
 
 		it('is case-sensitive for date format', async () => {
 			await createBlackoutDateDirect(db, { date: '2024-12-25' });
-
-			const result = await isDateBlackedOut(db, '2024-12-25');
-
-			expect(result).toBe(true);
-		});
-
-		it('returns true when multiple entries exist for same date', async () => {
-			await createBlackoutDateDirect(db, { date: '2024-12-25', reason: 'Christmas' });
-			await createBlackoutDateDirect(db, { date: '2024-12-25', reason: 'Holiday' });
 
 			const result = await isDateBlackedOut(db, '2024-12-25');
 

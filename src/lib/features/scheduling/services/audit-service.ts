@@ -7,6 +7,9 @@
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import type { RegenerationStrategy } from './regeneration-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:audit');
 
 /**
  * Audit log entry for schedule regeneration
@@ -48,21 +51,22 @@ export interface RegenerationAuditLog {
  */
 export async function logRegenerationEvent(
 	db: Kysely<DB>,
-	log: Omit<RegenerationAuditLog, 'id' | 'timestamp'>
+	auditData: Omit<RegenerationAuditLog, 'id' | 'timestamp'>
 ): Promise<RegenerationAuditLog> {
 	const auditLog: RegenerationAuditLog = {
 		id: crypto.randomUUID(),
 		timestamp: new Date().toISOString(),
-		...log
+		...auditData
 	};
 
-	// Log to console for now (in production, this would go to a database table or external service)
-	console.log('[SCHEDULE_REGENERATION_AUDIT]', {
+	log.info('Schedule regeneration event logged', {
 		id: auditLog.id,
 		timestamp: auditLog.timestamp,
 		strategy: auditLog.strategy,
 		regenerateFromDate: auditLog.regenerateFromDate,
+		endDate: auditLog.endDate,
 		impact: {
+			pastAssignments: auditLog.pastAssignmentsCount,
 			deleted: auditLog.futureAssignmentsDeleted,
 			preserved: auditLog.futureAssignmentsPreserved,
 			affected: auditLog.affectedAssignments,
@@ -70,7 +74,8 @@ export async function logRegenerationEvent(
 		},
 		success: auditLog.success,
 		userId: auditLog.userId || 'system',
-		reason: auditLog.reason || 'manual_regeneration'
+		reason: auditLog.reason || 'manual_regeneration',
+		errorMessage: auditLog.errorMessage
 	});
 
 	// TODO: Store in database table when audit_logs table is created

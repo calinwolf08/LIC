@@ -13,6 +13,9 @@ import type {
 	CalendarFilters,
 	ScheduleSummary
 } from '../types';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:schedules:calendar');
 
 /**
  * Get assignments with all related entity data via JOINs
@@ -21,6 +24,14 @@ export async function getEnrichedAssignments(
 	db: Kysely<DB>,
 	filters: CalendarFilters
 ): Promise<EnrichedAssignment[]> {
+	log.debug('Fetching enriched assignments', {
+		startDate: filters.start_date,
+		endDate: filters.end_date,
+		studentId: filters.student_id,
+		preceptorId: filters.preceptor_id,
+		clerkshipId: filters.clerkship_id
+	});
+
 	let query = db
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('students as s', 's.id', 'sa.student_id')
@@ -61,6 +72,12 @@ export async function getEnrichedAssignments(
 	}
 
 	const results = await query.orderBy('sa.date', 'asc').execute();
+
+	log.info('Enriched assignments fetched', {
+		count: results.length,
+		startDate: filters.start_date,
+		endDate: filters.end_date
+	});
 
 	return results as EnrichedAssignment[];
 }

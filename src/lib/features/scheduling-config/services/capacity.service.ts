@@ -14,6 +14,9 @@ import {
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
 import { nanoid } from 'nanoid';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:capacity');
 
 /**
  * Capacity Rule Service
@@ -28,9 +31,19 @@ export class CapacityRuleService {
    * Create a new capacity rule
    */
   async createCapacityRule(input: PreceptorCapacityRuleInput): Promise<ServiceResult<PreceptorCapacityRule>> {
+    log.debug('Creating capacity rule', {
+      preceptorId: input.preceptorId,
+      clerkshipId: input.clerkshipId,
+      requirementType: input.requirementType
+    });
+
     // Validate input
     const validation = preceptorCapacityRuleInputSchema.safeParse(input);
     if (!validation.success) {
+      log.warn('Capacity rule creation validation failed', {
+        preceptorId: input.preceptorId,
+        errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
       return Result.failure(
         ServiceErrors.validationError('Invalid capacity rule data', validation.error.errors)
       );
@@ -45,6 +58,7 @@ export class CapacityRuleService {
         .executeTakeFirst();
 
       if (!preceptor) {
+        log.warn('Preceptor not found for capacity rule', { preceptorId: input.preceptorId });
         return Result.failure(ServiceErrors.notFound('Preceptor', input.preceptorId));
       }
 
@@ -57,6 +71,7 @@ export class CapacityRuleService {
           .executeTakeFirst();
 
         if (!clerkship) {
+          log.warn('Clerkship not found for capacity rule', { clerkshipId: input.clerkshipId });
           return Result.failure(ServiceErrors.notFound('Clerkship', input.clerkshipId));
         }
       }
@@ -78,8 +93,16 @@ export class CapacityRuleService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      log.info('Capacity rule created', {
+        id: rule.id,
+        preceptorId: rule.preceptor_id,
+        clerkshipId: rule.clerkship_id,
+        requirementType: rule.requirement_type
+      });
+
       return Result.success(this.mapCapacityRule(rule));
     } catch (error) {
+      log.error('Failed to create capacity rule', { preceptorId: input.preceptorId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to create capacity rule', error));
     }
   }
@@ -88,6 +111,8 @@ export class CapacityRuleService {
    * Get capacity rule by ID
    */
   async getCapacityRule(id: string): Promise<ServiceResult<PreceptorCapacityRule | null>> {
+    log.debug('Fetching capacity rule', { id });
+
     try {
       const rule = await this.db
         .selectFrom('preceptor_capacity_rules')
@@ -96,11 +121,14 @@ export class CapacityRuleService {
         .executeTakeFirst();
 
       if (!rule) {
+        log.debug('Capacity rule not found', { id });
         return Result.success(null);
       }
 
+      log.info('Capacity rule fetched', { id, preceptorId: rule.preceptor_id });
       return Result.success(this.mapCapacityRule(rule));
     } catch (error) {
+      log.error('Failed to fetch capacity rule', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch capacity rule', error));
     }
   }
@@ -109,6 +137,8 @@ export class CapacityRuleService {
    * Get all capacity rules for a preceptor
    */
   async getCapacityRulesByPreceptor(preceptorId: string): Promise<ServiceResult<PreceptorCapacityRule[]>> {
+    log.debug('Fetching capacity rules for preceptor', { preceptorId });
+
     try {
       const rules = await this.db
         .selectFrom('preceptor_capacity_rules')
@@ -116,8 +146,10 @@ export class CapacityRuleService {
         .where('preceptor_id', '=', preceptorId)
         .execute();
 
+      log.info('Capacity rules fetched for preceptor', { preceptorId, ruleCount: rules.length });
       return Result.success(rules.map(rule => this.mapCapacityRule(rule)));
     } catch (error) {
+      log.error('Failed to fetch capacity rules for preceptor', { preceptorId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch capacity rules', error));
     }
   }
@@ -136,6 +168,8 @@ export class CapacityRuleService {
     clerkshipId?: string,
     requirementType?: 'outpatient' | 'inpatient' | 'elective'
   ): Promise<ServiceResult<PreceptorCapacityRule | null>> {
+    log.debug('Fetching effective capacity rule', { preceptorId, clerkshipId, requirementType });
+
     try {
       // Try most specific first
       if (clerkshipId && requirementType) {
@@ -192,11 +226,14 @@ export class CapacityRuleService {
         .executeTakeFirst();
 
       if (rule) {
+        log.info('Effective capacity rule found (global)', { preceptorId, ruleId: rule.id });
         return Result.success(this.mapCapacityRule(rule));
       }
 
+      log.debug('No effective capacity rule found', { preceptorId, clerkshipId, requirementType });
       return Result.success(null);
     } catch (error) {
+      log.error('Failed to fetch effective capacity rule', { preceptorId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch effective capacity rule', error));
     }
   }
@@ -208,6 +245,8 @@ export class CapacityRuleService {
     id: string,
     input: Partial<PreceptorCapacityRuleInput>
   ): Promise<ServiceResult<PreceptorCapacityRule>> {
+    log.debug('Updating capacity rule', { id, updates: Object.keys(input) });
+
     try {
       // Check if exists
       const existing = await this.db
@@ -217,6 +256,7 @@ export class CapacityRuleService {
         .executeTakeFirst();
 
       if (!existing) {
+        log.warn('Capacity rule not found for update', { id });
         return Result.failure(ServiceErrors.notFound('Capacity rule', id));
       }
 
@@ -238,19 +278,23 @@ export class CapacityRuleService {
         updateData.max_blocks_per_year = input.maxBlocksPerYear;
       }
 
-      // Validate updated rule
+      // Validate updated rule (convert null to undefined for optional fields)
       const mergedRule = {
         preceptorId: existing.preceptor_id,
         clerkshipId: existing.clerkship_id || undefined,
         requirementType: existing.requirement_type || undefined,
         maxStudentsPerDay: updateData.max_students_per_day ?? existing.max_students_per_day,
         maxStudentsPerYear: updateData.max_students_per_year ?? existing.max_students_per_year,
-        maxStudentsPerBlock: updateData.max_students_per_block ?? existing.max_students_per_block,
-        maxBlocksPerYear: updateData.max_blocks_per_year ?? existing.max_blocks_per_year,
+        maxStudentsPerBlock: (updateData.max_students_per_block ?? existing.max_students_per_block) || undefined,
+        maxBlocksPerYear: (updateData.max_blocks_per_year ?? existing.max_blocks_per_year) || undefined,
       };
 
       const validation = preceptorCapacityRuleInputSchema.safeParse(mergedRule);
       if (!validation.success) {
+        log.warn('Capacity rule update validation failed', {
+          id,
+          errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+        });
         return Result.failure(
           ServiceErrors.validationError('Invalid capacity rule update', validation.error.errors)
         );
@@ -263,8 +307,15 @@ export class CapacityRuleService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      log.info('Capacity rule updated', {
+        id: updated.id,
+        preceptorId: updated.preceptor_id,
+        updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+      });
+
       return Result.success(this.mapCapacityRule(updated));
     } catch (error) {
+      log.error('Failed to update capacity rule', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to update capacity rule', error));
     }
   }
@@ -273,15 +324,20 @@ export class CapacityRuleService {
    * Delete capacity rule
    */
   async deleteCapacityRule(id: string): Promise<ServiceResult<boolean>> {
+    log.debug('Deleting capacity rule', { id });
+
     try {
       const result = await this.db.deleteFrom('preceptor_capacity_rules').where('id', '=', id).execute();
 
       if (result[0].numDeletedRows === BigInt(0)) {
+        log.warn('Capacity rule not found for deletion', { id });
         return Result.failure(ServiceErrors.notFound('Capacity rule', id));
       }
 
+      log.info('Capacity rule deleted', { id });
       return Result.success(true);
     } catch (error) {
+      log.error('Failed to delete capacity rule', { id, error });
       return Result.failure(ServiceErrors.databaseError('Failed to delete capacity rule', error));
     }
   }

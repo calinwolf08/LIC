@@ -88,21 +88,11 @@ describe('ConstraintFactory', () => {
 		});
 
 		it('builds HealthSystemContinuityConstraint when health_system_rule is enforce_same_system', async () => {
-			const mockRequirement = {
-				id: 'req-1',
-				clerkship_id: 'clerkship-1',
-				requirement_type: 'outpatient',
-				required_days: 5,
-				allow_cross_system: 0,
-				override_mode: 'inherit',
-				override_assignment_strategy: null,
-				override_health_system_rule: null,
-				override_block_length_days: null,
-				override_allow_split_assignments: null,
-				override_preceptor_continuity_preference: null,
-				override_team_continuity_preference: null,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+			const mockClerkship = {
+				id: 'clerkship-1',
+				name: 'Family Medicine',
+				clerkship_type: 'outpatient',
+				required_days: 5
 			};
 
 			const mockOutpatientDefaults = {
@@ -121,11 +111,11 @@ describe('ConstraintFactory', () => {
 			};
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								execute: async () => [mockRequirement]
+								execute: async () => [mockClerkship]
 							})
 						})
 					};
@@ -157,29 +147,19 @@ describe('ConstraintFactory', () => {
 		});
 
 		it('builds StudentOnboardingConstraint when context has onboarding data', async () => {
-			const mockRequirement = {
-				id: 'req-1',
-				clerkship_id: 'clerkship-1',
-				requirement_type: 'outpatient',
-				required_days: 5,
-				allow_cross_system: 0,
-				override_mode: 'inherit',
-				override_assignment_strategy: null,
-				override_health_system_rule: null,
-				override_block_length_days: null,
-				override_allow_split_assignments: null,
-				override_preceptor_continuity_preference: null,
-				override_team_continuity_preference: null,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+			const mockClerkship = {
+				id: 'clerkship-1',
+				name: 'Family Medicine',
+				clerkship_type: 'outpatient',
+				required_days: 5
 			};
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								execute: async () => [mockRequirement]
+								execute: async () => [mockClerkship]
 							})
 						})
 					};
@@ -204,29 +184,19 @@ describe('ConstraintFactory', () => {
 		});
 
 		it('builds PreceptorClerkshipAssociationConstraint when context has association data', async () => {
-			const mockRequirement = {
-				id: 'req-1',
-				clerkship_id: 'clerkship-1',
-				requirement_type: 'inpatient',
-				required_days: 5,
-				allow_cross_system: 0,
-				override_mode: 'inherit',
-				override_assignment_strategy: null,
-				override_health_system_rule: null,
-				override_block_length_days: null,
-				override_allow_split_assignments: null,
-				override_preceptor_continuity_preference: null,
-				override_team_continuity_preference: null,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+			const mockClerkship = {
+				id: 'clerkship-1',
+				name: 'Internal Medicine',
+				clerkship_type: 'inpatient',
+				required_days: 5
 			};
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								execute: async () => [mockRequirement]
+								execute: async () => [mockClerkship]
 							})
 						})
 					};
@@ -275,48 +245,28 @@ describe('ConstraintFactory', () => {
 			}
 		});
 
-		it('handles multiple requirements for different clerkships', async () => {
-			const mockRequirements = [
+		it('handles multiple clerkships', async () => {
+			const mockClerkships = [
 				{
-					id: 'req-1',
-					clerkship_id: 'clerkship-1',
-					requirement_type: 'outpatient',
-					required_days: 5,
-					allow_cross_system: 0,
-					override_mode: 'inherit',
-					override_assignment_strategy: null,
-					override_health_system_rule: null,
-					override_block_length_days: null,
-					override_allow_split_assignments: null,
-					override_preceptor_continuity_preference: null,
-					override_team_continuity_preference: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
+					id: 'clerkship-1',
+					name: 'Family Medicine',
+					clerkship_type: 'outpatient',
+					required_days: 5
 				},
 				{
-					id: 'req-2',
-					clerkship_id: 'clerkship-2',
-					requirement_type: 'inpatient',
-					required_days: 10,
-					allow_cross_system: 1,
-					override_mode: 'inherit',
-					override_assignment_strategy: null,
-					override_health_system_rule: null,
-					override_block_length_days: null,
-					override_allow_split_assignments: null,
-					override_preceptor_continuity_preference: null,
-					override_team_continuity_preference: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
+					id: 'clerkship-2',
+					name: 'Internal Medicine',
+					clerkship_type: 'inpatient',
+					required_days: 10
 				}
 			];
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								execute: async () => mockRequirements
+								execute: async () => mockClerkships
 							})
 						})
 					};
@@ -341,32 +291,22 @@ describe('ConstraintFactory', () => {
 			expect(constraints.length).toBeGreaterThanOrEqual(3); // At least base constraints
 		});
 
-		it('handles requirements without IDs by skipping them', async () => {
-			const mockRequirements = [
+		it('handles clerkships without IDs by skipping them', async () => {
+			const mockClerkships = [
 				{
 					id: null,
-					clerkship_id: 'clerkship-1',
-					requirement_type: 'outpatient',
-					required_days: 5,
-					allow_cross_system: 0,
-					override_mode: 'inherit',
-					override_assignment_strategy: null,
-					override_health_system_rule: null,
-					override_block_length_days: null,
-					override_allow_split_assignments: null,
-					override_preceptor_continuity_preference: null,
-					override_team_continuity_preference: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
+					name: 'Family Medicine',
+					clerkship_type: 'outpatient',
+					required_days: 5
 				}
 			];
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								execute: async () => mockRequirements
+								execute: async () => mockClerkships
 							})
 						})
 					};
@@ -384,7 +324,7 @@ describe('ConstraintFactory', () => {
 
 			const constraints = await factory.buildConstraints(['clerkship-1'], context);
 
-			// Should only have base constraints, no onboarding constraint
+			// Should only have base constraints, no onboarding constraint (clerkship has null ID)
 			const hasOnboardingConstraint = constraints.some(
 				(c) => c instanceof StudentOnboardingConstraint
 			);
@@ -393,8 +333,18 @@ describe('ConstraintFactory', () => {
 	});
 
 	describe('getResolvedConfiguration', () => {
-		it('returns null when requirement is not found', async () => {
+		/**
+		 * NOTE: In the new model, getResolvedConfiguration queries the clerkships table directly
+		 * instead of the clerkship_requirements table. The clerkship's clerkship_type field
+		 * determines the configuration behavior.
+		 */
+		it('returns null when clerkship is not found', async () => {
 			mockDb.selectFrom = vi.fn((table) => ({
+				select: () => ({
+					where: () => ({
+						executeTakeFirst: async () => null
+					})
+				}),
 				selectAll: () => ({
 					where: () => ({
 						executeTakeFirst: async () => null
@@ -402,26 +352,16 @@ describe('ConstraintFactory', () => {
 				})
 			})) as any;
 
-			const config = await factory.getResolvedConfiguration('nonexistent-req');
+			const config = await factory.getResolvedConfiguration('nonexistent-clerkship');
 			expect(config).toBeNull();
 		});
 
-		it('returns resolved configuration with global defaults', async () => {
-			const mockRequirement = {
-				id: 'req-1',
-				clerkship_id: 'clerkship-1',
-				requirement_type: 'outpatient',
-				required_days: 5,
-				allow_cross_system: 0,
-				override_mode: 'inherit',
-				override_assignment_strategy: null,
-				override_health_system_rule: null,
-				override_block_length_days: null,
-				override_allow_split_assignments: null,
-				override_preceptor_continuity_preference: null,
-				override_team_continuity_preference: null,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+		it('returns resolved configuration with global defaults for outpatient clerkship', async () => {
+			const mockClerkship = {
+				id: 'clerkship-1',
+				name: 'Family Medicine',
+				clerkship_type: 'outpatient',
+				required_days: 20
 			};
 
 			const mockOutpatientDefaults = {
@@ -440,11 +380,11 @@ describe('ConstraintFactory', () => {
 			};
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								executeTakeFirst: async () => mockRequirement
+								executeTakeFirst: async () => mockClerkship
 							})
 						})
 					};
@@ -467,38 +407,27 @@ describe('ConstraintFactory', () => {
 				};
 			}) as any;
 
-			const config = await factory.getResolvedConfiguration('req-1');
+			const config = await factory.getResolvedConfiguration('clerkship-1');
 
 			expect(config).not.toBeNull();
-			expect(config?.requirementId).toBe('req-1');
 			expect(config?.clerkshipId).toBe('clerkship-1');
-			expect(config?.requirementType).toBe('outpatient');
-			expect(config?.requiredDays).toBe(5);
+			expect(config?.clerkshipType).toBe('outpatient');
+			expect(config?.requiredDays).toBe(20);
 			expect(config?.allowCrossSystem).toBe(false);
 			expect(config?.assignmentStrategy).toBe('continuous_single');
 			expect(config?.healthSystemRule).toBe('enforce_same_system');
 		});
 
-		it('applies requirement overrides when override_mode is override_fields', async () => {
-			const mockRequirement = {
-				id: 'req-1',
-				clerkship_id: 'clerkship-1',
-				requirement_type: 'inpatient',
-				required_days: 10,
-				allow_cross_system: 1,
-				override_mode: 'override_fields',
-				override_assignment_strategy: 'flexible',
-				override_health_system_rule: 'allow_cross_system',
-				override_block_length_days: 5,
-				override_allow_split_assignments: 1,
-				override_preceptor_continuity_preference: 'prefer_different',
-				override_team_continuity_preference: 'prefer_different',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+		it('returns resolved configuration with global defaults for inpatient clerkship', async () => {
+			const mockClerkship = {
+				id: 'clerkship-1',
+				name: 'Internal Medicine',
+				clerkship_type: 'inpatient',
+				required_days: 28
 			};
 
 			const mockInpatientDefaults = {
-				assignment_strategy: 'continuous_single',
+				assignment_strategy: 'block_based',
 				health_system_rule: 'enforce_same_system',
 				allow_teams: 0,
 				allow_fallbacks: 0,
@@ -522,11 +451,11 @@ describe('ConstraintFactory', () => {
 			};
 
 			mockDb.selectFrom = vi.fn((table) => {
-				if (table === 'clerkship_requirements') {
+				if (table === 'clerkships') {
 					return {
-						selectAll: () => ({
+						select: () => ({
 							where: () => ({
-								executeTakeFirst: async () => mockRequirement
+								executeTakeFirst: async () => mockClerkship
 							})
 						})
 					};
@@ -549,15 +478,14 @@ describe('ConstraintFactory', () => {
 				};
 			}) as any;
 
-			const config = await factory.getResolvedConfiguration('req-1');
+			const config = await factory.getResolvedConfiguration('clerkship-1');
 
 			expect(config).not.toBeNull();
-			expect(config?.assignmentStrategy).toBe('flexible');
-			expect(config?.healthSystemRule).toBe('allow_cross_system');
-			expect(config?.blockLengthDays).toBe(5);
-			expect(config?.allowSplitAssignments).toBe(true);
-			expect(config?.preceptorContinuityPreference).toBe('prefer_different');
-			expect(config?.teamContinuityPreference).toBe('prefer_different');
+			expect(config?.clerkshipId).toBe('clerkship-1');
+			expect(config?.clerkshipType).toBe('inpatient');
+			expect(config?.requiredDays).toBe(28);
+			expect(config?.assignmentStrategy).toBe('block_based');
+			expect(config?.healthSystemRule).toBe('enforce_same_system');
 		});
 	});
 });

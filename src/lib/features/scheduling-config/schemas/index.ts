@@ -27,6 +27,7 @@ export {
   fieldOverrideInputSchema,
   applyDefaultsChangeInputSchema,
   clerkshipElectiveInputSchema,
+  clerkshipElectiveUpdateSchema,
   clerkshipElectiveSchema,
 } from './requirements.schemas';
 export type {
@@ -34,6 +35,7 @@ export type {
   FieldOverrideInput,
   ApplyDefaultsChangeInput,
   ClerkshipElectiveInput,
+  ClerkshipElectiveUpdateInput,
 } from './requirements.schemas';
 
 // Teams and Fallbacks Schemas

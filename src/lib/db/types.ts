@@ -56,42 +56,42 @@ export interface ClerkshipConfigurations {
 }
 
 export interface ClerkshipElectives {
-  available_preceptor_ids: Generated<string>;
-  created_at: Generated<string>;
-  id: string | null;
-  minimum_days: number;
-  name: string;
-  requirement_id: string;
-  specialty: string | null;
-  updated_at: Generated<string>;
-}
-
-export interface ClerkshipRequirementOverrides {
-  created_at: Generated<string>;
-  field_name: string;
-  id: string | null;
-  is_overridden: Generated<number>;
-  requirement_id: string;
-}
-
-export interface ClerkshipRequirements {
-  allow_cross_system: Generated<number>;
   clerkship_id: string;
   created_at: Generated<string>;
   id: string | null;
-  override_allow_split_assignments: number | null;
-  override_assignment_strategy: string | null;
-  override_block_length_days: number | null;
-  override_health_system_rule: string | null;
+  is_required: Generated<number>;
+  minimum_days: number;
+  name: string;
+  specialty: string | null;
+  // Settings override columns (inherit from clerkship by default)
   override_mode: Generated<string>;
-  override_preceptor_continuity_preference: string | null;
-  override_team_continuity_preference: string | null;
-  require_same_preceptor_team: Generated<number>;
-  require_same_site: Generated<number>;
-  required_days: number;
-  requirement_type: string;
+  override_assignment_strategy: string | null;
+  override_health_system_rule: string | null;
+  override_max_students_per_day: number | null;
+  override_max_students_per_year: number | null;
+  override_allow_fallbacks: number | null;
+  override_allow_teams: number | null;
+  override_fallback_requires_approval: number | null;
+  override_fallback_allow_cross_system: number | null;
   updated_at: Generated<string>;
 }
+
+export interface ElectivePreceptors {
+  created_at: Generated<string>;
+  elective_id: string;
+  id: string | null;
+  preceptor_id: string;
+}
+
+export interface ElectiveSites {
+  created_at: Generated<string>;
+  elective_id: string;
+  id: string | null;
+  site_id: string;
+}
+
+// ClerkshipRequirements and ClerkshipRequirementOverrides removed in migration 025
+// Electives now link directly to clerkships via clerkship_id
 
 export interface Clerkships {
   clerkship_type: string;
@@ -233,6 +233,7 @@ export interface Preceptors {
   email: string;
   health_system_id: string | null;
   id: string | null;
+  is_global_fallback_only: Generated<number>;
   max_students: Generated<number>;
   name: string;
   phone: string | null;
@@ -248,6 +249,7 @@ export interface PreceptorSites {
 export interface PreceptorTeamMembers {
   created_at: Generated<string>;
   id: string | null;
+  is_fallback_only: Generated<number>;
   preceptor_id: string;
   priority: Generated<number>;
   role: string | null;
@@ -270,6 +272,7 @@ export interface ScheduleAssignments {
   clerkship_id: string;
   created_at: Generated<string>;
   date: string;
+  elective_id: string | null;
   id: string | null;
   preceptor_id: string;
   site_id: string | null;
@@ -286,6 +289,57 @@ export interface SchedulingPeriods {
   name: string;
   start_date: string;
   updated_at: Generated<string>;
+  user_id: string | null;
+  year: number | null;
+}
+
+export interface ScheduleStudents {
+  id: string | null;
+  schedule_id: string;
+  student_id: string;
+  created_at: Generated<string>;
+}
+
+export interface SchedulePreceptors {
+  id: string | null;
+  schedule_id: string;
+  preceptor_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleSites {
+  id: string | null;
+  schedule_id: string;
+  site_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleHealthSystems {
+  id: string | null;
+  schedule_id: string;
+  health_system_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleClerkships {
+  id: string | null;
+  schedule_id: string;
+  clerkship_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleTeams {
+  id: string | null;
+  schedule_id: string;
+  team_id: string;
+  created_at: Generated<string>;
+}
+
+export interface ScheduleConfigurations {
+  id: string | null;
+  schedule_id: string;
+  configuration_id: string;
+  created_at: Generated<string>;
 }
 
 export interface Session {
@@ -336,12 +390,6 @@ export interface SiteCapacityRules {
   updated_at: Generated<string>;
 }
 
-export interface SiteElectives {
-  created_at: Generated<string>;
-  elective_requirement_id: string;
-  site_id: string;
-}
-
 export interface Sites {
   address: string | null;
   contact_email: string | null;
@@ -389,6 +437,7 @@ export interface TeamSites {
 }
 
 export interface User {
+  active_schedule_id: string | null;
   createdAt: string;
   email: string;
   emailVerified: number;
@@ -412,10 +461,10 @@ export interface DB {
   blackout_dates: BlackoutDates;
   clerkship_configurations: ClerkshipConfigurations;
   clerkship_electives: ClerkshipElectives;
-  clerkship_requirement_overrides: ClerkshipRequirementOverrides;
-  clerkship_requirements: ClerkshipRequirements;
   clerkship_sites: ClerkshipSites;
   clerkships: Clerkships;
+  elective_preceptors: ElectivePreceptors;
+  elective_sites: ElectiveSites;
   global_elective_defaults: GlobalElectiveDefaults;
   global_inpatient_defaults: GlobalInpatientDefaults;
   global_outpatient_defaults: GlobalOutpatientDefaults;
@@ -429,12 +478,18 @@ export interface DB {
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
   schedule_assignments: ScheduleAssignments;
+  schedule_clerkships: ScheduleClerkships;
+  schedule_configurations: ScheduleConfigurations;
+  schedule_health_systems: ScheduleHealthSystems;
+  schedule_preceptors: SchedulePreceptors;
+  schedule_sites: ScheduleSites;
+  schedule_students: ScheduleStudents;
+  schedule_teams: ScheduleTeams;
   scheduling_periods: SchedulingPeriods;
   session: Session;
   site_availability: SiteAvailability;
   site_availability_patterns: SiteAvailabilityPatterns;
   site_capacity_rules: SiteCapacityRules;
-  site_electives: SiteElectives;
   sites: Sites;
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;

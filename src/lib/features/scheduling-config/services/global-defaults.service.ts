@@ -18,6 +18,9 @@ import type {
 	GlobalInpatientDefaults,
 	GlobalElectiveDefaults,
 } from '../types/global-defaults';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:global-defaults');
 
 /**
  * Global Defaults Service
@@ -35,6 +38,8 @@ export class GlobalDefaultsService {
 	 * @param schoolId - School ID (defaults to 'default')
 	 */
 	async getOutpatientDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalOutpatientDefaults | null>> {
+		log.debug('Fetching outpatient defaults', { schoolId });
+
 		try {
 			const record = await this.db
 				.selectFrom('global_outpatient_defaults')
@@ -43,11 +48,14 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!record) {
+				log.debug('Outpatient defaults not found', { schoolId });
 				return Result.success(null);
 			}
 
+			log.info('Outpatient defaults fetched', { schoolId });
 			return Result.success(this.mapOutpatientFromDb(record));
 		} catch (error) {
+			log.error('Failed to fetch outpatient defaults', { schoolId, error });
 			return Result.failure(
 				ServiceErrors.databaseError('Failed to fetch outpatient defaults', error)
 			);
@@ -61,6 +69,8 @@ export class GlobalDefaultsService {
 		schoolId: string = 'default',
 		input: GlobalOutpatientDefaultsInput
 	): Promise<ServiceResult<GlobalOutpatientDefaults>> {
+		log.debug('Updating outpatient defaults', { schoolId });
+
 		try {
 			const updated = await this.db
 				.updateTable('global_outpatient_defaults')
@@ -84,11 +94,19 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!updated) {
+				log.warn('Outpatient defaults not found for update', { schoolId });
 				return Result.failure(ServiceErrors.notFound('Outpatient defaults', schoolId));
 			}
 
+			log.info('Outpatient defaults updated', {
+				schoolId,
+				assignmentStrategy: updated.assignment_strategy,
+				healthSystemRule: updated.health_system_rule
+			});
+
 			return Result.success(this.mapOutpatientFromDb(updated));
 		} catch (error) {
+			log.error('Failed to update outpatient defaults', { schoolId, error });
 			return Result.failure(
 				ServiceErrors.databaseError('Failed to update outpatient defaults', error)
 			);
@@ -101,6 +119,8 @@ export class GlobalDefaultsService {
 	 * Get global inpatient defaults for a school
 	 */
 	async getInpatientDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalInpatientDefaults | null>> {
+		log.debug('Fetching inpatient defaults', { schoolId });
+
 		try {
 			const record = await this.db
 				.selectFrom('global_inpatient_defaults')
@@ -109,11 +129,14 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!record) {
+				log.debug('Inpatient defaults not found', { schoolId });
 				return Result.success(null);
 			}
 
+			log.info('Inpatient defaults fetched', { schoolId });
 			return Result.success(this.mapInpatientFromDb(record));
 		} catch (error) {
+			log.error('Failed to fetch inpatient defaults', { schoolId, error });
 			return Result.failure(
 				ServiceErrors.databaseError('Failed to fetch inpatient defaults', error)
 			);
@@ -127,6 +150,8 @@ export class GlobalDefaultsService {
 		schoolId: string = 'default',
 		input: GlobalInpatientDefaultsInput
 	): Promise<ServiceResult<GlobalInpatientDefaults>> {
+		log.debug('Updating inpatient defaults', { schoolId });
+
 		try {
 			const updated = await this.db
 				.updateTable('global_inpatient_defaults')
@@ -155,11 +180,20 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!updated) {
+				log.warn('Inpatient defaults not found for update', { schoolId });
 				return Result.failure(ServiceErrors.notFound('Inpatient defaults', schoolId));
 			}
 
+			log.info('Inpatient defaults updated', {
+				schoolId,
+				assignmentStrategy: updated.assignment_strategy,
+				healthSystemRule: updated.health_system_rule,
+				blockSizeDays: updated.block_size_days
+			});
+
 			return Result.success(this.mapInpatientFromDb(updated));
 		} catch (error) {
+			log.error('Failed to update inpatient defaults', { schoolId, error });
 			return Result.failure(
 				ServiceErrors.databaseError('Failed to update inpatient defaults', error)
 			);
@@ -172,6 +206,8 @@ export class GlobalDefaultsService {
 	 * Get global elective defaults for a school
 	 */
 	async getElectiveDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalElectiveDefaults | null>> {
+		log.debug('Fetching elective defaults', { schoolId });
+
 		try {
 			const record = await this.db
 				.selectFrom('global_elective_defaults')
@@ -180,11 +216,14 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!record) {
+				log.debug('Elective defaults not found', { schoolId });
 				return Result.success(null);
 			}
 
+			log.info('Elective defaults fetched', { schoolId });
 			return Result.success(this.mapElectiveFromDb(record));
 		} catch (error) {
+			log.error('Failed to fetch elective defaults', { schoolId, error });
 			return Result.failure(
 				ServiceErrors.databaseError('Failed to fetch elective defaults', error)
 			);
@@ -198,6 +237,8 @@ export class GlobalDefaultsService {
 		schoolId: string = 'default',
 		input: GlobalElectiveDefaultsInput
 	): Promise<ServiceResult<GlobalElectiveDefaults>> {
+		log.debug('Updating elective defaults', { schoolId });
+
 		try {
 			const updated = await this.db
 				.updateTable('global_elective_defaults')
@@ -217,11 +258,19 @@ export class GlobalDefaultsService {
 				.executeTakeFirst();
 
 			if (!updated) {
+				log.warn('Elective defaults not found for update', { schoolId });
 				return Result.failure(ServiceErrors.notFound('Elective defaults', schoolId));
 			}
 
+			log.info('Elective defaults updated', {
+				schoolId,
+				assignmentStrategy: updated.assignment_strategy,
+				healthSystemRule: updated.health_system_rule
+			});
+
 			return Result.success(this.mapElectiveFromDb(updated));
 		} catch (error) {
+			log.error('Failed to update elective defaults', { schoolId, error });
 			return Result.failure(
 				ServiceErrors.databaseError('Failed to update elective defaults', error)
 			);

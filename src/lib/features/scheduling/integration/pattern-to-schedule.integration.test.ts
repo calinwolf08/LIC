@@ -72,6 +72,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('health_system_id', 'text')
 		.addColumn('phone', 'text')
 		.addColumn('max_students', 'integer')
+		.addColumn('is_global_fallback_only', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('created_at', 'text')
 		.addColumn('updated_at', 'text')
 		.execute();

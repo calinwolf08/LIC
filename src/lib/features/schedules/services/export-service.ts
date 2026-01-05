@@ -9,6 +9,9 @@ import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import type { EnrichedAssignment, CalendarFilters } from '../types';
 import { getEnrichedAssignments } from './calendar-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:schedules:export');
 
 // ExcelJS types - will be available after npm install
 type Workbook = any;
@@ -22,11 +25,20 @@ export async function generateScheduleExcel(
 	db: Kysely<DB>,
 	filters: CalendarFilters
 ): Promise<Buffer> {
+	log.debug('Generating Excel export', {
+		startDate: filters.start_date,
+		endDate: filters.end_date,
+		studentId: filters.student_id,
+		preceptorId: filters.preceptor_id,
+		clerkshipId: filters.clerkship_id
+	});
+
 	// Dynamically import ExcelJS (will fail gracefully if not installed)
 	let ExcelJS: any;
 	try {
 		ExcelJS = await import('exceljs');
 	} catch (error) {
+		log.error('ExcelJS not installed', { error });
 		throw new Error(
 			'ExcelJS is not installed. Please run: npm install exceljs @types/exceljs'
 		);
@@ -48,6 +60,13 @@ export async function generateScheduleExcel(
 
 	// Write to buffer
 	const buffer = await workbook.xlsx.writeBuffer();
+
+	log.info('Excel export generated', {
+		assignmentCount: assignments.length,
+		bufferSize: buffer.byteLength,
+		worksheets: 4
+	});
+
 	return Buffer.from(buffer);
 }
 

@@ -53,6 +53,62 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
+
+	// Create schedule scoping tables (needed by deleteSchedulingPeriod)
+	await db.schema
+		.createTable('schedule_students')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_preceptors')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_clerkships')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_health_systems')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_teams')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('team_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_configurations')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('configuration_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_assignments')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text')
+		.execute();
 }
 
 describe('Scheduling Period Service', () => {

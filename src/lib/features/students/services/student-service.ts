@@ -9,6 +9,9 @@ import type { DB, Students } from '$lib/db/types';
 import type { CreateStudentInput, UpdateStudentInput } from '../schemas.js';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:students');
 
 /**
  * Get all students, ordered by name
@@ -52,9 +55,15 @@ export async function createStudent(
 	db: Kysely<DB>,
 	data: CreateStudentInput
 ): Promise<Selectable<Students>> {
+	log.debug('Creating student', {
+		name: data.name,
+		email: data.email
+	});
+
 	// Check if email is already taken
 	const existingStudent = await getStudentByEmail(db, data.email);
 	if (existingStudent) {
+		log.warn('Student creation failed - email already exists', { email: data.email });
 		throw new ConflictError('Email already exists');
 	}
 
@@ -73,6 +82,12 @@ export async function createStudent(
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
+	log.info('Student created', {
+		id: inserted.id,
+		name: inserted.name,
+		email: inserted.email
+	});
+
 	return inserted;
 }
 
@@ -86,9 +101,15 @@ export async function updateStudent(
 	id: string,
 	data: UpdateStudentInput
 ): Promise<Selectable<Students>> {
+	log.debug('Updating student', {
+		id,
+		updates: Object.keys(data)
+	});
+
 	// Check if student exists
 	const exists = await studentExists(db, id);
 	if (!exists) {
+		log.warn('Student not found for update', { id });
 		throw new NotFoundError('Student');
 	}
 
@@ -96,6 +117,7 @@ export async function updateStudent(
 	if (data.email) {
 		const emailTaken = await isEmailTaken(db, data.email, id);
 		if (emailTaken) {
+			log.warn('Student update failed - email already exists', { id, email: data.email });
 			throw new ConflictError('Email already exists');
 		}
 	}
@@ -110,6 +132,12 @@ export async function updateStudent(
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
+	log.info('Student updated', {
+		id: updated.id,
+		name: updated.name,
+		updatedFields: Object.keys(data)
+	});
+
 	return updated;
 }
 
@@ -119,19 +147,25 @@ export async function updateStudent(
  * @throws {ConflictError} If student has schedule assignments
  */
 export async function deleteStudent(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting student', { id });
+
 	// Check if student exists
 	const exists = await studentExists(db, id);
 	if (!exists) {
+		log.warn('Student not found for deletion', { id });
 		throw new NotFoundError('Student');
 	}
 
 	// Check if student can be deleted
 	const canDelete = await canDeleteStudent(db, id);
 	if (!canDelete) {
+		log.warn('Cannot delete student with existing assignments', { id });
 		throw new ConflictError('Cannot delete student with existing schedule assignments');
 	}
 
 	await db.deleteFrom('students').where('id', '=', id).execute();
+
+	log.info('Student deleted', { id });
 }
 
 /**

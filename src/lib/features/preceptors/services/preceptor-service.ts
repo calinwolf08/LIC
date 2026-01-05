@@ -9,6 +9,9 @@ import type { DB, Preceptors } from '$lib/db/types';
 import type { CreatePreceptorInput, UpdatePreceptorInput } from '../schemas.js';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { sql } from 'kysely';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:preceptors:preceptor');
 
 /**
  * Get all preceptors, ordered by name
@@ -59,9 +62,16 @@ export async function createPreceptor(
 	db: Kysely<DB>,
 	data: CreatePreceptorInput
 ): Promise<Selectable<Preceptors>> {
+	log.debug('Creating preceptor', {
+		name: data.name,
+		email: data.email,
+		healthSystemId: data.health_system_id
+	});
+
 	// Check if email is already taken
 	const existingPreceptor = await getPreceptorByEmail(db, data.email);
 	if (existingPreceptor) {
+		log.warn('Preceptor creation failed - email already exists', { email: data.email });
 		throw new ConflictError('Email already exists');
 	}
 
@@ -73,6 +83,7 @@ export async function createPreceptor(
 		phone: data.phone || null,
 		health_system_id: data.health_system_id || null,
 		max_students: data.max_students ?? 1,
+		is_global_fallback_only: data.is_global_fallback_only ? 1 : 0,
 		created_at: timestamp,
 		updated_at: timestamp
 	};
@@ -82,6 +93,12 @@ export async function createPreceptor(
 		.values(newPreceptor)
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	log.info('Preceptor created', {
+		id: inserted.id,
+		name: inserted.name,
+		email: inserted.email
+	});
 
 	return inserted;
 }
@@ -96,9 +113,15 @@ export async function updatePreceptor(
 	id: string,
 	data: UpdatePreceptorInput
 ): Promise<Selectable<Preceptors>> {
+	log.debug('Updating preceptor', {
+		id,
+		updates: Object.keys(data)
+	});
+
 	// Check if preceptor exists
 	const exists = await preceptorExists(db, id);
 	if (!exists) {
+		log.warn('Preceptor not found for update', { id });
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -106,6 +129,7 @@ export async function updatePreceptor(
 	if (data.email) {
 		const emailTaken = await isEmailTaken(db, data.email, id);
 		if (emailTaken) {
+			log.warn('Preceptor update failed - email already exists', { id, email: data.email });
 			throw new ConflictError('Email already exists');
 		}
 	}
@@ -120,6 +144,7 @@ export async function updatePreceptor(
 	if (data.max_students !== undefined) updateData.max_students = data.max_students;
 	if (data.phone !== undefined) updateData.phone = data.phone || null;
 	if ('health_system_id' in data) updateData.health_system_id = data.health_system_id || null;
+	if (data.is_global_fallback_only !== undefined) updateData.is_global_fallback_only = data.is_global_fallback_only ? 1 : 0;
 
 	const updated = await db
 		.updateTable('preceptors')
@@ -127,6 +152,12 @@ export async function updatePreceptor(
 		.where('id', '=', id)
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	log.info('Preceptor updated', {
+		id: updated.id,
+		name: updated.name,
+		updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+	});
 
 	return updated;
 }
@@ -137,20 +168,26 @@ export async function updatePreceptor(
  * @throws {ConflictError} If preceptor has schedule assignments
  */
 export async function deletePreceptor(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting preceptor', { id });
+
 	// Check if preceptor exists
 	const exists = await preceptorExists(db, id);
 	if (!exists) {
+		log.warn('Preceptor not found for deletion', { id });
 		throw new NotFoundError('Preceptor');
 	}
 
 	// Check if preceptor can be deleted
 	const canDelete = await canDeletePreceptor(db, id);
 	if (!canDelete) {
+		log.warn('Cannot delete preceptor with existing assignments', { id });
 		throw new ConflictError('Cannot delete preceptor with existing schedule assignments');
 	}
 
 	// Delete will cascade to preceptor_availability
 	await db.deleteFrom('preceptors').where('id', '=', id).execute();
+
+	log.info('Preceptor deleted', { id });
 }
 
 /**
@@ -246,6 +283,7 @@ export interface PreceptorWithAssociations {
 	email: string;
 	phone: string | null;
 	max_students: number;
+	is_global_fallback_only: boolean;
 	health_system_id: string | null;
 	health_system_name: string | null;
 	created_at: string;
@@ -270,6 +308,7 @@ export async function getPreceptorsWithAssociations(
 			'preceptors.email',
 			'preceptors.phone',
 			'preceptors.max_students',
+			'preceptors.is_global_fallback_only',
 			'preceptors.health_system_id',
 			'health_systems.name as health_system_name',
 			'preceptors.created_at',
@@ -318,6 +357,7 @@ export async function getPreceptorsWithAssociations(
 				email: p.email,
 				phone: p.phone,
 				max_students: p.max_students,
+				is_global_fallback_only: Boolean(p.is_global_fallback_only),
 				health_system_id: p.health_system_id,
 				health_system_name: p.health_system_name,
 				created_at: p.created_at as string,

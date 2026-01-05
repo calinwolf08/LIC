@@ -163,17 +163,30 @@ export class TeamContinuityStrategy extends BaseStrategy {
       assignments.push(...additionalAssignments);
     }
 
-    // Final check
+    // Final check - return partial assignments even if requirement not fully met
     if (assignments.length < requiredDays) {
+      // Return partial success with whatever assignments we could make
+      // This ensures all available capacity is used even when full requirement can't be met
+      const primaryPreceptorDays = assignments.filter(a => a.preceptorId === primaryPreceptorId).length;
+      const continuityPercent = assignments.length > 0
+        ? Math.round((primaryPreceptorDays / assignments.length) * 100)
+        : 0;
+
       return {
         success: false,
-        assignments: [],
+        assignments, // Return partial assignments instead of empty array
         error: `Could only assign ${assignments.length} of ${requiredDays} required days. Team members have insufficient availability.`,
         metadata: {
           strategyUsed: this.getName(),
           preceptorsConsidered: teamMembers.length,
           assignmentCount: assignments.length,
-        },
+          requiredDays,
+          isPartial: true,
+          primaryPreceptorId,
+          primaryPreceptorDays,
+          continuityPercent,
+          preceptorsUsedCount: preceptorsUsed.length,
+        } as any,
       };
     }
 
@@ -199,43 +212,103 @@ export class TeamContinuityStrategy extends BaseStrategy {
   }
 
   /**
-   * Get team members sorted by priority.
-   * Falls back to all available preceptors sorted by load if no team exists.
+   * Get team members sorted by priority, with fallback-only members at the end.
+   *
+   * Order:
+   * 1. Primary members (isFallbackOnly = false, isGlobalFallbackOnly = false) sorted by priority
+   * 2. Fallback-only members (isFallbackOnly = true OR isGlobalFallbackOnly = true) sorted by priority
+   *
+   * Now aggregates members from ALL teams for the clerkship, not just the first one.
+   * Falls back to all available preceptors sorted by load if no teams exist.
    */
   private getTeamMembersSortedByPriority(
     context: StrategyContext
-  ): Array<{ preceptorId: string; priority: number; teamId?: string }> {
-    const { teams, availablePreceptors, clerkship } = context;
+  ): Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> {
+    const { teams, availablePreceptors } = context;
 
-    // Look for a team associated with this clerkship
-    const clerkshipTeam = teams?.find(team => {
-      // Check if any team member is in available preceptors
+    // Helper to check if a preceptor is fallback-only (either team-level or global)
+    const isFallbackOnlyPreceptor = (preceptorId: string, teamMemberFallbackOnly?: boolean): boolean => {
+      // Check global fallback flag on the preceptor
+      const preceptor = availablePreceptors.find(p => p.id === preceptorId);
+      if (preceptor?.isGlobalFallbackOnly) return true;
+      // Check team-level fallback flag
+      return teamMemberFallbackOnly ?? false;
+    };
+
+    // Find ALL teams that have members in available preceptors
+    const matchingTeams = teams?.filter(team => {
       return team.members.some(m =>
         availablePreceptors.some(p => p.id === m.preceptorId)
       );
-    });
+    }) ?? [];
 
-    if (clerkshipTeam && clerkshipTeam.members.length > 0) {
-      // Return team members sorted by priority (lower = higher priority)
-      return clerkshipTeam.members
-        .filter(m => availablePreceptors.some(p => p.id === m.preceptorId))
-        .sort((a, b) => a.priority - b.priority)
-        .map(m => ({
-          preceptorId: m.preceptorId,
-          priority: m.priority,
-          teamId: clerkshipTeam.id,
-        }));
+    if (matchingTeams.length > 0) {
+      // Aggregate members from ALL matching teams
+      // Track preceptors we've already added to avoid duplicates
+      const addedPreceptorIds = new Set<string>();
+      const allMembers: Array<{ preceptorId: string; priority: number; teamId: string; isFallbackOnly: boolean }> = [];
+
+      for (const team of matchingTeams) {
+        for (const member of team.members) {
+          // Only add if preceptor is available and not already added
+          if (!addedPreceptorIds.has(member.preceptorId) &&
+              availablePreceptors.some(p => p.id === member.preceptorId)) {
+            allMembers.push({
+              preceptorId: member.preceptorId,
+              priority: member.priority,
+              teamId: team.id,
+              isFallbackOnly: isFallbackOnlyPreceptor(member.preceptorId, member.isFallbackOnly),
+            });
+            addedPreceptorIds.add(member.preceptorId);
+          }
+        }
+      }
+
+      // Separate into primary and fallback-only members
+      const primaryMembers = allMembers
+        .filter(m => !m.isFallbackOnly)
+        .sort((a, b) => a.priority - b.priority);
+
+      const fallbackOnlyMembers = allMembers
+        .filter(m => m.isFallbackOnly)
+        .sort((a, b) => a.priority - b.priority);
+
+      // Return primary members first, then fallback-only members
+      return [...primaryMembers, ...fallbackOnlyMembers];
     }
 
-    // No team found - treat all available preceptors as an implicit team
-    // Sort by load (fewer assignments = higher priority)
-    const sortedPreceptors = this.sortByLoad(availablePreceptors);
+    // No teams found - treat all available preceptors as an implicit team
+    // Filter out global fallback-only preceptors for primary selection
+    const primaryPreceptors = availablePreceptors.filter(p => !p.isGlobalFallbackOnly);
+    const fallbackOnlyPreceptors = availablePreceptors.filter(p => p.isGlobalFallbackOnly);
 
-    return sortedPreceptors.map((p, index) => ({
-      preceptorId: p.id,
-      priority: index + 1, // Assign priority based on load order
-      teamId: undefined,
-    }));
+    // Sort by load (fewer assignments = higher priority)
+    const sortedPrimary = this.sortByLoad(primaryPreceptors);
+    const sortedFallback = this.sortByLoad(fallbackOnlyPreceptors);
+
+    const result: Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> = [];
+
+    // Primary preceptors first
+    sortedPrimary.forEach((p, index) => {
+      result.push({
+        preceptorId: p.id,
+        priority: index + 1,
+        teamId: undefined,
+        isFallbackOnly: false,
+      });
+    });
+
+    // Then fallback-only preceptors
+    sortedFallback.forEach((p, index) => {
+      result.push({
+        preceptorId: p.id,
+        priority: sortedPrimary.length + index + 1,
+        teamId: undefined,
+        isFallbackOnly: true,
+      });
+    });
+
+    return result;
   }
 
   /**

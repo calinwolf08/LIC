@@ -1,6 +1,9 @@
 import type { Selectable } from 'kysely';
 import type { Students, Clerkships } from '$lib/db/types';
 import type { SchedulingContext, UnmetRequirement } from '../types';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:requirement-tracker');
 
 /**
  * Get the clerkship that a student needs most urgently
@@ -66,6 +69,11 @@ export function getStudentsNeedingAssignments(
  * @returns Array of unmet requirements
  */
 export function checkUnmetRequirements(context: SchedulingContext): UnmetRequirement[] {
+	log.debug('Checking unmet requirements', {
+		studentCount: context.students.length,
+		clerkshipCount: context.clerkships.length
+	});
+
 	const unmet: UnmetRequirement[] = [];
 
 	for (const student of context.students) {
@@ -92,6 +100,17 @@ export function checkUnmetRequirements(context: SchedulingContext): UnmetRequire
 		}
 	}
 
+	if (unmet.length > 0) {
+		log.warn('Unmet requirements found', {
+			unmetCount: unmet.length,
+			totalStudents: context.students.length
+		});
+	} else {
+		log.info('All requirements met', {
+			studentCount: context.students.length
+		});
+	}
+
 	return unmet;
 }
 
@@ -108,6 +127,11 @@ export function initializeStudentRequirements(
 	students: Selectable<Students>[],
 	clerkships: Selectable<Clerkships>[]
 ): Map<string, Map<string, number>> {
+	log.debug('Initializing student requirements', {
+		studentCount: students.length,
+		clerkshipCount: clerkships.length
+	});
+
 	const requirements = new Map<string, Map<string, number>>();
 
 	for (const student of students) {
@@ -117,6 +141,14 @@ export function initializeStudentRequirements(
 		}
 		requirements.set(student.id!, studentReqs);
 	}
+
+	const totalDays = students.length * clerkships.reduce((sum, c) => sum + Number(c.required_days), 0);
+
+	log.info('Student requirements initialized', {
+		studentCount: students.length,
+		clerkshipCount: clerkships.length,
+		totalDaysRequired: totalDays
+	});
 
 	return requirements;
 }

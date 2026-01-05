@@ -16,6 +16,9 @@ import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { preceptorExists } from './preceptor-service';
 import { applyPatternsBySpecificity, generateDatesFromPattern } from './pattern-generators';
 import { setAvailability } from './availability-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:preceptors:pattern');
 
 // ========================================
 // CRUD Operations
@@ -77,9 +80,17 @@ export async function createPattern(
 	db: Kysely<DB>,
 	data: CreatePattern
 ): Promise<Selectable<PreceptorAvailabilityPatterns>> {
+	log.debug('Creating availability pattern', {
+		preceptorId: data.preceptor_id,
+		siteId: data.site_id,
+		patternType: data.pattern_type,
+		specificity: data.specificity
+	});
+
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, data.preceptor_id);
 	if (!exists) {
+		log.warn('Preceptor not found for pattern creation', { preceptorId: data.preceptor_id });
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -107,6 +118,13 @@ export async function createPattern(
 		.values(newPattern)
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	log.info('Availability pattern created', {
+		id: inserted.id,
+		preceptorId: inserted.preceptor_id,
+		patternType: inserted.pattern_type,
+		enabled: Boolean(inserted.enabled)
+	});
 
 	return inserted;
 }
@@ -238,9 +256,12 @@ export async function generateDatesFromPatterns(
 	db: Kysely<DB>,
 	preceptorId: string
 ): Promise<PatternGenerationResult> {
+	log.debug('Generating dates from patterns', { preceptorId });
+
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, preceptorId);
 	if (!exists) {
+		log.warn('Preceptor not found for date generation', { preceptorId });
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -256,6 +277,14 @@ export async function generateDatesFromPatterns(
 	// Calculate statistics
 	const availableDates = generatedDates.filter(d => d.is_available).length;
 	const unavailableDates = generatedDates.filter(d => !d.is_available).length;
+
+	log.info('Dates generated from patterns', {
+		preceptorId,
+		patternsUsed: patterns.length,
+		totalDates: generatedDates.length,
+		availableDates,
+		unavailableDates
+	});
 
 	return {
 		generated_dates: generatedDates.length,
@@ -286,9 +315,15 @@ export async function saveGeneratedDates(
 	db: Kysely<DB>,
 	data: SavePatternDates
 ): Promise<number> {
+	log.debug('Saving generated dates', {
+		preceptorId: data.preceptor_id,
+		clearExisting: data.clear_existing
+	});
+
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, data.preceptor_id);
 	if (!exists) {
+		log.warn('Preceptor not found for saving generated dates', { preceptorId: data.preceptor_id });
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -313,6 +348,12 @@ export async function saveGeneratedDates(
 			generatedDate.is_available
 		);
 	}
+
+	log.info('Generated dates saved', {
+		preceptorId: data.preceptor_id,
+		datesSaved: result.generated_dates,
+		clearedExisting: data.clear_existing
+	});
 
 	return result.generated_dates;
 }

@@ -12,6 +12,9 @@ import type {
 } from '$lib/db/types';
 import type { SchedulingContext } from '../types';
 import { initializeStudentRequirements } from './requirement-tracker';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:context-builder');
 
 /**
  * Optional data for building enhanced scheduling context
@@ -38,15 +41,15 @@ export interface OptionalContextData {
 		clerkship_id: string;
 		site_id: string;
 	}>;
-	siteElectives?: Array<{
-		site_id: string;
-		elective_requirement_id: string;
-	}>;
 	siteAvailability?: Selectable<SiteAvailability>[];
 	siteCapacityRules?: Selectable<SiteCapacityRules>[];
 	preceptorTeamMembers?: Array<{
 		preceptor_id: string;
 		team_id: string;
+	}>;
+	electiveSites?: Array<{
+		elective_id: string;
+		site_id: string;
 	}>;
 }
 
@@ -75,6 +78,17 @@ export function buildSchedulingContext(
 	endDate: string,
 	optionalData?: OptionalContextData
 ): SchedulingContext {
+	log.debug('Building scheduling context', {
+		studentCount: students.length,
+		preceptorCount: preceptors.length,
+		clerkshipCount: clerkships.length,
+		blackoutDateCount: blackoutDates.length,
+		availabilityRecordCount: preceptorAvailabilityRecords.length,
+		startDate,
+		endDate,
+		hasOptionalData: !!optionalData
+	});
+
 	// Convert blackout dates array to Set for O(1) lookup
 	const blackoutDatesSet = new Set(blackoutDates);
 
@@ -193,18 +207,6 @@ export function buildSchedulingContext(
 			context.clerkshipSites = clerkshipSites;
 		}
 
-		// Build site-elective associations map
-		if (optionalData.siteElectives) {
-			const siteElectiveAssociations = new Map<string, Set<string>>();
-			for (const record of optionalData.siteElectives) {
-				if (!siteElectiveAssociations.has(record.site_id)) {
-					siteElectiveAssociations.set(record.site_id, new Set());
-				}
-				siteElectiveAssociations.get(record.site_id)!.add(record.elective_requirement_id);
-			}
-			context.siteElectiveAssociations = siteElectiveAssociations;
-		}
-
 		// Build site availability map
 		if (optionalData.siteAvailability) {
 			const siteAvailability = new Map<string, Map<string, boolean>>();
@@ -244,7 +246,28 @@ export function buildSchedulingContext(
 			}
 			context.preceptorTeams = preceptorTeams;
 		}
+
+		// Build elective-site associations map
+		// Map: electiveId -> Set of site IDs where elective is offered
+		if (optionalData.electiveSites) {
+			const electiveSites = new Map<string, Set<string>>();
+			for (const record of optionalData.electiveSites) {
+				if (!electiveSites.has(record.elective_id)) {
+					electiveSites.set(record.elective_id, new Set());
+				}
+				electiveSites.get(record.elective_id)!.add(record.site_id);
+			}
+			context.electiveSites = electiveSites;
+		}
 	}
+
+	log.info('Scheduling context built', {
+		studentCount: students.length,
+		preceptorCount: preceptors.length,
+		clerkshipCount: clerkships.length,
+		preceptorsWithAvailability: preceptorAvailability.size,
+		hasOptionalData: !!optionalData
+	});
 
 	return context;
 }

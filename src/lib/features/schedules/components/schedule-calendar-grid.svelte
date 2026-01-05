@@ -4,18 +4,29 @@
 	interface Props {
 		months: CalendarMonth[];
 		mode?: 'student' | 'preceptor';
+		blackoutDates?: Set<string>;
 		onDayClick?: (day: CalendarDay) => void;
 		onAssignmentClick?: (day: CalendarDay, assignment: CalendarDayAssignment) => void;
 	}
 
-	let { months, mode = 'student', onDayClick, onAssignmentClick }: Props = $props();
+	let { months, mode = 'student', blackoutDates = new Set(), onDayClick, onAssignmentClick }: Props = $props();
+
+	function isBlackoutDate(date: string): boolean {
+		return blackoutDates.has(date);
+	}
 
 	function getDayClasses(day: CalendarDay): string {
 		const classes = ['calendar-day'];
 
 		if (!day.isCurrentMonth) classes.push('opacity-30');
 		if (day.isToday) classes.push('ring-2 ring-primary');
-		if (day.isWeekend) classes.push('bg-muted/30');
+
+		// Blackout dates take precedence over weekend styling
+		if (isBlackoutDate(day.date)) {
+			classes.push('blackout-date bg-red-100 dark:bg-red-900/40');
+		} else if (day.isWeekend) {
+			classes.push('bg-muted/30');
+		}
 
 		const hasAssignments = day.assignments && day.assignments.length > 0;
 		if (hasAssignments) {
@@ -99,6 +110,10 @@
 											</div>
 										{/if}
 									</div>
+								{:else if isBlackoutDate(day.date) && day.isCurrentMonth}
+									<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+										<span class="text-[9px] text-red-500 dark:text-red-400 font-medium opacity-60">BLOCKED</span>
+									</div>
 								{:else if mode === 'preceptor' && day.availability === 'available' && day.isCurrentMonth}
 									<div class="absolute bottom-1 right-1">
 										<span class="w-2 h-2 bg-green-500 rounded-full block"></span>
@@ -120,5 +135,25 @@
 
 	.calendar-day:disabled {
 		cursor: default;
+	}
+
+	.blackout-date {
+		background-image: repeating-linear-gradient(
+			45deg,
+			transparent,
+			transparent 4px,
+			rgba(239, 68, 68, 0.1) 4px,
+			rgba(239, 68, 68, 0.1) 8px
+		);
+	}
+
+	:global(.dark) .blackout-date {
+		background-image: repeating-linear-gradient(
+			45deg,
+			transparent,
+			transparent 4px,
+			rgba(239, 68, 68, 0.2) 4px,
+			rgba(239, 68, 68, 0.2) 8px
+		);
 	}
 </style>

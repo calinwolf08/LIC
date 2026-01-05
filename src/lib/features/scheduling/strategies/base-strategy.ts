@@ -17,8 +17,15 @@ export interface ProposedAssignment {
   clerkshipId: string;
   date: string; // YYYY-MM-DD
   requirementType?: 'outpatient' | 'inpatient' | 'elective';
+  electiveId?: string | null; // For elective assignments
   blockNumber?: number; // For block-based strategies
   teamId?: string; // For team strategies
+  metadata?: {
+    isFallback?: boolean;
+    fallbackTier?: number;
+    fallbackTeamId?: string;
+    originalTeamId?: string;
+  };
 }
 
 /**
@@ -46,6 +53,7 @@ export interface StrategyContext {
     currentAssignmentCount: number; // For load balancing
     maxStudentsPerDay: number;
     maxStudentsPerYear: number;
+    isGlobalFallbackOnly?: boolean; // If true, never assigned as primary for any clerkship
   }>;
 
   // Team configurations (if using team strategies)
@@ -55,6 +63,7 @@ export interface StrategyContext {
       preceptorId: string;
       priority: number;
       role?: string;
+      isFallbackOnly?: boolean; // If true, only used when primary capacity exhausted
     }>;
     requireSameHealthSystem: boolean;
     requireSameSite: boolean;

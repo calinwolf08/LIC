@@ -21,6 +21,7 @@ import type {
 export interface ResolvedRequirementConfiguration {
   // Identifies which requirement this is for
   clerkshipId: string;
+  requirementId?: string; // For elective requirements
   requirementType: RequirementType;
   requiredDays: number;
 

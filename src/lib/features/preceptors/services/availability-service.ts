@@ -9,6 +9,9 @@ import type { DB, PreceptorAvailability } from '$lib/db/types';
 import type { CreateAvailabilityInput, UpdateAvailabilityInput, DateRangeInput, BulkAvailabilityInput } from '../availability-schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { preceptorExists } from './preceptor-service';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:preceptors:availability');
 
 /**
  * Get all availability for a preceptor, ordered by date
@@ -117,6 +120,14 @@ export async function setAvailability(
 			.returningAll()
 			.executeTakeFirstOrThrow();
 
+		log.debug('Availability updated', {
+			id: updated.id,
+			preceptorId,
+			siteId,
+			date,
+			isAvailable
+		});
+
 		return updated;
 	} else {
 		// Create new record
@@ -136,6 +147,14 @@ export async function setAvailability(
 			.returningAll()
 			.executeTakeFirstOrThrow();
 
+		log.debug('Availability created', {
+			id: inserted.id,
+			preceptorId,
+			siteId,
+			date,
+			isAvailable
+		});
+
 		return inserted;
 	}
 }
@@ -146,19 +165,29 @@ export async function setAvailability(
  * @throws {ConflictError} If availability has assignments
  */
 export async function deleteAvailability(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting availability record', { id });
+
 	// Check if availability exists
 	const availability = await getAvailabilityById(db, id);
 	if (!availability) {
+		log.warn('Availability record not found for deletion', { id });
 		throw new NotFoundError('Availability');
 	}
 
 	// Check if can be deleted
 	const canDelete = await canDeleteAvailability(db, id);
 	if (!canDelete) {
+		log.warn('Cannot delete availability with existing assignments', { id });
 		throw new ConflictError('Cannot delete availability with existing assignments');
 	}
 
 	await db.deleteFrom('preceptor_availability').where('id', '=', id).execute();
+
+	log.info('Availability record deleted', {
+		id,
+		preceptorId: availability.preceptor_id,
+		date: availability.date
+	});
 }
 
 /**
@@ -169,9 +198,16 @@ export async function bulkUpdateAvailability(
 	db: Kysely<DB>,
 	data: BulkAvailabilityInput
 ): Promise<Selectable<PreceptorAvailability>[]> {
+	log.debug('Bulk updating availability', {
+		preceptorId: data.preceptor_id,
+		siteId: data.site_id,
+		dateCount: data.availability.length
+	});
+
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, data.preceptor_id);
 	if (!exists) {
+		log.warn('Preceptor not found for bulk availability update', { preceptorId: data.preceptor_id });
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -182,6 +218,12 @@ export async function bulkUpdateAvailability(
 		const result = await setAvailability(db, data.preceptor_id, data.site_id, item.date, item.is_available);
 		results.push(result);
 	}
+
+	log.info('Bulk availability updated', {
+		preceptorId: data.preceptor_id,
+		siteId: data.site_id,
+		recordsUpdated: results.length
+	});
 
 	return results;
 }

@@ -13,6 +13,9 @@ import {
 	updateAssignment as updateAssignmentBase,
 	validateAssignment
 } from './assignment-service.js';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:schedules:editing');
 
 /**
  * Result type for editing operations
@@ -33,9 +36,16 @@ export async function reassignToPreceptor(
 	newPreceptorId: string,
 	dryRun: boolean = false
 ): Promise<EditResult> {
+	log.debug('Reassigning to preceptor', {
+		assignmentId,
+		newPreceptorId,
+		dryRun
+	});
+
 	// Get existing assignment
 	const assignment = await getAssignmentById(db, assignmentId);
 	if (!assignment) {
+		log.warn('Assignment not found for reassignment', { assignmentId });
 		throw new NotFoundError('Assignment');
 	}
 
@@ -53,6 +63,11 @@ export async function reassignToPreceptor(
 	);
 
 	if (!validation.valid) {
+		log.warn('Reassignment validation failed', {
+			assignmentId,
+			newPreceptorId,
+			errors: validation.errors
+		});
 		return {
 			valid: false,
 			errors: validation.errors
@@ -61,6 +76,7 @@ export async function reassignToPreceptor(
 
 	// If dry run, return validation result without saving
 	if (dryRun) {
+		log.debug('Reassignment dry run successful', { assignmentId, newPreceptorId });
 		return {
 			valid: true,
 			errors: []
@@ -70,6 +86,12 @@ export async function reassignToPreceptor(
 	// Update the assignment
 	const updated = await updateAssignmentBase(db, assignmentId, {
 		preceptor_id: newPreceptorId
+	});
+
+	log.info('Assignment reassigned', {
+		assignmentId,
+		oldPreceptorId: assignment.preceptor_id,
+		newPreceptorId
 	});
 
 	return {
@@ -284,6 +306,8 @@ export async function bulkReassign(
  * @param fromDate Optional: Only clear assignments from this date forward (preserves past assignments)
  */
 export async function clearAllAssignments(db: Kysely<DB>, fromDate?: string): Promise<number> {
+	log.debug('Clearing assignments', { fromDate: fromDate || 'all' });
+
 	let query = db.deleteFrom('schedule_assignments');
 
 	if (fromDate) {
@@ -291,5 +315,12 @@ export async function clearAllAssignments(db: Kysely<DB>, fromDate?: string): Pr
 	}
 
 	const result = await query.executeTakeFirst();
-	return Number(result.numDeletedRows || 0);
+	const deletedCount = Number(result.numDeletedRows || 0);
+
+	log.info('Assignments cleared', {
+		fromDate: fromDate || 'all',
+		deletedCount
+	});
+
+	return deletedCount;
 }

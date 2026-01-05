@@ -13,9 +13,10 @@
 
 	interface Props {
 		serverErrors?: Record<string, string[]>;
+		redirectTo?: string;
 	}
 
-	let { serverErrors }: Props = $props();
+	let { serverErrors, redirectTo = '/' }: Props = $props();
 
 	let errorMessage = $state<string | null>(null);
 
@@ -39,7 +40,7 @@
 				},
 				{
 					onSuccess: () => {
-						window.location.href = "/";
+						window.location.href = redirectTo;
 					},
 					onError: (ctx) => {
 						errorMessage = ctx.error.message || "Failed to sign in. Please try again.";

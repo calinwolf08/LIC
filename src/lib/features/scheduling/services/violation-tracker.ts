@@ -1,4 +1,7 @@
 import type { Assignment, ConstraintViolation, ViolationStats } from '../types';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:violation-tracker');
 
 /**
  * Tracks and aggregates constraint violations during scheduling
@@ -90,6 +93,9 @@ export class ViolationTracker {
 	 * Use this before starting a new scheduling run
 	 */
 	clear(): void {
+		if (this.violations.length > 0) {
+			log.debug('Clearing violation tracker', { previousViolationCount: this.violations.length });
+		}
 		this.violations = [];
 	}
 

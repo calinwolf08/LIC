@@ -11,6 +11,9 @@ import { handleApiError } from '$lib/api/errors';
 import { getScheduleSummary } from '$lib/features/schedules/services/calendar-service.js';
 import { z, ZodError } from 'zod';
 import { dateStringSchema } from '$lib/validation/common-schemas';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('api:calendar:summary');
 
 /**
  * Schema for summary query parameters
@@ -28,10 +31,12 @@ const summaryQuerySchema = z.object({
  *   - end_date: YYYY-MM-DD (required)
  */
 export const GET: RequestHandler = async ({ url }) => {
-	try {
-		const startDate = url.searchParams.get('start_date');
-		const endDate = url.searchParams.get('end_date');
+	const startDate = url.searchParams.get('start_date');
+	const endDate = url.searchParams.get('end_date');
 
+	log.debug('Fetching calendar summary', { startDate, endDate });
+
+	try {
 		// Validate query parameters
 		const params = summaryQuerySchema.parse({
 			start_date: startDate,
@@ -40,12 +45,26 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const summary = await getScheduleSummary(db, params.start_date, params.end_date);
 
+		log.info('Calendar summary fetched', {
+			startDate: params.start_date,
+			endDate: params.end_date,
+			totalStudents: summary.active_students,
+			totalPreceptors: summary.active_preceptors,
+			totalAssignments: summary.total_assignments
+		});
+
 		return successResponse(summary);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Calendar summary validation failed', {
+				startDate,
+				endDate,
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
+		log.error('Failed to fetch calendar summary', { startDate, endDate, error });
 		return handleApiError(error);
 	}
 };

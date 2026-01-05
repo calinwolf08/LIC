@@ -4,6 +4,9 @@ import type { CreateSiteInput, UpdateSiteInput } from '../schemas';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:sites');
 
 /**
  * Site Service
@@ -74,9 +77,15 @@ export class SiteService {
 	 * Create a new site
 	 */
 	async createSite(input: CreateSiteInput) {
+		log.debug('Creating site', {
+			name: input.name,
+			healthSystemId: input.health_system_id
+		});
+
 		// Check if name already exists
 		const existing = await this.getSiteByName(input.name);
 		if (existing) {
+			log.warn('Site creation failed - name already exists', { name: input.name });
 			throw new ConflictError(`Site with name "${input.name}" already exists`);
 		}
 
@@ -89,6 +98,7 @@ export class SiteService {
 				.executeTakeFirst();
 
 			if (!healthSystem) {
+				log.warn('Health system not found for site creation', { healthSystemId: input.health_system_id });
 				throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
 			}
 		}
@@ -101,7 +111,8 @@ export class SiteService {
 			.values({
 				id,
 				name: input.name,
-				health_system_id: input.health_system_id || null,
+				// Note: DB schema requires health_system_id but app allows optional - this may fail at DB level
+				health_system_id: (input.health_system_id || '') as string,
 				address: input.address || null,
 				office_phone: input.office_phone || null,
 				contact_person: input.contact_person || null,
@@ -112,7 +123,7 @@ export class SiteService {
 			.returningAll()
 			.executeTakeFirstOrThrow();
 
-		console.log('[SiteService] Created site:', { id: site.id, name: site.name });
+		log.info('Site created', { id: site.id, name: site.name });
 		return site;
 	}
 
@@ -120,6 +131,11 @@ export class SiteService {
 	 * Update an existing site
 	 */
 	async updateSite(id: string, input: UpdateSiteInput) {
+		log.debug('Updating site', {
+			id,
+			updates: Object.keys(input)
+		});
+
 		// Check if site exists
 		await this.getSiteById(id);
 
@@ -127,6 +143,7 @@ export class SiteService {
 		if (input.name) {
 			const existing = await this.getSiteByName(input.name);
 			if (existing && existing.id !== id) {
+				log.warn('Site update failed - name already exists', { id, name: input.name });
 				throw new ConflictError(`Site with name "${input.name}" already exists`);
 			}
 		}
@@ -140,6 +157,7 @@ export class SiteService {
 				.executeTakeFirst();
 
 			if (!healthSystem) {
+				log.warn('Health system not found for site update', { id, healthSystemId: input.health_system_id });
 				throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
 			}
 		}
@@ -166,6 +184,12 @@ export class SiteService {
 			.returningAll()
 			.executeTakeFirstOrThrow();
 
+		log.info('Site updated', {
+			id: site.id,
+			name: site.name,
+			updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+		});
+
 		return site;
 	}
 
@@ -173,18 +197,23 @@ export class SiteService {
 	 * Delete a site
 	 */
 	async deleteSite(id: string) {
+		log.debug('Deleting site', { id });
+
 		// Check if site exists
 		await this.getSiteById(id);
 
 		// Check if site is being used
 		const canDelete = await this.canDeleteSite(id);
 		if (!canDelete) {
+			log.warn('Cannot delete site with dependencies', { id });
 			throw new ConflictError(
 				'Cannot delete site because it is associated with clerkships, preceptors, or has scheduling data'
 			);
 		}
 
 		await this.db.deleteFrom('sites').where('id', '=', id).execute();
+
+		log.info('Site deleted', { id });
 	}
 
 	/**
@@ -204,10 +233,10 @@ export class SiteService {
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 
-		// Check site electives
+		// Check elective associations (elective_sites links electives to sites)
 		const electiveCount = await this.db
-			.selectFrom('site_electives')
-			.select(({ fn }) => [fn.count<number>('site_id').as('count')])
+			.selectFrom('elective_sites')
+			.select(({ fn }) => [fn.count<number>('elective_id').as('count')])
 			.where('site_id', '=', id)
 			.executeTakeFirst();
 

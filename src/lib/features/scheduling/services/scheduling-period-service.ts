@@ -2,6 +2,7 @@
  * Scheduling Period Service Layer
  *
  * Business logic and database operations for scheduling periods
+ * and multi-schedule entity associations.
  */
 
 import type { Kysely, Selectable } from 'kysely';
@@ -11,6 +12,34 @@ import type {
 	UpdateSchedulingPeriod
 } from '$lib/features/preceptors/pattern-schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling:period');
+
+/**
+ * Entity types that can be associated with schedules
+ */
+export type ScheduleEntityType =
+	| 'students'
+	| 'preceptors'
+	| 'sites'
+	| 'health_systems'
+	| 'clerkships'
+	| 'teams'
+	| 'configurations';
+
+/**
+ * Map entity types to their junction table and foreign key column
+ */
+const ENTITY_TABLE_MAP: Record<ScheduleEntityType, { table: keyof DB; fkColumn: string }> = {
+	students: { table: 'schedule_students', fkColumn: 'student_id' },
+	preceptors: { table: 'schedule_preceptors', fkColumn: 'preceptor_id' },
+	sites: { table: 'schedule_sites', fkColumn: 'site_id' },
+	health_systems: { table: 'schedule_health_systems', fkColumn: 'health_system_id' },
+	clerkships: { table: 'schedule_clerkships', fkColumn: 'clerkship_id' },
+	teams: { table: 'schedule_teams', fkColumn: 'team_id' },
+	configurations: { table: 'schedule_configurations', fkColumn: 'configuration_id' },
+};
 
 // ========================================
 // CRUD Operations
@@ -67,10 +96,20 @@ export async function createSchedulingPeriod(
 	db: Kysely<DB>,
 	data: CreateSchedulingPeriod
 ): Promise<Selectable<SchedulingPeriods>> {
+	log.debug('Creating scheduling period', {
+		name: data.name,
+		startDate: data.start_date,
+		endDate: data.end_date,
+		isActive: data.is_active
+	});
+
 	// If this period should be active, check if there's already an active period
 	if (data.is_active) {
 		const activePeriod = await getActiveSchedulingPeriod(db);
 		if (activePeriod) {
+			log.warn('Cannot create active period - another period is active', {
+				existingActivePeriod: activePeriod.name
+			});
 			throw new ConflictError(
 				`Cannot create active period. Period "${activePeriod.name}" is currently active. Deactivate it first.`
 			);
@@ -95,6 +134,12 @@ export async function createSchedulingPeriod(
 		.values(newPeriod)
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	log.info('Scheduling period created', {
+		id: inserted.id,
+		name: inserted.name,
+		isActive: Boolean(inserted.is_active)
+	});
 
 	return inserted;
 }
@@ -159,21 +204,50 @@ export async function updateSchedulingPeriod(
  * Delete a scheduling period
  */
 export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promise<void> {
+	log.debug('Deleting scheduling period', { id });
+
 	// Check if period exists
 	const period = await getSchedulingPeriodById(db, id);
 	if (!period) {
+		log.warn('Scheduling period not found for deletion', { id });
 		throw new NotFoundError('Scheduling Period');
 	}
 
-	// Prevent deletion of active period
+	// Cannot delete an active period
 	if (period.is_active === 1) {
-		throw new ConflictError('Cannot delete the active scheduling period. Deactivate it first.');
+		log.warn('Cannot delete active scheduling period', { id, name: period.name });
+		throw new ConflictError('Cannot delete an active scheduling period. Deactivate it first.');
 	}
 
+	// Clear any user's active_schedule_id that points to this schedule
+	// Note: user table may not exist in test environments
+	try {
+		await db
+			.updateTable('user')
+			.set({ active_schedule_id: null })
+			.where('active_schedule_id', '=', id)
+			.execute();
+	} catch (error: unknown) {
+		// Ignore if user table doesn't exist (e.g., in test environments)
+		if (error instanceof Error && !error.message.includes('no such table')) {
+			throw error;
+		}
+	}
+
+	// Delete schedule-entity associations
+	await db.deleteFrom('schedule_students').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_preceptors').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_clerkships').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_sites').where('schedule_id', '=', id).execute();
+	await db.deleteFrom('schedule_health_systems').where('schedule_id', '=', id).execute();
+
+	// Delete the schedule itself
 	await db
 		.deleteFrom('scheduling_periods')
 		.where('id', '=', id)
 		.execute();
+
+	log.info('Scheduling period deleted', { id, name: period.name });
 }
 
 /**
@@ -310,4 +384,188 @@ export async function getCurrentPeriods(
 		.where('end_date', '>=', today)
 		.orderBy('start_date', 'asc')
 		.execute();
+}
+
+// ========================================
+// Entity Association Operations
+// ========================================
+
+/**
+ * Get entity IDs associated with a schedule
+ */
+export async function getScheduleEntities(
+	db: Kysely<DB>,
+	scheduleId: string,
+	entityType: ScheduleEntityType
+): Promise<string[]> {
+	const { table, fkColumn } = ENTITY_TABLE_MAP[entityType];
+
+	const results = await db
+		.selectFrom(table as any)
+		.select(fkColumn as any)
+		.where('schedule_id', '=', scheduleId)
+		.execute();
+
+	return results.map((r: any) => r[fkColumn]);
+}
+
+/**
+ * Add an entity to a schedule
+ */
+export async function addEntityToSchedule(
+	db: Kysely<DB>,
+	scheduleId: string,
+	entityType: ScheduleEntityType,
+	entityId: string
+): Promise<void> {
+	const { table, fkColumn } = ENTITY_TABLE_MAP[entityType];
+
+	// Check if association already exists
+	const existing = await db
+		.selectFrom(table as any)
+		.select('id')
+		.where('schedule_id', '=', scheduleId)
+		.where(fkColumn as any, '=', entityId)
+		.executeTakeFirst();
+
+	if (existing) {
+		return; // Already associated
+	}
+
+	await db
+		.insertInto(table as any)
+		.values({
+			id: crypto.randomUUID(),
+			schedule_id: scheduleId,
+			[fkColumn]: entityId,
+			created_at: new Date().toISOString(),
+		} as any)
+		.execute();
+}
+
+/**
+ * Add multiple entities to a schedule
+ */
+export async function addEntitiesToSchedule(
+	db: Kysely<DB>,
+	scheduleId: string,
+	entityType: ScheduleEntityType,
+	entityIds: string[]
+): Promise<void> {
+	for (const entityId of entityIds) {
+		await addEntityToSchedule(db, scheduleId, entityType, entityId);
+	}
+}
+
+/**
+ * Remove an entity from a schedule
+ */
+export async function removeEntityFromSchedule(
+	db: Kysely<DB>,
+	scheduleId: string,
+	entityType: ScheduleEntityType,
+	entityId: string
+): Promise<void> {
+	const { table, fkColumn } = ENTITY_TABLE_MAP[entityType];
+
+	await db
+		.deleteFrom(table as any)
+		.where('schedule_id', '=', scheduleId)
+		.where(fkColumn as any, '=', entityId)
+		.execute();
+}
+
+/**
+ * Set all entities for a schedule (replaces existing associations)
+ */
+export async function setScheduleEntities(
+	db: Kysely<DB>,
+	scheduleId: string,
+	entityType: ScheduleEntityType,
+	entityIds: string[]
+): Promise<void> {
+	const { table } = ENTITY_TABLE_MAP[entityType];
+
+	// Remove all existing associations
+	await db
+		.deleteFrom(table as any)
+		.where('schedule_id', '=', scheduleId)
+		.execute();
+
+	// Add new associations
+	await addEntitiesToSchedule(db, scheduleId, entityType, entityIds);
+}
+
+/**
+ * Check if an entity is associated with multiple schedules
+ */
+export async function isEntityInMultipleSchedules(
+	db: Kysely<DB>,
+	entityType: ScheduleEntityType,
+	entityId: string
+): Promise<boolean> {
+	const { table, fkColumn } = ENTITY_TABLE_MAP[entityType];
+
+	const results = await db
+		.selectFrom(table as any)
+		.select('schedule_id')
+		.where(fkColumn as any, '=', entityId)
+		.execute();
+
+	return results.length > 1;
+}
+
+/**
+ * Get all schedules that contain an entity
+ */
+export async function getSchedulesForEntity(
+	db: Kysely<DB>,
+	entityType: ScheduleEntityType,
+	entityId: string
+): Promise<Selectable<SchedulingPeriods>[]> {
+	const { table, fkColumn } = ENTITY_TABLE_MAP[entityType];
+
+	const associations = await db
+		.selectFrom(table as any)
+		.select('schedule_id')
+		.where(fkColumn as any, '=', entityId)
+		.execute();
+
+	const scheduleIds = associations.map((a: any) => a.schedule_id);
+
+	if (scheduleIds.length === 0) {
+		return [];
+	}
+
+	return await db
+		.selectFrom('scheduling_periods')
+		.selectAll()
+		.where('id', 'in', scheduleIds)
+		.orderBy('start_date', 'desc')
+		.execute();
+}
+
+/**
+ * Get count of entities by type for a schedule
+ */
+export async function getScheduleEntityCounts(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<Record<ScheduleEntityType, number>> {
+	const counts: Record<ScheduleEntityType, number> = {
+		students: 0,
+		preceptors: 0,
+		sites: 0,
+		health_systems: 0,
+		clerkships: 0,
+		teams: 0,
+		configurations: 0,
+	};
+
+	for (const entityType of Object.keys(ENTITY_TABLE_MAP) as ScheduleEntityType[]) {
+		const entities = await getScheduleEntities(db, scheduleId, entityType);
+		counts[entityType] = entities.length;
+	}
+
+	return counts;
 }

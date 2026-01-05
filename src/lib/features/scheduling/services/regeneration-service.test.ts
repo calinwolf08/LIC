@@ -12,7 +12,8 @@ import { describe, it, expect } from 'vitest';
 import {
 	creditPastAssignmentsToRequirements,
 	findReplacementPreceptor,
-	applyMinimalChangeStrategy
+	applyMinimalChangeStrategy,
+	prepareCompletionContext
 } from './regeneration-service';
 import type { SchedulingContext } from '../types/scheduling-context';
 import type { Selectable } from 'kysely';
@@ -427,6 +428,170 @@ describe('Regeneration Service', () => {
 
 			// Also verify the result includes the preserved assignment
 			expect(result).toHaveLength(1);
+		});
+	});
+
+	describe('prepareCompletionContext()', () => {
+		/**
+		 * Mock database that returns existing assignments
+		 */
+		function createMockDb(existingAssignments: Selectable<ScheduleAssignments>[]) {
+			const mockQueryBuilder = {
+				where: function() { return this; },
+				orderBy: function() { return this; },
+				execute: async () => existingAssignments
+			};
+
+			return {
+				selectFrom: () => ({
+					selectAll: () => mockQueryBuilder
+				})
+			} as any;
+		}
+
+		it('should load all existing assignments and credit them to requirements', async () => {
+			const context = createMockContext();
+
+			// Student 1 needs 10 days of clerkship-1, 8 days of clerkship-2
+			// Student 2 needs 10 days of clerkship-1, 8 days of clerkship-2
+
+			const existingAssignments = [
+				createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' }),
+				createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' }),
+				createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' }),
+				createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-2' }),
+				createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-2' })
+			];
+
+			const db = createMockDb(existingAssignments);
+
+			const result = await prepareCompletionContext(
+				db,
+				context,
+				'2025-01-01',
+				'2025-12-31'
+			);
+
+			// Should credit the assignments
+			expect(context.studentRequirements.get('student-1')?.get('clerkship-1')).toBe(7); // 10 - 3
+			expect(context.studentRequirements.get('student-2')?.get('clerkship-2')).toBe(6); // 8 - 2
+
+			// Should return total existing assignments
+			expect(result.totalExistingAssignments).toBe(5);
+		});
+
+		it('should identify students with unmet requirements', async () => {
+			const context = createMockContext();
+
+			// Give student-1 all their clerkship-1 requirements (10 assignments)
+			// Student-2 gets only partial clerkship-1 (5 assignments, needs 10)
+			const existingAssignments = [
+				...Array(10).fill(null).map(() =>
+					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
+				),
+				...Array(5).fill(null).map(() =>
+					createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-1' })
+				)
+			];
+
+			const db = createMockDb(existingAssignments);
+
+			const result = await prepareCompletionContext(
+				db,
+				context,
+				'2025-01-01',
+				'2025-12-31'
+			);
+
+			// Both students should have unmet requirements
+			// student-1: still needs clerkship-2 (8 days)
+			// student-2: still needs clerkship-1 (5 days) and clerkship-2 (8 days)
+			expect(result.studentsWithUnmetRequirements).toContain('student-1');
+			expect(result.studentsWithUnmetRequirements).toContain('student-2');
+			expect(result.studentsWithUnmetRequirements).toHaveLength(2);
+
+			// Verify unmet requirements map
+			expect(result.unmetRequirementsByStudent.get('student-1')?.get('clerkship-2')).toBe(8);
+			expect(result.unmetRequirementsByStudent.get('student-2')?.get('clerkship-1')).toBe(5);
+			expect(result.unmetRequirementsByStudent.get('student-2')?.get('clerkship-2')).toBe(8);
+		});
+
+		it('should add all existing assignments to context tracking maps', async () => {
+			const context = createMockContext();
+
+			const existingAssignments = [
+				createMockAssignment({
+					student_id: 'student-1',
+					preceptor_id: 'preceptor-1',
+					clerkship_id: 'clerkship-1',
+					date: '2025-01-15'
+				}),
+				createMockAssignment({
+					student_id: 'student-2',
+					preceptor_id: 'preceptor-2',
+					clerkship_id: 'clerkship-2',
+					date: '2025-01-16'
+				})
+			];
+
+			const db = createMockDb(existingAssignments);
+
+			await prepareCompletionContext(
+				db,
+				context,
+				'2025-01-01',
+				'2025-12-31'
+			);
+
+			// Check context.assignments
+			expect(context.assignments).toHaveLength(2);
+
+			// Check assignmentsByDate
+			expect(context.assignmentsByDate.get('2025-01-15')).toHaveLength(1);
+			expect(context.assignmentsByDate.get('2025-01-16')).toHaveLength(1);
+
+			// Check assignmentsByStudent
+			expect(context.assignmentsByStudent.get('student-1')).toHaveLength(1);
+			expect(context.assignmentsByStudent.get('student-2')).toHaveLength(1);
+
+			// Check assignmentsByPreceptor
+			expect(context.assignmentsByPreceptor.get('preceptor-1')).toHaveLength(1);
+			expect(context.assignmentsByPreceptor.get('preceptor-2')).toHaveLength(1);
+		});
+
+		it('should return empty list when all students are complete', async () => {
+			const context = createMockContext();
+
+			// Give both students all their requirements
+			// student-1: 10 clerkship-1, 8 clerkship-2
+			// student-2: 10 clerkship-1, 8 clerkship-2
+			const existingAssignments = [
+				...Array(10).fill(null).map(() =>
+					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
+				),
+				...Array(8).fill(null).map(() =>
+					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-2' })
+				),
+				...Array(10).fill(null).map(() =>
+					createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-1' })
+				),
+				...Array(8).fill(null).map(() =>
+					createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-2' })
+				)
+			];
+
+			const db = createMockDb(existingAssignments);
+
+			const result = await prepareCompletionContext(
+				db,
+				context,
+				'2025-01-01',
+				'2025-12-31'
+			);
+
+			// No students should have unmet requirements
+			expect(result.studentsWithUnmetRequirements).toHaveLength(0);
+			expect(result.totalExistingAssignments).toBe(36);
 		});
 	});
 });

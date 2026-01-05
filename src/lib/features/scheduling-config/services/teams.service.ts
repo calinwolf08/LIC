@@ -16,6 +16,9 @@ import {
 import { Result, type ServiceResult } from './service-result';
 import { ServiceErrors } from './service-errors';
 import { nanoid } from 'nanoid';
+import { createServerLogger } from '$lib/utils/logger.server';
+
+const log = createServerLogger('service:scheduling-config:teams');
 
 /**
  * Team with members aggregate
@@ -39,9 +42,19 @@ export class TeamService {
    * Create a new team
    */
   async createTeam(clerkshipId: string, input: PreceptorTeamInput): Promise<ServiceResult<TeamWithMembers>> {
+    log.debug('Creating team', {
+      clerkshipId,
+      name: input.name,
+      memberCount: input.members.length
+    });
+
     // Validate input
     const validation = preceptorTeamInputSchema.safeParse(input);
     if (!validation.success) {
+      log.warn('Team creation validation failed', {
+        clerkshipId,
+        errors: validation.error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
       return Result.failure(
         ServiceErrors.validationError('Invalid team data', validation.error.errors)
       );
@@ -56,12 +69,17 @@ export class TeamService {
         .executeTakeFirst();
 
       if (!clerkship) {
+        log.warn('Clerkship not found for team creation', { clerkshipId });
         return Result.failure(ServiceErrors.notFound('Clerkship', clerkshipId));
       }
 
       // Validate team rules
       const validationResult = await this.validateTeamRules(input);
       if (!validationResult.success) {
+        log.warn('Team creation blocked by validation rules', {
+          clerkshipId,
+          error: validationResult.error
+        });
         return Result.failure(validationResult.error);
       }
 
@@ -94,6 +112,7 @@ export class TeamService {
               preceptor_id: memberInput.preceptorId,
               role: memberInput.role ?? null,
               priority: memberInput.priority,
+              is_fallback_only: memberInput.isFallbackOnly ? 1 : 0,
               created_at: new Date().toISOString(),
             })
             .returningAll()
@@ -102,12 +121,20 @@ export class TeamService {
           members.push(this.mapTeamMember(member));
         }
 
+        log.info('Team created', {
+          id: team.id,
+          clerkshipId: team.clerkship_id,
+          name: team.name,
+          memberCount: members.length
+        });
+
         return Result.success({
           ...this.mapTeam(team),
           members,
         });
       });
     } catch (error) {
+      log.error('Failed to create team', { clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to create team', error));
     }
   }
@@ -116,6 +143,8 @@ export class TeamService {
    * Get team by ID with members
    */
   async getTeam(teamId: string): Promise<ServiceResult<TeamWithMembers | null>> {
+    log.debug('Fetching team', { teamId });
+
     try {
       const team = await this.db
         .selectFrom('preceptor_teams')
@@ -124,6 +153,7 @@ export class TeamService {
         .executeTakeFirst();
 
       if (!team) {
+        log.debug('Team not found', { teamId });
         return Result.success(null);
       }
 
@@ -134,11 +164,14 @@ export class TeamService {
         .orderBy('priority', 'asc')
         .execute();
 
+      log.info('Team fetched', { teamId, memberCount: members.length });
+
       return Result.success({
         ...this.mapTeam(team),
         members: members.map(m => this.mapTeamMember(m)),
       });
     } catch (error) {
+      log.error('Failed to fetch team', { teamId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch team', error));
     }
   }
@@ -147,6 +180,8 @@ export class TeamService {
    * Get all teams for a clerkship
    */
   async getTeamsByClerkship(clerkshipId: string): Promise<ServiceResult<TeamWithMembers[]>> {
+    log.debug('Fetching teams for clerkship', { clerkshipId });
+
     try {
       const teams = await this.db
         .selectFrom('preceptor_teams')
@@ -165,6 +200,7 @@ export class TeamService {
             'preceptor_team_members.preceptor_id',
             'preceptor_team_members.role',
             'preceptor_team_members.priority',
+            'preceptor_team_members.is_fallback_only',
             'preceptor_team_members.created_at',
             'preceptors.name as preceptorName'
           ])
@@ -181,8 +217,10 @@ export class TeamService {
         });
       }
 
+      log.info('Teams fetched for clerkship', { clerkshipId, teamCount: teamsWithMembers.length });
       return Result.success(teamsWithMembers);
     } catch (error) {
+      log.error('Failed to fetch teams for clerkship', { clerkshipId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to fetch teams', error));
     }
   }
@@ -191,6 +229,8 @@ export class TeamService {
    * Update team
    */
   async updateTeam(teamId: string, input: Partial<PreceptorTeamInput>): Promise<ServiceResult<TeamWithMembers>> {
+    log.debug('Updating team', { teamId, updates: Object.keys(input) });
+
     try {
       // Check if exists
       const existing = await this.db
@@ -200,6 +240,7 @@ export class TeamService {
         .executeTakeFirst();
 
       if (!existing) {
+        log.warn('Team not found for update', { teamId });
         return Result.failure(ServiceErrors.notFound('Team', teamId));
       }
 
@@ -221,13 +262,24 @@ export class TeamService {
       // Validate team rules BEFORE starting transaction to avoid SQLite deadlock
       // (validateTeamRules uses this.db, not trx)
       if (input.members) {
-        const validationResult = await this.validateTeamRules({
+        // First validate against schema (includes fallback-only validation)
+        const teamForValidation = {
           ...input,
           members: input.members,
           requireSameHealthSystem: Boolean(updateData.require_same_health_system ?? existing.require_same_health_system),
           requireSameSite: Boolean(updateData.require_same_site ?? existing.require_same_site),
           requireSameSpecialty: Boolean(updateData.require_same_specialty ?? existing.require_same_specialty),
-        } as PreceptorTeamInput);
+        } as PreceptorTeamInput;
+
+        const schemaValidation = preceptorTeamInputSchema.safeParse(teamForValidation);
+        if (!schemaValidation.success) {
+          return Result.failure(
+            ServiceErrors.validationError('Invalid team data', schemaValidation.error.errors)
+          );
+        }
+
+        // Then validate team rules (health system, site, specialty)
+        const validationResult = await this.validateTeamRules(teamForValidation);
 
         if (!validationResult.success) {
           return Result.failure(validationResult.error);
@@ -258,6 +310,7 @@ export class TeamService {
                 preceptor_id: memberInput.preceptorId,
                 role: memberInput.role ?? null,
                 priority: memberInput.priority,
+                is_fallback_only: memberInput.isFallbackOnly ? 1 : 0,
                 created_at: new Date().toISOString(),
               })
               .returningAll()
@@ -275,12 +328,20 @@ export class TeamService {
             .execute();
         }
 
+        log.info('Team updated', {
+          id: updated.id,
+          name: updated.name,
+          memberCount: members.length,
+          updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+        });
+
         return Result.success({
           ...this.mapTeam(updated),
           members: members.map(m => this.mapTeamMember(m)),
         });
       });
     } catch (error) {
+      log.error('Failed to update team', { teamId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to update team', error));
     }
   }
@@ -291,6 +352,8 @@ export class TeamService {
    * Business rule: Cannot delete if currently assigned to students
    */
   async deleteTeam(teamId: string): Promise<ServiceResult<boolean>> {
+    log.debug('Deleting team', { teamId });
+
     try {
       // Check for assignments (would need assignments table)
       // For now, just delete
@@ -307,11 +370,14 @@ export class TeamService {
         }
       });
 
+      log.info('Team deleted', { teamId });
       return Result.success(true);
     } catch (error) {
       if (error instanceof Error && error.message === 'Team not found') {
+        log.warn('Team not found for deletion', { teamId });
         return Result.failure(ServiceErrors.notFound('Team', teamId));
       }
+      log.error('Failed to delete team', { teamId, error });
       return Result.failure(ServiceErrors.databaseError('Failed to delete team', error));
     }
   }
@@ -388,6 +454,7 @@ export class TeamService {
           preceptor_id: memberInput.preceptorId,
           role: memberInput.role || null,
           priority: memberInput.priority,
+          is_fallback_only: memberInput.isFallbackOnly ? 1 : 0,
           created_at: new Date().toISOString(),
         })
         .returningAll()
@@ -541,6 +608,7 @@ export class TeamService {
       preceptorId: row.preceptor_id,
       role: row.role || undefined,
       priority: row.priority,
+      isFallbackOnly: Boolean(row.is_fallback_only),
       createdAt: new Date(row.created_at),
     };
   }
@@ -622,6 +690,7 @@ export class TeamService {
             'preceptor_team_members.preceptor_id',
             'preceptor_team_members.role',
             'preceptor_team_members.priority',
+            'preceptor_team_members.is_fallback_only',
             'preceptor_team_members.created_at',
             'preceptors.name as preceptorName'
           ])

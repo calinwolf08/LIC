@@ -67,8 +67,8 @@ test.describe('Student Creation UI Workflow', () => {
 		await expect(studentRow.locator(`text=${studentName}`)).toBeVisible();
 		await expect(studentRow.locator(`text=${studentEmail}`)).toBeVisible();
 
-		// Step 9: Verify the row has Edit and Delete buttons
-		await expect(studentRow.getByRole('button', { name: 'Edit' })).toBeVisible();
+		// Step 9: Verify the row has View and Delete buttons
+		await expect(studentRow.getByRole('button', { name: 'View' })).toBeVisible();
 		await expect(studentRow.getByRole('button', { name: 'Delete' })).toBeVisible();
 	});
 

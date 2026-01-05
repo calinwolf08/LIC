@@ -11,6 +11,18 @@ import type {
 import type { Assignment } from './assignment';
 
 /**
+ * Elective information for scheduling
+ */
+export interface ElectiveInfo {
+	id: string;
+	name: string;
+	minimumDays: number;
+	isRequired: boolean;
+	requirementId: string;
+	clerkshipId: string;
+}
+
+/**
  * Complete context for the scheduling algorithm
  * Contains all master data and current state during scheduling
  */
@@ -118,7 +130,6 @@ export interface SchedulingContext {
 	/**
 	 * Preceptor-elective associations (optional, DEPRECATED)
 	 * Map: preceptorId -> Set of elective requirement IDs they can teach
-	 * NOTE: This is deprecated in favor of siteElectiveAssociations
 	 * Used by PreceptorClerkshipAssociationConstraint for electives (backward compatibility)
 	 */
 	preceptorElectiveAssociations?: Map<string, Set<string>>;
@@ -131,18 +142,38 @@ export interface SchedulingContext {
 	clerkshipSites?: Map<string, Set<string>>;
 
 	/**
-	 * Site-elective associations (optional)
-	 * Map: siteId -> Set of elective requirement IDs offered at that site
-	 * Used by ValidSiteForClerkshipConstraint for electives
-	 */
-	siteElectiveAssociations?: Map<string, Set<string>>;
-
-	/**
 	 * Preceptor-team membership (optional)
 	 * Map: preceptorId -> Set of team IDs the preceptor belongs to
 	 * Used by SamePreceptorTeamConstraint
 	 */
 	preceptorTeams?: Map<string, Set<string>>;
+
+	// ===== Elective Data (for elective scheduling) =====
+
+	/**
+	 * All electives indexed by clerkship
+	 * Map: clerkshipId -> array of electives for that clerkship
+	 */
+	electivesByClerkship?: Map<string, ElectiveInfo[]>;
+
+	/**
+	 * Preceptors associated with each elective
+	 * Map: electiveId -> Set of preceptor IDs
+	 */
+	electivePreceptors?: Map<string, Set<string>>;
+
+	/**
+	 * Sites associated with each elective
+	 * Map: electiveId -> Set of site IDs
+	 */
+	electiveSites?: Map<string, Set<string>>;
+
+	/**
+	 * Student elective requirements remaining
+	 * Map: studentId -> Map(electiveId -> days still needed)
+	 * Tracks required elective progress separately from regular clerkship days
+	 */
+	studentElectiveRequirements?: Map<string, Map<string, number>>;
 
 	// ===== Tracking Current State (updated during scheduling) =====
 

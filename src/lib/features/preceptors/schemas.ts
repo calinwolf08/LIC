@@ -42,7 +42,8 @@ export const createPreceptorSchema = z.object({
 	health_system_id: optionalIdSchema,
 	site_id: optionalIdSchema, // Deprecated: kept for backwards compatibility
 	site_ids: z.array(cuid2Schema).optional(), // New: array of site IDs
-	max_students: positiveIntSchema.default(1)
+	max_students: positiveIntSchema.default(1),
+	is_global_fallback_only: z.boolean().default(false) // If true, never assigned as primary
 });
 
 /**
@@ -56,7 +57,8 @@ export const updatePreceptorSchema = z
 		health_system_id: optionalIdSchema,
 		site_id: optionalIdSchema, // Deprecated: kept for backwards compatibility
 		site_ids: z.array(cuid2Schema).optional(), // New: array of site IDs
-		max_students: positiveIntSchema.optional()
+		max_students: positiveIntSchema.optional(),
+		is_global_fallback_only: z.boolean().optional() // If true, never assigned as primary
 	})
 	.refine((data) => Object.keys(data).length > 0, {
 		message: 'At least one field must be provided for update'

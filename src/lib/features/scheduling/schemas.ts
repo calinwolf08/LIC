@@ -26,8 +26,12 @@ export const generateScheduleSchema = z
 		 * Optional: Regeneration strategy
 		 * - 'full-reoptimize' (default): Clear all future assignments and regenerate from scratch
 		 * - 'minimal-change': Preserve valid future assignments, only change what's necessary
+		 * - 'completion': Keep ALL existing assignments, only generate for unmet requirements
 		 */
-		strategy: z.enum(['full-reoptimize', 'minimal-change']).optional().default('full-reoptimize'),
+		strategy: z
+			.enum(['full-reoptimize', 'minimal-change', 'completion'])
+			.optional()
+			.default('full-reoptimize'),
 
 		/**
 		 * Optional: Preview mode (dry-run) - analyze impact without making changes

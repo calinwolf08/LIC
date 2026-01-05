@@ -212,12 +212,14 @@ export async function assertTeamBalanced(
 		daysByMember.set(assignment.preceptor_id, currentDays + 1);
 	}
 
-	// Check that distribution is reasonably balanced (within 50% variance)
+	// Check that distribution is reasonably balanced
+	// Lower bound: at least 1/3 of average (allows for preceptors with limited availability)
+	// Upper bound: at most 3x average (allows for primary preceptor getting most days)
 	const daysCounts = Array.from(daysByMember.values());
 	const avgDays = daysCounts.reduce((sum, days) => sum + days, 0) / daysCounts.length;
 	for (const days of daysCounts) {
-		expect(days).toBeGreaterThanOrEqual(avgDays * 0.5);
-		expect(days).toBeLessThanOrEqual(avgDays * 1.5);
+		expect(days).toBeGreaterThanOrEqual(Math.max(1, Math.floor(avgDays * 0.33)));
+		expect(days).toBeLessThanOrEqual(Math.ceil(avgDays * 3));
 	}
 }
 

@@ -3,583 +3,440 @@
 /**
  * Database Seed Script
  *
- * Populates the database with test data after migrations.
+ * Populates the database with test data including:
+ * - Test user (admin@example.com / password123)
+ * - Test schedule owned by the user
+ * - Sample entities associated with the schedule
+ *
  * Run with: npm run db:seed
  *
- * This creates:
- * - 2 Health Systems
- * - 4 Sites (2 per health system)
- * - 3 Clerkships (Family Medicine, Internal Medicine, Pediatrics)
- * - 4 Preceptors (1-2 per site)
- * - 5 Students
+ * This script is idempotent - running it multiple times is safe.
  */
 
 import { createDB } from '../connection';
+import { auth } from '../../auth';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
 
+const TEST_USER = {
+	email: 'admin@example.com',
+	password: 'password123',
+	name: 'Admin User',
+};
+
+const TEST_SCHEDULE = {
+	name: 'Demo Schedule 2025',
+	startDate: '2025-01-06',
+	endDate: '2025-06-30',
+};
+
+// Helper to get or create entity
+async function getOrCreate<T extends { id: string }>(
+	db: Kysely<DB>,
+	table: any,
+	uniqueField: string,
+	uniqueValue: string,
+	createData: any
+): Promise<T> {
+	const existing = await db
+		.selectFrom(table)
+		.selectAll()
+		.where(uniqueField as any, '=', uniqueValue)
+		.executeTakeFirst();
+
+	if (existing) {
+		return existing as T;
+	}
+
+	await db.insertInto(table).values(createData).execute();
+	return createData as T;
+}
+
+// Helper to ensure schedule association exists
+async function ensureScheduleAssociation(
+	db: Kysely<DB>,
+	junctionTable: any,
+	scheduleId: string,
+	entityIdField: string,
+	entityId: string,
+	timestamp: string
+) {
+	const existing = await db
+		.selectFrom(junctionTable)
+		.select('id')
+		.where('schedule_id', '=', scheduleId)
+		.where(entityIdField as any, '=', entityId)
+		.executeTakeFirst();
+
+	if (!existing) {
+		await db.insertInto(junctionTable).values({
+			id: nanoid(),
+			schedule_id: scheduleId,
+			[entityIdField]: entityId,
+			created_at: timestamp,
+		}).execute();
+	}
+}
+
 async function seed(db: Kysely<DB>) {
 	const timestamp = new Date().toISOString();
 
-	console.log('Creating health systems...');
+	// Step 1: Create test user
+	console.log('Creating test user...');
+	let userId: string;
 
-	// Create Health Systems
-	const healthSystem1 = {
-		id: nanoid(),
-		name: 'Metro Health Network',
-		location: 'Downtown Metro Area',
-		description: 'Large urban health network with multiple specialties',
-		created_at: timestamp,
-		updated_at: timestamp
-	};
+	const existingUser = await db
+		.selectFrom('user')
+		.select('id')
+		.where('email', '=', TEST_USER.email)
+		.executeTakeFirst();
 
-	const healthSystem2 = {
-		id: nanoid(),
-		name: 'Community Care Partners',
-		location: 'Suburban Region',
-		description: 'Community-focused healthcare system',
-		created_at: timestamp,
-		updated_at: timestamp
-	};
+	if (existingUser) {
+		console.log(`  User ${TEST_USER.email} already exists`);
+		userId = existingUser.id;
+	} else {
+		try {
+			const result = await auth.api.signUpEmail({
+				body: {
+					email: TEST_USER.email,
+					password: TEST_USER.password,
+					name: TEST_USER.name,
+				},
+			});
 
-	await db
-		.insertInto('health_systems')
-		.values([healthSystem1, healthSystem2])
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+			if (!result.user) {
+				throw new Error('Failed to create user');
+			}
 
-	console.log('Creating sites...');
+			userId = result.user.id;
+			console.log(`  Created user: ${TEST_USER.email}`);
+		} catch (error: any) {
+			const user = await db
+				.selectFrom('user')
+				.select('id')
+				.where('email', '=', TEST_USER.email)
+				.executeTakeFirst();
 
-	// Create Sites
-	const sites = [
-		{
-			id: nanoid(),
-			name: 'Metro General Hospital',
-			health_system_id: healthSystem1.id,
-			address: '123 Main Street, Metro City',
-			contact_person: 'Sarah Johnson',
-			contact_email: 'sjohnson@metrogeneral.com',
-			office_phone: '555-0100',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Metro Family Clinic',
-			health_system_id: healthSystem1.id,
-			address: '456 Oak Avenue, Metro City',
-			contact_person: 'Michael Chen',
-			contact_email: 'mchen@metrofamily.com',
-			office_phone: '555-0101',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Community Hospital',
-			health_system_id: healthSystem2.id,
-			address: '789 Elm Road, Suburbia',
-			contact_person: 'Emily Davis',
-			contact_email: 'edavis@communityhosp.com',
-			office_phone: '555-0200',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Suburban Primary Care',
-			health_system_id: healthSystem2.id,
-			address: '321 Pine Street, Suburbia',
-			contact_person: 'Robert Wilson',
-			contact_email: 'rwilson@suburbanpc.com',
-			office_phone: '555-0201',
-			created_at: timestamp,
-			updated_at: timestamp
-		}
-	];
-
-	await db
-		.insertInto('sites')
-		.values(sites)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('Creating clerkships...');
-
-	// Create Clerkships
-	const clerkships = [
-		{
-			id: nanoid(),
-			name: 'Family Medicine',
-			specialty: 'Family Medicine',
-			clerkship_type: 'outpatient',
-			required_days: 5,
-			description: 'Core family medicine rotation covering primary care',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Internal Medicine',
-			specialty: 'Internal Medicine',
-			clerkship_type: 'inpatient',
-			required_days: 5,
-			description: 'Inpatient internal medicine rotation',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Pediatrics',
-			specialty: 'Pediatrics',
-			clerkship_type: 'outpatient',
-			required_days: 5,
-			description: 'Pediatric care rotation',
-			created_at: timestamp,
-			updated_at: timestamp
-		}
-	];
-
-	await db
-		.insertInto('clerkships')
-		.values(clerkships)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('Linking clerkships to sites...');
-
-	// Link clerkships to sites
-	const clerkshipSites = [
-		// Family Medicine at all sites
-		{ clerkship_id: clerkships[0].id, site_id: sites[0].id, created_at: timestamp },
-		{ clerkship_id: clerkships[0].id, site_id: sites[1].id, created_at: timestamp },
-		{ clerkship_id: clerkships[0].id, site_id: sites[2].id, created_at: timestamp },
-		{ clerkship_id: clerkships[0].id, site_id: sites[3].id, created_at: timestamp },
-		// Internal Medicine at hospitals only
-		{ clerkship_id: clerkships[1].id, site_id: sites[0].id, created_at: timestamp },
-		{ clerkship_id: clerkships[1].id, site_id: sites[2].id, created_at: timestamp },
-		// Pediatrics at selected sites
-		{ clerkship_id: clerkships[2].id, site_id: sites[1].id, created_at: timestamp },
-		{ clerkship_id: clerkships[2].id, site_id: sites[2].id, created_at: timestamp },
-		{ clerkship_id: clerkships[2].id, site_id: sites[3].id, created_at: timestamp }
-	];
-
-	await db
-		.insertInto('clerkship_sites')
-		.values(clerkshipSites)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('Creating preceptors...');
-
-	// Create Preceptors (2 preceptors with max 1 student each)
-	const preceptors = [
-		{
-			id: nanoid(),
-			name: 'Dr. Amanda Smith',
-			email: 'asmith@metrogeneral.com',
-			phone: '555-1001',
-			health_system_id: healthSystem1.id,
-			max_students: 1,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Dr. James Brown',
-			email: 'jbrown@metrofamily.com',
-			phone: '555-1002',
-			health_system_id: healthSystem1.id,
-			max_students: 1,
-			created_at: timestamp,
-			updated_at: timestamp
-		}
-	];
-
-	await db
-		.insertInto('preceptors')
-		.values(preceptors)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('Linking preceptors to sites...');
-
-	// Link preceptors to sites (via junction table)
-	const preceptorSites = [
-		{ preceptor_id: preceptors[0].id, site_id: sites[0].id, created_at: timestamp },
-		{ preceptor_id: preceptors[1].id, site_id: sites[1].id, created_at: timestamp },
-		// Both preceptors can work at both Metro sites
-		{ preceptor_id: preceptors[0].id, site_id: sites[1].id, created_at: timestamp },
-		{ preceptor_id: preceptors[1].id, site_id: sites[0].id, created_at: timestamp }
-	];
-
-	await db
-		.insertInto('preceptor_sites')
-		.values(preceptorSites)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('Creating preceptor availability patterns...');
-
-	// Helper function to get Mon-Wed-Fri dates in December 2025
-	function getMonWedFriDates(year: number, month: number): string[] {
-		const dates: string[] = [];
-		const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-		for (let day = 1; day <= daysInMonth; day++) {
-			const date = new Date(year, month, day);
-			const dayOfWeek = date.getDay();
-			// Monday = 1, Wednesday = 3, Friday = 5
-			if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
-				const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-				dates.push(dateStr);
+			if (user) {
+				userId = user.id;
+				console.log(`  User ${TEST_USER.email} already exists (from auth)`);
+			} else {
+				throw error;
 			}
 		}
-		return dates;
 	}
 
-	// Amanda: Mon-Wed-Fri from 12/1 - 12/31/2025
-	const amandaDates = getMonWedFriDates(2025, 11); // month is 0-indexed, so 11 = December
+	// Step 2: Create test schedule
+	console.log('\nCreating test schedule...');
+	let scheduleId: string;
 
-	// James: Only 12/12/2025
-	const jamesDates = ['2025-12-12'];
+	const existingSchedule = await db
+		.selectFrom('scheduling_periods')
+		.select('id')
+		.where('user_id', '=', userId)
+		.executeTakeFirst();
 
-	// Create availability patterns (visible in UI)
-	const availabilityPatterns = [
-		{
-			id: nanoid(),
-			preceptor_id: preceptors[0].id,
-			site_id: sites[0].id,
-			pattern_type: 'weekly',
-			is_available: 1,
-			specificity: 1,
-			date_range_start: '2025-12-01',
-			date_range_end: '2025-12-31',
-			config: JSON.stringify({ days_of_week: [1, 3, 5] }), // Mon, Wed, Fri
-			reason: null,
-			enabled: 1,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			preceptor_id: preceptors[1].id,
-			site_id: sites[1].id,
-			pattern_type: 'block',
-			is_available: 1,
-			specificity: 1,
-			date_range_start: '2025-12-12',
-			date_range_end: '2025-12-12',
-			config: JSON.stringify({}),
-			reason: null,
-			enabled: 1,
-			created_at: timestamp,
-			updated_at: timestamp
+	if (existingSchedule) {
+		console.log(`  Schedule already exists for user`);
+		scheduleId = existingSchedule.id!;
+	} else {
+		const orphanSchedule = await db
+			.selectFrom('scheduling_periods')
+			.select('id')
+			.where('user_id', 'is', null)
+			.executeTakeFirst();
+
+		if (orphanSchedule) {
+			scheduleId = orphanSchedule.id!;
+			await db
+				.updateTable('scheduling_periods')
+				.set({
+					user_id: userId,
+					name: TEST_SCHEDULE.name,
+					start_date: TEST_SCHEDULE.startDate,
+					end_date: TEST_SCHEDULE.endDate,
+					year: 2025,
+					is_active: 1,
+					updated_at: timestamp,
+				})
+				.where('id', '=', scheduleId)
+				.execute();
+			console.log(`  Claimed orphan schedule`);
+		} else {
+			scheduleId = nanoid();
+			await db
+				.insertInto('scheduling_periods')
+				.values({
+					id: scheduleId,
+					name: TEST_SCHEDULE.name,
+					start_date: TEST_SCHEDULE.startDate,
+					end_date: TEST_SCHEDULE.endDate,
+					year: 2025,
+					is_active: 1,
+					user_id: userId,
+					created_at: timestamp,
+					updated_at: timestamp,
+				})
+				.execute();
+			console.log(`  Created schedule: ${TEST_SCHEDULE.name}`);
 		}
-	];
-
-	await db
-		.insertInto('preceptor_availability_patterns')
-		.values(availabilityPatterns)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('Generating preceptor availability dates from patterns...');
-
-	// Generate availability dates (used by scheduling engine)
-	const availabilityRecords: Array<{
-		id: string;
-		preceptor_id: string;
-		site_id: string;
-		date: string;
-		is_available: number;
-		created_at: string;
-		updated_at: string;
-	}> = [];
-
-	// Amanda: Mon-Wed-Fri in December 2025
-	for (const dateStr of amandaDates) {
-		availabilityRecords.push({
-			id: nanoid(),
-			preceptor_id: preceptors[0].id,
-			site_id: sites[0].id,
-			date: dateStr,
-			is_available: 1,
-			created_at: timestamp,
-			updated_at: timestamp
-		});
 	}
 
-	// James: Only 12/12/2025
-	for (const dateStr of jamesDates) {
-		availabilityRecords.push({
-			id: nanoid(),
-			preceptor_id: preceptors[1].id,
-			site_id: sites[1].id,
-			date: dateStr,
-			is_available: 1,
-			created_at: timestamp,
-			updated_at: timestamp
-		});
+	// Set as user's active schedule
+	await db
+		.updateTable('user')
+		.set({ active_schedule_id: scheduleId })
+		.where('id', '=', userId)
+		.execute();
+
+	// Step 3: Create Health Systems
+	console.log('\nCreating health systems...');
+	const healthSystemIds: string[] = [];
+
+	const healthSystemsData = [
+		{ name: 'Metro Health Network', location: 'Downtown Metro Area', description: 'Large urban health network' },
+		{ name: 'Community Care Partners', location: 'Suburban Region', description: 'Community-focused healthcare' },
+	];
+
+	for (const data of healthSystemsData) {
+		let hs = await db.selectFrom('health_systems').selectAll().where('name', '=', data.name).executeTakeFirst();
+
+		if (!hs) {
+			const id = nanoid();
+			await db.insertInto('health_systems').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			healthSystemIds.push(id);
+		} else {
+			healthSystemIds.push(hs.id!);
+		}
+
+		await ensureScheduleAssociation(db, 'schedule_health_systems', scheduleId, 'health_system_id', healthSystemIds[healthSystemIds.length - 1], timestamp);
 	}
+	console.log(`  Created/found ${healthSystemIds.length} health systems`);
 
-	console.log(`   Amanda (Dr. Smith) available on ${amandaDates.length} Mon-Wed-Fri dates`);
-	console.log(`   James (Dr. Brown) available on ${jamesDates.length} date (12/12 only)`);
+	// Step 4: Create Sites
+	console.log('\nCreating sites...');
+	const siteIds: string[] = [];
 
-	await db
-		.insertInto('preceptor_availability')
-		.values(availabilityRecords)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+	const sitesData = [
+		{ name: 'Metro General Hospital', health_system_id: healthSystemIds[0], address: '123 Main St' },
+		{ name: 'Metro Family Clinic', health_system_id: healthSystemIds[0], address: '456 Oak Ave' },
+		{ name: 'Community Hospital', health_system_id: healthSystemIds[1], address: '789 Elm Rd' },
+		{ name: 'Suburban Primary Care', health_system_id: healthSystemIds[1], address: '321 Pine St' },
+	];
 
-	console.log('Creating clerkship requirements...');
+	for (const data of sitesData) {
+		let site = await db.selectFrom('sites').selectAll().where('name', '=', data.name).executeTakeFirst();
 
-	// Create clerkship requirements for the scheduling engine
-	// NOTE: Only Family Medicine has a team, so only it should get scheduled
-	const clerkshipRequirements = [
-		{
-			id: nanoid(),
-			clerkship_id: clerkships[0].id,
-			requirement_type: 'outpatient',
-			required_days: 5,
-			override_mode: 'override_section',
-			override_assignment_strategy: 'team_continuity',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			clerkship_id: clerkships[1].id,
-			requirement_type: 'inpatient',
-			required_days: 5,
-			override_mode: 'override_section',
-			override_assignment_strategy: 'team_continuity',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			clerkship_id: clerkships[2].id,
-			requirement_type: 'outpatient',
-			required_days: 5,
-			override_mode: 'override_section',
-			override_assignment_strategy: 'team_continuity',
-			created_at: timestamp,
-			updated_at: timestamp
+		if (!site) {
+			const id = nanoid();
+			await db.insertInto('sites').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			siteIds.push(id);
+		} else {
+			siteIds.push(site.id!);
 		}
+
+		await ensureScheduleAssociation(db, 'schedule_sites', scheduleId, 'site_id', siteIds[siteIds.length - 1], timestamp);
+	}
+	console.log(`  Created/found ${siteIds.length} sites`);
+
+	// Step 5: Create Clerkships
+	console.log('\nCreating clerkships...');
+	const clerkshipIds: string[] = [];
+
+	const clerkshipsData = [
+		{ name: 'Family Medicine', specialty: 'Family Medicine', clerkship_type: 'outpatient', required_days: 28 },
+		{ name: 'Internal Medicine', specialty: 'Internal Medicine', clerkship_type: 'inpatient', required_days: 28 },
+		{ name: 'Pediatrics', specialty: 'Pediatrics', clerkship_type: 'outpatient', required_days: 28 },
+		{ name: 'Surgery', specialty: 'Surgery', clerkship_type: 'inpatient', required_days: 28 },
+		{ name: 'OB/GYN', specialty: 'OB/GYN', clerkship_type: 'inpatient', required_days: 28 },
+		{ name: 'Psychiatry', specialty: 'Psychiatry', clerkship_type: 'outpatient', required_days: 14 },
 	];
 
-	await db
-		.insertInto('clerkship_requirements')
-		.values(clerkshipRequirements)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+	for (const data of clerkshipsData) {
+		let clerkship = await db.selectFrom('clerkships').selectAll().where('name', '=', data.name).executeTakeFirst();
 
-	console.log('Creating preceptor capacity rules...');
-
-	// Create capacity rules for each preceptor (max 1 student per day)
-	const capacityRules = [
-		{
-			id: nanoid(),
-			preceptor_id: preceptors[0].id,
-			max_students_per_day: 1,
-			max_students_per_year: 10,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			preceptor_id: preceptors[1].id,
-			max_students_per_day: 1,
-			max_students_per_year: 10,
-			created_at: timestamp,
-			updated_at: timestamp
+		if (!clerkship) {
+			const id = nanoid();
+			await db.insertInto('clerkships').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			clerkshipIds.push(id);
+		} else {
+			clerkshipIds.push(clerkship.id!);
 		}
+
+		await ensureScheduleAssociation(db, 'schedule_clerkships', scheduleId, 'clerkship_id', clerkshipIds[clerkshipIds.length - 1], timestamp);
+	}
+	console.log(`  Created/found ${clerkshipIds.length} clerkships`);
+
+	// Step 6: Clerkship requirements removed
+	// NOTE: clerkship_requirements table has been removed. Clerkships now define
+	// their type (inpatient/outpatient) directly. Electives link directly to clerkships.
+	console.log('\n[Skipped] Clerkship requirements (deprecated - clerkships define type directly)');
+
+	// Step 7: Create Students
+	console.log('\nCreating students...');
+	const studentIds: string[] = [];
+
+	const studentsData = [
+		{ name: 'Alice Johnson', email: 'ajohnson@medschool.edu' },
+		{ name: 'Bob Williams', email: 'bwilliams@medschool.edu' },
+		{ name: 'Carol Martinez', email: 'cmartinez@medschool.edu' },
+		{ name: 'David Kim', email: 'dkim@medschool.edu' },
+		{ name: 'Emma Thompson', email: 'ethompson@medschool.edu' },
+		{ name: 'Frank Garcia', email: 'fgarcia@medschool.edu' },
+		{ name: 'Grace Lee', email: 'glee@medschool.edu' },
+		{ name: 'Henry Brown', email: 'hbrown@medschool.edu' },
+		{ name: 'Ivy Wilson', email: 'iwilson@medschool.edu' },
+		{ name: 'Jack Davis', email: 'jdavis@medschool.edu' },
 	];
 
-	await db
-		.insertInto('preceptor_capacity_rules')
-		.values(capacityRules)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+	for (const data of studentsData) {
+		let student = await db.selectFrom('students').selectAll().where('email', '=', data.email).executeTakeFirst();
 
-	console.log('Creating students...');
-
-	// Create Students
-	const students = [
-		{
-			id: nanoid(),
-			name: 'Alice Johnson',
-			email: 'ajohnson@medschool.edu',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Bob Williams',
-			email: 'bwilliams@medschool.edu',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Carol Martinez',
-			email: 'cmartinez@medschool.edu',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'David Kim',
-			email: 'dkim@medschool.edu',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			name: 'Emma Thompson',
-			email: 'ethompson@medschool.edu',
-			created_at: timestamp,
-			updated_at: timestamp
+		if (!student) {
+			const id = nanoid();
+			await db.insertInto('students').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			studentIds.push(id);
+		} else {
+			studentIds.push(student.id!);
 		}
+
+		await ensureScheduleAssociation(db, 'schedule_students', scheduleId, 'student_id', studentIds[studentIds.length - 1], timestamp);
+	}
+	console.log(`  Created/found ${studentIds.length} students`);
+
+	// Step 8: Create Preceptors
+	console.log('\nCreating preceptors...');
+	const preceptorIds: string[] = [];
+
+	const preceptorsData = [
+		{ name: 'Dr. Amanda Smith', email: 'asmith@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 0 },
+		{ name: 'Dr. James Brown', email: 'jbrown@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 1 },
+		{ name: 'Dr. Maria Garcia', email: 'mgarcia@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 0 },
+		{ name: 'Dr. Robert Chen', email: 'rchen@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 1 },
+		{ name: 'Dr. Sarah Wilson', email: 'swilson@community.edu', health_system_id: healthSystemIds[1], siteIndex: 2 },
+		{ name: 'Dr. Michael Lee', email: 'mlee@community.edu', health_system_id: healthSystemIds[1], siteIndex: 2 },
+		{ name: 'Dr. Jennifer Park', email: 'jpark@community.edu', health_system_id: healthSystemIds[1], siteIndex: 3 },
+		{ name: 'Dr. David Miller', email: 'dmiller@community.edu', health_system_id: healthSystemIds[1], siteIndex: 3 },
 	];
 
-	await db
-		.insertInto('students')
-		.values(students)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+	for (const data of preceptorsData) {
+		const { siteIndex, ...preceptorData } = data;
+		let preceptor = await db.selectFrom('preceptors').selectAll().where('email', '=', data.email).executeTakeFirst();
 
-	console.log('Creating student onboarding records...');
+		if (!preceptor) {
+			const id = nanoid();
+			await db.insertInto('preceptors').values({ id, ...preceptorData, max_students: 2, created_at: timestamp, updated_at: timestamp }).execute();
+			preceptorIds.push(id);
 
-	// Create Student Health System Onboarding (some completed)
-	const studentOnboarding = [
-		// Alice completed onboarding at Metro Health
-		{
-			id: nanoid(),
-			student_id: students[0].id,
-			health_system_id: healthSystem1.id,
-			is_completed: 1,
-			completed_date: timestamp,
-			notes: 'Completed all required training',
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		// Bob completed onboarding at both
-		{
-			id: nanoid(),
-			student_id: students[1].id,
-			health_system_id: healthSystem1.id,
-			is_completed: 1,
-			completed_date: timestamp,
-			notes: null,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		{
-			id: nanoid(),
-			student_id: students[1].id,
-			health_system_id: healthSystem2.id,
-			is_completed: 1,
-			completed_date: timestamp,
-			notes: null,
-			created_at: timestamp,
-			updated_at: timestamp
-		},
-		// Carol completed at Community Care
-		{
-			id: nanoid(),
-			student_id: students[2].id,
-			health_system_id: healthSystem2.id,
-			is_completed: 1,
-			completed_date: timestamp,
-			notes: null,
-			created_at: timestamp,
-			updated_at: timestamp
+			// Add site association
+			await db.insertInto('preceptor_sites').values({ preceptor_id: id, site_id: siteIds[siteIndex], created_at: timestamp }).execute();
+
+			// Add capacity rule
+			await db.insertInto('preceptor_capacity_rules').values({
+				id: nanoid(),
+				preceptor_id: id,
+				max_students_per_day: 2,
+				max_students_per_year: 50,
+				created_at: timestamp,
+				updated_at: timestamp,
+			}).execute();
+
+			// Add availability pattern
+			await db.insertInto('preceptor_availability_patterns').values({
+				id: nanoid(),
+				preceptor_id: id,
+				site_id: siteIds[siteIndex],
+				pattern_type: 'weekly',
+				config: JSON.stringify({ daysOfWeek: [1, 2, 3, 4, 5] }),
+				date_range_start: TEST_SCHEDULE.startDate,
+				date_range_end: TEST_SCHEDULE.endDate,
+				is_available: 1,
+				enabled: 1,
+				specificity: 1,
+				created_at: timestamp,
+				updated_at: timestamp,
+			}).execute();
+		} else {
+			preceptorIds.push(preceptor.id!);
 		}
+
+		await ensureScheduleAssociation(db, 'schedule_preceptors', scheduleId, 'preceptor_id', preceptorIds[preceptorIds.length - 1], timestamp);
+	}
+	console.log(`  Created/found ${preceptorIds.length} preceptors`);
+
+	// Step 9: Create Teams
+	console.log('\nCreating teams...');
+	const teamIds: string[] = [];
+
+	const teamsData = [
+		{ name: 'Family Medicine Team A', clerkshipIndex: 0, preceptorIndices: [0, 1] },
+		{ name: 'Internal Medicine Team A', clerkshipIndex: 1, preceptorIndices: [2, 3] },
+		{ name: 'Pediatrics Team A', clerkshipIndex: 2, preceptorIndices: [4, 5] },
+		{ name: 'Surgery Team A', clerkshipIndex: 3, preceptorIndices: [6, 7] },
 	];
 
-	await db
-		.insertInto('student_health_system_onboarding')
-		.values(studentOnboarding)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+	for (const data of teamsData) {
+		let team = await db.selectFrom('preceptor_teams').selectAll().where('name', '=', data.name).executeTakeFirst();
 
-	console.log('Creating a sample team...');
+		if (!team) {
+			const teamId = nanoid();
+			await db.insertInto('preceptor_teams').values({
+				id: teamId,
+				name: data.name,
+				clerkship_id: clerkshipIds[data.clerkshipIndex],
+				require_same_health_system: 0,
+				require_same_site: 0,
+				require_same_specialty: 0,
+				requires_admin_approval: 0,
+				created_at: timestamp,
+				updated_at: timestamp,
+			}).execute();
 
-	// Create a sample preceptor team
-	const team = {
-		id: nanoid(),
-		name: 'Family Medicine Team A',
-		clerkship_id: clerkships[0].id,
-		require_same_health_system: 1,
-		require_same_site: 0,
-		require_same_specialty: 1,
-		requires_admin_approval: 0,
-		created_at: timestamp,
-		updated_at: timestamp
-	};
+			// Add team members
+			for (let i = 0; i < data.preceptorIndices.length; i++) {
+				await db.insertInto('preceptor_team_members').values({
+					id: nanoid(),
+					team_id: teamId,
+					preceptor_id: preceptorIds[data.preceptorIndices[i]],
+					role: i === 0 ? 'lead' : 'member',
+					priority: i + 1,
+					is_fallback_only: 0,
+					created_at: timestamp,
+				}).execute();
+			}
 
-	await db
-		.insertInto('preceptor_teams')
-		.values(team)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	// Add team members
-	const teamMembers = [
-		{
-			id: nanoid(),
-			team_id: team.id,
-			preceptor_id: preceptors[0].id,
-			role: 'lead',
-			priority: 1,
-			created_at: timestamp
-		},
-		{
-			id: nanoid(),
-			team_id: team.id,
-			preceptor_id: preceptors[1].id,
-			role: 'member',
-			priority: 2,
-			created_at: timestamp
+			teamIds.push(teamId);
+		} else {
+			teamIds.push(team.id!);
 		}
-	];
 
-	await db
-		.insertInto('preceptor_team_members')
-		.values(teamMembers)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
+		await ensureScheduleAssociation(db, 'schedule_teams', scheduleId, 'team_id', teamIds[teamIds.length - 1], timestamp);
+	}
+	console.log(`  Created/found ${teamIds.length} teams`);
 
-	// Link team to sites
-	const teamSites = [
-		{ team_id: team.id, site_id: sites[0].id, created_at: timestamp },
-		{ team_id: team.id, site_id: sites[1].id, created_at: timestamp }
-	];
-
-	await db
-		.insertInto('team_sites')
-		.values(teamSites)
-		.onConflict((oc) => oc.doNothing())
-		.execute();
-
-	console.log('\n✅ Seed data created successfully!');
-	console.log(`   - 2 Health Systems`);
-	console.log(`   - 4 Sites`);
-	console.log(`   - 3 Clerkships (5 days each)`);
-	console.log(`   - 3 Clerkship Requirements (team_continuity strategy)`);
-	console.log(`   - 2 Preceptors (max 1 student each)`);
-	console.log(`   - 2 Capacity Rules (max 1 student/day)`);
-	console.log(`   - 5 Students`);
-	console.log(`   - 1 Team (Family Medicine) with 2 members`);
-	console.log(`   - Amanda available Mon-Wed-Fri December 2025 (${amandaDates.length} days)`);
-	console.log(`   - James available only 12/12/2025 (1 day)`);
+	// Summary
+	console.log('\n' + '='.repeat(50));
+	console.log('SEED COMPLETED SUCCESSFULLY');
+	console.log('='.repeat(50));
+	console.log('\nTest User Credentials:');
+	console.log(`  Email:    ${TEST_USER.email}`);
+	console.log(`  Password: ${TEST_USER.password}`);
+	console.log('\nTest Schedule:');
+	console.log(`  Name:  ${TEST_SCHEDULE.name}`);
+	console.log(`  Range: ${TEST_SCHEDULE.startDate} to ${TEST_SCHEDULE.endDate}`);
+	console.log('\nEntities Created:');
+	console.log(`  - ${healthSystemIds.length} Health Systems`);
+	console.log(`  - ${siteIds.length} Sites`);
+	console.log(`  - ${clerkshipIds.length} Clerkships`);
+	console.log(`  - ${studentIds.length} Students`);
+	console.log(`  - ${preceptorIds.length} Preceptors`);
+	console.log(`  - ${teamIds.length} Teams`);
+	console.log('\nAll entities are associated with the test schedule.');
 }
 
 async function main() {
-	console.log('🌱 Running database seed script...\n');
+	console.log('Starting database seed...\n');
 
 	const db = createDB();
 

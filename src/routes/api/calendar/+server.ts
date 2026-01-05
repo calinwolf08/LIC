@@ -9,8 +9,11 @@ import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { getCalendarEvents } from '$lib/features/schedules/services/calendar-service.js';
+import { createServerLogger } from '$lib/utils/logger.server';
 import { z, ZodError } from 'zod';
 import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
+
+const log = createServerLogger('api:calendar');
 
 /**
  * Schema for calendar query parameters
@@ -34,13 +37,21 @@ const calendarQuerySchema = z.object({
  *   - clerkship_id: UUID (optional)
  */
 export const GET: RequestHandler = async ({ url }) => {
-	try {
-		const startDate = url.searchParams.get('start_date');
-		const endDate = url.searchParams.get('end_date');
-		const studentId = url.searchParams.get('student_id');
-		const preceptorId = url.searchParams.get('preceptor_id');
-		const clerkshipId = url.searchParams.get('clerkship_id');
+	const startDate = url.searchParams.get('start_date');
+	const endDate = url.searchParams.get('end_date');
+	const studentId = url.searchParams.get('student_id');
+	const preceptorId = url.searchParams.get('preceptor_id');
+	const clerkshipId = url.searchParams.get('clerkship_id');
 
+	log.debug('Fetching calendar events', {
+		startDate,
+		endDate,
+		studentId,
+		preceptorId,
+		clerkshipId
+	});
+
+	try {
 		// Validate query parameters
 		const filters = calendarQuerySchema.parse({
 			start_date: startDate,
@@ -52,17 +63,29 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// Validate date range order
 		if (filters.start_date > filters.end_date) {
+			log.warn('Invalid date range', { startDate, endDate });
 			return errorResponse('end_date must be greater than or equal to start_date', 400);
 		}
 
 		const events = await getCalendarEvents(db, filters);
 
+		log.info('Calendar events fetched', {
+			count: events.length,
+			startDate: filters.start_date,
+			endDate: filters.end_date,
+			filtered: !!(studentId || preceptorId || clerkshipId)
+		});
+
 		return successResponse(events);
 	} catch (error) {
 		if (error instanceof ZodError) {
+			log.warn('Calendar query validation failed', {
+				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+			});
 			return validationErrorResponse(error);
 		}
 
+		log.error('Failed to fetch calendar events', { startDate, endDate, error });
 		return handleApiError(error);
 	}
 };

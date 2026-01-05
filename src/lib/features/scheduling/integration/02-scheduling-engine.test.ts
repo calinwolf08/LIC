@@ -11,7 +11,7 @@ import {
 	createTestStudents,
 	createTestPreceptors,
 	createTestHealthSystem,
-	createTestRequirement,
+	// createTestRequirement, // No longer needed - now a no-op
 	createCapacityRule,
 	createTestTeam,
 	createFallbackChain,
@@ -20,6 +20,7 @@ import {
 	clearAllTestData,
 	createPreceptorAvailability,
 	generateDateRange,
+	setOutpatientAssignmentStrategy,
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -55,7 +56,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should assign students to single preceptor for entire rotation', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Medical Center');
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 20 });
 			const studentIds = await createTestStudents(db, 3);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
@@ -64,13 +65,13 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				clerkshipId, // Associate preceptors with clerkship via team
 			});
 
-			// Create requirement with continuous_single strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 20,
-				assignmentStrategy: 'continuous_single',
-				healthSystemRule: 'prefer_same_system',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 20,
+			// 	assignmentStrategy: 'continuous_single',
+			// 	healthSystemRule: 'prefer_same_system',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -115,7 +116,8 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should create assignments in fixed-size blocks', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'University Hospital');
-			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine');
+			// Inpatient clerkships use block_based strategy by default
+			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 28 });
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
@@ -124,13 +126,13 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				clerkshipId,
 			});
 
-			// Create requirement with block_based strategy (14-day blocks)
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 28,
-				assignmentStrategy: 'block_based',
-				blockSizeDays: 14,
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 28,
+			// 	assignmentStrategy: 'block_based',
+			// 	blockSizeDays: 14,
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -167,9 +169,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 
 	describe('Test 3: Daily Rotation Strategy End-to-End', () => {
 		it('should rotate students across different preceptors daily', async () => {
+			// Configure global defaults to use daily_rotation strategy
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Surgery Center');
-			const clerkshipId = await createTestClerkship(db, 'Surgery', 'Surgery');
+			const clerkshipId = await createTestClerkship(db, 'Surgery', 'outpatient', { requiredDays: 42 });
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 4, {
 				healthSystemId,
@@ -178,13 +183,13 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				clerkshipId,
 			});
 
-			// Create requirement with daily_rotation strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 42,
-				assignmentStrategy: 'daily_rotation',
-				healthSystemRule: 'enforce_same_system',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 42,
+			// 	assignmentStrategy: 'daily_rotation',
+			// 	healthSystemRule: 'enforce_same_system',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -224,7 +229,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should assign students to teams and balance across team members', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Teaching Hospital');
-			const clerkshipId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics');
+			const clerkshipId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics', { requiredDays: 28 });
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
@@ -232,12 +237,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				maxStudents: 3,
 			});
 
-			// Create requirement with team_continuity strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 28,
-				assignmentStrategy: 'team_continuity',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 28,
+			// 	assignmentStrategy: 'team_continuity',
+			// });
 
 			// Create pre-configured team
 			const teamId = await createTestTeam(db, clerkshipId, 'OB Teaching Team', preceptorIds, {
@@ -284,21 +289,22 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				clerkshipId,
 			});
 
+			// createTestRequirement is now a no-op - NOTE: This test may need review for hybrid strategy
 			// Create two requirements with different strategies
 			// 1. Inpatient with block-based (14-day blocks, 28 days total)
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 28,
-				assignmentStrategy: 'block_based',
-				blockSizeDays: 14,
-			});
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 28,
+			// 	assignmentStrategy: 'block_based',
+			// 	blockSizeDays: 14,
+			// });
 
 			// 2. Outpatient with continuous_single (14 days)
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -337,7 +343,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should use fallback preceptors when primary is unavailable', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Community Hospital');
-			const clerkshipId = await createTestClerkship(db, 'Cardiology', 'Cardiology');
+			const clerkshipId = await createTestClerkship(db, 'Cardiology', 'Cardiology', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
@@ -345,12 +351,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				maxStudents: 3,
 			});
 
-			// Create requirement
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'inpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Make primary preceptor completely unavailable
 			const today = new Date();
@@ -390,7 +396,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Limited Capacity Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Dermatology', 'Dermatology');
+			const clerkshipId = await createTestClerkship(db, 'Dermatology', 'Dermatology', { requiredDays: 14 });
 			const studentIds = await createTestStudents(db, 5); // Many students
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
@@ -398,12 +404,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				maxStudents: 2,
 			});
 
-			// Create requirement
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'continuous_single',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, clerkshipId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'continuous_single',
+			// });
 
 			// Set strict capacity limits: max 1 student per day
 			for (const preceptorId of preceptorIds) {

@@ -11,3 +11,5 @@ export { default as PreceptorCapacitySummary } from './preceptor-capacity-summar
 export { default as UnmetRequirementsTable } from './unmet-requirements-table.svelte';
 export { default as ScheduleStatsCard } from './schedule-stats-card.svelte';
 export { default as ClerkshipBreakdownTable } from './clerkship-breakdown-table.svelte';
+export { default as ViolationStatsCard } from './violation-stats-card.svelte';
+export { default as SuggestionsPanel } from './suggestions-panel.svelte';

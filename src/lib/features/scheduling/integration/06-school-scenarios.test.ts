@@ -11,7 +11,7 @@ import {
 	createTestStudents,
 	createTestPreceptors,
 	createTestHealthSystem,
-	createTestRequirement,
+	// createTestRequirement, // No longer needed - now a no-op
 	createCapacityRule,
 	createTestTeam,
 	createFallbackChain,
@@ -19,6 +19,7 @@ import {
 	clearAllTestData,
 	createPreceptorAvailability,
 	generateDateRange,
+	setOutpatientAssignmentStrategy,
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -64,7 +65,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			);
 
 			// Create single clerkship for simplified testing
-			const famMedId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
+			const famMedId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 20 });
 
 			// Create students
 			const studentIds = await createTestStudents(db, 5);
@@ -77,13 +78,13 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				clerkshipId: famMedId,
 			});
 
-			// Configure clerkship with continuous single strategy
-			await createTestRequirement(db, famMedId, {
-				requirementType: 'outpatient',
-				requiredDays: 20,
-				assignmentStrategy: 'continuous_single',
-				healthSystemRule: 'prefer_same_system',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, famMedId, {
+			// 	requirementType: 'outpatient',
+			// 	requiredDays: 20,
+			// 	assignmentStrategy: 'continuous_single',
+			// 	healthSystemRule: 'prefer_same_system',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -137,7 +138,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			);
 
 			// Create clerkship
-			const obId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics');
+			const obId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics', { requiredDays: 14 });
 
 			// Create students
 			const studentIds = await createTestStudents(db, 4);
@@ -149,12 +150,12 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				maxStudents: 4,
 			});
 
-			// Configure clerkship with team strategy
-			await createTestRequirement(db, obId, {
-				requirementType: 'inpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'team_continuity',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, obId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'team_continuity',
+			// });
 
 			// Create team
 			const obTeamId = await createTestTeam(db, obId, 'OB Teaching Team', obTeam, {
@@ -202,7 +203,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			);
 
 			// Create clerkship
-			const psychiatryId = await createTestClerkship(db, 'Psychiatry', 'Psychiatry');
+			const psychiatryId = await createTestClerkship(db, 'Psychiatry', 'Psychiatry', { requiredDays: 14 });
 
 			// Create students
 			const studentIds = await createTestStudents(db, 4);
@@ -215,13 +216,13 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				clerkshipId: psychiatryId,
 			});
 
-			// Configure with block-based (14 days, 7-day blocks)
-			await createTestRequirement(db, psychiatryId, {
-				requirementType: 'inpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'block_based',
-				blockSizeDays: 7,
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, psychiatryId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'block_based',
+			// 	blockSizeDays: 7,
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -262,12 +263,14 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 	describe('Scenario 4: Daily Rotation Strategy', () => {
 		it('should rotate students across different preceptors daily', async () => {
 			// Daily rotation strategy test
+			// Configure global defaults to use daily_rotation strategy
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
 
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Regional Network', 1);
 
 			// Create clerkship
-			const emergencyId = await createTestClerkship(db, 'Emergency Medicine', 'Emergency Medicine');
+			const emergencyId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', { requiredDays: 14 });
 
 			// Create students (small group)
 			const studentIds = await createTestStudents(db, 3);
@@ -280,12 +283,12 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				clerkshipId: emergencyId,
 			});
 
-			// Configure with daily rotation
-			await createTestRequirement(db, emergencyId, {
-				requirementType: 'inpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'daily_rotation',
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, emergencyId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'daily_rotation',
+			// });
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
@@ -342,8 +345,8 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				1
 			);
 
-			// Create single clerkship
-			const internalMedId = await createTestClerkship(db, 'Internal Medicine', 'Internal Medicine');
+			// Create single clerkship (inpatient uses block_based strategy by default)
+			const internalMedId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 14 });
 
 			// Create students (large cohort)
 			const studentIds = await createTestStudents(db, 20);
@@ -356,13 +359,13 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				clerkshipId: internalMedId,
 			});
 
-			// Configure clerkship with block-based strategy
-			await createTestRequirement(db, internalMedId, {
-				requirementType: 'inpatient',
-				requiredDays: 14,
-				assignmentStrategy: 'block_based',
-				blockSizeDays: 7,
-			});
+			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
+			// await createTestRequirement(db, internalMedId, {
+			// 	requirementType: 'inpatient',
+			// 	requiredDays: 14,
+			// 	assignmentStrategy: 'block_based',
+			// 	blockSizeDays: 7,
+			// });
 
 			// Set capacity rules for all preceptors
 			for (const preceptorId of preceptorIds) {
@@ -401,8 +404,8 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				const assignments = await getStudentAssignments(db, studentId);
 				expect(assignments.length).toBe(14);
 
-				// Verify block-based strategy
-				await assertBlockBasedStrategy(db, studentId, internalMedId, 7);
+				// Verify block-based strategy (inpatient defaults to 14-day blocks)
+				await assertBlockBasedStrategy(db, studentId, internalMedId, 14);
 
 				// No date conflicts
 				await assertNoDateConflicts(db, studentId);

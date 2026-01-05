@@ -69,6 +69,7 @@ export class ConfigurableSchedulingEngine {
   private constraintFactory: ConstraintFactory;
   private constraints: Constraint[] = [];
   private clerkshipConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
+  private electivesByClerkship: Map<string, any[]> = new Map();
   private pendingAssignments: PendingAssignment[] = [];
 
   constructor(private db: Kysely<DB>) {
@@ -102,6 +103,7 @@ export class ConfigurableSchedulingEngine {
 
     this.resultBuilder.reset();
     this.clerkshipConfigs.clear();
+    this.electivesByClerkship.clear();
     this.pendingAssignments = [];
 
     // Phase 1: Load data
@@ -178,6 +180,11 @@ export class ConfigurableSchedulingEngine {
 
   /**
    * Load resolved configurations for all clerkships
+   *
+   * With the new model:
+   * - Each clerkship has a type (inpatient/outpatient) directly on the clerkship record
+   * - Electives link directly to clerkships via clerkship_id
+   * - Non-elective days = clerkship.required_days - sum(elective.minimum_days)
    */
   private async loadClerkshipConfigurations(
     clerkshipIds: string[],
@@ -190,32 +197,58 @@ export class ConfigurableSchedulingEngine {
       this.loadGlobalDefaults('elective'),
     ]);
 
-    // Load clerkship requirements
-    const requirements = await this.db
-      .selectFrom('clerkship_requirements')
+    // Load all electives for these clerkships
+    const electives = await this.db
+      .selectFrom('clerkship_electives')
       .selectAll()
       .where('clerkship_id', 'in', clerkshipIds)
       .execute();
+
+    // Load site and preceptor associations for electives
+    const electiveIds = electives.map(e => e.id).filter((id): id is string => id !== null);
+    const [siteAssociations, preceptorAssociations] = electiveIds.length > 0
+      ? await Promise.all([
+          this.db.selectFrom('elective_sites').selectAll().where('elective_id', 'in', electiveIds).execute(),
+          this.db.selectFrom('elective_preceptors').selectAll().where('elective_id', 'in', electiveIds).execute(),
+        ])
+      : [[], []];
+
+    // Group electives by clerkship_id with their associations
+    for (const clerkship of clerkships) {
+      if (!clerkship.id) continue;
+
+      const clerkshipElectives = electives
+        .filter(e => e.clerkship_id === clerkship.id)
+        .map(elective => ({
+          ...elective,
+          siteIds: siteAssociations
+            .filter(sa => sa.elective_id === elective.id)
+            .map(sa => sa.site_id),
+          preceptorIds: preceptorAssociations
+            .filter(pa => pa.elective_id === elective.id)
+            .map(pa => pa.preceptor_id),
+        }));
+
+      this.electivesByClerkship.set(clerkship.id, clerkshipElectives);
+    }
 
     // Build resolved configuration for each clerkship
     for (const clerkship of clerkships) {
       if (!clerkship.id) continue;
 
-      const requirement = requirements.find(r => r.clerkship_id === clerkship.id);
-      const requirementType = requirement?.requirement_type || clerkship.clerkship_type || 'outpatient';
+      // Determine clerkship type - use clerkship_type field directly
+      const clerkshipType = clerkship.clerkship_type || 'outpatient';
 
-      // Get appropriate defaults based on requirement type
-      let defaults = outpatientDefaults;
-      if (requirementType === 'inpatient') defaults = inpatientDefaults;
-      if (requirementType === 'elective') defaults = electiveDefaults;
+      // Get appropriate defaults based on clerkship type
+      const defaults = clerkshipType === 'inpatient' ? inpatientDefaults : outpatientDefaults;
 
-      // Build resolved configuration
-      const resolvedConfig = this.resolveConfiguration(
-        clerkship,
-        requirement,
-        defaults
-      );
+      // Calculate non-elective days
+      const clerkshipElectives = this.electivesByClerkship.get(clerkship.id) || [];
+      const totalElectiveDays = clerkshipElectives.reduce((sum, e) => sum + (e.minimum_days || 0), 0);
+      const nonElectiveDays = Math.max(0, clerkship.required_days - totalElectiveDays);
 
+      // Build resolved configuration for the non-elective portion
+      const resolvedConfig = this.resolveClerkshipConfiguration(clerkship, defaults, nonElectiveDays);
       this.clerkshipConfigs.set(clerkship.id, resolvedConfig);
     }
   }
@@ -243,26 +276,32 @@ export class ConfigurableSchedulingEngine {
   }
 
   /**
-   * Resolve configuration by merging global defaults with clerkship-specific overrides
+   * Resolve configuration for a clerkship (for non-elective days)
+   *
+   * With the new model, clerkships don't have separate requirements.
+   * The clerkship itself defines the type and settings.
    */
-  private resolveConfiguration(
+  private resolveClerkshipConfiguration(
     clerkship: Clerkship,
-    requirement: any | undefined,
-    defaults: Record<string, any> | null
+    defaults: Record<string, any> | null,
+    nonElectiveDays: number
   ): ResolvedRequirementConfiguration {
     // Default strategy is continuous_single as specified
     const defaultStrategy = AssignmentStrategy.CONTINUOUS_SINGLE;
 
-    // Start with defaults or sensible fallbacks
-    const baseConfig: ResolvedRequirementConfiguration = {
+    // Determine requirement type from clerkship type
+    const requirementType = (clerkship.clerkship_type || 'outpatient') as any;
+
+    // Build configuration from global defaults
+    const config: ResolvedRequirementConfiguration = {
       clerkshipId: clerkship.id!,
-      requirementType: (requirement?.requirement_type || clerkship.clerkship_type || 'outpatient') as any,
-      requiredDays: requirement?.required_days || clerkship.required_days,
+      requirementType,
+      requiredDays: nonElectiveDays, // Only non-elective days for main scheduling
       assignmentStrategy: defaults?.assignment_strategy || defaultStrategy,
       healthSystemRule: defaults?.health_system_rule || 'no_preference',
       maxStudentsPerDay: defaults?.default_max_students_per_day || 2,
       maxStudentsPerYear: defaults?.default_max_students_per_year || 50,
-      blockSizeDays: defaults?.block_length_days,
+      blockSizeDays: defaults?.block_size_days,
       allowPartialBlocks: defaults?.allow_partial_blocks === 1,
       preferContinuousBlocks: defaults?.prefer_continuous_blocks === 1,
       allowTeams: defaults?.allow_teams === 1,
@@ -272,23 +311,57 @@ export class ConfigurableSchedulingEngine {
       source: 'global_defaults',
     };
 
-    // Apply requirement-level overrides if present
-    if (requirement && requirement.override_mode !== 'inherit') {
-      if (requirement.override_assignment_strategy) {
-        baseConfig.assignmentStrategy = requirement.override_assignment_strategy;
-        baseConfig.source = 'partial_override';
+    return config;
+  }
+
+  /**
+   * Resolve configuration for an elective
+   *
+   * Electives can inherit from their parent clerkship or override settings.
+   */
+  private resolveElectiveConfiguration(
+    clerkship: Clerkship,
+    elective: any,
+    defaults: Record<string, any> | null
+  ): ResolvedRequirementConfiguration {
+    const defaultStrategy = AssignmentStrategy.CONTINUOUS_SINGLE;
+
+    // Start with elective defaults
+    const config: ResolvedRequirementConfiguration = {
+      clerkshipId: clerkship.id!,
+      requirementType: 'elective' as any,
+      requiredDays: elective.minimum_days,
+      assignmentStrategy: defaults?.assignment_strategy || defaultStrategy,
+      healthSystemRule: defaults?.health_system_rule || 'no_preference',
+      maxStudentsPerDay: defaults?.default_max_students_per_day || 2,
+      maxStudentsPerYear: defaults?.default_max_students_per_year || 50,
+      blockSizeDays: defaults?.block_size_days,
+      allowPartialBlocks: defaults?.allow_partial_blocks === 1,
+      preferContinuousBlocks: defaults?.prefer_continuous_blocks === 1,
+      allowTeams: defaults?.allow_teams === 1,
+      allowFallbacks: defaults?.allow_fallbacks === 1,
+      fallbackRequiresApproval: defaults?.fallback_requires_approval === 1,
+      fallbackAllowCrossSystem: defaults?.fallback_allow_cross_system === 1,
+      source: 'global_defaults',
+    };
+
+    // Apply elective-level overrides if not inheriting
+    if (elective.override_mode === 'override') {
+      if (elective.override_assignment_strategy) {
+        config.assignmentStrategy = elective.override_assignment_strategy;
+        config.source = 'partial_override';
       }
-      if (requirement.override_health_system_rule) {
-        baseConfig.healthSystemRule = requirement.override_health_system_rule;
-        baseConfig.source = 'partial_override';
+      if (elective.override_health_system_rule) {
+        config.healthSystemRule = elective.override_health_system_rule;
+        config.source = 'partial_override';
       }
-      if (requirement.override_block_length_days !== null) {
-        baseConfig.blockSizeDays = requirement.override_block_length_days;
-        baseConfig.source = 'partial_override';
+      if (elective.override_block_size_days !== null && elective.override_block_size_days !== undefined) {
+        config.blockSizeDays = elective.override_block_size_days;
+        config.source = 'partial_override';
       }
     }
 
-    return baseConfig;
+    return config;
   }
 
   /**
@@ -375,6 +448,10 @@ export class ConfigurableSchedulingEngine {
 
   /**
    * Schedule single student to single clerkship
+   *
+   * With the new model:
+   * 1. First schedules all required electives for the clerkship
+   * 2. Then schedules the remaining non-elective days (clerkship.required_days - sum of elective days)
    */
   private async scheduleStudentToClerkship(
     student: Student,
@@ -395,7 +472,7 @@ export class ConfigurableSchedulingEngine {
     }
 
     try {
-      // Get resolved configuration for this clerkship
+      // Get configuration for this clerkship
       const config = this.clerkshipConfigs.get(clerkship.id);
       if (!config) {
         console.error(`[Engine] No configuration found for clerkship ${clerkship.id}`);
@@ -413,6 +490,53 @@ export class ConfigurableSchedulingEngine {
         return;
       }
 
+      // Step 1: Schedule all required electives first
+      const electives = this.electivesByClerkship.get(clerkship.id) || [];
+      const requiredElectives = electives.filter(e => e.is_required);
+
+      if (requiredElectives.length > 0) {
+        console.log(`[Engine] Scheduling ${requiredElectives.length} required electives for ${student.name} in ${clerkship.name}`);
+
+        for (const elective of requiredElectives) {
+          await this.scheduleStudentToElective(
+            student,
+            clerkship,
+            elective,
+            config,
+            options
+          );
+        }
+      }
+
+      // Step 2: Schedule non-elective days (if any remaining)
+      if (config.requiredDays > 0) {
+        console.log(`[Engine] Scheduling ${config.requiredDays} non-elective days for ${student.name} in ${clerkship.name}`);
+        await this.scheduleStudentNonElectiveDays(student, clerkship, config, options);
+      }
+    } catch (error) {
+      console.error(`[Engine] Error scheduling ${student.name} to ${clerkship.name}:`, error);
+    }
+  }
+
+  /**
+   * Schedule non-elective days for a student within a clerkship
+   *
+   * These are the regular clerkship days that aren't part of any elective.
+   */
+  private async scheduleStudentNonElectiveDays(
+    student: Student,
+    clerkship: Clerkship,
+    config: ResolvedRequirementConfiguration,
+    options: {
+      startDate: string;
+      endDate: string;
+      enableTeamFormation: boolean;
+      enableFallbacks: boolean;
+      maxRetries: number;
+      bypassedConstraints: Set<string>;
+    }
+  ): Promise<void> {
+    try {
       // Build strategy context with proper date range and pending assignments
       const context = await this.contextBuilder.buildContext(student, clerkship, config, {
         startDate: options.startDate,
@@ -421,13 +545,23 @@ export class ConfigurableSchedulingEngine {
         pendingAssignments: this.pendingAssignments,
       });
 
+      // Get dates already assigned to this student (to avoid conflicts with electives)
+      const studentAssignedDates = new Set(
+        this.pendingAssignments
+          .filter(a => a.studentId === student.id)
+          .map(a => a.date)
+      );
+
+      // Filter context.availableDates to exclude student's assigned dates
+      context.availableDates = context.availableDates.filter(date => !studentAssignedDates.has(date));
+
       // Select strategy based on configuration
       const strategy = this.strategySelector.selectStrategy(config);
       if (!strategy) {
         this.resultBuilder.addUnmetRequirement({
-          studentId: student.id,
+          studentId: student.id!,
           studentName: student.name,
-          clerkshipId: clerkship.id,
+          clerkshipId: clerkship.id!,
           clerkshipName: clerkship.name,
           requirementType: config.requirementType,
           requiredDays: config.requiredDays,
@@ -438,74 +572,259 @@ export class ConfigurableSchedulingEngine {
         return;
       }
 
-      console.log(`[Engine] Using strategy: ${strategy.getName()} for ${clerkship.name}`);
+      console.log(`[Engine] Using strategy: ${strategy.getName()} for ${clerkship.name} (non-elective days)`);
       const result = await strategy.generateAssignments(context);
 
-      if (!result.success) {
+      // Process any assignments (even partial ones when success=false)
+      const assignmentsToProcess = result.assignments || [];
+
+      if (assignmentsToProcess.length > 0) {
+        // Validate assignments against constraints
+        const validationResult = await this.validateAssignments(
+          assignmentsToProcess,
+          options.bypassedConstraints
+        );
+
+        if (validationResult.isValid) {
+          // Add assignments to result and track as pending for future students
+          assignmentsToProcess.forEach(assignment => {
+            this.resultBuilder.addAssignment(assignment);
+            // Track pending assignment for capacity calculations
+            this.pendingAssignments.push({
+              studentId: assignment.studentId,
+              preceptorId: assignment.preceptorId,
+              clerkshipId: assignment.clerkshipId,
+              date: assignment.date,
+            });
+          });
+          console.log(`[Engine] Successfully assigned ${assignmentsToProcess.length} non-elective days for ${student.name} to ${clerkship.name}`);
+        } else {
+          // Record violations
+          validationResult.violations.forEach(violation => {
+            this.resultBuilder.addViolation(violation);
+          });
+        }
+      }
+
+      // Record unmet requirement if we didn't meet the full requirement
+      if (!result.success || assignmentsToProcess.length < config.requiredDays) {
+        const assignedDays = assignmentsToProcess.length;
+        this.resultBuilder.addUnmetRequirement({
+          studentId: student.id!,
+          studentName: student.name,
+          clerkshipId: clerkship.id!,
+          clerkshipName: clerkship.name,
+          requirementType: config.requirementType,
+          requiredDays: config.requiredDays,
+          assignedDays,
+          remainingDays: config.requiredDays - assignedDays,
+          reason: result.error || `Only ${assignedDays} of ${config.requiredDays} days could be assigned`,
+        });
+      }
+    } catch (error) {
+      console.error(`[Engine] Error scheduling ${student.name} non-elective days in ${clerkship.name}:`, error);
+      this.resultBuilder.addUnmetRequirement({
+        studentId: student.id!,
+        studentName: student.name,
+        clerkshipId: clerkship.id!,
+        clerkshipName: clerkship.name,
+        requirementType: config.requirementType,
+        requiredDays: config.requiredDays,
+        assignedDays: 0,
+        remainingDays: config.requiredDays,
+        reason: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    }
+  }
+
+
+  /**
+   * Schedule single student to single elective
+   */
+  private async scheduleStudentToElective(
+    student: Student,
+    clerkship: Clerkship,
+    elective: any,
+    config: ResolvedRequirementConfiguration,
+    options: {
+      startDate: string;
+      endDate: string;
+      enableTeamFormation: boolean;
+      enableFallbacks: boolean;
+      maxRetries: number;
+      bypassedConstraints: Set<string>;
+    }
+  ): Promise<void> {
+    if (!student.id || !clerkship.id || !elective.id) {
+      console.error('[Engine] Student, clerkship, or elective missing valid ID');
+      return;
+    }
+
+    try {
+      console.log(`[Engine] Scheduling elective "${elective.name}" (${elective.minimum_days} days) for ${student.name}`);
+
+      // Create modified config with elective's minimum_days
+      const electiveConfig = {
+        ...config,
+        requiredDays: elective.minimum_days,
+      };
+
+      // Build strategy context (don't use its preceptor list, we'll build our own)
+      const context = await this.contextBuilder.buildContext(student, clerkship, electiveConfig as any, {
+        startDate: options.startDate,
+        endDate: options.endDate,
+        requirementType: 'elective',
+        pendingAssignments: this.pendingAssignments,
+      });
+
+      // Get dates already assigned to this student (to avoid conflicts with other electives)
+      const studentAssignedDates = new Set(
+        this.pendingAssignments
+          .filter(a => a.studentId === student.id)
+          .map(a => a.date)
+      );
+
+      // Filter context.availableDates to exclude student's assigned dates
+      context.availableDates = context.availableDates.filter(date => !studentAssignedDates.has(date));
+
+      // For electives, load preceptors directly from elective associations (not from teams)
+      if (elective.preceptorIds && elective.preceptorIds.length > 0) {
+        const preceptorRecords = await this.db
+          .selectFrom('preceptors')
+          .selectAll()
+          .where('id', 'in', elective.preceptorIds)
+          .execute();
+
+        // Get availability for these preceptors
+        const availability = await this.db
+          .selectFrom('preceptor_availability')
+          .select(['preceptor_id', 'date', 'site_id'])
+          .where('preceptor_id', 'in', elective.preceptorIds)
+          .where('is_available', '=', 1)
+          .execute();
+
+        // Build available preceptors list with their availability, excluding student's assigned dates
+        context.availablePreceptors = preceptorRecords
+          .filter((p): p is typeof p & { id: string } => p.id !== null)
+          .map(preceptor => {
+            const preceptorAvailability = availability.filter(a => a.preceptor_id === preceptor.id);
+            const availableDates = preceptorAvailability
+              .map(a => a.date)
+              .filter(date => !studentAssignedDates.has(date)); // Exclude dates student is already assigned
+
+            return {
+              id: preceptor.id,
+              name: preceptor.name,
+              healthSystemId: preceptor.health_system_id,
+              siteId: null, // Site determined by availability, not preceptor record
+              siteIds: [], // Sites determined by availability
+              availability: availableDates,
+              currentAssignmentCount: 0,
+              // Use preceptor's max_students setting for daily capacity
+              maxStudentsPerDay: preceptor.max_students ?? 1,
+              maxStudentsPerYear: 50,
+            };
+          });
+      } else {
+        context.availablePreceptors = [];
+      }
+
+      if (context.availablePreceptors.length === 0) {
+        console.warn(`[Engine] No available preceptors for elective "${elective.name}"`);
         this.resultBuilder.addUnmetRequirement({
           studentId: student.id,
           studentName: student.name,
           clerkshipId: clerkship.id,
-          clerkshipName: clerkship.name,
-          requirementType: config.requirementType,
-          requiredDays: config.requiredDays,
+          clerkshipName: `${clerkship.name} - ${elective.name}`,
+          requirementType: 'elective',
+          requiredDays: elective.minimum_days,
           assignedDays: 0,
-          remainingDays: config.requiredDays,
-          reason: result.error || 'Strategy execution failed',
+          remainingDays: elective.minimum_days,
+          reason: `No available preceptors for elective "${elective.name}"`,
         });
         return;
       }
 
-      // Validate assignments against constraints
-      const validationResult = await this.validateAssignments(
-        result.assignments,
-        options.bypassedConstraints
-      );
-
-      if (validationResult.isValid) {
-        // Add assignments to result and track as pending for future students
-        result.assignments.forEach(assignment => {
-          this.resultBuilder.addAssignment(assignment);
-          // Track pending assignment for capacity calculations
-          this.pendingAssignments.push({
-            studentId: assignment.studentId,
-            preceptorId: assignment.preceptorId,
-            clerkshipId: assignment.clerkshipId,
-            date: assignment.date,
-          });
-        });
-        console.log(`[Engine] Successfully assigned ${result.assignments.length} days for ${student.name} to ${clerkship.name}`);
-      } else {
-        // Record violations
-        validationResult.violations.forEach(violation => {
-          this.resultBuilder.addViolation(violation);
-        });
-
-        // Record unmet requirement
+      // Select and execute strategy
+      const strategy = this.strategySelector.selectStrategy(config);
+      if (!strategy) {
         this.resultBuilder.addUnmetRequirement({
           studentId: student.id,
           studentName: student.name,
           clerkshipId: clerkship.id,
-          clerkshipName: clerkship.name,
-          requirementType: config.requirementType,
-          requiredDays: config.requiredDays,
+          clerkshipName: `${clerkship.name} - ${elective.name}`,
+          requirementType: 'elective',
+          requiredDays: elective.minimum_days,
           assignedDays: 0,
-          remainingDays: config.requiredDays,
-          reason: `Validation failed: ${validationResult.violations.map(v => v.message).join(', ')}`,
+          remainingDays: elective.minimum_days,
+          reason: `No suitable strategy found for ${config.assignmentStrategy}`,
+        });
+        return;
+      }
+
+      const result = await strategy.generateAssignments(context);
+
+      // Process any assignments (even partial ones when success=false)
+      const assignmentsToProcess = result.assignments || [];
+
+      if (assignmentsToProcess.length > 0) {
+        // Add elective_id to all assignments
+        const electiveAssignments = assignmentsToProcess.map(assignment => ({
+          ...assignment,
+          electiveId: elective.id,
+          requirementType: 'elective' as const,
+        }));
+
+        // Validate assignments
+        const validationResult = await this.validateAssignments(
+          electiveAssignments,
+          options.bypassedConstraints
+        );
+
+        if (validationResult.isValid) {
+          electiveAssignments.forEach(assignment => {
+            this.resultBuilder.addAssignment(assignment);
+            this.pendingAssignments.push({
+              studentId: assignment.studentId,
+              preceptorId: assignment.preceptorId,
+              clerkshipId: assignment.clerkshipId,
+              date: assignment.date,
+            });
+          });
+          console.log(`[Engine] Successfully assigned ${electiveAssignments.length} days for "${elective.name}" to ${student.name}`);
+        } else {
+          validationResult.violations.forEach(violation => {
+            this.resultBuilder.addViolation(violation);
+          });
+        }
+      }
+
+      // Record unmet requirement if we didn't meet the full requirement
+      if (!result.success || assignmentsToProcess.length < elective.minimum_days) {
+        const assignedDays = assignmentsToProcess.length;
+        this.resultBuilder.addUnmetRequirement({
+          studentId: student.id,
+          studentName: student.name,
+          clerkshipId: clerkship.id,
+          clerkshipName: `${clerkship.name} - ${elective.name}`,
+          requirementType: 'elective',
+          requiredDays: elective.minimum_days,
+          assignedDays,
+          remainingDays: elective.minimum_days - assignedDays,
+          reason: result.error || `Only ${assignedDays} of ${elective.minimum_days} elective days could be assigned`,
         });
       }
     } catch (error) {
-      console.error(`[Engine] Error scheduling ${student.name} to ${clerkship.name}:`, error);
-      const config = this.clerkshipConfigs.get(clerkship.id);
+      console.error(`[Engine] Error scheduling ${student.name} to elective "${elective.name}":`, error);
       this.resultBuilder.addUnmetRequirement({
         studentId: student.id,
         studentName: student.name,
         clerkshipId: clerkship.id,
-        clerkshipName: clerkship.name,
-        requirementType: config?.requirementType || 'outpatient',
-        requiredDays: config?.requiredDays || clerkship.required_days,
+        clerkshipName: `${clerkship.name} - ${elective.name}`,
+        requirementType: 'elective',
+        requiredDays: elective.minimum_days,
         assignedDays: 0,
-        remainingDays: config?.requiredDays || clerkship.required_days,
+        remainingDays: elective.minimum_days,
         reason: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     }
@@ -611,15 +930,42 @@ export class ConfigurableSchedulingEngine {
     if (assignments.length === 0) return;
 
     const timestamp = new Date().toISOString();
-    const values = assignments.map(assignment => ({
-      id: nanoid(),
-      student_id: assignment.studentId,
-      preceptor_id: assignment.preceptorId,
-      clerkship_id: assignment.clerkshipId,
-      date: assignment.date,
-      status: 'scheduled',
-      created_at: timestamp,
-    }));
+
+    // Look up site_id for each assignment based on preceptor availability
+    const preceptorIds = [...new Set(assignments.map(a => a.preceptorId))];
+    const dates = [...new Set(assignments.map(a => a.date))];
+
+    const availabilityRecords = await this.db
+      .selectFrom('preceptor_availability')
+      .select(['preceptor_id', 'date', 'site_id'])
+      .where('preceptor_id', 'in', preceptorIds)
+      .where('date', 'in', dates)
+      .where('is_available', '=', 1)
+      .execute();
+
+    // Create lookup map: preceptorId-date -> site_id
+    const siteIdLookup = new Map<string, string | null>();
+    for (const record of availabilityRecords) {
+      const key = `${record.preceptor_id}-${record.date}`;
+      siteIdLookup.set(key, record.site_id);
+    }
+
+    const values = assignments.map(assignment => {
+      const key = `${assignment.preceptorId}-${assignment.date}`;
+      const siteId = siteIdLookup.get(key) || null;
+
+      return {
+        id: nanoid(),
+        student_id: assignment.studentId,
+        preceptor_id: assignment.preceptorId,
+        clerkship_id: assignment.clerkshipId,
+        elective_id: assignment.electiveId || null,
+        site_id: siteId,
+        date: assignment.date,
+        status: 'scheduled',
+        created_at: timestamp,
+      };
+    });
 
     // Bulk insert for efficiency
     await this.db

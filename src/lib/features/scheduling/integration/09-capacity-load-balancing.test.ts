@@ -14,7 +14,6 @@ import {
 	createTestHealthSystem,
 	createTestPreceptors,
 	createTestStudents,
-	createTestRequirement,
 	createPreceptorAvailability,
 	clearAllTestData,
 	generateDateRange,
@@ -42,14 +41,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			// Create requirement with continuous_single strategy
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max_students_per_day = 1
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -114,13 +106,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max 1 student per day
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -183,13 +169,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create TWO preceptors with max 1 student per day each
 			const preceptorIds = await createTestPreceptors(db, 2, {
@@ -253,13 +233,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max 1 student per day
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -311,13 +285,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create ONE preceptor with max 7 students per year
 			const preceptorIds = await createTestPreceptors(db, 1, {
@@ -354,15 +322,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 				dryRun: false,
 			});
 
-			// continuous_single is "all or nothing" - requires N days with same preceptor
+			// With partial scheduling support:
 			// First student: 5 days (5 of 7 yearly capacity used)
-			// Second student: needs 5 days but only 2 remaining → fails entirely
-			expect(result.assignments.length).toBe(5);
+			// Second student: 2 days (partial - remaining yearly capacity)
+			// Total: 7 assignments (all yearly capacity used)
+			expect(result.assignments.length).toBe(7);
 
-			// Should have 1 unmet requirement (second student got 0 of 5 days)
+			// Should have 1 unmet requirement (second student got 2 of 5 days)
 			expect(result.unmetRequirements.length).toBe(1);
-			expect(result.unmetRequirements[0].assignedDays).toBe(0);
-			expect(result.unmetRequirements[0].remainingDays).toBe(5);
+			expect(result.unmetRequirements[0].assignedDays).toBe(2);
+			expect(result.unmetRequirements[0].remainingDays).toBe(3);
 		});
 	});
 
@@ -373,13 +342,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine');
-
-			await createTestRequirement(db, clerkshipId, {
-				requirementType: 'outpatient',
-				requiredDays: 5,
-				assignmentStrategy: 'continuous_single',
-			});
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
 
 			// Create TWO preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {
