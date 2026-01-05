@@ -31,14 +31,14 @@
 	<section class="container mx-auto px-6 py-16 md:py-24">
 		<div class="max-w-4xl mx-auto text-center">
 			<div class="inline-block bg-teal-100 text-teal-800 text-sm font-medium px-4 py-1 rounded-full mb-6">
-				Trusted by Medical Education Programs
+				Purpose-Built for Longitudinal Integrated Clerkships
 			</div>
 			<h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-				Schedule More Students with <span class="text-teal-600">Complete Confidence</span>
+				LIC Scheduling Made <span class="text-teal-600">Simple</span>
 			</h1>
 			<p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-				LICFlow automatically generates conflict-free clerkship schedules, tracks every requirement,
-				and handles the complexity that spreadsheets simply can't. Scale your program without scaling your stress.
+				LICFlow automatically generates conflict-free schedules for your Longitudinal Integrated Clerkship program, tracks every requirement,
+				and handles the complexity that spreadsheets simply can't. Scale your LIC without scaling your stress.
 			</p>
 			<div class="flex flex-col sm:flex-row gap-4 justify-center">
 				<Button href="/register" size="lg" class="bg-teal-600 hover:bg-teal-700 text-white px-8 py-6 text-lg">
@@ -97,7 +97,7 @@
 					There's a Better Way
 				</h2>
 				<p class="text-xl text-gray-600">
-					LICFlow handles the complexity so you can focus on education, not spreadsheets.
+					LICFlow handles the complexity of LIC scheduling so you can focus on education, not spreadsheets.
 				</p>
 			</div>
 			<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -349,7 +349,7 @@
 				</div>
 				<span class="text-lg font-semibold text-white">LICFlow</span>
 			</div>
-			<p class="text-sm">&copy; 2025 LICFlow. Simplifying medical education scheduling.</p>
+			<p class="text-sm">&copy; 2025 LICFlow. Simplifying Longitudinal Integrated Clerkship scheduling.</p>
 		</div>
 	</footer>
 </div>
