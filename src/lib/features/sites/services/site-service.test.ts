@@ -813,3 +813,111 @@ describe('SiteService', () => {
 		});
 	});
 });
+
+/**
+ * Multi-tenancy Tests
+ *
+ * Tests for schedule-based data isolation
+ */
+import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
+import {
+	createTestUser,
+	createTestSchedule,
+	createTestHealthSystem,
+	associateSiteWithSchedule
+} from '$lib/testing/integration-helpers';
+
+describe('Site Service - Multi-tenancy', () => {
+	let db: Kysely<DB>;
+	let siteService: SiteService;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		siteService = new SiteService(db);
+	});
+
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	describe('getSitesBySchedule()', () => {
+		it('returns only sites associated with the given schedule', async () => {
+			// Create two users with different schedules
+			const userAId = await createTestUser(db, { name: 'User A' });
+			const userBId = await createTestUser(db, { name: 'User B' });
+
+			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
+			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+
+			// Create health system and sites
+			const { healthSystemId } = await createTestHealthSystem(db, 'Test Health System');
+
+			const timestamp = new Date().toISOString();
+			const siteA1 = await db.insertInto('sites').values({
+				id: nanoid(),
+				name: 'Site A1',
+				health_system_id: healthSystemId,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			const siteA2 = await db.insertInto('sites').values({
+				id: nanoid(),
+				name: 'Site A2',
+				health_system_id: healthSystemId,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			const siteB1 = await db.insertInto('sites').values({
+				id: nanoid(),
+				name: 'Site B1',
+				health_system_id: healthSystemId,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			// Associate sites with schedules
+			await associateSiteWithSchedule(db, siteA1.id, scheduleAId);
+			await associateSiteWithSchedule(db, siteA2.id, scheduleAId);
+			await associateSiteWithSchedule(db, siteB1.id, scheduleBId);
+
+			// Get sites for Schedule A
+			const sitesA = await siteService.getSitesBySchedule(scheduleAId);
+			expect(sitesA).toHaveLength(2);
+			expect(sitesA.map(s => s.id)).toContain(siteA1.id);
+			expect(sitesA.map(s => s.id)).toContain(siteA2.id);
+			expect(sitesA.map(s => s.id)).not.toContain(siteB1.id);
+
+			// Get sites for Schedule B
+			const sitesB = await siteService.getSitesBySchedule(scheduleBId);
+			expect(sitesB).toHaveLength(1);
+			expect(sitesB.map(s => s.id)).toContain(siteB1.id);
+		});
+
+		it('returns empty array when schedule has no associated sites', async () => {
+			const userId = await createTestUser(db, { name: 'User' });
+			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+
+			// Create sites but don't associate with the schedule
+			const { healthSystemId } = await createTestHealthSystem(db, 'Test Health System');
+			const timestamp = new Date().toISOString();
+			await db.insertInto('sites').values({
+				id: nanoid(),
+				name: 'Some Site',
+				health_system_id: healthSystemId,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).execute();
+
+			const sites = await siteService.getSitesBySchedule(scheduleId);
+			expect(sites).toEqual([]);
+		});
+
+		it('throws error when scheduleId is not provided', async () => {
+			await expect(siteService.getSitesBySchedule('')).rejects.toThrow();
+			await expect(siteService.getSitesBySchedule(null as any)).rejects.toThrow();
+			await expect(siteService.getSitesBySchedule(undefined as any)).rejects.toThrow();
+		});
+	});
+});

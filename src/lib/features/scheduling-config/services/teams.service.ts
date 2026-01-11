@@ -786,4 +786,83 @@ export class TeamService {
       sites: sites.map((s) => ({ id: s.id as string, name: s.name }))
     });
   }
+
+  /**
+   * Get all teams filtered by schedule ID
+   * Returns only teams associated with the given schedule
+   * @throws {Error} If scheduleId is not provided
+   */
+  async getAllTeamsBySchedule(scheduleId: string): Promise<ServiceResult<TeamWithMembers[]>> {
+    if (!scheduleId) {
+      return Result.failure(ServiceErrors.validationError('Schedule ID is required'));
+    }
+
+    log.debug('Fetching teams by schedule', { scheduleId });
+
+    try {
+      const teams = await this.db
+        .selectFrom('preceptor_teams')
+        .innerJoin('schedule_teams', 'preceptor_teams.id', 'schedule_teams.team_id')
+        .innerJoin('clerkships', 'clerkships.id', 'preceptor_teams.clerkship_id')
+        .where('schedule_teams.schedule_id', '=', scheduleId)
+        .select([
+          'preceptor_teams.id',
+          'preceptor_teams.clerkship_id',
+          'preceptor_teams.name',
+          'preceptor_teams.require_same_health_system',
+          'preceptor_teams.require_same_site',
+          'preceptor_teams.require_same_specialty',
+          'preceptor_teams.requires_admin_approval',
+          'preceptor_teams.created_at',
+          'preceptor_teams.updated_at',
+          'clerkships.name as clerkship_name'
+        ])
+        .execute();
+
+      const teamsWithMembers: TeamWithMembers[] = [];
+      for (const team of teams) {
+        // Get members
+        const members = await this.db
+          .selectFrom('preceptor_team_members')
+          .innerJoin('preceptors', 'preceptors.id', 'preceptor_team_members.preceptor_id')
+          .select([
+            'preceptor_team_members.id',
+            'preceptor_team_members.team_id',
+            'preceptor_team_members.preceptor_id',
+            'preceptor_team_members.role',
+            'preceptor_team_members.priority',
+            'preceptor_team_members.is_fallback_only',
+            'preceptor_team_members.created_at',
+            'preceptors.name as preceptorName'
+          ])
+          .where('team_id', '=', team.id)
+          .orderBy('priority', 'asc')
+          .execute();
+
+        // Get sites
+        const sites = await this.db
+          .selectFrom('team_sites')
+          .innerJoin('sites', 'sites.id', 'team_sites.site_id')
+          .select(['sites.id', 'sites.name'])
+          .where('team_sites.team_id', '=', team.id)
+          .execute();
+
+        teamsWithMembers.push({
+          ...this.mapTeam(team),
+          clerkshipName: team.clerkship_name,
+          members: members.map((m: any) => ({
+            ...this.mapTeamMember(m),
+            preceptorName: m.preceptorName
+          })),
+          sites: sites.map((s) => ({ id: s.id as string, name: s.name }))
+        });
+      }
+
+      log.info('Teams fetched by schedule', { scheduleId, count: teamsWithMembers.length });
+      return Result.success(teamsWithMembers);
+    } catch (error) {
+      log.error('Failed to fetch teams by schedule', { scheduleId, error });
+      return Result.failure(ServiceErrors.databaseError('Failed to fetch teams by schedule', error));
+    }
+  }
 }

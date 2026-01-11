@@ -1,9 +1,9 @@
-import { siteService } from '$lib/features/sites/services/site-service';
+import { siteService, SiteService } from '$lib/features/sites/services/site-service';
 import { createSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
 import { ConflictError, NotFoundError, handleApiError } from '$lib/api/errors';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
-import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
+import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { db } from '$lib/db';
 import type { RequestHandler } from './$types';
@@ -12,20 +12,38 @@ const log = createServerLogger('api:sites');
 
 /**
  * GET /api/sites
- * Get all sites or filter by health system
+ * Get sites for user's active schedule, optionally filtered by health system
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const healthSystemId = url.searchParams.get('health_system_id');
 
-	log.debug('Fetching sites', { healthSystemId: healthSystemId || 'all' });
+	log.debug('Fetching sites for user schedule', { healthSystemId: healthSystemId || 'all' });
 
 	try {
-		const sites = healthSystemId
-			? await siteService.getSitesByHealthSystem(healthSystemId)
-			: await siteService.getAllSites();
+		const userId = locals.session?.user?.id;
+		if (!userId) {
+			log.warn('No user session found');
+			return errorResponse('Authentication required', 401);
+		}
+
+		const scheduleId = await getActiveScheduleId(userId);
+		if (!scheduleId) {
+			log.warn('No active schedule for user', { userId });
+			return errorResponse('No active schedule. Please create or select a schedule first.', 400);
+		}
+
+		// Get sites filtered by schedule
+		const service = new SiteService(db);
+		let sites = await service.getSitesBySchedule(scheduleId);
+
+		// Additional filter by health system if provided
+		if (healthSystemId) {
+			sites = sites.filter(s => s.health_system_id === healthSystemId);
+		}
 
 		log.info('Sites fetched', {
 			count: sites.length,
+			scheduleId,
 			healthSystemId: healthSystemId || 'all'
 		});
 

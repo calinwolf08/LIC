@@ -1,7 +1,7 @@
 /**
  * Preceptors API - Collection Endpoints
  *
- * GET /api/preceptors - List all preceptors with associations
+ * GET /api/preceptors - List preceptors for user's active schedule with associations
  * POST /api/preceptors - Create new preceptor
  */
 
@@ -15,11 +15,11 @@ import {
 import { ConflictError, handleApiError } from '$lib/api/errors';
 import {
 	createPreceptor,
-	getPreceptorsWithAssociations,
+	getPreceptorsWithAssociationsBySchedule,
 	setPreceptorSites
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { createPreceptorSchema } from '$lib/features/preceptors/schemas.js';
-import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
+import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -27,15 +27,27 @@ const log = createServerLogger('api:preceptors');
 
 /**
  * GET /api/preceptors
- * Returns all preceptors with their associations (health system, sites, clerkships, teams)
+ * Returns preceptors for user's active schedule with their associations
  */
-export const GET: RequestHandler = async () => {
-	log.debug('Fetching all preceptors with associations');
+export const GET: RequestHandler = async ({ locals }) => {
+	log.debug('Fetching preceptors for user schedule');
 
 	try {
-		const preceptors = await getPreceptorsWithAssociations(db);
+		const userId = locals.session?.user?.id;
+		if (!userId) {
+			log.warn('No user session found');
+			return errorResponse('Authentication required', 401);
+		}
 
-		log.info('Preceptors fetched', { count: preceptors.length });
+		const scheduleId = await getActiveScheduleId(userId);
+		if (!scheduleId) {
+			log.warn('No active schedule for user', { userId });
+			return errorResponse('No active schedule. Please create or select a schedule first.', 400);
+		}
+
+		const preceptors = await getPreceptorsWithAssociationsBySchedule(db, scheduleId);
+
+		log.info('Preceptors fetched', { count: preceptors.length, scheduleId });
 		return successResponse(preceptors);
 	} catch (error) {
 		log.error('Failed to fetch preceptors', { error });

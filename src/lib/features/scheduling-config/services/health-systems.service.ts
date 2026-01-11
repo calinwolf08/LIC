@@ -521,6 +521,36 @@ export class HealthSystemService {
   }
 
   /**
+   * List health systems filtered by schedule ID
+   * Returns only health systems associated with the given schedule
+   * @throws {Error} If scheduleId is not provided
+   */
+  async listHealthSystemsBySchedule(scheduleId: string): Promise<ServiceResult<HealthSystem[]>> {
+    if (!scheduleId) {
+      return Result.failure(ServiceErrors.validationError('Schedule ID is required'));
+    }
+
+    log.debug('Listing health systems by schedule', { scheduleId });
+
+    try {
+      const healthSystems = await this.db
+        .selectFrom('health_systems')
+        .innerJoin('schedule_health_systems', 'health_systems.id', 'schedule_health_systems.health_system_id')
+        .where('schedule_health_systems.schedule_id', '=', scheduleId)
+        .selectAll('health_systems')
+        .orderBy('health_systems.name', 'asc')
+        .execute();
+
+      log.info('Health systems listed by schedule', { count: healthSystems.length, scheduleId });
+
+      return Result.success(healthSystems.map(hs => this.mapHealthSystem(hs)));
+    } catch (error) {
+      log.error('Failed to list health systems by schedule', { scheduleId, error });
+      return Result.failure(ServiceErrors.databaseError('Failed to list health systems by schedule', error));
+    }
+  }
+
+  /**
    * Map database row to Site type
    */
   private mapSite(row: any): Site {

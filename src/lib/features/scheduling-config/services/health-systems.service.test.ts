@@ -320,3 +320,93 @@ describe('HealthSystemService', () => {
     });
   });
 });
+
+/**
+ * Multi-tenancy Tests
+ *
+ * Tests for schedule-based data isolation
+ */
+import {
+  createTestUser,
+  createTestSchedule,
+  associateHealthSystemWithSchedule
+} from '$lib/testing/integration-helpers';
+import { nanoid } from 'nanoid';
+
+describe('HealthSystemService - Multi-tenancy', () => {
+  let db: Kysely<DB>;
+  let service: HealthSystemService;
+
+  beforeEach(async () => {
+    db = await createTestDatabaseWithMigrations();
+    service = new HealthSystemService(db);
+  });
+
+  afterEach(async () => {
+    await cleanupTestDatabase(db);
+  });
+
+  describe('listHealthSystemsBySchedule()', () => {
+    it('returns only health systems associated with the given schedule', async () => {
+      // Create two users with different schedules
+      const userAId = await createTestUser(db, { name: 'User A' });
+      const userBId = await createTestUser(db, { name: 'User B' });
+
+      const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
+      const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+
+      // Create health systems
+      const resultA1 = await service.createHealthSystem({ name: 'Health System A1' });
+      const resultA2 = await service.createHealthSystem({ name: 'Health System A2' });
+      const resultB1 = await service.createHealthSystem({ name: 'Health System B1' });
+
+      expect(resultA1.success).toBe(true);
+      expect(resultA2.success).toBe(true);
+      expect(resultB1.success).toBe(true);
+
+      if (!resultA1.success || !resultA2.success || !resultB1.success) return;
+
+      // Associate health systems with schedules
+      await associateHealthSystemWithSchedule(db, resultA1.data.id, scheduleAId);
+      await associateHealthSystemWithSchedule(db, resultA2.data.id, scheduleAId);
+      await associateHealthSystemWithSchedule(db, resultB1.data.id, scheduleBId);
+
+      // Get health systems for Schedule A
+      const healthSystemsA = await service.listHealthSystemsBySchedule(scheduleAId);
+      expect(healthSystemsA.success).toBe(true);
+      if (healthSystemsA.success) {
+        expect(healthSystemsA.data).toHaveLength(2);
+        expect(healthSystemsA.data.map(hs => hs.id)).toContain(resultA1.data.id);
+        expect(healthSystemsA.data.map(hs => hs.id)).toContain(resultA2.data.id);
+        expect(healthSystemsA.data.map(hs => hs.id)).not.toContain(resultB1.data.id);
+      }
+
+      // Get health systems for Schedule B
+      const healthSystemsB = await service.listHealthSystemsBySchedule(scheduleBId);
+      expect(healthSystemsB.success).toBe(true);
+      if (healthSystemsB.success) {
+        expect(healthSystemsB.data).toHaveLength(1);
+        expect(healthSystemsB.data.map(hs => hs.id)).toContain(resultB1.data.id);
+      }
+    });
+
+    it('returns empty array when schedule has no associated health systems', async () => {
+      const userId = await createTestUser(db, { name: 'User' });
+      const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+
+      // Create health systems but don't associate with the schedule
+      await service.createHealthSystem({ name: 'Some Health System' });
+
+      const result = await service.listHealthSystemsBySchedule(scheduleId);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual([]);
+      }
+    });
+
+    it('returns failure when scheduleId is not provided', async () => {
+      const result = await service.listHealthSystemsBySchedule('');
+      expect(result.success).toBe(false);
+    });
+  });
+});

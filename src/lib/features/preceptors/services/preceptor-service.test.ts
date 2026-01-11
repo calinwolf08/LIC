@@ -5,7 +5,7 @@
  * Tests for preceptor database operations and business logic
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
 import type { DB } from '$lib/db/types';
@@ -457,6 +457,149 @@ describe('Preceptor Service', () => {
 
 			const taken = await isEmailTaken(db, 'preceptor1@example.com', preceptor2.id);
 			expect(taken).toBe(true);
+		});
+	});
+});
+
+/**
+ * Multi-tenancy Tests
+ *
+ * Tests for schedule-based data isolation
+ */
+import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
+import {
+	createTestUser,
+	createTestSchedule,
+	createTestPreceptors,
+	associatePreceptorWithSchedule
+} from '$lib/testing/integration-helpers';
+import { getPreceptorsBySchedule } from './preceptor-service';
+
+describe('Preceptor Service - Multi-tenancy', () => {
+	let db: Kysely<DB>;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+	});
+
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	describe('getPreceptorsBySchedule()', () => {
+		it('returns only preceptors associated with the given schedule', async () => {
+			// Create two users with different schedules
+			const userAId = await createTestUser(db, { name: 'User A' });
+			const userBId = await createTestUser(db, { name: 'User B' });
+
+			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
+			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+
+			// Create preceptors
+			const [preceptorA1, preceptorA2] = await createTestPreceptors(db, 2);
+			const [preceptorB1] = await createTestPreceptors(db, 1);
+
+			// Associate preceptors with schedules
+			await associatePreceptorWithSchedule(db, preceptorA1, scheduleAId);
+			await associatePreceptorWithSchedule(db, preceptorA2, scheduleAId);
+			await associatePreceptorWithSchedule(db, preceptorB1, scheduleBId);
+
+			// Get preceptors for Schedule A
+			const preceptorsA = await getPreceptorsBySchedule(db, scheduleAId);
+			expect(preceptorsA).toHaveLength(2);
+			expect(preceptorsA.map(p => p.id)).toContain(preceptorA1);
+			expect(preceptorsA.map(p => p.id)).toContain(preceptorA2);
+			expect(preceptorsA.map(p => p.id)).not.toContain(preceptorB1);
+
+			// Get preceptors for Schedule B
+			const preceptorsB = await getPreceptorsBySchedule(db, scheduleBId);
+			expect(preceptorsB).toHaveLength(1);
+			expect(preceptorsB.map(p => p.id)).toContain(preceptorB1);
+		});
+
+		it('returns empty array when schedule has no associated preceptors', async () => {
+			const userId = await createTestUser(db, { name: 'User' });
+			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+
+			// Create preceptors but don't associate with the schedule
+			await createTestPreceptors(db, 3);
+
+			const preceptors = await getPreceptorsBySchedule(db, scheduleId);
+			expect(preceptors).toEqual([]);
+		});
+
+		it('returns preceptors ordered by name', async () => {
+			const userId = await createTestUser(db);
+			const scheduleId = await createTestSchedule(db, { userId, setAsActive: true });
+
+			// Create preceptors with specific names
+			const timestamp = new Date().toISOString();
+			const preceptorZoe = await db.insertInto('preceptors').values({
+				id: crypto.randomUUID(),
+				name: 'Dr. Zoe',
+				email: 'zoe@test.edu',
+				max_students: 2,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			const preceptorAlice = await db.insertInto('preceptors').values({
+				id: crypto.randomUUID(),
+				name: 'Dr. Alice',
+				email: 'alice@test.edu',
+				max_students: 2,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			const preceptorBob = await db.insertInto('preceptors').values({
+				id: crypto.randomUUID(),
+				name: 'Dr. Bob',
+				email: 'bob@test.edu',
+				max_students: 2,
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			// Associate in non-alphabetical order
+			await associatePreceptorWithSchedule(db, preceptorZoe.id, scheduleId);
+			await associatePreceptorWithSchedule(db, preceptorAlice.id, scheduleId);
+			await associatePreceptorWithSchedule(db, preceptorBob.id, scheduleId);
+
+			const preceptors = await getPreceptorsBySchedule(db, scheduleId);
+
+			expect(preceptors[0].name).toBe('Dr. Alice');
+			expect(preceptors[1].name).toBe('Dr. Bob');
+			expect(preceptors[2].name).toBe('Dr. Zoe');
+		});
+
+		it('throws error when scheduleId is not provided', async () => {
+			await expect(getPreceptorsBySchedule(db, '')).rejects.toThrow();
+			await expect(getPreceptorsBySchedule(db, null as any)).rejects.toThrow();
+			await expect(getPreceptorsBySchedule(db, undefined as any)).rejects.toThrow();
+		});
+
+		it('does not return preceptors from other schedules even if same user owns both', async () => {
+			const userId = await createTestUser(db);
+			const schedule1Id = await createTestSchedule(db, { userId, name: 'Schedule 1' });
+			const schedule2Id = await createTestSchedule(db, { userId, name: 'Schedule 2', setAsActive: true });
+
+			const [preceptor1] = await createTestPreceptors(db, 1);
+			const [preceptor2] = await createTestPreceptors(db, 1);
+
+			// Associate preceptor1 with schedule1, preceptor2 with schedule2
+			await associatePreceptorWithSchedule(db, preceptor1, schedule1Id);
+			await associatePreceptorWithSchedule(db, preceptor2, schedule2Id);
+
+			// Query schedule1 - should only see preceptor1
+			const preceptorsInSchedule1 = await getPreceptorsBySchedule(db, schedule1Id);
+			expect(preceptorsInSchedule1).toHaveLength(1);
+			expect(preceptorsInSchedule1[0].id).toBe(preceptor1);
+
+			// Query schedule2 - should only see preceptor2
+			const preceptorsInSchedule2 = await getPreceptorsBySchedule(db, schedule2Id);
+			expect(preceptorsInSchedule2).toHaveLength(1);
+			expect(preceptorsInSchedule2[0].id).toBe(preceptor2);
 		});
 	});
 });

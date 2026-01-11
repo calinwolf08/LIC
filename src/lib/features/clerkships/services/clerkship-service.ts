@@ -203,3 +203,25 @@ export async function isNameTaken(
 	const clerkship = await query.executeTakeFirst();
 	return !!clerkship;
 }
+
+/**
+ * Get clerkships filtered by schedule ID
+ * Returns only clerkships associated with the given schedule
+ * @throws {Error} If scheduleId is not provided
+ */
+export async function getClerkshipsBySchedule(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<Selectable<Clerkships>[]> {
+	if (!scheduleId) {
+		throw new Error('Schedule ID is required');
+	}
+
+	return await db
+		.selectFrom('clerkships')
+		.innerJoin('schedule_clerkships', 'clerkships.id', 'schedule_clerkships.clerkship_id')
+		.where('schedule_clerkships.schedule_id', '=', scheduleId)
+		.selectAll('clerkships')
+		.orderBy('clerkships.name', 'asc')
+		.execute();
+}

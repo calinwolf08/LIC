@@ -600,3 +600,166 @@ export async function setInpatientAssignmentStrategy(
 		.where('school_id', '=', 'default')
 		.execute();
 }
+
+/**
+ * Creates a test user
+ */
+export async function createTestUser(
+	db: Kysely<DB>,
+	options: {
+		name?: string;
+		email?: string;
+	} = {}
+): Promise<string> {
+	const id = nanoid();
+	const timestamp = new Date().toISOString();
+
+	await db.insertInto('user').values({
+		id,
+		name: options.name ?? `Test User ${id.slice(0, 6)}`,
+		email: options.email ?? `user-${id}@test.edu`,
+		emailVerified: 0,
+		createdAt: timestamp,
+		updatedAt: timestamp,
+		image: null,
+		active_schedule_id: null,
+	}).execute();
+
+	return id;
+}
+
+/**
+ * Creates a test scheduling period (schedule) for a user
+ */
+export async function createTestSchedule(
+	db: Kysely<DB>,
+	options: {
+		userId?: string;
+		name?: string;
+		startDate?: string;
+		endDate?: string;
+		setAsActive?: boolean;
+	} = {}
+): Promise<string> {
+	const id = nanoid();
+	const timestamp = new Date().toISOString();
+
+	await db.insertInto('scheduling_periods').values({
+		id,
+		name: options.name ?? `Test Schedule ${id.slice(0, 6)}`,
+		start_date: options.startDate ?? '2025-01-01',
+		end_date: options.endDate ?? '2025-12-31',
+		user_id: options.userId ?? null,
+		is_active: 0,
+		year: null,
+		created_at: timestamp,
+		updated_at: timestamp,
+	}).execute();
+
+	// Set as user's active schedule if requested
+	if (options.setAsActive && options.userId) {
+		await db
+			.updateTable('user')
+			.set({ active_schedule_id: id })
+			.where('id', '=', options.userId)
+			.execute();
+	}
+
+	return id;
+}
+
+/**
+ * Associates a student with a schedule
+ */
+export async function associateStudentWithSchedule(
+	db: Kysely<DB>,
+	studentId: string,
+	scheduleId: string
+): Promise<void> {
+	await db.insertInto('schedule_students').values({
+		id: nanoid(),
+		student_id: studentId,
+		schedule_id: scheduleId,
+		created_at: new Date().toISOString(),
+	}).execute();
+}
+
+/**
+ * Associates a preceptor with a schedule
+ */
+export async function associatePreceptorWithSchedule(
+	db: Kysely<DB>,
+	preceptorId: string,
+	scheduleId: string
+): Promise<void> {
+	await db.insertInto('schedule_preceptors').values({
+		id: nanoid(),
+		preceptor_id: preceptorId,
+		schedule_id: scheduleId,
+		created_at: new Date().toISOString(),
+	}).execute();
+}
+
+/**
+ * Associates a site with a schedule
+ */
+export async function associateSiteWithSchedule(
+	db: Kysely<DB>,
+	siteId: string,
+	scheduleId: string
+): Promise<void> {
+	await db.insertInto('schedule_sites').values({
+		id: nanoid(),
+		site_id: siteId,
+		schedule_id: scheduleId,
+		created_at: new Date().toISOString(),
+	}).execute();
+}
+
+/**
+ * Associates a health system with a schedule
+ */
+export async function associateHealthSystemWithSchedule(
+	db: Kysely<DB>,
+	healthSystemId: string,
+	scheduleId: string
+): Promise<void> {
+	await db.insertInto('schedule_health_systems').values({
+		id: nanoid(),
+		health_system_id: healthSystemId,
+		schedule_id: scheduleId,
+		created_at: new Date().toISOString(),
+	}).execute();
+}
+
+/**
+ * Associates a clerkship with a schedule
+ */
+export async function associateClerkshipWithSchedule(
+	db: Kysely<DB>,
+	clerkshipId: string,
+	scheduleId: string
+): Promise<void> {
+	await db.insertInto('schedule_clerkships').values({
+		id: nanoid(),
+		clerkship_id: clerkshipId,
+		schedule_id: scheduleId,
+		created_at: new Date().toISOString(),
+	}).execute();
+}
+
+/**
+ * Associates a team with a schedule
+ */
+export async function associateTeamWithSchedule(
+	db: Kysely<DB>,
+	teamId: string,
+	scheduleId: string
+): Promise<void> {
+	await db.insertInto('schedule_teams').values({
+		id: nanoid(),
+		team_id: teamId,
+		schedule_id: scheduleId,
+		created_at: new Date().toISOString(),
+	}).execute();
+}

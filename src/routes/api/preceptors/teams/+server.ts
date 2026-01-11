@@ -15,6 +15,7 @@ import {
 import { handleApiError } from '$lib/api/errors';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { preceptorTeamInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
+import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError, z } from 'zod';
 
@@ -23,28 +24,47 @@ const service = new TeamService(db);
 
 /**
  * GET /api/preceptors/teams
- * Returns all teams, or filtered by clerkship if clerkshipId provided
+ * Returns teams for user's active schedule, optionally filtered by clerkship
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const clerkshipId = url.searchParams.get('clerkshipId');
 
-	log.debug('Fetching teams', { clerkshipId: clerkshipId || 'all' });
+	log.debug('Fetching teams for user schedule', { clerkshipId: clerkshipId || 'all' });
 
 	try {
-		// Use getAllTeams which supports optional filtering
-		const result = await service.getAllTeams(clerkshipId || undefined);
+		const userId = locals.session?.user?.id;
+		if (!userId) {
+			log.warn('No user session found');
+			return errorResponse('Authentication required', 401);
+		}
+
+		const scheduleId = await getActiveScheduleId(userId);
+		if (!scheduleId) {
+			log.warn('No active schedule for user', { userId });
+			return errorResponse('No active schedule. Please create or select a schedule first.', 400);
+		}
+
+		// Get teams by schedule (includes all related data)
+		const result = await service.getAllTeamsBySchedule(scheduleId);
 
 		if (!result.success) {
 			log.warn('Failed to fetch teams', { error: result.error.message });
 			return errorResponse(result.error.message, 400);
 		}
 
+		// Apply additional clerkship filter if provided
+		let teams = result.data;
+		if (clerkshipId) {
+			teams = teams.filter(t => t.clerkshipId === clerkshipId);
+		}
+
 		log.info('Teams fetched', {
-			count: result.data.length,
-			filtered: !!clerkshipId
+			count: teams.length,
+			scheduleId,
+			clerkshipFiltered: !!clerkshipId
 		});
 
-		return successResponse(result.data);
+		return successResponse(teams);
 	} catch (error) {
 		log.error('Failed to fetch teams', { clerkshipId, error });
 		return handleApiError(error);
@@ -72,10 +92,10 @@ const createTeamBodySchema = z.object({
 
 /**
  * POST /api/preceptors/teams
- * Creates a new team
+ * Creates a new team and auto-associates with user's active schedule
  * Accepts clerkshipId and siteIds in the request body
  */
-export const POST: RequestHandler = async ({ request, url }) => {
+export const POST: RequestHandler = async ({ request, url, locals }) => {
 	log.debug('Creating team');
 
 	try {
@@ -111,6 +131,11 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		if (!result.success) {
 			log.warn('Team creation failed', { error: result.error.message });
 			return errorResponse(result.error.message, 400);
+		}
+
+		// Auto-associate with user's active schedule
+		if (result.data.id) {
+			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'team', result.data.id);
 		}
 
 		log.info('Team created', {

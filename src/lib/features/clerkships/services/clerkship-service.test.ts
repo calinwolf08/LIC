@@ -18,9 +18,16 @@ import {
 	deleteClerkship,
 	canDeleteClerkship,
 	clerkshipExists,
-	isNameTaken
+	isNameTaken,
+	getClerkshipsBySchedule
 } from './clerkship-service';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
+import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
+import {
+	createTestUser,
+	createTestSchedule,
+	associateClerkshipWithSchedule
+} from '$lib/testing/integration-helpers';
 
 function createTestDb(): Kysely<DB> {
 	const sqlite = new Database(':memory:');
@@ -460,6 +467,71 @@ describe('Clerkship Service', () => {
 			const taken = await isNameTaken(db, 'Name2', clerkship1.id);
 
 			expect(taken).toBe(true);
+		});
+	});
+});
+
+/**
+ * Multi-tenancy Tests
+ *
+ * Tests for schedule-based data isolation
+ */
+describe('Clerkship Service - Multi-tenancy', () => {
+	let db: Kysely<DB>;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+	});
+
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	describe('getClerkshipsBySchedule()', () => {
+		it('returns only clerkships associated with the given schedule', async () => {
+			// Create two users with different schedules
+			const userAId = await createTestUser(db, { name: 'User A' });
+			const userBId = await createTestUser(db, { name: 'User B' });
+
+			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
+			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+
+			// Create clerkships
+			const clerkshipA1 = await createClerkship(db, { name: 'Clerkship A1', clerkship_type: 'outpatient', required_days: 5 });
+			const clerkshipA2 = await createClerkship(db, { name: 'Clerkship A2', clerkship_type: 'inpatient', required_days: 10 });
+			const clerkshipB1 = await createClerkship(db, { name: 'Clerkship B1', clerkship_type: 'outpatient', required_days: 5 });
+
+			// Associate clerkships with schedules
+			await associateClerkshipWithSchedule(db, clerkshipA1.id, scheduleAId);
+			await associateClerkshipWithSchedule(db, clerkshipA2.id, scheduleAId);
+			await associateClerkshipWithSchedule(db, clerkshipB1.id, scheduleBId);
+
+			// Get clerkships for Schedule A
+			const clerkshipsA = await getClerkshipsBySchedule(db, scheduleAId);
+			expect(clerkshipsA).toHaveLength(2);
+			expect(clerkshipsA.map(c => c.id)).toContain(clerkshipA1.id);
+			expect(clerkshipsA.map(c => c.id)).toContain(clerkshipA2.id);
+			expect(clerkshipsA.map(c => c.id)).not.toContain(clerkshipB1.id);
+
+			// Get clerkships for Schedule B
+			const clerkshipsB = await getClerkshipsBySchedule(db, scheduleBId);
+			expect(clerkshipsB).toHaveLength(1);
+			expect(clerkshipsB.map(c => c.id)).toContain(clerkshipB1.id);
+		});
+
+		it('returns empty array when schedule has no associated clerkships', async () => {
+			const userId = await createTestUser(db, { name: 'User' });
+			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+
+			// Create clerkship but don't associate with the schedule
+			await createClerkship(db, { name: 'Some Clerkship', clerkship_type: 'outpatient', required_days: 5 });
+
+			const clerkships = await getClerkshipsBySchedule(db, scheduleId);
+			expect(clerkships).toEqual([]);
+		});
+
+		it('throws error when scheduleId is not provided', async () => {
+			await expect(getClerkshipsBySchedule(db, '')).rejects.toThrow('Schedule ID is required');
 		});
 	});
 });

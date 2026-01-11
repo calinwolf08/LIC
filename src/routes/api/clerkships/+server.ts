@@ -14,11 +14,11 @@ import {
 } from '$lib/api/responses';
 import { ConflictError, handleApiError } from '$lib/api/errors';
 import {
-	getClerkships,
+	getClerkshipsBySchedule,
 	createClerkship
 } from '$lib/features/clerkships/services/clerkship-service.js';
 import { createClerkshipSchema } from '$lib/features/clerkships/schemas.js';
-import { autoAssociateWithActiveSchedule } from '$lib/api/schedule-context';
+import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -26,15 +26,27 @@ const log = createServerLogger('api:clerkships');
 
 /**
  * GET /api/clerkships
- * Returns all clerkships
+ * Returns clerkships for user's active schedule
  */
-export const GET: RequestHandler = async () => {
-	log.debug('Fetching all clerkships');
+export const GET: RequestHandler = async ({ locals }) => {
+	log.debug('Fetching clerkships for user schedule');
 
 	try {
-		const clerkships = await getClerkships(db);
+		const userId = locals.session?.user?.id;
+		if (!userId) {
+			log.warn('No user session found');
+			return errorResponse('Authentication required', 401);
+		}
 
-		log.info('Clerkships fetched', { count: clerkships.length });
+		const scheduleId = await getActiveScheduleId(userId);
+		if (!scheduleId) {
+			log.warn('No active schedule for user', { userId });
+			return errorResponse('No active schedule. Please create or select a schedule first.', 400);
+		}
+
+		const clerkships = await getClerkshipsBySchedule(db, scheduleId);
+
+		log.info('Clerkships fetched', { count: clerkships.length, scheduleId });
 		return successResponse(clerkships);
 	} catch (error) {
 		log.error('Failed to fetch clerkships', { error });

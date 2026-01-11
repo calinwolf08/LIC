@@ -362,6 +362,25 @@ export class SiteService {
 			.orderBy('sites.name', 'asc')
 			.execute();
 	}
+
+	/**
+	 * Get sites filtered by schedule ID
+	 * Returns only sites associated with the given schedule
+	 * @throws {Error} If scheduleId is not provided
+	 */
+	async getSitesBySchedule(scheduleId: string) {
+		if (!scheduleId) {
+			throw new Error('Schedule ID is required');
+		}
+
+		return await this.db
+			.selectFrom('sites')
+			.innerJoin('schedule_sites', 'sites.id', 'schedule_sites.site_id')
+			.where('schedule_sites.schedule_id', '=', scheduleId)
+			.selectAll('sites')
+			.orderBy('sites.name', 'asc')
+			.execute();
+	}
 }
 
 // Export singleton instance

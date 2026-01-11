@@ -21,6 +21,34 @@ export async function getStudents(db: Kysely<DB>): Promise<Selectable<Students>[
 }
 
 /**
+ * Get students filtered by schedule ID
+ * Returns only students associated with the given schedule
+ * @throws {Error} If scheduleId is not provided
+ */
+export async function getStudentsBySchedule(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<Selectable<Students>[]> {
+	if (!scheduleId) {
+		throw new Error('Schedule ID is required');
+	}
+
+	return await db
+		.selectFrom('students')
+		.innerJoin('schedule_students', 'students.id', 'schedule_students.student_id')
+		.where('schedule_students.schedule_id', '=', scheduleId)
+		.select([
+			'students.id',
+			'students.name',
+			'students.email',
+			'students.created_at',
+			'students.updated_at'
+		])
+		.orderBy('students.name', 'asc')
+		.execute();
+}
+
+/**
  * Get a single student by ID
  * @returns Student or null if not found
  */
@@ -241,6 +269,57 @@ export async function getStudentsWithOnboardingStats(
 			'students.id',
 			'student_health_system_onboarding.student_id'
 		)
+		.select([
+			'students.id',
+			'students.name',
+			'students.email',
+			'students.created_at',
+			'students.updated_at',
+			sql<number>`sum(case when student_health_system_onboarding.is_completed = 1 then 1 else 0 end)`.as(
+				'completed_onboarding'
+			)
+		])
+		.groupBy('students.id')
+		.orderBy('students.name', 'asc')
+		.execute();
+
+	return students.map((s) => ({
+		...s,
+		completed_onboarding: Number(s.completed_onboarding || 0),
+		total_health_systems: totalHealthSystems
+	}));
+}
+
+/**
+ * Get students with their onboarding completion stats, filtered by schedule ID
+ * @throws {Error} If scheduleId is not provided
+ */
+export async function getStudentsWithOnboardingStatsBySchedule(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<StudentWithOnboarding[]> {
+	if (!scheduleId) {
+		throw new Error('Schedule ID is required');
+	}
+
+	// Get total health systems count
+	const healthSystemCount = await db
+		.selectFrom('health_systems')
+		.select(sql<number>`count(*)`.as('count'))
+		.executeTakeFirst();
+
+	const totalHealthSystems = Number(healthSystemCount?.count || 0);
+
+	// Get students with completed onboarding count, filtered by schedule
+	const students = await db
+		.selectFrom('students')
+		.innerJoin('schedule_students', 'students.id', 'schedule_students.student_id')
+		.leftJoin(
+			'student_health_system_onboarding',
+			'students.id',
+			'student_health_system_onboarding.student_id'
+		)
+		.where('schedule_students.schedule_id', '=', scheduleId)
 		.select([
 			'students.id',
 			'students.name',

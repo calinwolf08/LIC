@@ -13,6 +13,11 @@ import type { DB } from '$lib/db/types';
 import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
 import { TeamService } from './teams.service';
 import { nanoid } from 'nanoid';
+import {
+	createTestUser,
+	createTestSchedule,
+	associateTeamWithSchedule
+} from '$lib/testing/integration-helpers';
 
 /**
  * Helper to create test clerkship
@@ -403,6 +408,109 @@ describe('TeamService', () => {
 				const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
 				expect(fallback!.isFallbackOnly).toBe(true);
 			}
+		});
+	});
+});
+
+/**
+ * Multi-tenancy Tests
+ *
+ * Tests for schedule-based data isolation
+ */
+describe('TeamService - Multi-tenancy', () => {
+	let db: Kysely<DB>;
+	let service: TeamService;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		service = new TeamService(db);
+	});
+
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	describe('getAllTeamsBySchedule()', () => {
+		it('returns only teams associated with the given schedule', async () => {
+			// Create two users with different schedules
+			const userAId = await createTestUser(db, { name: 'User A' });
+			const userBId = await createTestUser(db, { name: 'User B' });
+
+			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
+			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+
+			// Create clerkship and preceptors for teams
+			const clerkshipId = await createTestClerkship(db);
+			const preceptor1 = await createTestPreceptor(db, 'Dr. One');
+			const preceptor2 = await createTestPreceptor(db, 'Dr. Two');
+			const preceptor3 = await createTestPreceptor(db, 'Dr. Three');
+
+			// Create teams
+			const teamA1Result = await service.createTeam(clerkshipId, {
+				name: 'Team A1',
+				members: [{ preceptorId: preceptor1, priority: 1, isFallbackOnly: false }],
+			});
+			const teamA2Result = await service.createTeam(clerkshipId, {
+				name: 'Team A2',
+				members: [{ preceptorId: preceptor2, priority: 1, isFallbackOnly: false }],
+			});
+			const teamB1Result = await service.createTeam(clerkshipId, {
+				name: 'Team B1',
+				members: [{ preceptorId: preceptor3, priority: 1, isFallbackOnly: false }],
+			});
+
+			expect(teamA1Result.success).toBe(true);
+			expect(teamA2Result.success).toBe(true);
+			expect(teamB1Result.success).toBe(true);
+
+			if (!teamA1Result.success || !teamA2Result.success || !teamB1Result.success) return;
+
+			// Associate teams with schedules
+			await associateTeamWithSchedule(db, teamA1Result.data.id, scheduleAId);
+			await associateTeamWithSchedule(db, teamA2Result.data.id, scheduleAId);
+			await associateTeamWithSchedule(db, teamB1Result.data.id, scheduleBId);
+
+			// Get teams for Schedule A
+			const teamsA = await service.getAllTeamsBySchedule(scheduleAId);
+			expect(teamsA.success).toBe(true);
+			if (teamsA.success) {
+				expect(teamsA.data).toHaveLength(2);
+				expect(teamsA.data.map(t => t.id)).toContain(teamA1Result.data.id);
+				expect(teamsA.data.map(t => t.id)).toContain(teamA2Result.data.id);
+				expect(teamsA.data.map(t => t.id)).not.toContain(teamB1Result.data.id);
+			}
+
+			// Get teams for Schedule B
+			const teamsB = await service.getAllTeamsBySchedule(scheduleBId);
+			expect(teamsB.success).toBe(true);
+			if (teamsB.success) {
+				expect(teamsB.data).toHaveLength(1);
+				expect(teamsB.data.map(t => t.id)).toContain(teamB1Result.data.id);
+			}
+		});
+
+		it('returns empty array when schedule has no associated teams', async () => {
+			const userId = await createTestUser(db, { name: 'User' });
+			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+
+			// Create team but don't associate with the schedule
+			const clerkshipId = await createTestClerkship(db);
+			const preceptorId = await createTestPreceptor(db);
+			await service.createTeam(clerkshipId, {
+				name: 'Some Team',
+				members: [{ preceptorId, priority: 1, isFallbackOnly: false }],
+			});
+
+			const teams = await service.getAllTeamsBySchedule(scheduleId);
+			expect(teams.success).toBe(true);
+			if (teams.success) {
+				expect(teams.data).toEqual([]);
+			}
+		});
+
+		it('returns failure when scheduleId is not provided', async () => {
+			const result = await service.getAllTeamsBySchedule('');
+			expect(result.success).toBe(false);
 		});
 	});
 });

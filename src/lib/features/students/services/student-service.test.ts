@@ -5,7 +5,7 @@
  * Tests for student database operations and business logic
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
 import type { DB } from '$lib/db/types';
@@ -18,9 +18,17 @@ import {
 	deleteStudent,
 	canDeleteStudent,
 	studentExists,
-	isEmailTaken
+	isEmailTaken,
+	getStudentsBySchedule
 } from './student-service';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
+import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
+import {
+	createTestUser,
+	createTestSchedule,
+	createTestStudents,
+	associateStudentWithSchedule
+} from '$lib/testing/integration-helpers';
 
 // Create test database
 function createTestDb(): Kysely<DB> {
@@ -419,6 +427,137 @@ describe('Student Service', () => {
 			// Checking if student1's email is taken while excluding student2
 			const taken = await isEmailTaken(db, 'student1@example.com', student2.id);
 			expect(taken).toBe(true);
+		});
+	});
+});
+
+/**
+ * Multi-tenancy Tests
+ *
+ * Tests for schedule-based data isolation
+ */
+describe('Student Service - Multi-tenancy', () => {
+	let db: Kysely<DB>;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+	});
+
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	describe('getStudentsBySchedule()', () => {
+		it('returns only students associated with the given schedule', async () => {
+			// Create two users with different schedules
+			const userAId = await createTestUser(db, { name: 'User A' });
+			const userBId = await createTestUser(db, { name: 'User B' });
+
+			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
+			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+
+			// Create students
+			const [studentA1, studentA2] = await createTestStudents(db, 2);
+			const [studentB1] = await createTestStudents(db, 1);
+
+			// Associate students with schedules
+			await associateStudentWithSchedule(db, studentA1, scheduleAId);
+			await associateStudentWithSchedule(db, studentA2, scheduleAId);
+			await associateStudentWithSchedule(db, studentB1, scheduleBId);
+
+			// Get students for Schedule A
+			const studentsA = await getStudentsBySchedule(db, scheduleAId);
+			expect(studentsA).toHaveLength(2);
+			expect(studentsA.map(s => s.id)).toContain(studentA1);
+			expect(studentsA.map(s => s.id)).toContain(studentA2);
+			expect(studentsA.map(s => s.id)).not.toContain(studentB1);
+
+			// Get students for Schedule B
+			const studentsB = await getStudentsBySchedule(db, scheduleBId);
+			expect(studentsB).toHaveLength(1);
+			expect(studentsB.map(s => s.id)).toContain(studentB1);
+		});
+
+		it('returns empty array when schedule has no associated students', async () => {
+			const userId = await createTestUser(db, { name: 'User' });
+			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+
+			// Create students but don't associate with the schedule
+			await createTestStudents(db, 3);
+
+			const students = await getStudentsBySchedule(db, scheduleId);
+			expect(students).toEqual([]);
+		});
+
+		it('returns students ordered by name', async () => {
+			const userId = await createTestUser(db);
+			const scheduleId = await createTestSchedule(db, { userId, setAsActive: true });
+
+			// Create students with specific names
+			const timestamp = new Date().toISOString();
+			const studentZoe = await db.insertInto('students').values({
+				id: crypto.randomUUID(),
+				name: 'Zoe Student',
+				email: 'zoe@test.edu',
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			const studentAlice = await db.insertInto('students').values({
+				id: crypto.randomUUID(),
+				name: 'Alice Student',
+				email: 'alice@test.edu',
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			const studentBob = await db.insertInto('students').values({
+				id: crypto.randomUUID(),
+				name: 'Bob Student',
+				email: 'bob@test.edu',
+				created_at: timestamp,
+				updated_at: timestamp
+			}).returningAll().executeTakeFirstOrThrow();
+
+			// Associate in non-alphabetical order
+			await associateStudentWithSchedule(db, studentZoe.id, scheduleId);
+			await associateStudentWithSchedule(db, studentAlice.id, scheduleId);
+			await associateStudentWithSchedule(db, studentBob.id, scheduleId);
+
+			const students = await getStudentsBySchedule(db, scheduleId);
+
+			expect(students[0].name).toBe('Alice Student');
+			expect(students[1].name).toBe('Bob Student');
+			expect(students[2].name).toBe('Zoe Student');
+		});
+
+		it('throws error when scheduleId is not provided', async () => {
+			await expect(getStudentsBySchedule(db, '')).rejects.toThrow();
+			await expect(getStudentsBySchedule(db, null as any)).rejects.toThrow();
+			await expect(getStudentsBySchedule(db, undefined as any)).rejects.toThrow();
+		});
+
+		it('does not return students from other schedules even if same user owns both', async () => {
+			const userId = await createTestUser(db);
+			const schedule1Id = await createTestSchedule(db, { userId, name: 'Schedule 1' });
+			const schedule2Id = await createTestSchedule(db, { userId, name: 'Schedule 2', setAsActive: true });
+
+			const [student1] = await createTestStudents(db, 1);
+			const [student2] = await createTestStudents(db, 1);
+
+			// Associate student1 with schedule1, student2 with schedule2
+			await associateStudentWithSchedule(db, student1, schedule1Id);
+			await associateStudentWithSchedule(db, student2, schedule2Id);
+
+			// Query schedule1 - should only see student1
+			const studentsInSchedule1 = await getStudentsBySchedule(db, schedule1Id);
+			expect(studentsInSchedule1).toHaveLength(1);
+			expect(studentsInSchedule1[0].id).toBe(student1);
+
+			// Query schedule2 - should only see student2
+			const studentsInSchedule2 = await getStudentsBySchedule(db, schedule2Id);
+			expect(studentsInSchedule2).toHaveLength(1);
+			expect(studentsInSchedule2[0].id).toBe(student2);
 		});
 	});
 });

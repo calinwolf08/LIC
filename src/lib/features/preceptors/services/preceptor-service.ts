@@ -373,6 +373,126 @@ export async function getPreceptorsWithAssociations(
 }
 
 /**
+ * Get preceptors filtered by schedule ID
+ * Returns only preceptors associated with the given schedule
+ * @throws {Error} If scheduleId is not provided
+ */
+export async function getPreceptorsBySchedule(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<Selectable<Preceptors>[]> {
+	if (!scheduleId) {
+		throw new Error('Schedule ID is required');
+	}
+
+	return await db
+		.selectFrom('preceptors')
+		.innerJoin('schedule_preceptors', 'preceptors.id', 'schedule_preceptors.preceptor_id')
+		.where('schedule_preceptors.schedule_id', '=', scheduleId)
+		.select([
+			'preceptors.id',
+			'preceptors.name',
+			'preceptors.email',
+			'preceptors.phone',
+			'preceptors.max_students',
+			'preceptors.is_global_fallback_only',
+			'preceptors.health_system_id',
+			'preceptors.created_at',
+			'preceptors.updated_at'
+		])
+		.orderBy('preceptors.name', 'asc')
+		.execute();
+}
+
+/**
+ * Get preceptors with their associations, filtered by schedule ID
+ * Returns only preceptors associated with the given schedule
+ * @throws {Error} If scheduleId is not provided
+ */
+export async function getPreceptorsWithAssociationsBySchedule(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<PreceptorWithAssociations[]> {
+	if (!scheduleId) {
+		throw new Error('Schedule ID is required');
+	}
+
+	const preceptors = await db
+		.selectFrom('preceptors')
+		.innerJoin('schedule_preceptors', 'preceptors.id', 'schedule_preceptors.preceptor_id')
+		.leftJoin('health_systems', 'preceptors.health_system_id', 'health_systems.id')
+		.where('schedule_preceptors.schedule_id', '=', scheduleId)
+		.select([
+			'preceptors.id',
+			'preceptors.name',
+			'preceptors.email',
+			'preceptors.phone',
+			'preceptors.max_students',
+			'preceptors.is_global_fallback_only',
+			'preceptors.health_system_id',
+			'health_systems.name as health_system_name',
+			'preceptors.created_at',
+			'preceptors.updated_at'
+		])
+		.orderBy('preceptors.name', 'asc')
+		.execute();
+
+	// For each preceptor, get their sites, clerkships (via teams), and teams
+	const result = await Promise.all(
+		preceptors.map(async (p) => {
+			// Get sites via preceptor_sites junction table
+			const sites = await db
+				.selectFrom('preceptor_sites')
+				.innerJoin('sites', 'preceptor_sites.site_id', 'sites.id')
+				.select(['sites.id', 'sites.name'])
+				.where('preceptor_sites.preceptor_id', '=', p.id as string)
+				.execute();
+
+			// Get teams and clerkships via preceptor_team_members
+			const teams = await db
+				.selectFrom('preceptor_team_members')
+				.innerJoin('preceptor_teams', 'preceptor_team_members.team_id', 'preceptor_teams.id')
+				.innerJoin('clerkships', 'preceptor_teams.clerkship_id', 'clerkships.id')
+				.select([
+					'preceptor_teams.id as team_id',
+					'preceptor_teams.name as team_name',
+					'clerkships.id as clerkship_id',
+					'clerkships.name as clerkship_name'
+				])
+				.where('preceptor_team_members.preceptor_id', '=', p.id as string)
+				.execute();
+
+			// Extract unique clerkships from teams
+			const clerkshipsMap = new Map<string, string>();
+			teams.forEach((t) => {
+				if (t.clerkship_id) {
+					clerkshipsMap.set(t.clerkship_id, t.clerkship_name || 'Unknown');
+				}
+			});
+			const clerkships = Array.from(clerkshipsMap.entries()).map(([id, name]) => ({ id, name }));
+
+			return {
+				id: p.id as string,
+				name: p.name,
+				email: p.email,
+				phone: p.phone,
+				max_students: p.max_students,
+				is_global_fallback_only: Boolean(p.is_global_fallback_only),
+				health_system_id: p.health_system_id,
+				health_system_name: p.health_system_name,
+				created_at: p.created_at as string,
+				updated_at: p.updated_at as string,
+				sites: sites.map((s) => ({ id: s.id as string, name: s.name })),
+				clerkships,
+				teams: teams.map((t) => ({ id: t.team_id as string, name: t.team_name }))
+			};
+		})
+	);
+
+	return result;
+}
+
+/**
  * Get preceptors filtered by site IDs
  * Returns preceptors who work at any of the specified sites, or all if no sites specified
  */
