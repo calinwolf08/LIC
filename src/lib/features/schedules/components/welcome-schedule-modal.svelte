@@ -9,11 +9,10 @@
 	interface Props {
 		open: boolean;
 		schedule: { id: string; name: string; start_date: string; end_date: string };
-		userId: string;
 		onComplete: () => void;
 	}
 
-	let { open, schedule, userId, onComplete }: Props = $props();
+	let { open, schedule, onComplete }: Props = $props();
 
 	let name = $state(schedule.name);
 	let startDate = $state(schedule.start_date);
@@ -41,6 +40,7 @@
 		}
 
 		try {
+			// Update the schedule
 			const response = await fetch(`/api/scheduling-periods/${schedule.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
@@ -52,9 +52,15 @@
 				throw new Error(data.error || 'Failed to update schedule');
 			}
 
-			// Mark as configured in localStorage to prevent showing again
-			// Use user-specific key to support multiple users on same browser
-			localStorage.setItem(`schedule_configured_${userId}`, 'true');
+			// Mark welcome as completed in database (persists across browsers/devices)
+			const welcomeResponse = await fetch('/api/user/welcome-completed', {
+				method: 'POST'
+			});
+
+			if (!welcomeResponse.ok) {
+				console.warn('Failed to mark welcome as completed');
+			}
+
 			onComplete();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An error occurred';

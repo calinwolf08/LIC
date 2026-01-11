@@ -65,6 +65,10 @@ export const auth = betterAuth({
                 type: 'string',
                 required: false,
             },
+            welcome_completed: {
+                type: 'boolean',
+                required: false,
+            },
         },
     },
     databaseHooks: {

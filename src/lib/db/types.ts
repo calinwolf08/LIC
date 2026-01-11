@@ -445,6 +445,7 @@ export interface User {
   image: string | null;
   name: string;
   updatedAt: string;
+  welcome_completed: number | null;
 }
 
 export interface Verification {

@@ -6,17 +6,21 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Get the user's active schedule for the welcome modal
+	// Get the user's active schedule and welcome status for the welcome modal
 	let activeSchedule: { id: string; name: string; start_date: string; end_date: string } | null =
 		null;
+	let welcomeCompleted = true; // Default to true (don't show modal) for safety
 
 	if (locals.session?.user?.id) {
 		try {
 			const user = await db
 				.selectFrom('user')
-				.select('active_schedule_id')
+				.select(['active_schedule_id', 'welcome_completed'])
 				.where('id', '=', locals.session.user.id)
 				.executeTakeFirst();
+
+			// Check if user has completed the welcome modal
+			welcomeCompleted = Boolean(user?.welcome_completed);
 
 			if (user?.active_schedule_id) {
 				const schedule = await db
@@ -84,6 +88,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			partially_scheduled_students: partiallyScheduled,
 			unscheduled_students: unscheduled
 		},
-		activeSchedule
+		activeSchedule,
+		welcomeCompleted
 	};
 };

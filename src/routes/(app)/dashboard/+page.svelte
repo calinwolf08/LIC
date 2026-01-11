@@ -3,30 +3,17 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { browser } from '$app/environment';
 	import WelcomeScheduleModal from '$lib/features/schedules/components/welcome-schedule-modal.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let stats = $derived(data.stats);
 
-	// Check if this is first visit (schedule not configured yet)
-	// Use user-specific key in localStorage to support multiple users on same browser
-	let showWelcome = $state(false);
-
-	$effect(() => {
-		if (browser && data.activeSchedule && data.user?.id) {
-			const userConfigKey = `schedule_configured_${data.user.id}`;
-			const configured = localStorage.getItem(userConfigKey);
-			// Show welcome modal on first visit (regardless of schedule name)
-			if (!configured) {
-				showWelcome = true;
-			}
-		}
-	});
+	// Show welcome modal if user hasn't completed it yet (persisted in database)
+	let showWelcome = $derived(!data.welcomeCompleted && data.activeSchedule !== null);
 
 	function handleWelcomeComplete() {
-		showWelcome = false;
+		// After completing, invalidate to refresh server data
 		invalidateAll();
 	}
 
@@ -238,7 +225,6 @@
 	<WelcomeScheduleModal
 		open={showWelcome}
 		schedule={data.activeSchedule}
-		userId={data.user.id}
 		onComplete={handleWelcomeComplete}
 	/>
 {/if}
