@@ -16,8 +16,8 @@
 	$effect(() => {
 		if (browser && data.activeSchedule) {
 			const configured = localStorage.getItem('schedule_configured');
-			// Show welcome if schedule has default name and not previously configured
-			if (!configured && data.activeSchedule.name === 'My Schedule') {
+			// Show welcome modal on first visit (regardless of schedule name)
+			if (!configured) {
 				showWelcome = true;
 			}
 		}
