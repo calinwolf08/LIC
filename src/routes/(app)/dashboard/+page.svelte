@@ -11,11 +11,13 @@
 	let stats = $derived(data.stats);
 
 	// Check if this is first visit (schedule not configured yet)
+	// Use user-specific key in localStorage to support multiple users on same browser
 	let showWelcome = $state(false);
 
 	$effect(() => {
-		if (browser && data.activeSchedule) {
-			const configured = localStorage.getItem('schedule_configured');
+		if (browser && data.activeSchedule && data.user?.id) {
+			const userConfigKey = `schedule_configured_${data.user.id}`;
+			const configured = localStorage.getItem(userConfigKey);
 			// Show welcome modal on first visit (regardless of schedule name)
 			if (!configured) {
 				showWelcome = true;
@@ -236,6 +238,7 @@
 	<WelcomeScheduleModal
 		open={showWelcome}
 		schedule={data.activeSchedule}
+		userId={data.user.id}
 		onComplete={handleWelcomeComplete}
 	/>
 {/if}

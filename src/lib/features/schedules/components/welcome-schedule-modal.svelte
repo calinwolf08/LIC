@@ -9,10 +9,11 @@
 	interface Props {
 		open: boolean;
 		schedule: { id: string; name: string; start_date: string; end_date: string };
+		userId: string;
 		onComplete: () => void;
 	}
 
-	let { open, schedule, onComplete }: Props = $props();
+	let { open, schedule, userId, onComplete }: Props = $props();
 
 	let name = $state(schedule.name);
 	let startDate = $state(schedule.start_date);
@@ -52,7 +53,8 @@
 			}
 
 			// Mark as configured in localStorage to prevent showing again
-			localStorage.setItem('schedule_configured', 'true');
+			// Use user-specific key to support multiple users on same browser
+			localStorage.setItem(`schedule_configured_${userId}`, 'true');
 			onComplete();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An error occurred';
