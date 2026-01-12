@@ -24,6 +24,7 @@
 	// Teams state
 	let teams = $state<any[]>([]);
 	let loadingTeams = $state(false);
+	let teamsLoaded = $state(false);
 
 	// Load all teams on mount
 	async function loadTeams() {
@@ -41,12 +42,13 @@
 			teams = [];
 		} finally {
 			loadingTeams = false;
+			teamsLoaded = true;
 		}
 	}
 
-	// Load teams when switching to teams tab
+	// Load teams when switching to teams tab (only once)
 	$effect(() => {
-		if (activeTab === 'teams' && teams.length === 0) {
+		if (activeTab === 'teams' && !teamsLoaded && !loadingTeams) {
 			loadTeams();
 		}
 	});
@@ -135,6 +137,7 @@
 	}
 
 	function handleTeamDeleted() {
+		teamsLoaded = false;
 		loadTeams();
 	}
 </script>

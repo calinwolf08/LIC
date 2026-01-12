@@ -52,13 +52,28 @@
 	// View mode toggle
 	let viewMode = $state<'list' | 'calendar'>('list');
 
-	// Current date range (default to current month)
-	const today = new Date();
-	const firstDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-	const lastDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+	// Current date range (default to active schedule dates, or current month if no schedule)
+	function getDefaultDateRange(): { start: string; end: string } {
+		// Use active schedule dates if available
+		if (data.activeSchedule?.startDate && data.activeSchedule?.endDate) {
+			return {
+				start: data.activeSchedule.startDate,
+				end: data.activeSchedule.endDate
+			};
+		}
+		// Fall back to current month
+		const today = new Date();
+		const firstDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+		const lastDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+		return {
+			start: formatUTCDate(firstDayOfMonth),
+			end: formatUTCDate(lastDayOfMonth)
+		};
+	}
 
-	let startDate = $state(formatUTCDate(firstDayOfMonth));
-	let endDate = $state(formatUTCDate(lastDayOfMonth));
+	const defaultDates = getDefaultDateRange();
+	let startDate = $state(defaultDates.start);
+	let endDate = $state(defaultDates.end);
 
 	// Filters
 	let selectedStudent = $state<string>('');
@@ -151,6 +166,12 @@
 		selectedStudent = '';
 		selectedPreceptor = '';
 		selectedClerkship = '';
+	}
+
+	function resetToScheduleDates() {
+		const defaults = getDefaultDateRange();
+		startDate = defaults.start;
+		endDate = defaults.end;
 	}
 
 	// Edit assignment
@@ -495,6 +516,9 @@
 
 		<div class="flex gap-3 mt-4">
 			<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
+			{#if data.activeSchedule}
+				<Button variant="outline" onclick={resetToScheduleDates}>View Full Schedule</Button>
+			{/if}
 		</div>
 	</Card>
 

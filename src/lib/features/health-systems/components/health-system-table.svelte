@@ -197,27 +197,34 @@
 										View
 									</Button>
 									{#if loadingDependencies}
-										<Button size="sm" variant="destructive" disabled>
+										<Button size="sm" variant="destructive" disabled title="Loading...">
 											Delete
 										</Button>
-									{:else}
-										<div class="relative group">
+									{:else if !canDelete(hs)}
+										{@const deps = hs.id ? dependenciesMap.get(hs.id) : undefined}
+										<div class="flex items-center gap-2">
+											<span class="text-xs text-muted-foreground">
+												{#if deps}
+													Has {deps.sites > 0 ? `${deps.sites} site${deps.sites > 1 ? 's' : ''}` : ''}{deps.sites > 0 && deps.preceptors > 0 ? ', ' : ''}{deps.preceptors > 0 ? `${deps.preceptors} preceptor${deps.preceptors > 1 ? 's' : ''}` : ''}
+												{/if}
+											</span>
 											<Button
 												size="sm"
 												variant="destructive"
-												disabled={!canDelete(hs)}
-												onclick={() => onDelete(hs)}
+												disabled
+												title={getDeleteTooltip(hs)}
 											>
 												Delete
 											</Button>
-											{#if !canDelete(hs)}
-												<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
-													<div class="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-pre-line min-w-[200px] max-w-[300px]">
-														{getDeleteTooltip(hs)}
-													</div>
-												</div>
-											{/if}
 										</div>
+									{:else}
+										<Button
+											size="sm"
+											variant="destructive"
+											onclick={() => onDelete(hs)}
+										>
+											Delete
+										</Button>
 									{/if}
 								</div>
 							</td>
