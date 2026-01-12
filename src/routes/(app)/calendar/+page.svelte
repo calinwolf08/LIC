@@ -425,8 +425,8 @@
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
-			<Button variant="destructive" onclick={handleRegenerateClick}>
-				Regenerate Schedule
+			<Button variant="default" onclick={handleRegenerateClick}>
+				{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
 			</Button>
 		</div>
 	</div>
