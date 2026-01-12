@@ -1,25 +1,16 @@
 # User Feedback Analysis
 
-Parsed from user testing session notes.
+Parsed and clarified from user testing session.
 
 ---
 
 ## 🐛 BUGS
 
-### High Priority
-
-| # | Bug | Original Note | Location |
-|---|-----|---------------|----------|
-| B1 | **Health System delete not working** | "Health System delete not working" | Health Systems page |
-| B2 | **Preceptor visibility inconsistency** - Shows in health system edit page but not in main table | "Preceptor shows up for health system in edit page but not main table" | Health Systems / Preceptors tables |
-| B3 | **Calendar filter not populating schedule dates** | "Calendar page doesn't populate with schedule dates for filter" | Schedules calendar view |
-
-### Medium Priority
-
-| # | Bug | Original Note | Location |
-|---|-----|---------------|----------|
-| B4 | **Teams loading state stuck or unclear** | "Says loading teams" | Teams management |
-| B5 | **Schedule calendar filter misleading** - Filter doesn't actually limit schedule generation | "Schedule Calendar filter misleading. Not actually limiting schedule generation" | Schedule generation |
+| ID | Bug | Details | Location |
+|----|-----|---------|----------|
+| B1 | **Health System delete not working** | Clicking delete button has no effect. Possibly due to dependencies (preceptors/sites linked to the health system), but no error message or explanation shown to user. | Health Systems page |
+| B2 | **"Loading teams" shown indefinitely** | Shows "loading teams" even when there are no teams. Appears to be stuck loading forever rather than showing empty state. | Teams management |
+| B3 | **Calendar date filter defaults to single month** | Filter defaults to a single month instead of the full schedule window. Should default to show the entire schedule date range. | Schedules calendar view |
 
 ---
 
@@ -27,110 +18,117 @@ Parsed from user testing session notes.
 
 ### Availability & Time Management
 
-| # | Feature | Original Note | Priority |
-|---|---------|---------------|----------|
-| F1 | **AM/PM time option for availability** - Add time-of-day granularity | "No am/pm option for availability" | High |
-| F2 | **Half-day assignments** - Support splitting days for students | "Students may split days that split as half days" | High |
-| F3 | **Notes on availability** - Allow text notes (e.g., "starts at 9 AM") | "Add notes on availability. Ex starts at 9 am." | Medium |
-| F4 | **Availability indicator on preceptor table** - Show at-a-glance if preceptor has availability configured | "Should make clear on preceptor table if they have availability" | Medium |
-| F5 | **Preceptor availability calendar view** - Visual calendar showing preceptor availability | "Helpful to have preceptor availability calendar" | Medium |
+| ID | Feature | Details | Priority |
+|----|---------|---------|----------|
+| F1 | **AM/PM time slots for availability** | Allow preceptors to mark availability for mornings or afternoons only, not just full days. Enables half-day scheduling. | High |
+| F2 | **Half-day student assignments** | Support assigning students to one preceptor in AM and another in PM, based on preceptor half-day availability. | High |
+| F3 | **Notes on availability** | Free-text notes field for availability (e.g., "starts at 9am", "no Wednesdays after 2pm", "prefers mornings"). | Medium |
+| F4 | **Availability indicator on preceptor table** | Visual indicator showing whether a preceptor has availability configured. Makes it clear when user still needs to set up availability. | Medium |
+| F5 | **Preceptor availability calendar view** | Calendar visualization showing when each preceptor is available (highlight available days). Useful for tracking even without auto-generation. | Medium |
 
 ### Scheduling & Assignments
 
-| # | Feature | Original Note | Priority |
-|---|---------|---------------|----------|
-| F6 | **Preset/custom student assignments** - Pre-assign students before schedule generation | "Need to add custom assignments for students that are preset" | High |
-| F7 | **Block-based scheduling** - Ensure students are assigned to complete blocks satisfying requirements | "Scheduling blocks, make sure students will be assigned to a full block that satisfies requirements" | High |
-| F8 | **Clerkship block specification** - Allow clerkships to define their scheduling blocks | "Clerkships should be able to specify block" | Medium |
+| ID | Feature | Details | Priority |
+|----|---------|---------|----------|
+| F6 | **Preset/locked student assignments** | Allow users to pre-create assignments (student A with preceptor B at site C for clerkship D during week E) before running generation. Algorithm should work around these locked assignments. Should validate the assignment is valid, or allow user to override validation. | High |
+| F7 | **Block-based scheduling for clerkships** | Some clerkships require consecutive day blocks (e.g., 6 weeks in Surgery). Clerkship config should specify required block size. Algorithm should: (1) assign complete blocks to students, (2) not assign partial blocks that don't satisfy requirements, (3) notify user if partial block is only option. Example: 14-week preceptor availability → assign 6-week block to student 1, 6-week block to student 2, leave 2-week remainder unassigned unless no other option. | High |
+| F8 | **Scheduling readiness indicator** | Clear UI indication of whether each entity (preceptor, clerkship, etc.) is ready for schedule generation. Show what's missing (no availability, no team assigned, etc.). Prevent confusion when generation returns 0 results. | High |
 
 ### Navigation & Workflow
 
-| # | Feature | Original Note | Priority |
-|---|---------|---------------|----------|
-| F9 | **Edit site from preceptor modal** - Quick-edit linked site without leaving preceptor form | "Wants to edit site from preceptor window cus site system mismatch and wanted to edit" | Medium |
-| F10 | **Better navigation from clerkship to teams** - Easier back-and-forth between clerkship config and team management | "On clerkship, hard to go to manage Team then back to clerkship configuration" | Medium |
-| F11 | **Show availability in preceptor popup** - Display availability immediately when viewing preceptor | "Went to preceptor, didn't see availability immediately on pop up" | Low |
-
-### Hierarchy & Organization
-
-| # | Feature | Original Note | Priority |
-|---|---------|---------------|----------|
-| F12 | **Sub-sites support** - Allow sites to have child/sub-sites | "Tried creating site with a bunch of sub sites" | Low |
+| ID | Feature | Details | Priority |
+|----|---------|---------|----------|
+| F9 | **Edit site inline from preceptor form** | When creating/editing a preceptor, allow quick-editing the linked site without losing preceptor form data. User encountered site with wrong health system and had to abandon preceptor creation to fix it. | Medium |
+| F10 | **Streamlined clerkship → team → clerkship flow** | When on clerkship config, clicking "manage teams" should allow adding a team and returning to clerkship config seamlessly. Current flow requires manual navigation back. | Medium |
+| F11 | **Preceptor creation wizard with availability** | Consider making preceptor creation a full page (not modal) with availability setup as part of the wizard. Ensures availability is configured during creation, not forgotten. | Medium |
 
 ---
 
 ## 🎨 UX/UI IMPROVEMENTS
 
+### Authentication & Onboarding
+
+| ID | Issue | Details | Suggested Fix |
+|----|-------|---------|---------------|
+| U1 | **Password placeholder confusion** | User thought placeholder text in password field was actual text and tried to edit it instead of typing their password. | Use clearer placeholder or password dots, consider "Enter password" as placeholder with proper styling |
+
 ### Terminology & Clarity
 
-| # | Issue | Original Note | Suggested Fix |
-|---|-------|---------------|---------------|
-| U1 | **"Scheduling strategy" unclear** | "Scheduling strategy has no meaning" | Add tooltip/help text explaining assignment strategies |
-| U2 | **"Fallback" terminology confusing** | "What does fallback mean?" | Add explanation: "Backup preceptor when primary is unavailable" |
-| U3 | **Team concept not explained** | "Manage teams goes to preceptor page but doesn't explain teams concept" | Add intro text or onboarding for teams feature |
-| U4 | **Teams needed for clerkship unclear** | "Teams needed for clerkship not clear" | Better documentation on when/why to use teams |
-| U5 | **"Schedule" vs "Generate" confusion** | "Schedule terminology not clear, tried to create new schedule in order to generate" | Clarify that "Schedule" is a time period, "Generate" creates assignments |
-| U6 | **Readiness to schedule unclear** | "Not clear that not ready to schedule" | Add checklist/status indicator showing what's needed before generation |
-| U7 | **How to enter availability unclear** | "Not clear how to enter preceptor availability" | Add prominent "Add Availability" button or guided flow |
+| ID | Issue | Details | Suggested Fix |
+|----|-------|---------|---------------|
+| U2 | **"Scheduling strategy" options unclear** | Clerkship config has scheduling strategy dropdown but options' meanings and impact on schedule aren't explained. | Add tooltips or help text explaining each strategy option and when to use it |
+| U3 | **"Fallback" terminology confusing** | User didn't understand this refers to backup preceptor when primary can't cover entire requirement. | Rename to "Backup Preceptor" or add explanation: "Used when primary preceptor is unavailable" |
+| U4 | **Team concept not explained** | Users don't understand: (1) why teams exist, (2) that even single preceptors need a team, (3) that no team = preceptor excluded from scheduling. This is a critical gap. | Add prominent explanation. Consider: "Teams group preceptors for scheduling. Every preceptor must belong to at least one team to be included in schedule generation." |
+| U5 | **"Associated sites" label confusing** | Label is unclear in context. | Rename to something more descriptive like "Sites where this preceptor works" or "Assigned sites" |
+| U6 | **"Schedule" vs "Calendar" route confusion** | User went to /schedules expecting to generate a schedule. Didn't realize /schedules is for creating schedule periods and /calendar shows results. | Rename routes or add clearer labels. "Schedule Periods" vs "Schedule Calendar"? Or consolidate into single scheduling hub. |
+| U7 | **Availability is required but not obvious** | User didn't know availability must be set for preceptors to be included in generation. Not clear during creation or on preceptor list. | Add required indicator, include in creation flow, show warning on preceptor table for those without availability |
 
 ### Forms & Input
 
-| # | Issue | Original Note | Suggested Fix |
-|---|-------|---------------|---------------|
-| U8 | **Password placeholder text issue** | "Placeholder text for password" | Review password field placeholder (may be missing or unclear) |
-| U9 | **Redundant site creation buttons** | "New site and create site buttons redundant" | Consolidate to single "Create Site" button |
-| U10 | **Lost work on close** | "Closed new preceptor without saving and has to make new one with new site etc." | Add unsaved changes warning or auto-save draft |
+| ID | Issue | Details | Suggested Fix |
+|----|-------|---------|---------------|
+| U8 | **Redundant site creation buttons** | Site list page has two buttons that both create a site but with different text. Confusing. | Use single button, or ensure both have identical text |
+| U9 | **No unsaved changes warning** | User closed preceptor creation modal, went to edit a site, then had to re-enter all preceptor information. Lost work. | Add "You have unsaved changes" warning on close. Or auto-save draft. Or allow inline site editing without leaving form. |
+| U10 | **Site hierarchy expectation mismatch** | User expected to create a main site with sub-sites underneath. Current design: each location is a separate site entity. | Add explanatory text: "Each clinical location should be its own site. Sites are grouped by Health System." |
+| U11 | **Dropdown vs text input confusion** | User tried typing site name in preceptor form instead of using dropdown. Didn't realize no sites existed yet. | Add "No sites found - create one first" message in empty dropdown. Or allow inline site creation. |
 
-### Workflow Expectations
+### Navigation & Workflow
 
-| # | Issue | Original Note | Suggested Fix |
-|---|-------|---------------|---------------|
-| U11 | **Expected workflow: Preceptor → Site** | "Went to preceptor first, expected type to enter site" | Allow inline site creation from preceptor form |
-| U12 | **Expected setup order** | "Preceptor then student then clerkship" | Consider guided onboarding showing recommended setup order |
-| U13 | **Calendar filter view unclear** | "Calendar filter view not clear" | Improve filter UI with clearer labels and behavior |
+| ID | Issue | Details | Suggested Fix |
+|----|-------|---------|---------------|
+| U12 | **Expected setup order not clear** | User went to preceptors first (not the expected order based on sidebar). No guidance on recommended setup sequence. | Add onboarding flow or setup checklist: "1. Create Health Systems → 2. Create Sites → 3. Add Preceptors → 4. Create Teams → 5. Configure Clerkships" |
+| U13 | **Manage Teams navigation is dead-end** | Clicking "Manage Teams" from clerkship goes to teams page but no easy way back to clerkship config. Hard to complete the workflow. | Add breadcrumb, "back to clerkship" link, or handle team selection inline |
+| U14 | **Availability not shown on preceptor popup** | When viewing preceptor details, availability isn't immediately visible. User had to hunt for it. | Show availability summary in preceptor detail view/popup |
+
+### Calendar & Filtering
+
+| ID | Issue | Details | Suggested Fix |
+|----|-------|---------|---------------|
+| U15 | **Calendar filter not obviously a filter** | User wasn't clear the controls were filters at all. | Add "Filter" label, use collapsible filter panel, or add filter icon |
+| U16 | **Calendar filter misleads about generation scope** | User filtered to single clerkship and expected only that clerkship to be generated. Filter only affects view, not generation. | Add clear label: "Display Filter (does not affect schedule generation)" or separate generation options from view filters |
 
 ---
 
 ## 📋 SUMMARY
 
-### By Category Count
+### By Category
 
 | Category | Count |
 |----------|-------|
-| Bugs | 5 |
-| Feature Requests | 12 |
-| UX/UI Improvements | 13 |
+| Bugs | 3 |
+| Feature Requests | 11 |
+| UX/UI Improvements | 16 |
 | **Total** | **30** |
 
-### Recommended Priority Order
+### Critical Issues (Address First)
 
-**Phase 1 - Critical Fixes:**
-1. B1: Health System delete not working
-2. B2: Preceptor visibility inconsistency
-3. B3: Calendar filter not populating dates
-4. U6: Readiness indicator for scheduling
+These cause the most user confusion and friction:
 
-**Phase 2 - Core Feature Gaps:**
-1. F1: AM/PM time options for availability
-2. F2: Half-day assignments
-3. F6: Preset/custom student assignments
-4. F7: Block-based scheduling
+1. **U4: Team concept not explained** - Users don't understand teams are required, leading to empty schedules
+2. **F8: Scheduling readiness indicator** - Users try to generate without proper setup, get 0 results, don't know why
+3. **U7: Availability requirement not obvious** - Same issue, preceptors without availability silently excluded
+4. **B1: Health System delete not working** - Broken functionality with no feedback
+5. **U9: No unsaved changes warning** - Users losing work
 
-**Phase 3 - Terminology & Onboarding:**
-1. U1-U5: Add tooltips/help text for confusing terminology
-2. U12: Guided setup flow showing recommended order
-3. U7: Clear availability entry guidance
+### High-Value Features
 
-**Phase 4 - Quality of Life:**
-1. F3-F5: Availability notes, indicators, and calendar view
-2. F9-F11: Navigation improvements
-3. U9-U10: Form improvements (redundant buttons, unsaved changes warning)
+1. **F6: Preset/locked assignments** - Core workflow need for real-world scheduling
+2. **F7: Block-based scheduling** - Required for clerkships with consecutive-day requirements
+3. **F1/F2: Half-day scheduling** - Common real-world need
+
+### Quick Wins
+
+1. **U8: Redundant buttons** - Simple text/UI fix
+2. **B2: Loading teams state** - Show empty state instead
+3. **B3: Calendar date defaults** - Default to full schedule range
+4. **U3: Rename "Fallback"** - Simple terminology fix
 
 ---
 
-## 🔍 NOTES FOR FOLLOW-UP
+## 🗂️ ITEMS DEFERRED
 
-Some items need clarification:
-- "Start trial button" - Context unclear. Related to subscription/pricing?
-- "Using optional fields" - What was the issue exactly?
-- "Associated sites" - Was this confusing or missing functionality?
+| Original Note | Reason |
+|---------------|--------|
+| "Start trial button" | User clarified this was initial confusion, not an issue to address |
+| "Using optional fields" | User clarified no issue - they just didn't understand optional fields were optional |
+| "Preceptor shows up for health system in edit page but not main table" | Unable to reproduce, unclear steps. Monitor for recurrence. |
