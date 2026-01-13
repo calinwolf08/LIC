@@ -23,7 +23,7 @@ test.describe('Preceptor Management UI', () => {
 		db = await getTestDb();
 	});
 
-	test('should create a preceptor and verify in database', async ({ page, request }) => {
+	test('should create a preceptor via wizard and verify in database', async ({ page, request }) => {
 		const timestamp = Date.now();
 
 		// Create health system via API
@@ -41,25 +41,35 @@ test.describe('Preceptor Management UI', () => {
 		await gotoAndWait(page, '/preceptors');
 		await expect(page.getByRole('heading', { name: 'Preceptors & Teams' })).toBeVisible();
 
-		// Click Add Preceptor to open modal
+		// Click Add Preceptor - should navigate to wizard
 		await page.getByRole('button', { name: 'Add Preceptor' }).click();
-		await expect(page.locator('input#name')).toBeVisible({ timeout: 5000 });
+		await page.waitForURL(/\/preceptors\/new/, { timeout: 5000 });
 
-		// Fill out form
+		// Step 1: Basic Information
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
 		await page.locator('input#name').fill(preceptorName);
 		await page.locator('input#email').fill(preceptorEmail);
-		await page.locator('select#health_system_id').selectOption(healthSystemId);
 		await page.locator('input#max_students').clear();
 		await page.locator('input#max_students').fill('3');
 
-		// Submit form
-		await page.getByRole('button', { name: 'Create Preceptor' }).click();
+		// Click Next to go to Step 2
+		await page.getByRole('button', { name: /next/i }).click();
 
-		// Wait for form to process and modal to close
-		await expect(page.locator('input#name')).not.toBeVisible({ timeout: 10000 });
+		// Step 2: Health System & Sites
+		await expect(page.getByRole('heading', { name: 'Health System & Sites' })).toBeVisible();
+		await page.locator('select#health_system_id').selectOption(healthSystemId);
 
-		// Verify preceptor appears in UI
-		await expect(page.locator(`text=${preceptorName}`)).toBeVisible({ timeout: 5000 });
+		// Click Create & Continue to create preceptor and go to Step 3
+		await page.getByRole('button', { name: /create & continue/i }).click();
+
+		// Step 3: Availability - should show success message
+		await expect(page.locator('text=has been created')).toBeVisible({ timeout: 10000 });
+
+		// Skip availability for now
+		await page.getByRole('link', { name: /skip for now/i }).or(page.locator('text=Skip for now')).click();
+
+		// Should redirect back to preceptors list
+		await page.waitForURL(/\/preceptors$/, { timeout: 5000 });
 
 		// VALIDATE IN DATABASE
 		const dbPreceptor = await executeWithRetry(() =>
@@ -75,6 +85,56 @@ test.describe('Preceptor Management UI', () => {
 		expect(dbPreceptor!.email).toBe(preceptorEmail);
 		expect(dbPreceptor!.health_system_id).toBe(healthSystemId);
 		expect(dbPreceptor!.max_students).toBe(3);
+	});
+
+	test('should validate required fields in wizard Step 1', async ({ page }) => {
+		// Navigate to wizard
+		await gotoAndWait(page, '/preceptors/new');
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
+
+		// Try to proceed without filling required fields
+		await page.getByRole('button', { name: /next/i }).click();
+
+		// Should show validation errors and stay on Step 1
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
+
+		// Fill only name, still missing email
+		await page.locator('input#name').fill('Dr. Test');
+		await page.getByRole('button', { name: /next/i }).click();
+
+		// Should still be on Step 1 (email required)
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
+	});
+
+	test('should navigate wizard steps correctly', async ({ page, request }) => {
+		const timestamp = Date.now();
+
+		// Create health system via API for step 2
+		const hsResponse = await request.post('/api/health-systems', {
+			data: { name: `Test HS ${timestamp}`, location: 'Test Location' }
+		});
+		expect(hsResponse.ok()).toBe(true);
+
+		// Navigate to wizard
+		await gotoAndWait(page, '/preceptors/new');
+
+		// Should start on Step 1
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
+
+		// Fill Step 1
+		await page.locator('input#name').fill(`Dr. Nav Test ${timestamp}`);
+		await page.locator('input#email').fill(`nav.test.${timestamp}@hospital.edu`);
+
+		// Go to Step 2
+		await page.getByRole('button', { name: /next/i }).click();
+		await expect(page.getByRole('heading', { name: 'Health System & Sites' })).toBeVisible();
+
+		// Go back to Step 1
+		await page.getByRole('button', { name: /back/i }).click();
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
+
+		// Verify data persisted
+		await expect(page.locator('input#name')).toHaveValue(`Dr. Nav Test ${timestamp}`);
 	});
 
 	test('should edit preceptor details and verify in database', async ({ page, request }) => {
@@ -311,25 +371,21 @@ test.describe('Preceptor Management UI', () => {
 		expect(dbPreceptor).toBeUndefined();
 	});
 
-	test('should not submit form with invalid email format', async ({ page }) => {
-		await gotoAndWait(page, '/preceptors');
-
-		// Click Add Preceptor
-		await page.getByRole('button', { name: 'Add Preceptor' }).click();
-		await expect(page.locator('input#name')).toBeVisible({ timeout: 5000 });
+	test('should not proceed with invalid email format in wizard', async ({ page }) => {
+		await gotoAndWait(page, '/preceptors/new');
 
 		// Fill with invalid email
 		await page.locator('input#name').fill('Dr. Invalid Email');
 		await page.locator('input#email').fill('not-an-email');
 
-		// Try to submit
-		await page.getByRole('button', { name: 'Create Preceptor' }).click();
+		// Try to proceed to next step
+		await page.getByRole('button', { name: /next/i }).click();
 
 		// Wait for validation
-		await page.waitForTimeout(1000);
+		await page.waitForTimeout(500);
 
-		// Should still be on form (not closed)
-		await expect(page.locator('input#name')).toBeVisible();
+		// Should still be on Step 1 (validation error)
+		await expect(page.getByRole('heading', { name: 'Basic Information' })).toBeVisible();
 
 		// VALIDATE nothing created in DATABASE
 		const dbPreceptor = await executeWithRetry(() =>
