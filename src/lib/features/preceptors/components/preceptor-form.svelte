@@ -277,9 +277,13 @@
 				<div class="max-h-40 overflow-y-auto rounded-md border border-input p-2">
 					{#if filteredSites.length === 0}
 						<p class="text-sm text-muted-foreground py-2">
-							{formData.health_system_id
-								? 'No sites for this health system.'
-								: 'No sites available.'}
+							{#if sitesList.length === 0}
+								No sites exist yet. Create a site first using the button below.
+							{:else if formData.health_system_id}
+								No sites found for this health system. Create one or select a different health system.
+							{:else}
+								Select a health system to see available sites, or create a new site.
+							{/if}
 						</p>
 					{:else}
 						{#each filteredSites as site}

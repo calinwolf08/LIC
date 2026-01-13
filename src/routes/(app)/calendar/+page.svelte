@@ -464,6 +464,9 @@
 
 	{#if showFilters}
 		<Card class="p-6 mb-6">
+			<p class="text-sm text-muted-foreground mb-4">
+				These filters only change what is displayed. They do not affect schedule generation.
+			</p>
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 				<!-- Date Range -->
 				<div class="space-y-2">

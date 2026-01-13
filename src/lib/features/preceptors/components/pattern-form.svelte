@@ -389,18 +389,21 @@
 				{/if}
 			</div>
 
-			<!-- Optional Reason -->
-			{#if patternType === 'individual'}
-				<div class="space-y-2">
-					<Label for="reason">Reason (optional)</Label>
-					<Input
-						id="reason"
-						type="text"
-						bind:value={reason}
-						placeholder="e.g., Conference attendance"
-					/>
-				</div>
-			{/if}
+			<!-- Optional Notes -->
+			<div class="space-y-2">
+				<Label for="reason">Notes (optional)</Label>
+				<Input
+					id="reason"
+					type="text"
+					bind:value={reason}
+					placeholder={patternType === 'individual'
+						? 'e.g., Conference attendance'
+						: 'e.g., "starts at 9am", "no afternoons", "prefers mornings"'}
+				/>
+				<p class="text-xs text-muted-foreground">
+					Add notes about this availability pattern for reference.
+				</p>
+			</div>
 		</div>
 
 		<!-- Actions -->

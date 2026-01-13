@@ -291,6 +291,7 @@ export interface PreceptorWithAssociations {
 	sites: Array<{ id: string; name: string }>;
 	clerkships: Array<{ id: string; name: string }>;
 	teams: Array<{ id: string; name: string | null }>;
+	has_availability: boolean;
 }
 
 /**
@@ -317,7 +318,7 @@ export async function getPreceptorsWithAssociations(
 		.orderBy('preceptors.name', 'asc')
 		.execute();
 
-	// For each preceptor, get their sites, clerkships (via teams), and teams
+	// For each preceptor, get their sites, clerkships (via teams), teams, and availability status
 	const result = await Promise.all(
 		preceptors.map(async (p) => {
 			// Get sites via preceptor_sites junction table
@@ -342,6 +343,14 @@ export async function getPreceptorsWithAssociations(
 				.where('preceptor_team_members.preceptor_id', '=', p.id as string)
 				.execute();
 
+			// Check if preceptor has any availability configured
+			const availability = await db
+				.selectFrom('preceptor_availability')
+				.select('id')
+				.where('preceptor_id', '=', p.id as string)
+				.limit(1)
+				.executeTakeFirst();
+
 			// Extract unique clerkships from teams
 			const clerkshipsMap = new Map<string, string>();
 			teams.forEach((t) => {
@@ -364,7 +373,8 @@ export async function getPreceptorsWithAssociations(
 				updated_at: p.updated_at as string,
 				sites: sites.map((s) => ({ id: s.id as string, name: s.name })),
 				clerkships,
-				teams: teams.map((t) => ({ id: t.team_id as string, name: t.team_name }))
+				teams: teams.map((t) => ({ id: t.team_id as string, name: t.team_name })),
+				has_availability: !!availability
 			};
 		})
 	);
@@ -437,7 +447,7 @@ export async function getPreceptorsWithAssociationsBySchedule(
 		.orderBy('preceptors.name', 'asc')
 		.execute();
 
-	// For each preceptor, get their sites, clerkships (via teams), and teams
+	// For each preceptor, get their sites, clerkships (via teams), teams, and availability status
 	const result = await Promise.all(
 		preceptors.map(async (p) => {
 			// Get sites via preceptor_sites junction table
@@ -462,6 +472,14 @@ export async function getPreceptorsWithAssociationsBySchedule(
 				.where('preceptor_team_members.preceptor_id', '=', p.id as string)
 				.execute();
 
+			// Check if preceptor has any availability configured
+			const availability = await db
+				.selectFrom('preceptor_availability')
+				.select('id')
+				.where('preceptor_id', '=', p.id as string)
+				.limit(1)
+				.executeTakeFirst();
+
 			// Extract unique clerkships from teams
 			const clerkshipsMap = new Map<string, string>();
 			teams.forEach((t) => {
@@ -484,7 +502,8 @@ export async function getPreceptorsWithAssociationsBySchedule(
 				updated_at: p.updated_at as string,
 				sites: sites.map((s) => ({ id: s.id as string, name: s.name })),
 				clerkships,
-				teams: teams.map((t) => ({ id: t.team_id as string, name: t.team_name }))
+				teams: teams.map((t) => ({ id: t.team_id as string, name: t.team_name })),
+				has_availability: !!availability
 			};
 		})
 	);

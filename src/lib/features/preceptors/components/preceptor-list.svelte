@@ -81,6 +81,7 @@
 					<th class="px-4 py-3 text-left text-sm font-medium">Sites</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Clerkships</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Teams</th>
+					<th class="px-4 py-3 text-left text-sm font-medium">Availability</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Max Students</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Actions</th>
 				</tr>
@@ -88,13 +89,13 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="8" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="9" class="px-4 py-8 text-center text-muted-foreground">
 							Loading...
 						</td>
 					</tr>
 				{:else if sortedPreceptors().length === 0}
 					<tr>
-						<td colspan="8" class="px-4 py-8 text-center text-muted-foreground">
+						<td colspan="9" class="px-4 py-8 text-center text-muted-foreground">
 							No preceptors found
 						</td>
 					</tr>
@@ -143,6 +144,17 @@
 									{/each}
 								{:else}
 									<span class="text-muted-foreground">—</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-sm">
+								{#if preceptor.has_availability}
+									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+										Configured
+									</span>
+								{:else}
+									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="Availability must be configured for this preceptor to be included in schedule generation">
+										Not Set
+									</span>
 								{/if}
 							</td>
 							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
