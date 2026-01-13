@@ -442,7 +442,7 @@
 							disabled={isSubmitting}
 						/>
 						<Label for="fallbackOnly" class="cursor-pointer text-sm whitespace-nowrap">
-							Fallback only
+							Backup only
 						</Label>
 					</div>
 					<Button type="button" variant="outline" onclick={addMember} disabled={isSubmitting || !selectedPreceptorId}>
@@ -450,7 +450,7 @@
 					</Button>
 				</div>
 				<p class="text-xs text-muted-foreground mb-4">
-					<strong>Fallback only:</strong> This preceptor will only be assigned when primary members reach capacity.
+					<strong>Backup only:</strong> This preceptor will only be assigned when primary members reach capacity.
 				</p>
 
 				<!-- Member List -->
@@ -462,7 +462,7 @@
 									<p class="font-medium flex items-center gap-2">
 										{index + 1}. {getPreceptorName(member.preceptorId)}
 										{#if member.isFallbackOnly}
-											<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Fallback</span>
+											<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Backup</span>
 										{/if}
 									</p>
 									<div class="mt-1 flex gap-3 text-xs text-muted-foreground">

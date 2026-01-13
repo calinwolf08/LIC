@@ -257,7 +257,7 @@
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
 				}`}
 			>
-				Associated Sites ({associatedSites.length})
+				Allowed Sites ({associatedSites.length})
 			</button>
 			<button
 				onclick={() => (activeTab = 'teams')}
@@ -391,6 +391,15 @@
 						<option value="block_based">Block Based</option>
 						<option value="daily_rotation">Daily Rotation</option>
 					</select>
+					<p class="text-xs text-muted-foreground">
+						{#if settings.assignmentStrategy === 'team_continuity' || settings.assignmentStrategy === 'continuous_single' || settings.assignmentStrategy === 'continuous_team'}
+							Maximizes continuity by assigning as many days as possible to the primary preceptor, then fills remaining days with other team members by priority.
+						{:else if settings.assignmentStrategy === 'block_based'}
+							Divides the rotation into fixed-size blocks (e.g., 2-week blocks) with one preceptor assigned per block. Ideal for inpatient rotations.
+						{:else if settings.assignmentStrategy === 'daily_rotation'}
+							Rotates through different preceptors day-by-day to provide exposure to varied teaching styles. Days do not need to be consecutive.
+						{/if}
+					</p>
 				</div>
 
 				<!-- Health System Rule -->
@@ -544,7 +553,7 @@
 	{:else if activeTab === 'sites'}
 		<Card class="p-6">
 			<div class="flex items-center justify-between mb-4">
-				<h2 class="text-xl font-semibold">Associated Sites</h2>
+				<h2 class="text-xl font-semibold">Allowed Sites</h2>
 				<Button onclick={() => showAddSiteModal = true}>Add Site</Button>
 			</div>
 
