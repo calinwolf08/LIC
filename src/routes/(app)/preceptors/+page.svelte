@@ -184,7 +184,10 @@
 		/>
 	{:else if activeTab === 'teams'}
 		<div class="space-y-6">
-			<div class="flex items-center justify-end">
+			<div class="flex items-center justify-between">
+				<p class="text-sm text-muted-foreground max-w-2xl">
+					Teams group preceptors for scheduling. Every preceptor must belong to at least one team to be included in schedule generation.
+				</p>
 				<Button onclick={handleAddTeam}>Add Team</Button>
 			</div>
 

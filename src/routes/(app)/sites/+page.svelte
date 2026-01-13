@@ -36,7 +36,9 @@
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h1 class="text-3xl font-bold">Sites</h1>
-			<p class="text-muted-foreground mt-1">Manage clinical rotation sites</p>
+			<p class="text-muted-foreground mt-1">
+				Manage clinical rotation sites. Each clinical location should be its own site. Sites are grouped by Health System.
+			</p>
 		</div>
 		<Button href="/sites/new">+ New Site</Button>
 	</div>
