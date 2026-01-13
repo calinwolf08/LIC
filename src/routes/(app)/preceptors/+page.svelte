@@ -9,11 +9,25 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
 
-	// Tab state
+	// Read origin context from URL params
+	let fromClerkshipId = $derived($page.url.searchParams.get('fromClerkship'));
+	let fromClerkship = $derived(
+		fromClerkshipId ? data.clerkships.find((c) => c.id === fromClerkshipId) : null
+	);
+
+	// Tab state - default to teams if coming from clerkship
 	let activeTab = $state<'preceptors' | 'teams'>('preceptors');
+
+	// Set initial tab based on URL param
+	$effect(() => {
+		if ($page.url.searchParams.get('tab') === 'teams') {
+			activeTab = 'teams';
+		}
+	});
 
 	// Preceptor state
 	let showForm = $state(false);
@@ -129,11 +143,13 @@
 
 	// Team handlers
 	function handleAddTeam() {
-		goto('/preceptors/teams/new');
+		const params = fromClerkshipId ? `?fromClerkship=${fromClerkshipId}` : '';
+		goto(`/preceptors/teams/new${params}`);
 	}
 
 	function handleEditTeam(team: any) {
-		goto(`/preceptors/teams/${team.id}`);
+		const params = fromClerkshipId ? `?fromClerkship=${fromClerkshipId}` : '';
+		goto(`/preceptors/teams/${team.id}${params}`);
 	}
 
 	function handleTeamDeleted() {
@@ -143,6 +159,12 @@
 </script>
 
 <div class="container mx-auto py-8">
+	{#if fromClerkship}
+		<Button variant="ghost" onclick={() => goto(`/clerkships/${fromClerkshipId}/config`)} class="mb-4">
+			← Back to {fromClerkship.name} Config
+		</Button>
+	{/if}
+
 	<div class="mb-6">
 		<h1 class="text-3xl font-bold">Preceptors & Teams</h1>
 	</div>

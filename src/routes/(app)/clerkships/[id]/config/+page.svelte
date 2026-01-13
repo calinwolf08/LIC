@@ -642,7 +642,7 @@
 		<Card class="p-6">
 			<div class="flex items-center justify-between mb-4">
 				<h2 class="text-xl font-semibold">Preceptor Teams</h2>
-				<Button variant="outline" onclick={() => goto('/preceptors?tab=teams')}>
+				<Button variant="outline" onclick={() => goto(`/preceptors?tab=teams&fromClerkship=${data.clerkship.id}`)}>
 					Manage Teams
 				</Button>
 			</div>
@@ -653,7 +653,7 @@
 						<div class="flex items-center justify-between p-3 border rounded-md">
 							<div>
 								<a
-									href="/preceptors/teams/{team.id}"
+									href="/preceptors/teams/{team.id}?fromClerkship={data.clerkship.id}"
 									class="text-blue-600 hover:underline font-medium"
 								>
 									{team.name || 'Unnamed Team'}

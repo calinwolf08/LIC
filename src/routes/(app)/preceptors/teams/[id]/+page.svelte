@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { teamsClient, formatApiError } from '$lib/features/scheduling-config/clients/teams-client';
 	import { createClientLogger } from '$lib/utils/logger.client';
 
@@ -19,6 +20,14 @@
 	}
 
 	let { data }: Props = $props();
+
+	// Read origin context from URL params
+	let fromClerkshipId = $derived($page.url.searchParams.get('fromClerkship'));
+
+	// Build back URL with context
+	let backUrl = $derived(
+		fromClerkshipId ? `/preceptors?tab=teams&fromClerkship=${fromClerkshipId}` : '/preceptors'
+	);
 
 	let isEditing = $state(false);
 	let isSaving = $state(false);
@@ -111,7 +120,7 @@
 			}
 
 			log.info('Team deleted successfully', { teamId: data.teamId });
-			goto('/preceptors');
+			goto(backUrl);
 		} catch (err) {
 			log.error('Unexpected delete error', { error: err });
 			error = err instanceof Error ? err.message : 'Failed to delete team';
@@ -198,7 +207,13 @@
 <div class="container mx-auto max-w-4xl p-6">
 	<!-- Breadcrumb -->
 	<nav class="mb-6 text-sm text-muted-foreground">
-		<a href="/preceptors" class="hover:underline">Preceptors</a>
+		{#if fromClerkshipId && data.team?.clerkshipId === fromClerkshipId}
+			<a href="/clerkships/{fromClerkshipId}/config" class="hover:underline">{data.team.clerkshipName}</a>
+			<span class="mx-2">/</span>
+			<a href={backUrl} class="hover:underline">Teams</a>
+		{:else}
+			<a href="/preceptors" class="hover:underline">Preceptors</a>
+		{/if}
 		<span class="mx-2">/</span>
 		<span>Team Configuration</span>
 	</nav>
@@ -206,7 +221,7 @@
 	{#if !data.team}
 		<Card class="p-12 text-center">
 			<p class="text-muted-foreground">Team not found.</p>
-			<Button class="mt-4" onclick={() => goto('/preceptors')}>Back to Preceptors</Button>
+			<Button class="mt-4" onclick={() => goto(backUrl)}>Back</Button>
 		</Card>
 	{:else}
 		<!-- Header -->
