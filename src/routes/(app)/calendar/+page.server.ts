@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.where('id', '=', user.active_schedule_id)
 				.executeTakeFirst();
 
-			if (schedule) {
+			if (schedule && schedule.id) {
 				activeSchedule = {
 					id: schedule.id,
 					startDate: schedule.start_date,

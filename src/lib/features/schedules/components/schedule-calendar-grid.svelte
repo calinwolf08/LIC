@@ -77,11 +77,12 @@
 				{#each month.weeks as week}
 					<div class="grid grid-cols-7 border-b last:border-b-0">
 						{#each week.days as day}
-							<button
-								type="button"
-								class="{getDayClasses(day)} min-h-[60px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative"
-								onclick={() => handleDayClick(day)}
-								disabled={!day.isCurrentMonth}
+							<div
+								role="button"
+								tabindex={day.isCurrentMonth ? 0 : -1}
+								class="{getDayClasses(day)} min-h-[60px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative cursor-pointer {!day.isCurrentMonth ? 'pointer-events-none' : ''}"
+								onclick={() => day.isCurrentMonth && handleDayClick(day)}
+								onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && day.isCurrentMonth && handleDayClick(day)}
 							>
 								<span class="text-xs font-medium {day.isToday ? 'text-primary' : ''}">
 									{day.dayOfMonth}
@@ -119,7 +120,7 @@
 										<span class="w-2 h-2 bg-green-500 rounded-full block"></span>
 									</div>
 								{/if}
-							</button>
+							</div>
 						{/each}
 					</div>
 				{/each}
