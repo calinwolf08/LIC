@@ -69,8 +69,8 @@
 
 	// Preceptor handlers
 	function handleAdd() {
-		selectedPreceptor = undefined;
-		showForm = true;
+		// Navigate to the new preceptor wizard
+		goto('/preceptors/new');
 	}
 
 	function handleEdit(preceptor: PreceptorWithAssociations) {

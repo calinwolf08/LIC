@@ -32,7 +32,7 @@ Parsed and clarified from user testing session.
 
 - [ ] **F9: Edit site inline from preceptor form** - When creating/editing a preceptor, allow quick-editing the linked site without losing preceptor form data. User encountered site with wrong health system and had to abandon preceptor creation to fix it. *(Priority: Medium)*
 - [ ] **F10: Streamlined clerkship → team → clerkship flow** - When on clerkship config, clicking "manage teams" should allow adding a team and returning to clerkship config seamlessly. Current flow requires manual navigation back. *(Priority: Medium)*
-- [ ] **F11: Preceptor creation wizard with availability** - Consider making preceptor creation a full page (not modal) with availability setup as part of the wizard. Ensures availability is configured during creation, not forgotten. *(Priority: Medium)*
+- [x] **F11: Preceptor creation wizard with availability** - Consider making preceptor creation a full page (not modal) with availability setup as part of the wizard. Ensures availability is configured during creation, not forgotten. *(Priority: Medium)* ✓ IMPLEMENTED
 
 ---
 
@@ -62,7 +62,7 @@ Parsed and clarified from user testing session.
 
 - [ ] **U12: Expected setup order not clear** - User went to preceptors first (not the expected order based on sidebar). No guidance on recommended setup sequence. *(Fix: Add onboarding flow or setup checklist: "1. Create Health Systems → 2. Create Sites → 3. Add Preceptors → 4. Create Teams → 5. Configure Clerkships")*
 - [ ] **U13: Manage Teams navigation is dead-end** - Clicking "Manage Teams" from clerkship goes to teams page but no easy way back to clerkship config. Hard to complete the workflow. *(Fix: Add breadcrumb, "back to clerkship" link, or handle team selection inline)*
-- [ ] **U14: Availability not shown on preceptor popup** - When viewing preceptor details, availability isn't immediately visible. User had to hunt for it. *(Fix: Show availability summary in preceptor detail view/popup)*
+- [x] **U14: Availability not shown on preceptor popup** - When viewing preceptor details, availability isn't immediately visible. User had to hunt for it. *(Fix: Full-page wizard now includes availability setup as step 3 during creation)*
 
 ### Calendar & Filtering
 
@@ -78,9 +78,9 @@ Parsed and clarified from user testing session.
 | Category | Count | Completed |
 |----------|-------|-----------|
 | Bugs | 3 | 3 |
-| Feature Requests | 11 | 2 |
-| UX/UI Improvements | 16 | 12 |
-| **Total** | **30** | **17** |
+| Feature Requests | 11 | 3 |
+| UX/UI Improvements | 16 | 13 |
+| **Total** | **30** | **19** |
 
 ### Critical Issues (Address First)
 
