@@ -18,8 +18,8 @@ Parsed and clarified from user testing session.
 
 - [ ] **F1: AM/PM time slots for availability** - Allow preceptors to mark availability for mornings or afternoons only, not just full days. Enables half-day scheduling. *(Priority: High)*
 - [ ] **F2: Half-day student assignments** - Support assigning students to one preceptor in AM and another in PM, based on preceptor half-day availability. *(Priority: High)*
-- [ ] **F3: Notes on availability** - Free-text notes field for availability (e.g., "starts at 9am", "no Wednesdays after 2pm", "prefers mornings"). *(Priority: Medium)*
-- [ ] **F4: Availability indicator on preceptor table** - Visual indicator showing whether a preceptor has availability configured. Makes it clear when user still needs to set up availability. *(Priority: Medium)*
+- [x] **F3: Notes on availability** - Free-text notes field for availability (e.g., "starts at 9am", "no Wednesdays after 2pm", "prefers mornings"). *(Priority: Medium)*
+- [x] **F4: Availability indicator on preceptor table** - Visual indicator showing whether a preceptor has availability configured. Makes it clear when user still needs to set up availability. *(Priority: Medium)*
 - [ ] **F5: Preceptor availability calendar view** - Calendar visualization showing when each preceptor is available (highlight available days). Useful for tracking even without auto-generation. *(Priority: Medium)*
 
 ### Scheduling & Assignments
@@ -48,15 +48,15 @@ Parsed and clarified from user testing session.
 - [x] **U3: "Fallback" terminology confusing** - User didn't understand this refers to backup preceptor when primary can't cover entire requirement. *(Fix: Rename to "Backup Preceptor" or add explanation: "Used when primary preceptor is unavailable")*
 - [x] **U4: Team concept not explained** - Users don't understand: (1) why teams exist, (2) that even single preceptors need a team, (3) that no team = preceptor excluded from scheduling. This is a critical gap. *(Fix: Add prominent explanation. Consider: "Teams group preceptors for scheduling. Every preceptor must belong to at least one team to be included in schedule generation.")*
 - [x] **U5: "Associated sites" label confusing** - Label is unclear in context. *(Fix: Rename to something more descriptive like "Sites where this preceptor works" or "Assigned sites")*
-- [ ] **U6: "Schedule" vs "Calendar" route confusion** - User went to /schedules expecting to generate a schedule. Didn't realize /schedules is for creating schedule periods and /calendar shows results. *(Fix: Rename routes or add clearer labels. "Schedule Periods" vs "Schedule Calendar"? Or consolidate into single scheduling hub.)*
-- [ ] **U7: Availability is required but not obvious** - User didn't know availability must be set for preceptors to be included in generation. Not clear during creation or on preceptor list. *(Fix: Add required indicator, include in creation flow, show warning on preceptor table for those without availability)*
+- [x] **U6: "Schedule" vs "Calendar" route confusion** - User went to /schedules expecting to generate a schedule. Didn't realize /schedules is for creating schedule periods and /calendar shows results. *(Fix: Rename routes or add clearer labels. "Schedule Periods" vs "Schedule Calendar"? Or consolidate into single scheduling hub.)*
+- [x] **U7: Availability is required but not obvious** - User didn't know availability must be set for preceptors to be included in generation. Not clear during creation or on preceptor list. *(Fix: Add required indicator, include in creation flow, show warning on preceptor table for those without availability)*
 
 ### Forms & Input
 
 - [x] **U8: Redundant site creation buttons** - Site list page has two buttons that both create a site but with different text. Confusing. *(Fix: Use single button, or ensure both have identical text)*
 - [ ] **U9: No unsaved changes warning** - User closed preceptor creation modal, went to edit a site, then had to re-enter all preceptor information. Lost work. *(Fix: Add "You have unsaved changes" warning on close. Or auto-save draft. Or allow inline site editing without leaving form.)*
 - [x] **U10: Site hierarchy expectation mismatch** - User expected to create a main site with sub-sites underneath. Current design: each location is a separate site entity. *(Fix: Add explanatory text: "Each clinical location should be its own site. Sites are grouped by Health System.")*
-- [ ] **U11: Dropdown vs text input confusion** - User tried typing site name in preceptor form instead of using dropdown. Didn't realize no sites existed yet. *(Fix: Add "No sites found - create one first" message in empty dropdown. Or allow inline site creation.)*
+- [x] **U11: Dropdown vs text input confusion** - User tried typing site name in preceptor form instead of using dropdown. Didn't realize no sites existed yet. *(Fix: Add "No sites found - create one first" message in empty dropdown. Or allow inline site creation.)*
 
 ### Navigation & Workflow
 
@@ -67,7 +67,7 @@ Parsed and clarified from user testing session.
 ### Calendar & Filtering
 
 - [x] **U15: Calendar filter not obviously a filter** - User wasn't clear the controls were filters at all. *(Fix: Add "Filter" label, use collapsible filter panel, or add filter icon)*
-- [ ] **U16: Calendar filter misleads about generation scope** - User filtered to single clerkship and expected only that clerkship to be generated. Filter only affects view, not generation. *(Fix: Add clear label: "Display Filter (does not affect schedule generation)" or separate generation options from view filters)*
+- [x] **U16: Calendar filter misleads about generation scope** - User filtered to single clerkship and expected only that clerkship to be generated. Filter only affects view, not generation. *(Fix: Add clear label: "Display Filter (does not affect schedule generation)" or separate generation options from view filters)*
 
 ---
 
@@ -78,9 +78,9 @@ Parsed and clarified from user testing session.
 | Category | Count | Completed |
 |----------|-------|-----------|
 | Bugs | 3 | 3 |
-| Feature Requests | 11 | 0 |
-| UX/UI Improvements | 16 | 8 |
-| **Total** | **30** | **11** |
+| Feature Requests | 11 | 2 |
+| UX/UI Improvements | 16 | 12 |
+| **Total** | **30** | **17** |
 
 ### Critical Issues (Address First)
 
@@ -88,7 +88,7 @@ These cause the most user confusion and friction:
 
 1. ~~**U4: Team concept not explained** - Users don't understand teams are required, leading to empty schedules~~ ✓ FIXED
 2. **F8: Scheduling readiness indicator** - Users try to generate without proper setup, get 0 results, don't know why
-3. **U7: Availability requirement not obvious** - Same issue, preceptors without availability silently excluded
+3. ~~**U7: Availability requirement not obvious** - Same issue, preceptors without availability silently excluded~~ ✓ FIXED
 4. ~~**B1: Health System delete not working** - Broken functionality with no feedback~~ ✓ FIXED
 5. **U9: No unsaved changes warning** - Users losing work
 
@@ -104,6 +104,11 @@ These cause the most user confusion and friction:
 2. ~~**B2: Loading teams state** - Show empty state instead~~ ✓ FIXED
 3. ~~**B3: Calendar date defaults** - Default to full schedule range~~ ✓ FIXED
 4. ~~**U3: Rename "Fallback"** - Simple terminology fix~~ ✓ FIXED
+5. ~~**U6: Schedule/Calendar route labels** - Renamed to "Schedule Periods" and "Schedule Calendar"~~ ✓ FIXED
+6. ~~**U11: Empty sites dropdown message** - Added context-aware guidance~~ ✓ FIXED
+7. ~~**U16: Calendar filter clarification** - Added text clarifying filters don't affect generation~~ ✓ FIXED
+8. ~~**F3: Notes on availability** - Added notes field to all pattern types~~ ✓ FIXED
+9. ~~**F4: Availability indicator** - Added status column to preceptor table~~ ✓ FIXED
 
 ---
 
