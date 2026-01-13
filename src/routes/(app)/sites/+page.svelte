@@ -49,7 +49,7 @@
 			<p class="text-sm text-muted-foreground mt-2">
 				Get started by creating your first site.
 			</p>
-			<Button href="/sites/new" class="mt-4">Create Site</Button>
+			<Button href="/sites/new" class="mt-4">+ New Site</Button>
 		</Card>
 	{:else}
 		<SiteList sites={data.sites} onEdit={handleEdit} onDelete={handleDelete} />

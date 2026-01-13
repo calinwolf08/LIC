@@ -11,6 +11,7 @@
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { Filter, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import {
 		formatDisplayDate as formatDateDisplay,
 		formatMonthYear,
@@ -30,6 +31,7 @@
 		}))
 	);
 	let showBlackoutPanel = $state(false);
+	let showFilters = $state(false);
 
 	// Create a Set of blackout dates for efficient lookup
 	let blackoutDateSet = $derived(new Set(blackoutDates.map(bd => bd.date)));
@@ -52,13 +54,28 @@
 	// View mode toggle
 	let viewMode = $state<'list' | 'calendar'>('list');
 
-	// Current date range (default to current month)
-	const today = new Date();
-	const firstDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-	const lastDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+	// Current date range (default to active schedule dates, or current month if no schedule)
+	function getDefaultDateRange(): { start: string; end: string } {
+		// Use active schedule dates if available
+		if (data.activeSchedule?.startDate && data.activeSchedule?.endDate) {
+			return {
+				start: data.activeSchedule.startDate,
+				end: data.activeSchedule.endDate
+			};
+		}
+		// Fall back to current month
+		const today = new Date();
+		const firstDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+		const lastDayOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+		return {
+			start: formatUTCDate(firstDayOfMonth),
+			end: formatUTCDate(lastDayOfMonth)
+		};
+	}
 
-	let startDate = $state(formatUTCDate(firstDayOfMonth));
-	let endDate = $state(formatUTCDate(lastDayOfMonth));
+	const defaultDates = getDefaultDateRange();
+	let startDate = $state(defaultDates.start);
+	let endDate = $state(defaultDates.end);
 
 	// Filters
 	let selectedStudent = $state<string>('');
@@ -151,6 +168,12 @@
 		selectedStudent = '';
 		selectedPreceptor = '';
 		selectedClerkship = '';
+	}
+
+	function resetToScheduleDates() {
+		const defaults = getDefaultDateRange();
+		startDate = defaults.start;
+		endDate = defaults.end;
 	}
 
 	// Edit assignment
@@ -404,8 +427,8 @@
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
-			<Button variant="destructive" onclick={handleRegenerateClick}>
-				Regenerate Schedule
+			<Button variant="default" onclick={handleRegenerateClick}>
+				{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
 			</Button>
 		</div>
 	</div>
@@ -422,81 +445,101 @@
 		</div>
 	{/if}
 
-	<!-- Filters -->
-	<Card class="p-6 mb-6">
-		<h2 class="text-lg font-semibold mb-4">Filters</h2>
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-			<!-- Date Range -->
-			<div class="space-y-2">
-				<Label for="start_date">Start Date</Label>
-				<input
-					id="start_date"
-					type="date"
-					bind:value={startDate}
-					class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-				/>
+	<!-- Filters Toggle -->
+	<div class="mb-6">
+		<Button
+			variant="outline"
+			onclick={() => showFilters = !showFilters}
+			class="flex items-center gap-2"
+		>
+			<Filter class="h-4 w-4" />
+			Filters
+			{#if showFilters}
+				<ChevronUp class="h-4 w-4" />
+			{:else}
+				<ChevronDown class="h-4 w-4" />
+			{/if}
+		</Button>
+	</div>
+
+	{#if showFilters}
+		<Card class="p-6 mb-6">
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				<!-- Date Range -->
+				<div class="space-y-2">
+					<Label for="start_date">Start Date</Label>
+					<input
+						id="start_date"
+						type="date"
+						bind:value={startDate}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="end_date">End Date</Label>
+					<input
+						id="end_date"
+						type="date"
+						bind:value={endDate}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					/>
+				</div>
+
+				<!-- Student Filter -->
+				<div class="space-y-2">
+					<Label for="student">Student</Label>
+					<select
+						id="student"
+						bind:value={selectedStudent}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="">All Students</option>
+						{#each data.students as student}
+							<option value={student.id}>{student.name}</option>
+						{/each}
+					</select>
+				</div>
+
+				<!-- Preceptor Filter -->
+				<div class="space-y-2">
+					<Label for="preceptor">Preceptor</Label>
+					<select
+						id="preceptor"
+						bind:value={selectedPreceptor}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="">All Preceptors</option>
+						{#each data.preceptors as preceptor}
+							<option value={preceptor.id}>{preceptor.name}</option>
+						{/each}
+					</select>
+				</div>
+
+				<!-- Clerkship Filter -->
+				<div class="space-y-2">
+					<Label for="clerkship">Clerkship</Label>
+					<select
+						id="clerkship"
+						bind:value={selectedClerkship}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="">All Clerkships</option>
+						{#each data.clerkships as clerkship}
+							<option value={clerkship.id}>{clerkship.name}</option>
+						{/each}
+					</select>
+				</div>
 			</div>
 
-			<div class="space-y-2">
-				<Label for="end_date">End Date</Label>
-				<input
-					id="end_date"
-					type="date"
-					bind:value={endDate}
-					class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-				/>
+			<div class="flex gap-3 mt-4">
+				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
+				{#if data.activeSchedule}
+					<Button variant="outline" onclick={resetToScheduleDates}>View Full Schedule</Button>
+				{/if}
 			</div>
-
-			<!-- Student Filter -->
-			<div class="space-y-2">
-				<Label for="student">Student</Label>
-				<select
-					id="student"
-					bind:value={selectedStudent}
-					class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-				>
-					<option value="">All Students</option>
-					{#each data.students as student}
-						<option value={student.id}>{student.name}</option>
-					{/each}
-				</select>
-			</div>
-
-			<!-- Preceptor Filter -->
-			<div class="space-y-2">
-				<Label for="preceptor">Preceptor</Label>
-				<select
-					id="preceptor"
-					bind:value={selectedPreceptor}
-					class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-				>
-					<option value="">All Preceptors</option>
-					{#each data.preceptors as preceptor}
-						<option value={preceptor.id}>{preceptor.name}</option>
-					{/each}
-				</select>
-			</div>
-
-			<!-- Clerkship Filter -->
-			<div class="space-y-2">
-				<Label for="clerkship">Clerkship</Label>
-				<select
-					id="clerkship"
-					bind:value={selectedClerkship}
-					class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-				>
-					<option value="">All Clerkships</option>
-					{#each data.clerkships as clerkship}
-						<option value={clerkship.id}>{clerkship.name}</option>
-					{/each}
-				</select>
-			</div>
-		</div>
-
-		<div class="flex gap-3 mt-4">
-			<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
-		</div>
-	</Card>
+		</Card>
+	{/if}
 
 	<!-- Month Navigation and View Toggle -->
 	<div class="flex items-center justify-between mb-6 flex-wrap gap-4">
