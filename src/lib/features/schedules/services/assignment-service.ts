@@ -6,7 +6,12 @@
 
 import type { Kysely, Selectable, Insertable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
-import type { CreateAssignmentInput, UpdateAssignmentInput, BulkAssignmentInput, AssignmentFilters } from '../schemas.js';
+import type {
+	CreateAssignmentInput,
+	UpdateAssignmentInput,
+	BulkAssignmentInput,
+	AssignmentFilters
+} from '../schemas.js';
 import { NotFoundError, ConflictError, ValidationError } from '$lib/api/errors';
 import { getStudentById } from '$lib/features/students/services/student-service';
 import { getPreceptorById } from '$lib/features/preceptors/services/preceptor-service';
@@ -14,8 +19,175 @@ import { getClerkshipById } from '$lib/features/clerkships/services/clerkship-se
 import { isDateBlackedOut } from '$lib/features/blackout-dates/services/blackout-date-service';
 import { getAvailabilityByDate } from '$lib/features/preceptors/services/availability-service';
 import { createServerLogger } from '$lib/utils/logger.server';
+import {
+	validateAssignmentCandidate,
+	type AssignmentCandidate,
+	type Violation
+} from '$lib/features/scheduling/services/assignment-validation';
 
 const log = createServerLogger('service:schedules:assignment');
+
+// ---------------------------------------------------------------------------
+// Manual assignment creation (Step 09)
+// ---------------------------------------------------------------------------
+
+export interface ManualAssignmentInput {
+	student_id: string;
+	preceptor_id: string;
+	clerkship_id: string;
+	site_id?: string | null;
+	date: string;
+	locked?: boolean;
+}
+
+export type ManualCreateResult =
+	| { ok: true; assignment: Selectable<ScheduleAssignments>; warnings: Violation[] }
+	| { ok: false; hard: Violation[]; soft: Violation[] };
+
+/**
+ * Create a single assignment by hand.
+ * - Hard violations always reject.
+ * - Soft violations reject unless `force`, in which case the assignment is
+ *   created and the violations are returned as `warnings`.
+ */
+export async function createManualAssignment(
+	db: Kysely<DB>,
+	scheduleId: string,
+	input: ManualAssignmentInput,
+	opts: { force?: boolean } = {}
+): Promise<ManualCreateResult> {
+	const candidate: AssignmentCandidate = {
+		student_id: input.student_id,
+		preceptor_id: input.preceptor_id,
+		clerkship_id: input.clerkship_id,
+		site_id: input.site_id ?? null,
+		date: input.date
+	};
+	const result = await validateAssignmentCandidate(db, scheduleId, candidate);
+	if (result.hard.length > 0 || (result.soft.length > 0 && !opts.force)) {
+		return { ok: false, hard: result.hard, soft: result.soft };
+	}
+
+	const timestamp = new Date().toISOString();
+	const assignment = await db
+		.insertInto('schedule_assignments')
+		.values({
+			id: crypto.randomUUID(),
+			student_id: input.student_id,
+			preceptor_id: input.preceptor_id,
+			clerkship_id: input.clerkship_id,
+			site_id: input.site_id ?? null,
+			date: input.date,
+			status: 'scheduled',
+			locked: input.locked ? 1 : 0,
+			source: 'manual',
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.returningAll()
+		.executeTakeFirstOrThrow();
+
+	log.info('Manual assignment created', { id: assignment.id, forced: !!opts.force });
+	return { ok: true, assignment, warnings: result.soft };
+}
+
+export interface BulkManualInput {
+	student_id: string;
+	preceptor_id: string;
+	clerkship_id: string;
+	site_id?: string | null;
+	start_date: string;
+	end_date: string;
+	/** 0=Sun … 6=Sat; empty means all days. */
+	weekdays?: number[];
+	skip_blackouts?: boolean;
+	locked?: boolean;
+}
+
+export interface BulkManualDateResult {
+	date: string;
+	created: boolean;
+	skipped?: 'hard_conflict' | 'blackout' | 'soft_blocked';
+	violations?: Violation[];
+}
+
+export interface BulkManualResult {
+	createdCount: number;
+	results: BulkManualDateResult[];
+}
+
+function expandDates(start: string, end: string, weekdays: number[] | undefined): string[] {
+	const dates: string[] = [];
+	const cur = new Date(start + 'T00:00:00.000Z');
+	const last = new Date(end + 'T00:00:00.000Z');
+	const filter = weekdays && weekdays.length > 0 ? new Set(weekdays) : null;
+	while (cur <= last) {
+		if (!filter || filter.has(cur.getUTCDay())) {
+			dates.push(cur.toISOString().split('T')[0]);
+		}
+		cur.setUTCDate(cur.getUTCDate() + 1);
+	}
+	return dates;
+}
+
+/**
+ * Create assignments over a date range. Hard-conflict dates are skipped and
+ * reported; soft violations are skipped unless `force`.
+ */
+export async function createManualAssignmentsBulk(
+	db: Kysely<DB>,
+	scheduleId: string,
+	input: BulkManualInput,
+	opts: { force?: boolean } = {}
+): Promise<BulkManualResult> {
+	const dates = expandDates(input.start_date, input.end_date, input.weekdays);
+
+	return db.transaction().execute(async (trx) => {
+		const results: BulkManualDateResult[] = [];
+		let createdCount = 0;
+
+		for (const date of dates) {
+			const res = await createManualAssignment(
+				trx,
+				scheduleId,
+				{
+					student_id: input.student_id,
+					preceptor_id: input.preceptor_id,
+					clerkship_id: input.clerkship_id,
+					site_id: input.site_id ?? null,
+					date,
+					locked: input.locked
+				},
+				opts
+			);
+			if (res.ok) {
+				createdCount++;
+				results.push({ date, created: true, violations: res.warnings });
+			} else {
+				const skipped = res.hard.length > 0 ? 'hard_conflict' : 'soft_blocked';
+				results.push({ date, created: false, skipped, violations: [...res.hard, ...res.soft] });
+			}
+		}
+
+		return { createdCount, results };
+	});
+}
+
+/** Toggle the lock flag on an assignment (preset assignments survive generation). */
+export async function setAssignmentLock(
+	db: Kysely<DB>,
+	id: string,
+	locked: boolean
+): Promise<Selectable<ScheduleAssignments>> {
+	const updated = await db
+		.updateTable('schedule_assignments')
+		.set({ locked: locked ? 1 : 0, updated_at: new Date().toISOString() })
+		.where('id', '=', id)
+		.returningAll()
+		.executeTakeFirst();
+	if (!updated) throw new NotFoundError('Assignment');
+	return updated;
+}
 
 /**
  * Get all assignments with optional filters
@@ -39,9 +211,7 @@ export async function getAssignments(
 	}
 
 	if (filters?.start_date && filters?.end_date) {
-		query = query
-			.where('date', '>=', filters.start_date)
-			.where('date', '<=', filters.end_date);
+		query = query.where('date', '>=', filters.start_date).where('date', '<=', filters.end_date);
 	} else if (filters?.start_date) {
 		query = query.where('date', '>=', filters.start_date);
 	} else if (filters?.end_date) {

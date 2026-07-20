@@ -13,6 +13,7 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
+	import { CreateAssignmentDialog } from '$lib/features/schedules/components';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -225,6 +226,17 @@
 		selectedAssignment = null;
 	}
 
+	// Create assignment
+	let showCreateAssignment = $state(false);
+	let createDate = $state('');
+	function openCreateAssignment() {
+		createDate = '';
+		showCreateAssignment = true;
+	}
+	function handleAssignmentCreated() {
+		loadCalendar();
+	}
+
 	// Regenerate schedule
 	function handleRegenerateClick() {
 		showRegenerateDialog = true;
@@ -359,14 +371,17 @@
 		return result;
 	});
 
-	// Handle day click in calendar grid (opens first assignment if any)
+	// Handle day click in calendar grid: open the first assignment, or create
+	// a new assignment on an empty day.
 	function handleDayClick(day: CalendarDay) {
 		if (day.assignments && day.assignments.length > 0) {
-			// Find the full event to get the enriched assignment
 			const event = events.find((e) => e.assignment.id === day.assignments[0].id);
 			if (event) {
 				handleEditClick(event.assignment);
 			}
+		} else {
+			createDate = day.date;
+			showCreateAssignment = true;
 		}
 	}
 
@@ -435,6 +450,7 @@
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
+			<Button onclick={openCreateAssignment}>Add assignment</Button>
 			{#if hasAutogen}
 				<Button variant="outline" onclick={() => goto('/schedule/results')}>Schedule Results</Button
 				>
@@ -709,3 +725,9 @@
 		onCancel={handleRegenerateCancel}
 	/>
 {/if}
+
+<CreateAssignmentDialog
+	bind:open={showCreateAssignment}
+	date={createDate}
+	onSaved={handleAssignmentCreated}
+/>

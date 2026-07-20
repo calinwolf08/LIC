@@ -18,8 +18,8 @@ export function createTestDatabase(): Kysely<DB> {
 
 	const db = new Kysely<DB>({
 		dialect: new SqliteDialect({
-			database: sqlite,
-		}),
+			database: sqlite
+		})
 	});
 
 	return db;
@@ -105,12 +105,16 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	const { up: migration006 } = await import('./migrations/006_require_preceptor_health_system');
 	const { up: migration007 } = await import('./migrations/007_preceptor_associations_teams');
 	const { up: migration008 } = await import('./migrations/008_student_health_system_onboarding');
-	const { up: migration009 } = await import('./migrations/009_add_allow_cross_system_to_requirements');
+	const { up: migration009 } = await import(
+		'./migrations/009_add_allow_cross_system_to_requirements'
+	);
 	const { up: migration010 } = await import('./migrations/010_site_based_architecture');
 	const { up: migration011 } = await import('./migrations/011_add_site_and_team_requirements');
 	const { up: migration012 } = await import('./migrations/012_add_elective_available_preceptors');
 	const { up: migration013 } = await import('./migrations/013_add_contact_fields');
-	const { up: migration014 } = await import('./migrations/014_make_preceptor_health_system_optional');
+	const { up: migration014 } = await import(
+		'./migrations/014_make_preceptor_health_system_optional'
+	);
 	const { up: migration015 } = await import('./migrations/015_remove_preceptor_specialty');
 	const { up: migration016 } = await import('./migrations/016_clerkship_settings_overrides');
 	const { up: migration017 } = await import('./migrations/017_preceptor_multi_site');
@@ -122,6 +126,7 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	const { up: migration023 } = await import('./migrations/023_schedule_user_ownership');
 	const { up: migration024 } = await import('./migrations/024_add_active_schedule_to_user');
 	const { up: migration025 } = await import('./migrations/025_electives_direct_clerkship_link');
+	const { up: migration026 } = await import('./migrations/026_entitlements_and_assignment_flags');
 
 	await migration001(db);
 	await migration002(db);
@@ -148,6 +153,7 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	await migration023(db);
 	await migration024(db);
 	await migration025(db);
+	await migration026(db);
 }
 
 /**
