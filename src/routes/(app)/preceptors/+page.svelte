@@ -9,11 +9,25 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
 
-	// Tab state
+	// Read origin context from URL params
+	let fromClerkshipId = $derived($page.url.searchParams.get('fromClerkship'));
+	let fromClerkship = $derived(
+		fromClerkshipId ? data.clerkships.find((c) => c.id === fromClerkshipId) : null
+	);
+
+	// Tab state - default to teams if coming from clerkship
 	let activeTab = $state<'preceptors' | 'teams'>('preceptors');
+
+	// Set initial tab based on URL param
+	$effect(() => {
+		if ($page.url.searchParams.get('tab') === 'teams') {
+			activeTab = 'teams';
+		}
+	});
 
 	// Preceptor state
 	let showForm = $state(false);
@@ -24,6 +38,7 @@
 	// Teams state
 	let teams = $state<any[]>([]);
 	let loadingTeams = $state(false);
+	let teamsLoaded = $state(false);
 
 	// Load all teams on mount
 	async function loadTeams() {
@@ -41,20 +56,21 @@
 			teams = [];
 		} finally {
 			loadingTeams = false;
+			teamsLoaded = true;
 		}
 	}
 
-	// Load teams when switching to teams tab
+	// Load teams when switching to teams tab (only once)
 	$effect(() => {
-		if (activeTab === 'teams' && teams.length === 0) {
+		if (activeTab === 'teams' && !teamsLoaded && !loadingTeams) {
 			loadTeams();
 		}
 	});
 
 	// Preceptor handlers
 	function handleAdd() {
-		selectedPreceptor = undefined;
-		showForm = true;
+		// Navigate to the new preceptor wizard
+		goto('/preceptors/new');
 	}
 
 	function handleEdit(preceptor: PreceptorWithAssociations) {
@@ -127,19 +143,28 @@
 
 	// Team handlers
 	function handleAddTeam() {
-		goto('/preceptors/teams/new');
+		const params = fromClerkshipId ? `?fromClerkship=${fromClerkshipId}` : '';
+		goto(`/preceptors/teams/new${params}`);
 	}
 
 	function handleEditTeam(team: any) {
-		goto(`/preceptors/teams/${team.id}`);
+		const params = fromClerkshipId ? `?fromClerkship=${fromClerkshipId}` : '';
+		goto(`/preceptors/teams/${team.id}${params}`);
 	}
 
 	function handleTeamDeleted() {
+		teamsLoaded = false;
 		loadTeams();
 	}
 </script>
 
 <div class="container mx-auto py-8">
+	{#if fromClerkship}
+		<Button variant="ghost" onclick={() => goto(`/clerkships/${fromClerkshipId}/config`)} class="mb-4">
+			← Back to {fromClerkship.name} Config
+		</Button>
+	{/if}
+
 	<div class="mb-6">
 		<h1 class="text-3xl font-bold">Preceptors & Teams</h1>
 	</div>
@@ -184,7 +209,10 @@
 		/>
 	{:else if activeTab === 'teams'}
 		<div class="space-y-6">
-			<div class="flex items-center justify-end">
+			<div class="flex items-center justify-between">
+				<p class="text-sm text-muted-foreground max-w-2xl">
+					Teams group preceptors for scheduling. Every preceptor must belong to at least one team to be included in schedule generation.
+				</p>
 				<Button onclick={handleAddTeam}>Add Team</Button>
 			</div>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -11,6 +12,17 @@
 	const log = createClientLogger('team-new');
 
 	let { data }: { data: PageData } = $props();
+
+	// Read origin context from URL params
+	let fromClerkshipId = $derived($page.url.searchParams.get('fromClerkship'));
+	let fromClerkship = $derived(
+		fromClerkshipId ? data.clerkships.find((c) => c.id === fromClerkshipId) : null
+	);
+
+	// Build back URL with context
+	let backUrl = $derived(
+		fromClerkshipId ? `/preceptors?tab=teams&fromClerkship=${fromClerkshipId}` : '/preceptors'
+	);
 
 	interface TeamMember {
 		preceptorId: string;
@@ -282,8 +294,8 @@
 			}
 
 			log.info('Team created successfully', { teamId: result.data.id });
-			// Navigate back to teams list
-			goto('/preceptors?tab=teams');
+			// Navigate back to teams list (preserving origin context)
+			goto(backUrl);
 		} catch (err) {
 			log.error('Unexpected create error', { error: err });
 			error = err instanceof Error ? err.message : 'Failed to create team';
@@ -299,8 +311,12 @@
 
 <div class="container mx-auto py-8 max-w-4xl">
 	<div class="mb-6">
-		<a href="/preceptors" class="text-sm text-muted-foreground hover:text-foreground">
-			&larr; Back to Preceptors & Teams
+		<a href={backUrl} class="text-sm text-muted-foreground hover:text-foreground">
+			{#if fromClerkship}
+				&larr; Back to {fromClerkship.name} Teams
+			{:else}
+				&larr; Back to Preceptors & Teams
+			{/if}
 		</a>
 		<h1 class="text-3xl font-bold mt-2">Create New Team</h1>
 	</div>
@@ -442,7 +458,7 @@
 							disabled={isSubmitting}
 						/>
 						<Label for="fallbackOnly" class="cursor-pointer text-sm whitespace-nowrap">
-							Fallback only
+							Backup only
 						</Label>
 					</div>
 					<Button type="button" variant="outline" onclick={addMember} disabled={isSubmitting || !selectedPreceptorId}>
@@ -450,7 +466,7 @@
 					</Button>
 				</div>
 				<p class="text-xs text-muted-foreground mb-4">
-					<strong>Fallback only:</strong> This preceptor will only be assigned when primary members reach capacity.
+					<strong>Backup only:</strong> This preceptor will only be assigned when primary members reach capacity.
 				</p>
 
 				<!-- Member List -->
@@ -462,7 +478,7 @@
 									<p class="font-medium flex items-center gap-2">
 										{index + 1}. {getPreceptorName(member.preceptorId)}
 										{#if member.isFallbackOnly}
-											<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Fallback</span>
+											<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Backup</span>
 										{/if}
 									</p>
 									<div class="mt-1 flex gap-3 text-xs text-muted-foreground">
@@ -565,7 +581,7 @@
 
 		<!-- Action Buttons -->
 		<div class="flex justify-end gap-2">
-			<Button type="button" variant="outline" onclick={() => goto('/preceptors')} disabled={isSubmitting}>
+			<Button type="button" variant="outline" onclick={() => goto(backUrl)} disabled={isSubmitting}>
 				Cancel
 			</Button>
 			<Button type="submit" disabled={isSubmitting || members.length < 1 || !selectedClerkshipId}>

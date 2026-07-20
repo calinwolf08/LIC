@@ -94,7 +94,7 @@
 		>
 			<PasswordInput
 				id="password"
-				placeholder="••••••••"
+				placeholder="Enter password"
 				disabled={formManager.isSubmitting}
 				autocomplete="current-password"
 				aria-invalid={getFieldErrors('password').length > 0}
