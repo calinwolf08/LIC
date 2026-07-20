@@ -7,9 +7,12 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import ElectivesManager from '$lib/features/electives/components/electives-manager.svelte';
 
 	let { data }: { data: PageData } = $props();
+
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
 
 	// Tab state
 	let activeTab = $state<'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'>(
@@ -244,16 +247,18 @@
 			>
 				Basic Information
 			</button>
-			<button
-				onclick={() => (activeTab = 'scheduling')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'scheduling'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Scheduling Settings
-			</button>
+			{#if hasAutogen}
+				<button
+					onclick={() => (activeTab = 'scheduling')}
+					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+						activeTab === 'scheduling'
+							? 'border-primary text-primary'
+							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+					}`}
+				>
+					Scheduling Settings
+				</button>
+			{/if}
 			<button
 				onclick={() => (activeTab = 'sites')}
 				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
@@ -264,16 +269,18 @@
 			>
 				Allowed Sites ({associatedSites.length})
 			</button>
-			<button
-				onclick={() => (activeTab = 'teams')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'teams'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Preceptor Teams ({data.teams?.length || 0})
-			</button>
+			{#if hasAutogen}
+				<button
+					onclick={() => (activeTab = 'teams')}
+					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+						activeTab === 'teams'
+							? 'border-primary text-primary'
+							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+					}`}
+				>
+					Preceptor Teams ({data.teams?.length || 0})
+				</button>
+			{/if}
 			<button
 				onclick={() => (activeTab = 'electives')}
 				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${

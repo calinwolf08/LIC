@@ -6,12 +6,9 @@
  */
 
 import type { RequestHandler } from './$types';
+import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { FallbackService } from '$lib/features/scheduling-config/services/fallbacks.service';
 import { preceptorFallbackInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
@@ -25,7 +22,8 @@ const service = new FallbackService(db);
  * GET /api/scheduling-config/fallbacks
  * Returns fallbacks for a preceptor
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
+	requireAutogen(locals);
 	const preceptorId = url.searchParams.get('preceptorId');
 
 	log.debug('Fetching fallback chain', { preceptorId: preceptorId || 'none' });
@@ -62,7 +60,8 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/scheduling-config/fallbacks
  * Creates a new fallback
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	requireAutogen(locals);
 	log.debug('Creating fallback');
 
 	try {
@@ -87,7 +86,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Fallback validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

@@ -14,6 +14,8 @@
 
 	let { data }: { data: PageData } = $props();
 
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
+
 	// Read origin context from URL params
 	let fromClerkshipId = $derived($page.url.searchParams.get('fromClerkship'));
 	let fromClerkship = $derived(
@@ -171,7 +173,7 @@
 	{/if}
 
 	<div class="mb-6">
-		<h1 class="text-3xl font-bold">Preceptors & Teams</h1>
+		<h1 class="text-3xl font-bold">{hasAutogen ? 'Preceptors & Teams' : 'Preceptors'}</h1>
 	</div>
 
 	<!-- Tabs -->
@@ -187,16 +189,18 @@
 			>
 				Preceptors ({data.preceptors.length})
 			</button>
-			<button
-				onclick={() => (activeTab = 'teams')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'teams'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Teams
-			</button>
+			{#if hasAutogen}
+				<button
+					onclick={() => (activeTab = 'teams')}
+					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+						activeTab === 'teams'
+							? 'border-primary text-primary'
+							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+					}`}
+				>
+					Teams
+				</button>
+			{/if}
 		</nav>
 	</div>
 

@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import Database from "better-sqlite3";
+import Database from 'better-sqlite3';
 
 // Read from process.env (available in the SvelteKit server runtime and in
 // standalone scripts run via tsx) rather than the compile-time `$env` module,
@@ -18,74 +18,73 @@ const rawDb = new Database(dbPath);
  * Called after successful signup to implement schedule-first architecture
  */
 function createDefaultScheduleForUser(userId: string): string | null {
-    try {
-        const now = new Date();
-        const currentYear = now.getFullYear();
+	try {
+		const now = new Date();
+		const currentYear = now.getFullYear();
 
-        // Default to academic year (July - June) or calendar year
-        const startDate = now.getMonth() >= 6
-            ? `${currentYear}-07-01`
-            : `${currentYear}-01-01`;
-        const endDate = now.getMonth() >= 6
-            ? `${currentYear + 1}-06-30`
-            : `${currentYear}-12-31`;
+		// Default to academic year (July - June) or calendar year
+		const startDate = now.getMonth() >= 6 ? `${currentYear}-07-01` : `${currentYear}-01-01`;
+		const endDate = now.getMonth() >= 6 ? `${currentYear + 1}-06-30` : `${currentYear}-12-31`;
 
-        const scheduleId = crypto.randomUUID();
-        const timestamp = now.toISOString();
+		const scheduleId = crypto.randomUUID();
+		const timestamp = now.toISOString();
 
-        // Insert the schedule
-        rawDb.prepare(`
+		// Insert the schedule
+		rawDb
+			.prepare(
+				`
             INSERT INTO scheduling_periods (id, name, start_date, end_date, user_id, is_active, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(scheduleId, 'My Schedule', startDate, endDate, userId, 0, timestamp, timestamp);
+        `
+			)
+			.run(scheduleId, 'My Schedule', startDate, endDate, userId, 0, timestamp, timestamp);
 
-        // Set as user's active schedule
-        rawDb.prepare(`
+		// Set as user's active schedule
+		rawDb
+			.prepare(
+				`
             UPDATE user SET active_schedule_id = ? WHERE id = ?
-        `).run(scheduleId, userId);
+        `
+			)
+			.run(scheduleId, userId);
 
-        console.log(`[auth] Created default schedule ${scheduleId} for user ${userId}`);
-        return scheduleId;
-    } catch (error) {
-        // Log error but don't fail signup - user can create schedule manually
-        console.error('[auth] Failed to create default schedule for user:', error);
-        return null;
-    }
+		console.log(`[auth] Created default schedule ${scheduleId} for user ${userId}`);
+		return scheduleId;
+	} catch (error) {
+		// Log error but don't fail signup - user can create schedule manually
+		console.error('[auth] Failed to create default schedule for user:', error);
+		return null;
+	}
 }
 
 export const auth = betterAuth({
-    emailAndPassword: {
-        enabled: true,
-    },
-    database: rawDb,
-    trustedOrigins: [
-        PUBLIC_BASE_URL,
-        'http://localhost:4173',
-        'http://localhost:5173',
-    ],
-    user: {
-        additionalFields: {
-            active_schedule_id: {
-                type: 'string',
-                required: false,
-            },
-            // Stage 2 gating: JSON array of entitlement strings (e.g. ["autogen"]).
-            entitlements: {
-                type: 'string',
-                required: false,
-                defaultValue: '[]',
-            },
-        },
-    },
-    databaseHooks: {
-        user: {
-            create: {
-                after: async (user) => {
-                    // Create default schedule for new user
-                    createDefaultScheduleForUser(user.id);
-                },
-            },
-        },
-    },
+	emailAndPassword: {
+		enabled: true
+	},
+	database: rawDb,
+	trustedOrigins: [PUBLIC_BASE_URL, 'http://localhost:4173', 'http://localhost:5173'],
+	user: {
+		additionalFields: {
+			active_schedule_id: {
+				type: 'string',
+				required: false
+			},
+			// Stage 2 gating: JSON array of entitlement strings (e.g. ["autogen"]).
+			entitlements: {
+				type: 'string',
+				required: false,
+				defaultValue: '[]'
+			}
+		}
+	},
+	databaseHooks: {
+		user: {
+			create: {
+				after: async (user) => {
+					// Create default schedule for new user
+					createDefaultScheduleForUser(user.id);
+				}
+			}
+		}
+	}
 });
-

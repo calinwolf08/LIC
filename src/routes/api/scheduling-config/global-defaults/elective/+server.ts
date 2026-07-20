@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 import { GlobalDefaultsService } from '$lib/features/scheduling-config/services/global-defaults.service';
 import { globalElectiveDefaultsInputSchema } from '$lib/features/scheduling-config/schemas/global-defaults.schemas';
@@ -13,7 +14,8 @@ const service = new GlobalDefaultsService(db);
  * GET /api/scheduling-config/global-defaults/elective
  * Fetch global elective defaults
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
+	requireAutogen(locals);
 	const schoolId = url.searchParams.get('school_id') || 'default';
 	log.debug('Fetching elective defaults', { schoolId });
 
@@ -37,7 +39,8 @@ export const GET: RequestHandler = async ({ url }) => {
  * PUT /api/scheduling-config/global-defaults/elective
  * Update global elective defaults
  */
-export const PUT: RequestHandler = async ({ request, url }) => {
+export const PUT: RequestHandler = async ({ request, url, locals }) => {
+	requireAutogen(locals);
 	const schoolId = url.searchParams.get('school_id') || 'default';
 	log.debug('Updating elective defaults', { schoolId });
 

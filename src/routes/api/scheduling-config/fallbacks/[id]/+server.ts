@@ -6,12 +6,9 @@
  */
 
 import type { RequestHandler } from './$types';
+import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	errorResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, errorResponse, notFoundResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { FallbackService } from '$lib/features/scheduling-config/services/fallbacks.service';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -22,7 +19,8 @@ const service = new FallbackService(db);
 /**
  * GET /api/scheduling-config/fallbacks/[id]
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
+	requireAutogen(locals);
 	log.debug('Fetching fallback', { id: params.id });
 
 	try {
@@ -50,7 +48,8 @@ export const GET: RequestHandler = async ({ params }) => {
 /**
  * DELETE /api/scheduling-config/fallbacks/[id]
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+	requireAutogen(locals);
 	log.debug('Deleting fallback', { id: params.id });
 
 	try {

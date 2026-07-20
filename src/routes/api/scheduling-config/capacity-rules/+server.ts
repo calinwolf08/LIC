@@ -6,12 +6,9 @@
  */
 
 import type { RequestHandler } from './$types';
+import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { CapacityRuleService } from '$lib/features/scheduling-config/services/capacity.service';
 import { preceptorCapacityRuleInputSchema } from '$lib/features/scheduling-config/schemas/capacity.schemas';
@@ -25,7 +22,8 @@ const service = new CapacityRuleService(db);
  * GET /api/scheduling-config/capacity-rules
  * Returns capacity rules, optionally filtered by preceptor
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
+	requireAutogen(locals);
 	const preceptorId = url.searchParams.get('preceptorId');
 
 	log.debug('Fetching capacity rules', { preceptorId: preceptorId || 'none' });
@@ -62,7 +60,8 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/scheduling-config/capacity-rules
  * Creates a new capacity rule
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	requireAutogen(locals);
 	log.debug('Creating capacity rule');
 
 	try {
@@ -86,7 +85,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Capacity rule validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

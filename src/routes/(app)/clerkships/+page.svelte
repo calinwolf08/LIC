@@ -9,8 +9,11 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
+
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
 
 	// Tab state
 	let activeTab = $state<'clerkships' | 'scheduling-defaults'>('clerkships');
@@ -80,16 +83,18 @@
 			>
 				Clerkships ({data.clerkships.length})
 			</button>
-			<button
-				onclick={() => (activeTab = 'scheduling-defaults')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'scheduling-defaults'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Default Scheduling Rules
-			</button>
+			{#if hasAutogen}
+				<button
+					onclick={() => (activeTab = 'scheduling-defaults')}
+					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+						activeTab === 'scheduling-defaults'
+							? 'border-primary text-primary'
+							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+					}`}
+				>
+					Default Scheduling Rules
+				</button>
+			{/if}
 		</nav>
 	</div>
 

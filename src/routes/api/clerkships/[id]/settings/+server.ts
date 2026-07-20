@@ -10,6 +10,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse, notFoundResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireAutogen } from '$lib/server/entitlements';
 import { ClerkshipSettingsService } from '$lib/features/clerkships/services/clerkship-settings.service';
 import { createServerLogger } from '$lib/utils/logger.server';
 
@@ -46,7 +47,8 @@ export const GET: RequestHandler = async ({ params }) => {
  * PUT /api/clerkships/[id]/settings
  * Updates clerkship settings (creates override from global defaults)
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
+	requireAutogen(locals);
 	log.debug('Updating clerkship settings', { clerkshipId: params.id });
 
 	try {
@@ -74,7 +76,8 @@ export const PUT: RequestHandler = async ({ params, request }) => {
  * DELETE /api/clerkships/[id]/settings
  * Resets clerkship to use global defaults
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+	requireAutogen(locals);
 	log.debug('Resetting clerkship to default settings', { clerkshipId: params.id });
 
 	try {

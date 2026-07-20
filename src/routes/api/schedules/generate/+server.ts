@@ -23,6 +23,7 @@ import {
 	activateSchedulingPeriod
 } from '$lib/features/scheduling/services/scheduling-period-service';
 import { createServerLogger } from '$lib/utils/logger.server';
+import { requireAutogen } from '$lib/server/entitlements';
 import { ZodError } from 'zod';
 
 const log = createServerLogger('api:schedules-generate');
@@ -69,7 +70,8 @@ const log = createServerLogger('api:schedules-generate');
  *   }
  * }
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	requireAutogen(locals);
 	log.info('Schedule generation request received');
 
 	try {
@@ -103,26 +105,28 @@ export const POST: RequestHandler = async ({ request }) => {
 		log.debug('Fetching scheduling data', { isPreview });
 
 		// Fetch required data for preview/context building
-		const [students, preceptors, clerkships, healthSystems, teams, studentOnboarding, electiveSites, clerkshipSites] =
-			await Promise.all([
-				db.selectFrom('students').selectAll().execute(),
-				db.selectFrom('preceptors').selectAll().execute(),
-				db.selectFrom('clerkships').selectAll().execute(),
-				db.selectFrom('health_systems').selectAll().execute(),
-				db.selectFrom('teams').selectAll().execute(),
-				db
-					.selectFrom('student_health_system_onboarding')
-					.select(['student_id', 'health_system_id', 'is_completed'])
-					.execute(),
-				db
-					.selectFrom('elective_sites')
-					.select(['elective_id', 'site_id'])
-					.execute(),
-				db
-					.selectFrom('clerkship_sites')
-					.select(['clerkship_id', 'site_id'])
-					.execute()
-			]);
+		const [
+			students,
+			preceptors,
+			clerkships,
+			healthSystems,
+			teams,
+			studentOnboarding,
+			electiveSites,
+			clerkshipSites
+		] = await Promise.all([
+			db.selectFrom('students').selectAll().execute(),
+			db.selectFrom('preceptors').selectAll().execute(),
+			db.selectFrom('clerkships').selectAll().execute(),
+			db.selectFrom('health_systems').selectAll().execute(),
+			db.selectFrom('teams').selectAll().execute(),
+			db
+				.selectFrom('student_health_system_onboarding')
+				.select(['student_id', 'health_system_id', 'is_completed'])
+				.execute(),
+			db.selectFrom('elective_sites').select(['elective_id', 'site_id']).execute(),
+			db.selectFrom('clerkship_sites').select(['clerkship_id', 'site_id']).execute()
+		]);
 
 		// Get blackout dates separately
 		const blackoutDates = await db
@@ -270,16 +274,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Run engine with bypassed constraints
 			const engine = new ConfigurableSchedulingEngine(db);
-			const result = await engine.schedule(
-				studentIds,
-				clerkshipIds,
-				{
-					startDate: validatedData.startDate,
-					endDate: validatedData.endDate,
-					dryRun: true, // We handle saving externally
-					bypassedConstraints: validatedData.bypassedConstraints || []
-				}
-			);
+			const result = await engine.schedule(studentIds, clerkshipIds, {
+				startDate: validatedData.startDate,
+				endDate: validatedData.endDate,
+				dryRun: true, // We handle saving externally
+				bypassedConstraints: validatedData.bypassedConstraints || []
+			});
 
 			// Filter: only keep NEW assignments (not the preserved ones)
 			// Engine returns all assignments including preserved ones
@@ -288,7 +288,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 
 			const newAssignmentsOnly = result.assignments.filter(
-				(a: { studentId: string; date: string; clerkshipId: string }) => !existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
+				(a: { studentId: string; date: string; clerkshipId: string }) =>
+					!existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
 			);
 
 			log.info('Completion generation complete', {
@@ -506,7 +507,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Handle validation errors
 		if (error instanceof ZodError) {
 			log.warn('Schedule generation validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

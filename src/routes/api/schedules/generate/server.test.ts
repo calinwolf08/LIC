@@ -354,7 +354,10 @@ describe('POST /api/schedules/generate', () => {
 				}))
 			);
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -469,7 +472,10 @@ describe('POST /api/schedules/generate', () => {
 
 			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue([]);
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -590,7 +596,10 @@ describe('POST /api/schedules/generate', () => {
 				}))
 			);
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -700,7 +709,10 @@ describe('POST /api/schedules/generate', () => {
 				}))
 			);
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -790,7 +802,10 @@ describe('POST /api/schedules/generate', () => {
 				}
 			});
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -817,7 +832,10 @@ describe('POST /api/schedules/generate', () => {
 				})
 			});
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -834,7 +852,10 @@ describe('POST /api/schedules/generate', () => {
 				})
 			});
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -857,7 +878,10 @@ describe('POST /api/schedules/generate', () => {
 				})
 			});
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(500);
@@ -886,7 +910,10 @@ describe('POST /api/schedules/generate', () => {
 					}) as any
 			);
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			expect(response.status).toBe(500);
@@ -973,7 +1000,10 @@ describe('POST /api/schedules/generate', () => {
 				}))
 			);
 
-			const response = await POST({ request } as any);
+			const response = await POST({
+				request,
+				locals: { entitlements: ['autogen'], session: null }
+			} as any);
 			const data = await response.json();
 
 			// Verify the request succeeded

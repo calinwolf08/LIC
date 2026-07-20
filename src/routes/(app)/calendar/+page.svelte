@@ -15,6 +15,7 @@
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { toast } from '$lib/components';
 	import { Filter, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import {
@@ -27,6 +28,8 @@
 	} from '$lib/features/scheduling/utils/date-utils';
 
 	let { data }: { data: PageData } = $props();
+
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
 
 	// Blackout dates state
 	let blackoutDates = $state(
@@ -377,8 +380,8 @@
 </script>
 
 <div class="container mx-auto py-8">
-	<!-- Schedule completeness banner -->
-	{#if data.scheduleSummary && !data.scheduleSummary.isComplete}
+	<!-- Schedule completeness banner (auto-generation diagnostics) -->
+	{#if hasAutogen && data.scheduleSummary && !data.scheduleSummary.isComplete}
 		<Card class="mb-6 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
@@ -429,13 +432,16 @@
 					</span>
 				{/if}
 			</Button>
-			<Button variant="outline" onclick={() => goto('/schedule/results')}>Schedule Results</Button>
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
-			<Button variant="default" onclick={handleRegenerateClick}>
-				{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
-			</Button>
+			{#if hasAutogen}
+				<Button variant="outline" onclick={() => goto('/schedule/results')}>Schedule Results</Button
+				>
+				<Button variant="default" onclick={handleRegenerateClick}>
+					{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
+				</Button>
+			{/if}
 		</div>
 	</div>
 
@@ -694,10 +700,12 @@
 	onCancel={handleReassignCancel}
 />
 
-<RegenerateDialog
-	open={showRegenerateDialog}
-	scheduleStartDate={data.activeSchedule?.startDate}
-	scheduleEndDate={data.activeSchedule?.endDate}
-	onConfirm={handleRegenerateConfirm}
-	onCancel={handleRegenerateCancel}
-/>
+{#if hasAutogen}
+	<RegenerateDialog
+		open={showRegenerateDialog}
+		scheduleStartDate={data.activeSchedule?.startDate}
+		scheduleEndDate={data.activeSchedule?.endDate}
+		onConfirm={handleRegenerateConfirm}
+		onCancel={handleRegenerateCancel}
+	/>
+{/if}
