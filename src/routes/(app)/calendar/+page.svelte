@@ -419,7 +419,7 @@
 	{/if}
 
 	<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-		<h1 class="text-3xl font-bold">Schedule Calendar</h1>
+		<h1 class="text-3xl font-bold">Calendar</h1>
 		<div class="flex flex-wrap gap-3">
 			<Button
 				variant={showBlackoutPanel ? 'default' : 'outline'}
