@@ -6,6 +6,7 @@
 	import DeleteClerkshipDialog from '$lib/features/clerkships/components/delete-clerkship-dialog.svelte';
 	import GlobalDefaultsForm from '$lib/features/scheduling-config/components/global-defaults-form.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 
@@ -71,7 +72,7 @@
 		<nav class="-mb-px flex space-x-8">
 			<button
 				onclick={() => (activeTab = 'clerkships')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
 					activeTab === 'clerkships'
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -81,7 +82,7 @@
 			</button>
 			<button
 				onclick={() => (activeTab = 'scheduling-defaults')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
 					activeTab === 'scheduling-defaults'
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -108,16 +109,15 @@
 	{/if}
 </div>
 
-<!-- Form Modal (for adding new clerkships only) -->
-{#if showForm}
-	<div class="fixed inset-0 z-50 bg-black/50" onclick={handleFormCancel} role="presentation"></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
-		<ClerkshipForm
-			onSuccess={handleFormSuccess}
-			onCancel={handleFormCancel}
-		/>
-	</div>
-{/if}
+<!-- Add Clerkship dialog -->
+<Dialog.Root bind:open={showForm}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Add Clerkship</Dialog.Title>
+		</Dialog.Header>
+		<ClerkshipForm onSuccess={handleFormSuccess} onCancel={handleFormCancel} />
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- Delete Dialog -->
 <DeleteClerkshipDialog

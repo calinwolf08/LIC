@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { ConfirmDialog, toast } from '$lib/components';
 	import { invalidateAll } from '$app/navigation';
 	import HealthSystemTable from '$lib/features/health-systems/components/health-system-table.svelte';
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
@@ -9,74 +11,53 @@
 
 	let showForm = $state(false);
 
+	// Delete confirmation state
+	let showConfirm = $state(false);
+	let target = $state<{ id: string; name: string } | null>(null);
+	let dependencyNote = $state<string | null>(null);
+	let cascadeNote = $state<string | null>(null);
+
 	function handleAdd() {
 		showForm = true;
 	}
 
-	async function handleDelete(healthSystem: any) {
-		// Fetch dependencies to show cascade delete warning
+	async function handleDelete(healthSystem: { id: string | null; name: string }) {
+		if (!healthSystem.id) return;
+		dependencyNote = null;
+		cascadeNote = null;
+		// Fetch dependencies to decide whether deletion is allowed / needs a warning
 		try {
-			const depsResponse = await fetch(
-				`/api/health-systems/${healthSystem.id}/dependencies`
-			);
+			const depsResponse = await fetch(`/api/health-systems/${healthSystem.id}/dependencies`);
 			const depsResult = await depsResponse.json();
 
 			if (depsResult.success && depsResult.data) {
 				const deps = depsResult.data;
-
-				// If there are blocking dependencies, don't allow delete
 				if (deps.total > 0) {
 					const parts: string[] = [];
 					if (deps.sites > 0) parts.push(`${deps.sites} site(s)`);
 					if (deps.preceptors > 0) parts.push(`${deps.preceptors} preceptor(s)`);
-
-					alert(
-						`Cannot delete "${healthSystem.name}" - ${parts.join(', ')} depend on this health system. Remove these dependencies first.`
-					);
-					return;
-				}
-
-				// Build confirmation message with cascade delete warning
-				let confirmMessage = `Are you sure you want to delete "${healthSystem.name}"?`;
-
-				if (deps.studentOnboarding > 0) {
-					confirmMessage += `\n\nWarning: This will also delete ${deps.studentOnboarding} student onboarding record${deps.studentOnboarding > 1 ? 's' : ''}.`;
-				}
-
-				if (!confirm(confirmMessage)) {
-					return;
-				}
-			} else {
-				// Fallback to simple confirmation if dependency check fails
-				if (!confirm(`Are you sure you want to delete "${healthSystem.name}"?`)) {
-					return;
+					dependencyNote = `${parts.join(', ')} depend on this health system. Remove them first.`;
+				} else if (deps.studentOnboarding > 0) {
+					cascadeNote = `This will also delete ${deps.studentOnboarding} student onboarding record${deps.studentOnboarding > 1 ? 's' : ''}.`;
 				}
 			}
 		} catch (error) {
 			console.error('Error checking dependencies:', error);
-			// Fallback to simple confirmation
-			if (!confirm(`Are you sure you want to delete "${healthSystem.name}"?`)) {
-				return;
-			}
 		}
 
-		// Proceed with deletion
-		try {
-			const response = await fetch(`/api/health-systems/${healthSystem.id}`, {
-				method: 'DELETE'
-			});
+		target = { id: healthSystem.id, name: healthSystem.name };
+		showConfirm = true;
+	}
 
-			if (!response.ok) {
-				const result = await response.json();
-				alert(result.error || 'Failed to delete health system');
-				return;
-			}
-
-			await invalidateAll();
-		} catch (error) {
-			console.error('Error deleting health system:', error);
-			alert('An error occurred while deleting the health system');
+	async function confirmDelete() {
+		if (!target || dependencyNote) return;
+		const response = await fetch(`/api/health-systems/${target.id}`, { method: 'DELETE' });
+		if (!response.ok) {
+			const result = await response.json();
+			throw new Error(result.error || 'Failed to delete health system');
 		}
+		toast.success('Health system deleted');
+		await invalidateAll();
 	}
 
 	async function handleFormSuccess() {
@@ -98,23 +79,39 @@
 		<Button onclick={handleAdd}>Add Health System</Button>
 	</div>
 
-	<HealthSystemTable
-		healthSystems={data.healthSystems}
-		onDelete={handleDelete}
-	/>
+	<HealthSystemTable healthSystems={data.healthSystems} onDelete={handleDelete} />
 </div>
 
-<!-- Form Modal for Adding -->
-{#if showForm}
-	<div
-		class="fixed inset-0 z-50 bg-black/50"
-		onclick={handleFormCancel}
-		role="presentation"
-	></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
-		<HealthSystemForm
-			onSuccess={handleFormSuccess}
-			onCancel={handleFormCancel}
-		/>
-	</div>
-{/if}
+<!-- Add Health System dialog -->
+<Dialog.Root bind:open={showForm}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Add Health System</Dialog.Title>
+		</Dialog.Header>
+		<HealthSystemForm onSuccess={handleFormSuccess} onCancel={handleFormCancel} />
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Delete confirmation -->
+<ConfirmDialog
+	bind:open={showConfirm}
+	title={`Delete ${target?.name ?? 'health system'}?`}
+	description={dependencyNote
+		? 'This health system cannot be deleted yet.'
+		: 'This action cannot be undone.'}
+	confirmLabel="Delete"
+	confirmDisabled={!!dependencyNote}
+	onConfirm={confirmDelete}
+>
+	{#snippet details()}
+		{#if dependencyNote}
+			<p class="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800">
+				{dependencyNote}
+			</p>
+		{:else if cascadeNote}
+			<p class="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800">
+				{cascadeNote}
+			</p>
+		{/if}
+	{/snippet}
+</ConfirmDialog>

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Label } from "$lib/components/ui/label";
-	import { cn } from "$lib/utils";
-	import type { Snippet } from "svelte";
+	import { Label } from '$lib/components/ui/label';
+	import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		label: string;
@@ -29,8 +29,8 @@
 	const hasError = $derived(errors.length > 0);
 </script>
 
-<div class={cn("space-y-2", className)}>
-	<Label for={name} class={cn(hasError && "text-destructive")}>
+<div class={cn('space-y-2', className)}>
+	<Label for={name} class={cn(hasError && 'text-destructive')}>
 		{label}
 		{#if required}
 			<span class="text-destructive" aria-label="required">*</span>

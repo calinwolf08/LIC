@@ -32,15 +32,24 @@ export type UseFormOptions<T extends Record<string, any>> = {
 };
 
 export function useForm<T extends Record<string, any>>(options: UseFormOptions<T>) {
-	const { initialValues, validationSchema, onSubmit, validateOnChange = false, validateOnBlur = true } = options;
+	const {
+		initialValues,
+		validationSchema,
+		onSubmit,
+		validateOnChange = false,
+		validateOnBlur = true
+	} = options;
 
 	// Initialize state with $state rune
 	let state = $state<FormState<T>>({
 		values: { ...initialValues },
-		fields: Object.keys(initialValues).reduce((acc, key) => {
-			acc[key as keyof T] = { touched: false, dirty: false, errors: [] };
-			return acc;
-		}, {} as Record<keyof T, FieldState>),
+		fields: Object.keys(initialValues).reduce(
+			(acc, key) => {
+				acc[key as keyof T] = { touched: false, dirty: false, errors: [] };
+				return acc;
+			},
+			{} as Record<keyof T, FieldState>
+		),
 		isSubmitting: false,
 		isValid: true
 	});
@@ -54,8 +63,8 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 		} catch (error) {
 			const zodError = error as ZodErrorType;
 			const fieldErrors = zodError.errors
-				.filter(err => err.path[0] === name)
-				.map(err => err.message);
+				.filter((err) => err.path[0] === name)
+				.map((err) => err.message);
 			return fieldErrors;
 		}
 	}
@@ -65,7 +74,7 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 		try {
 			validationSchema.parse(state.values);
 			// Clear all errors
-			Object.keys(state.fields).forEach(key => {
+			Object.keys(state.fields).forEach((key) => {
 				state.fields[key as keyof T].errors = [];
 			});
 			state.isValid = true;
@@ -74,7 +83,7 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 			const zodError = error as ZodErrorType;
 			// Group errors by field
 			const errorsByField: Record<string, string[]> = {};
-			zodError.errors.forEach(err => {
+			zodError.errors.forEach((err) => {
 				const fieldName = err.path[0] as string;
 				if (!errorsByField[fieldName]) {
 					errorsByField[fieldName] = [];
@@ -83,7 +92,7 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 			});
 
 			// Update field errors
-			Object.keys(state.fields).forEach(key => {
+			Object.keys(state.fields).forEach((key) => {
 				state.fields[key as keyof T].errors = errorsByField[key] || [];
 			});
 
@@ -116,7 +125,7 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 		event.preventDefault();
 
 		// Mark all fields as touched
-		Object.keys(state.fields).forEach(key => {
+		Object.keys(state.fields).forEach((key) => {
 			state.fields[key as keyof T].touched = true;
 		});
 
@@ -125,10 +134,12 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 		if (!isValid) {
 			// Focus first field with error
 			const firstErrorField = Object.keys(state.fields).find(
-				key => state.fields[key as keyof T].errors.length > 0
+				(key) => state.fields[key as keyof T].errors.length > 0
 			);
 			if (firstErrorField) {
-				const element = document.querySelector(`[name="${String(firstErrorField)}"]`) as HTMLElement;
+				const element = document.querySelector(
+					`[name="${String(firstErrorField)}"]`
+				) as HTMLElement;
 				element?.focus();
 			}
 			return;
@@ -146,10 +157,13 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 	// Reset form
 	function reset() {
 		state.values = { ...initialValues };
-		state.fields = Object.keys(initialValues).reduce((acc, key) => {
-			acc[key as keyof T] = { touched: false, dirty: false, errors: [] };
-			return acc;
-		}, {} as Record<keyof T, FieldState>);
+		state.fields = Object.keys(initialValues).reduce(
+			(acc, key) => {
+				acc[key as keyof T] = { touched: false, dirty: false, errors: [] };
+				return acc;
+			},
+			{} as Record<keyof T, FieldState>
+		);
 		state.isSubmitting = false;
 		state.isValid = true;
 	}
@@ -173,12 +187,20 @@ export function useForm<T extends Record<string, any>>(options: UseFormOptions<T
 	}
 
 	return {
-		get values() { return state.values; },
-		get fields() { return state.fields; },
-		get isSubmitting() { return state.isSubmitting; },
-		get isValid() { return state.isValid; },
+		get values() {
+			return state.values;
+		},
+		get fields() {
+			return state.fields;
+		},
+		get isSubmitting() {
+			return state.isSubmitting;
+		},
+		get isValid() {
+			return state.isValid;
+		},
 		get isDirty() {
-			return Object.values(state.fields).some(field => field.dirty);
+			return Object.values(state.fields).some((field) => field.dirty);
 		},
 		handleChange,
 		handleBlur,

@@ -1,10 +1,14 @@
 <script lang="ts">
-	import type { PreceptorSchedule, CalendarDay } from '$lib/features/schedules/types/schedule-views';
+	import type {
+		PreceptorSchedule,
+		CalendarDay
+	} from '$lib/features/schedules/types/schedule-views';
 	import {
 		ScheduleCalendarGrid,
 		PreceptorCapacitySummary
 	} from '$lib/features/schedules/components';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
 	import { createClientLogger } from '$lib/utils/logger.client';
 
@@ -76,36 +80,32 @@
 				</p>
 			{/if}
 			{#if data.schedule.period}
-				<p class="text-sm text-muted-foreground mt-1">
+				<p class="mt-1 text-sm text-muted-foreground">
 					Schedule Period: {data.schedule.period.name}
 				</p>
 			{/if}
 		</div>
 		<div class="flex gap-2">
-			<Button variant="outline" onclick={() => goto('/schedule/results')}>
-				View All Results
-			</Button>
+			<Button variant="outline" onclick={() => goto('/schedule/results')}>View All Results</Button>
 		</div>
 	</div>
 
 	{#if !data.schedule.period}
 		<div class="rounded-lg border p-12 text-center">
-			<p class="text-lg text-muted-foreground">
-				No scheduling period is currently active.
-			</p>
+			<p class="text-lg text-muted-foreground">No scheduling period is currently active.</p>
 		</div>
 	{:else}
 		<div class="grid gap-6 lg:grid-cols-3">
 			<!-- Left column: Capacity Summary and Assigned Students -->
-			<div class="lg:col-span-1 space-y-6">
+			<div class="space-y-6 lg:col-span-1">
 				<PreceptorCapacitySummary
 					capacity={data.schedule.overallCapacity}
 					monthlyCapacity={data.schedule.monthlyCapacity}
 				/>
 
 				<!-- Assigned Students -->
-				<div class="border rounded-lg p-4">
-					<h3 class="font-semibold text-lg mb-3">Assigned Students</h3>
+				<div class="rounded-lg border p-4">
+					<h3 class="mb-3 text-lg font-semibold">Assigned Students</h3>
 					{#if data.schedule.assignedStudents.length === 0}
 						<p class="text-sm text-muted-foreground">No students currently assigned.</p>
 					{:else}
@@ -113,7 +113,7 @@
 							{#each data.schedule.assignedStudents as assignment}
 								<button
 									type="button"
-									class="w-full text-left p-3 rounded border hover:bg-muted/30 transition-colors"
+									class="w-full rounded border p-3 text-left transition-colors hover:bg-muted/30"
 									onclick={() => handleStudentClick(assignment.studentId)}
 								>
 									<p class="font-medium">{assignment.studentName}</p>
@@ -130,19 +130,19 @@
 				</div>
 
 				<!-- Legend -->
-				<div class="border rounded-lg p-4">
-					<h3 class="font-semibold text-sm mb-2">Legend</h3>
+				<div class="rounded-lg border p-4">
+					<h3 class="mb-2 text-sm font-semibold">Legend</h3>
 					<div class="space-y-2 text-sm">
 						<div class="flex items-center gap-2">
-							<span class="w-4 h-4 rounded bg-green-100 border border-green-300"></span>
+							<span class="h-4 w-4 rounded border border-green-300 bg-green-100"></span>
 							<span class="text-muted-foreground">Available</span>
 						</div>
 						<div class="flex items-center gap-2">
-							<span class="w-4 h-4 rounded bg-red-100 border border-red-300"></span>
+							<span class="h-4 w-4 rounded border border-red-300 bg-red-100"></span>
 							<span class="text-muted-foreground">Unavailable</span>
 						</div>
 						<div class="flex items-center gap-2">
-							<span class="w-4 h-4 rounded bg-blue-200 border border-blue-400"></span>
+							<span class="h-4 w-4 rounded border border-blue-400 bg-blue-200"></span>
 							<span class="text-muted-foreground">Assigned</span>
 						</div>
 					</div>
@@ -151,8 +151,8 @@
 
 			<!-- Right column: Calendar -->
 			<div class="lg:col-span-2">
-				<div class="border rounded-lg p-4">
-					<h2 class="text-lg font-semibold mb-4">Schedule Calendar</h2>
+				<div class="rounded-lg border p-4">
+					<h2 class="mb-4 text-lg font-semibold">Schedule Calendar</h2>
 					<ScheduleCalendarGrid
 						months={data.schedule.calendar}
 						mode="preceptor"
@@ -160,24 +160,29 @@
 					/>
 				</div>
 
-				<!-- Day Detail Modal -->
+				<!-- Day Detail dialog -->
 				{#if selectedDay}
-					{@const displayAssignments = selectedDay.assignments?.length > 0 ? selectedDay.assignments : (selectedDay.assignment ? [selectedDay.assignment] : [])}
+					{@const displayAssignments =
+						selectedDay.assignments?.length > 0
+							? selectedDay.assignments
+							: selectedDay.assignment
+								? [selectedDay.assignment]
+								: []}
 					{@const hasAssignments = displayAssignments.length > 0}
-					<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog">
-						<div class="bg-background rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
-							<div class="flex items-start justify-between mb-4">
-								<h3 class="text-lg font-semibold">
-									{hasAssignments && displayAssignments.length > 1 ? `${displayAssignments.length} Assignments` : 'Day Details'}
-								</h3>
-								<button
-									type="button"
-									onclick={closeDetail}
-									class="text-muted-foreground hover:text-foreground"
-								>
-									&times;
-								</button>
-							</div>
+					<Dialog.Root
+						open={true}
+						onOpenChange={(o) => {
+							if (!o) closeDetail();
+						}}
+					>
+						<Dialog.Content class="max-w-md">
+							<Dialog.Header>
+								<Dialog.Title>
+									{hasAssignments && displayAssignments.length > 1
+										? `${displayAssignments.length} Assignments`
+										: 'Day Details'}
+								</Dialog.Title>
+							</Dialog.Header>
 							<div class="space-y-3">
 								<div>
 									<span class="text-sm text-muted-foreground">Date:</span>
@@ -199,7 +204,10 @@
 								</div>
 								{#if hasAssignments}
 									{#each displayAssignments as assignment}
-										<div class="p-3 border rounded-lg" style="border-left: 3px solid {assignment.color};">
+										<div
+											class="rounded-lg border p-3"
+											style="border-left: 3px solid {assignment.color};"
+										>
 											<div>
 												<span class="text-sm text-muted-foreground">Student:</span>
 												<span class="ml-2 font-medium">
@@ -208,10 +216,7 @@
 											</div>
 											<div>
 												<span class="text-sm text-muted-foreground">Clerkship:</span>
-												<span
-													class="ml-2 font-medium"
-													style="color: {assignment.color};"
-												>
+												<span class="ml-2 font-medium" style="color: {assignment.color};">
 													{assignment.clerkshipName}
 												</span>
 											</div>
@@ -219,19 +224,22 @@
 									{/each}
 								{/if}
 							</div>
-							<div class="mt-6 flex justify-end gap-2">
+							<Dialog.Footer>
 								{#if displayAssignments.length === 1 && (displayAssignments[0].studentId || selectedDay.assignedStudent)}
 									<Button
 										variant="outline"
-										onclick={() => handleStudentClick(displayAssignments[0].studentId || selectedDay?.assignedStudent?.id || '')}
+										onclick={() =>
+											handleStudentClick(
+												displayAssignments[0].studentId || selectedDay?.assignedStudent?.id || ''
+											)}
 									>
 										View Student
 									</Button>
 								{/if}
 								<Button variant="outline" onclick={closeDetail}>Close</Button>
-							</div>
-						</div>
-					</div>
+							</Dialog.Footer>
+						</Dialog.Content>
+					</Dialog.Root>
 				{/if}
 			</div>
 		</div>

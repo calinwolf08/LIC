@@ -7,6 +7,7 @@
 	import DeletePreceptorDialog from '$lib/features/preceptors/components/delete-preceptor-dialog.svelte';
 	import TeamList from '$lib/features/teams/components/team-list.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -160,7 +161,11 @@
 
 <div class="container mx-auto py-8">
 	{#if fromClerkship}
-		<Button variant="ghost" onclick={() => goto(`/clerkships/${fromClerkshipId}/config`)} class="mb-4">
+		<Button
+			variant="ghost"
+			onclick={() => goto(`/clerkships/${fromClerkshipId}/config`)}
+			class="mb-4"
+		>
 			← Back to {fromClerkship.name} Config
 		</Button>
 	{/if}
@@ -174,7 +179,7 @@
 		<nav class="-mb-px flex space-x-8">
 			<button
 				onclick={() => (activeTab = 'preceptors')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
 					activeTab === 'preceptors'
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -184,7 +189,7 @@
 			</button>
 			<button
 				onclick={() => (activeTab = 'teams')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
 					activeTab === 'teams'
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -210,8 +215,9 @@
 	{:else if activeTab === 'teams'}
 		<div class="space-y-6">
 			<div class="flex items-center justify-between">
-				<p class="text-sm text-muted-foreground max-w-2xl">
-					Teams group preceptors for scheduling. Every preceptor must belong to at least one team to be included in schedule generation.
+				<p class="max-w-2xl text-sm text-muted-foreground">
+					Teams group preceptors for scheduling. Every preceptor must belong to at least one team to
+					be included in schedule generation.
 				</p>
 				<Button onclick={handleAddTeam}>Add Team</Button>
 			</div>
@@ -232,10 +238,12 @@
 	{/if}
 </div>
 
-<!-- Preceptor Form Modal -->
-{#if showForm}
-	<div class="fixed inset-0 z-50 bg-black/50" onclick={handleFormCancel} role="presentation"></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto">
+<!-- Preceptor Form dialog -->
+<Dialog.Root bind:open={showForm}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>{selectedPreceptor ? 'Edit Preceptor' : 'Add Preceptor'}</Dialog.Title>
+		</Dialog.Header>
 		<PreceptorForm
 			preceptor={selectedPreceptor}
 			healthSystems={data.healthSystems}
@@ -243,26 +251,26 @@
 			onSuccess={handleFormSuccess}
 			onCancel={handleFormCancel}
 		/>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog.Root>
 
-<!-- Availability Modal -->
-{#if showAvailability && selectedPreceptor}
-	<div
-		class="fixed inset-0 z-50 bg-black/50"
-		onclick={handleAvailabilityCancel}
-		role="presentation"
-	></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-6xl -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto">
-		<div class="bg-background p-6 rounded-lg shadow-lg">
+<!-- Availability dialog -->
+<Dialog.Root bind:open={showAvailability}>
+	<Dialog.Content class="max-w-6xl">
+		<Dialog.Header>
+			<Dialog.Title
+				>Availability{selectedPreceptor ? ` — ${selectedPreceptor.name}` : ''}</Dialog.Title
+			>
+		</Dialog.Header>
+		{#if selectedPreceptor}
 			<PatternAvailabilityBuilder
 				preceptor={selectedPreceptor}
 				onSuccess={handleAvailabilitySuccess}
 				onCancel={handleAvailabilityCancel}
 			/>
-		</div>
-	</div>
-{/if}
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- Delete Preceptor Dialog -->
 <DeletePreceptorDialog

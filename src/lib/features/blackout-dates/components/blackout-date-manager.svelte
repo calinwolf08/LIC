@@ -4,6 +4,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Input } from '$lib/components/ui/input';
 	import BlackoutDateConflictDialog from './blackout-date-conflict-dialog.svelte';
+	import { toast } from '$lib/components';
 
 	interface BlackoutDate {
 		id: string;
@@ -119,8 +120,10 @@
 			if (!response.ok) {
 				const result = await response.json();
 				// Check for duplicate date error
-				if (result.error?.message?.includes('UNIQUE constraint') ||
-				    result.error?.message?.includes('duplicate')) {
+				if (
+					result.error?.message?.includes('UNIQUE constraint') ||
+					result.error?.message?.includes('duplicate')
+				) {
 					throw new Error('This date is already a blackout date');
 				}
 				throw new Error(result.error?.message || 'Failed to add blackout date');
@@ -205,7 +208,7 @@
 			onDelete?.();
 		} catch (error) {
 			console.error('Error deleting blackout date:', error);
-			alert(error instanceof Error ? error.message : 'Failed to delete blackout date');
+			toast.error(error instanceof Error ? error.message : 'Failed to delete blackout date');
 		} finally {
 			deletingId = null;
 		}
@@ -213,32 +216,45 @@
 </script>
 
 <Card class="p-4">
-	<h3 class="font-semibold mb-4">Blackout Dates</h3>
-	<p class="text-sm text-muted-foreground mb-4">
-		Days when no scheduling can occur. Existing assignments on these dates will need to be rescheduled.
+	<h3 class="mb-4 font-semibold">Blackout Dates</h3>
+	<p class="mb-4 text-sm text-muted-foreground">
+		Days when no scheduling can occur. Existing assignments on these dates will need to be
+		rescheduled.
 	</p>
 
 	<!-- Regeneration Prompt -->
 	{#if showRegeneratePrompt}
-		<div class="rounded-md bg-amber-50 border border-amber-200 p-3 mb-4">
+		<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
 			<div class="flex items-start gap-3">
-				<div class="text-amber-600 mt-0.5">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+				<div class="mt-0.5 text-amber-600">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-5 w-5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+						/>
 					</svg>
 				</div>
 				<div class="flex-1">
 					<p class="text-sm font-medium text-amber-800">
 						{deletedAssignmentsCount} assignment{deletedAssignmentsCount === 1 ? ' was' : 's were'} removed
 					</p>
-					<p class="text-xs text-amber-700 mt-1">
-						Some students now have gaps in their schedule. Consider regenerating the schedule to fill these gaps.
+					<p class="mt-1 text-xs text-amber-700">
+						Some students now have gaps in their schedule. Consider regenerating the schedule to
+						fill these gaps.
 					</p>
-					<div class="flex gap-2 mt-2">
+					<div class="mt-2 flex gap-2">
 						<Button
 							size="sm"
 							variant="outline"
-							class="text-amber-800 border-amber-300 hover:bg-amber-100"
+							class="border-amber-300 text-amber-800 hover:bg-amber-100"
 							onclick={() => {
 								showRegeneratePrompt = false;
 								onRegenerateNeeded?.();
@@ -261,7 +277,13 @@
 	{/if}
 
 	<!-- Add Form -->
-	<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-3 mb-4">
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSubmit();
+		}}
+		class="mb-4 space-y-3"
+	>
 		<div class="flex gap-2">
 			<div class="flex-1">
 				<Label for="blackout-date" class="sr-only">Date</Label>
@@ -294,17 +316,15 @@
 
 	<!-- Blackout Dates List -->
 	{#if blackoutDates.length === 0}
-		<p class="text-sm text-muted-foreground text-center py-4">
-			No blackout dates configured.
-		</p>
+		<p class="py-4 text-center text-sm text-muted-foreground">No blackout dates configured.</p>
 	{:else}
-		<div class="space-y-2 max-h-64 overflow-y-auto">
+		<div class="max-h-64 space-y-2 overflow-y-auto">
 			{#each blackoutDates as bd}
 				<div
-					class="flex items-center justify-between p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+					class="flex items-center justify-between rounded-md bg-muted/50 p-2 transition-colors hover:bg-muted"
 				>
 					<div class="flex-1">
-						<div class="font-medium text-sm">{formatDate(bd.date)}</div>
+						<div class="text-sm font-medium">{formatDate(bd.date)}</div>
 						{#if bd.reason}
 							<div class="text-xs text-muted-foreground">{bd.reason}</div>
 						{/if}
