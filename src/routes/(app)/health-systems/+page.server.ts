@@ -1,10 +1,6 @@
-import { db } from '$lib/db';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	const healthSystems = await db.selectFrom('health_systems').selectAll().execute();
-
-	return {
-		healthSystems
-	};
+	redirect(308, '/locations?tab=health-systems');
 };

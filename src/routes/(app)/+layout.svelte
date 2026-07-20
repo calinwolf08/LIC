@@ -9,7 +9,6 @@
 		Users,
 		Stethoscope,
 		GraduationCap,
-		Building2,
 		MapPin,
 		CalendarRange,
 		Wand2,
@@ -45,8 +44,7 @@
 		{ href: '/students', label: 'Students', icon: Users },
 		{ href: '/preceptors', label: 'Preceptors', icon: Stethoscope },
 		{ href: '/clerkships', label: 'Clerkships', icon: GraduationCap },
-		{ href: '/health-systems', label: 'Health Systems', icon: Building2 },
-		{ href: '/sites', label: 'Sites', icon: MapPin },
+		{ href: '/locations', label: 'Locations', icon: MapPin },
 		{ href: '/schedules', label: 'Schedules', icon: CalendarRange },
 		{ href: '/schedule/results', label: 'Auto-Generate', icon: Wand2, autogenOnly: true }
 	];

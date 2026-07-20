@@ -1,14 +1,6 @@
-import { db } from '$lib/db';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	const healthSystems = await db
-		.selectFrom('health_systems')
-		.select(['id', 'name'])
-		.orderBy('name', 'asc')
-		.execute();
-
-	return {
-		healthSystems: healthSystems.map(hs => ({ id: hs.id!, name: hs.name }))
-	};
+	redirect(308, '/locations?tab=sites');
 };
