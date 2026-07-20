@@ -272,20 +272,20 @@ describe('POST /api/schedules/generate', () => {
 
 		// Mock audit service
 		vi.mocked(auditService.logRegenerationEvent).mockResolvedValue({
-		id: 'audit-log-1',
-		timestamp: new Date().toISOString(),
-		strategy: 'full-reoptimize',
-		regenerateFromDate: '2025-01-01',
-		endDate: '2025-12-31',
-		pastAssignmentsCount: 0,
-		futureAssignmentsDeleted: 0,
-		futureAssignmentsPreserved: 0,
-		affectedAssignments: 0,
-		newAssignmentsGenerated: 0,
-		success: true,
-		reason: 'api_request',
-		notes: ''
-	});
+			id: 'audit-log-1',
+			timestamp: new Date().toISOString(),
+			strategy: 'full-reoptimize',
+			regenerateFromDate: '2025-01-01',
+			endDate: '2025-12-31',
+			pastAssignmentsCount: 0,
+			futureAssignmentsDeleted: 0,
+			futureAssignmentsPreserved: 0,
+			affectedAssignments: 0,
+			newAssignmentsGenerated: 0,
+			success: true,
+			reason: 'api_request',
+			notes: ''
+		});
 		vi.mocked(auditService.createRegenerationAuditLog).mockReturnValue({
 			strategy: 'full-reoptimize',
 			regenerateFromDate: '2025-01-01',
@@ -347,6 +347,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: a.electiveId || null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
@@ -390,6 +392,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -405,6 +409,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -507,6 +513,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -575,6 +583,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: a.electiveId || null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
@@ -613,6 +623,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -681,6 +693,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: a.electiveId || null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
@@ -723,6 +737,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -738,6 +754,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -948,6 +966,8 @@ describe('POST /api/schedules/generate', () => {
 					elective_id: a.electiveId || null,
 					site_id: null,
 					status: 'scheduled' as const,
+					locked: 0,
+					source: 'manual' as const,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))

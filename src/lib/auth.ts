@@ -1,6 +1,10 @@
 import { betterAuth } from 'better-auth';
 import Database from "better-sqlite3";
-import { PUBLIC_BASE_URL } from "$env/static/public";
+
+// Read from process.env (available in the SvelteKit server runtime and in
+// standalone scripts run via tsx) rather than the compile-time `$env` module,
+// so tooling like the seed script can import this file outside the SvelteKit build.
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:5173';
 
 // Use the same database path as the rest of the app
 const dbPath = process.env.DATABASE_PATH || './sqlite.db';
@@ -64,6 +68,12 @@ export const auth = betterAuth({
             active_schedule_id: {
                 type: 'string',
                 required: false,
+            },
+            // Stage 2 gating: JSON array of entitlement strings (e.g. ["autogen"]).
+            entitlements: {
+                type: 'string',
+                required: false,
+                defaultValue: '[]',
             },
         },
     },

@@ -25,6 +25,12 @@ const TEST_USER = {
 	name: 'Admin User',
 };
 
+const BASIC_USER = {
+	email: 'basic@example.com',
+	password: 'password123',
+	name: 'Basic User',
+};
+
 const TEST_SCHEDULE = {
 	name: 'Demo Schedule 2025',
 	startDate: '2025-01-06',
@@ -124,6 +130,35 @@ async function seed(db: Kysely<DB>) {
 			} else {
 				throw error;
 			}
+		}
+	}
+
+	// Grant the admin user the Stage 2 (auto-generation) entitlement.
+	await db
+		.updateTable('user')
+		.set({ entitlements: JSON.stringify(['autogen']) })
+		.where('id', '=', userId)
+		.execute();
+	console.log('  Granted "autogen" entitlement to admin user');
+
+	// Create a second user WITHOUT the autogen entitlement (for gating tests).
+	const existingBasic = await db
+		.selectFrom('user')
+		.select('id')
+		.where('email', '=', BASIC_USER.email)
+		.executeTakeFirst();
+	if (!existingBasic) {
+		try {
+			await auth.api.signUpEmail({
+				body: {
+					email: BASIC_USER.email,
+					password: BASIC_USER.password,
+					name: BASIC_USER.name,
+				},
+			});
+			console.log(`  Created basic (non-entitled) user: ${BASIC_USER.email}`);
+		} catch {
+			console.log(`  Basic user ${BASIC_USER.email} already exists`);
 		}
 	}
 
