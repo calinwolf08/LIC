@@ -44,7 +44,9 @@ test('manual scheduling: add an assignment from a student page', async ({ page }
 	// A success toast appears.
 	await expect(page.getByText(/assignment created/i)).toBeVisible({ timeout: 15000 });
 
-	// The Schedule tab lists the new assignment.
+	// The Schedule tab lists the new assignment. Reload first so we assert against
+	// server-fresh data rather than racing the post-save invalidation.
+	await page.reload();
 	await page.getByRole('tab', { name: 'Schedule' }).click();
-	await expect(page.locator('table tbody tr')).not.toHaveCount(0);
+	await expect(page.locator('table tbody tr', { hasText: iso })).toBeVisible({ timeout: 15000 });
 });

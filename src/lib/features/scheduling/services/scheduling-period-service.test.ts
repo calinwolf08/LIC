@@ -50,6 +50,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('start_date', 'text', (col) => col.notNull())
 		.addColumn('end_date', 'text', (col) => col.notNull())
 		.addColumn('is_active', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('user_id', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();

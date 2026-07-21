@@ -42,7 +42,7 @@ const log = createServerLogger('api:scheduling-periods:duplicate');
  *   }
  * }
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Duplicating scheduling period', { sourceScheduleId: params.id });
 
 	try {
@@ -75,7 +75,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			validatedData.startDate,
 			validatedData.endDate,
 			validatedData.year,
-			validatedData.options
+			validatedData.options,
+			locals.session?.user?.id ?? null
 		);
 
 		log.info('Schedule duplicated successfully', {
