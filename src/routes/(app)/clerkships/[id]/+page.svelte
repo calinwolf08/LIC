@@ -9,15 +9,46 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import ElectivesManager from '$lib/features/electives/components/electives-manager.svelte';
+	import { PageHeader, EntityTabs, type EntityTab } from '$lib/components';
 
 	let { data }: { data: PageData } = $props();
 
 	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
 
+	// Aggregate student progress for this clerkship (from the status service)
+	let clerkshipAggregate = $derived.by(() => {
+		const statuses = (data.statuses ?? []) as Array<{
+			per_clerkship: Array<{ clerkship_id: string; unscheduled: number }>;
+		}>;
+		let onTrack = 0;
+		let atRisk = 0;
+		for (const s of statuses) {
+			const row = s.per_clerkship.find((c) => c.clerkship_id === data.clerkship?.id);
+			if (!row) continue;
+			if (row.unscheduled > 0) atRisk++;
+			else onTrack++;
+		}
+		return { onTrack, atRisk, total: onTrack + atRisk };
+	});
+
 	// Tab state
-	let activeTab = $state<'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'>(
-		'basic-info'
+	let activeTab = $state<'overview' | 'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'>(
+		'overview'
 	);
+
+	let tabs = $derived.by(() => {
+		const t: EntityTab[] = [
+			{ id: 'overview', label: 'Overview' },
+			{ id: 'basic-info', label: 'Details' },
+			{ id: 'sites', label: 'Allowed sites', badge: (data.sites?.length ?? 0) },
+			{ id: 'electives', label: 'Electives' }
+		];
+		if (hasAutogen) {
+			t.push({ id: 'scheduling', label: 'Auto-scheduling' });
+			t.push({ id: 'teams', label: 'Preceptor teams', badge: data.teams?.length || 0 });
+		}
+		return t;
+	});
 
 	// Clerkship basic info (editable)
 	let name = $state(data.clerkship?.name || '');
@@ -225,79 +256,47 @@
 </script>
 
 <div class="container mx-auto max-w-4xl py-8">
-	<!-- Header -->
-	<div class="mb-6">
-		<Button variant="ghost" onclick={() => goto('/clerkships')} class="mb-4">
-			← Back to Clerkships
-		</Button>
-		<h1 class="text-3xl font-bold">Configure Clerkship</h1>
-		<p class="mt-2 text-muted-foreground">{data.clerkship?.name || 'Clerkship'}</p>
-	</div>
+	<PageHeader
+		title={data.clerkship?.name || 'Clerkship'}
+		description={`${data.clerkship?.clerkship_type === 'inpatient' ? 'Inpatient' : 'Outpatient'} · ${data.clerkship?.required_days ?? 0} days required`}
+		breadcrumbs={[{ label: 'Clerkships', href: '/clerkships' }, { label: data.clerkship?.name || 'Clerkship' }]}
+	/>
 
-	<!-- Tabs -->
-	<div class="mb-6 border-b">
-		<nav class="-mb-px flex space-x-8">
-			<button
-				onclick={() => (activeTab = 'basic-info')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'basic-info'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Basic Information
-			</button>
-			{#if hasAutogen}
-				<button
-					onclick={() => (activeTab = 'scheduling')}
-					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-						activeTab === 'scheduling'
-							? 'border-primary text-primary'
-							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-					}`}
-				>
-					Scheduling Settings
-				</button>
-			{/if}
-			<button
-				onclick={() => (activeTab = 'sites')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'sites'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Allowed Sites ({associatedSites.length})
-			</button>
-			{#if hasAutogen}
-				<button
-					onclick={() => (activeTab = 'teams')}
-					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-						activeTab === 'teams'
-							? 'border-primary text-primary'
-							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-					}`}
-				>
-					Preceptor Teams ({data.teams?.length || 0})
-				</button>
-			{/if}
-			<button
-				onclick={() => (activeTab = 'electives')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'electives'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Electives
-			</button>
-		</nav>
-	</div>
+	<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
 
 	<!-- Tab Content -->
-	{#if activeTab === 'basic-info'}
+	{#if activeTab === 'overview'}
 		<Card class="p-6">
-			<h2 class="mb-4 text-xl font-semibold">Basic Information</h2>
+			<h2 class="mb-4 text-xl font-semibold">Overview</h2>
+			<div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold">{data.clerkship?.required_days ?? 0}</div>
+					<div class="text-sm text-muted-foreground">Days required</div>
+				</div>
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold text-green-600">{clerkshipAggregate.onTrack}</div>
+					<div class="text-sm text-muted-foreground">On track</div>
+				</div>
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold text-amber-600">{clerkshipAggregate.atRisk}</div>
+					<div class="text-sm text-muted-foreground">At risk</div>
+				</div>
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold">{associatedSites.length}</div>
+					<div class="text-sm text-muted-foreground">Allowed sites</div>
+				</div>
+			</div>
+			<p class="text-sm text-muted-foreground">
+				{clerkshipAggregate.atRisk} of {clerkshipAggregate.total} students still have unscheduled days for this clerkship.
+				Manage each student's assignments from their page.
+			</p>
+		</Card>
+	{:else if activeTab === 'basic-info'}
+		<Card class="p-6">
+			<h2 class="mb-4 text-xl font-semibold">Details</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
+				Required days is how many days each student must complete in this clerkship.
+			</p>
 
 			{#if basicInfoStatus}
 				<div
@@ -363,18 +362,22 @@
 	{:else if activeTab === 'scheduling'}
 		<Card class="p-6">
 			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-xl font-semibold">Scheduling Settings</h2>
+				<h2 class="text-xl font-semibold">Auto-scheduling</h2>
 				<div class="flex items-center gap-2">
 					{#if isUsingDefaults}
-						<Badge variant="secondary">Using Global Defaults</Badge>
+						<Badge variant="secondary">Using global defaults</Badge>
 					{:else}
-						<Badge>Custom Settings</Badge>
+						<Badge>Custom settings</Badge>
 						<Button variant="outline" size="sm" onclick={handleReturnToDefaults}>
-							Return to Defaults
+							Return to defaults
 						</Button>
 					{/if}
 				</div>
 			</div>
+			<p class="mb-4 text-sm text-muted-foreground">
+				These control how the auto-generation engine builds schedules for this clerkship. They
+				override the global defaults set in Auto-Generate settings.
+			</p>
 
 			{#if settingsStatus}
 				<div
@@ -389,54 +392,60 @@
 			<div class="grid gap-6">
 				<!-- Assignment Strategy -->
 				<div class="space-y-2">
-					<Label for="strategy">Assignment Strategy</Label>
+					<Label for="strategy">Assignment strategy</Label>
 					<select
 						id="strategy"
-						bind:value={settings.assignmentStrategy}
+						value={settings.assignmentStrategy === 'block_based'
+							? 'block_based'
+							: settings.assignmentStrategy === 'daily_rotation'
+								? 'daily_rotation'
+								: 'team_continuity'}
+						onchange={(e) => (settings.assignmentStrategy = e.currentTarget.value)}
 						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 					>
-						<option value="team_continuity">Team Continuity (Default)</option>
-						<option value="continuous_single">Continuous Single</option>
-						<option value="continuous_team">Continuous Team</option>
-						<option value="block_based">Block Based</option>
-						<option value="daily_rotation">Daily Rotation</option>
+						<option value="team_continuity">Continuity (recommended)</option>
+						<option value="block_based">Block-based</option>
+						<option value="daily_rotation">Daily rotation</option>
 					</select>
 					<p class="text-xs text-muted-foreground">
-						{#if settings.assignmentStrategy === 'team_continuity' || settings.assignmentStrategy === 'continuous_single' || settings.assignmentStrategy === 'continuous_team'}
-							Maximizes continuity by assigning as many days as possible to the primary preceptor,
-							then fills remaining days with other team members by priority.
-						{:else if settings.assignmentStrategy === 'block_based'}
-							Divides the rotation into fixed-size blocks (e.g., 2-week blocks) with one preceptor
-							assigned per block. Ideal for inpatient rotations.
+						{#if settings.assignmentStrategy === 'block_based'}
+							Splits the rotation into fixed-size blocks with one preceptor per block. Best for
+							inpatient rotations.
 						{:else if settings.assignmentStrategy === 'daily_rotation'}
-							Rotates through different preceptors day-by-day to provide exposure to varied teaching
-							styles. Days do not need to be consecutive.
+							Rotates the student through different preceptors day by day. Days need not be
+							consecutive.
+						{:else}
+							Keeps the student with one preceptor for as many days as possible, then fills the rest
+							from the team by priority. Best for continuity of care.
 						{/if}
 					</p>
 				</div>
 
 				<!-- Health System Rule -->
 				<div class="space-y-2">
-					<Label for="health-rule">Health System Rule</Label>
+					<Label for="health-rule">Health system continuity</Label>
 					<select
 						id="health-rule"
 						bind:value={settings.healthSystemRule}
 						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 					>
-						<option value="enforce_same_system">Enforce Same System</option>
-						<option value="prefer_same_system">Prefer Same System</option>
-						<option value="no_preference">No Preference</option>
+						<option value="enforce_same_system">Keep the student within one health system</option>
+						<option value="prefer_same_system">Prefer one health system, but allow others</option>
+						<option value="no_preference">No preference</option>
 					</select>
+					<p class="text-xs text-muted-foreground">
+						Whether generation should keep a student's assignments within a single health system.
+					</p>
 				</div>
 
 				<!-- Capacity Settings -->
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
-						<Label for="max-day">Max Students Per Day</Label>
+						<Label for="max-day">Max students per preceptor per day</Label>
 						<Input id="max-day" type="number" min="1" bind:value={settings.maxStudentsPerDay} />
 					</div>
 					<div class="space-y-2">
-						<Label for="max-year">Max Students Per Year</Label>
+						<Label for="max-year">Max students per preceptor per year</Label>
 						<Input id="max-year" type="number" min="1" bind:value={settings.maxStudentsPerYear} />
 					</div>
 				</div>
@@ -494,29 +503,32 @@
 					{/if}
 				</div>
 
-				<!-- Fallback Settings -->
+				<!-- Backup preceptor settings -->
 				<div class="border-t pt-4">
-					<h4 class="mb-4 font-medium">Fallback Settings</h4>
+					<h4 class="mb-1 font-medium">Backup preceptors</h4>
+					<p class="mb-4 text-xs text-muted-foreground">
+						Backup (fallback) preceptors cover days the primary preceptor can't.
+					</p>
 					<div class="space-y-2">
 						<label class="flex items-center gap-2">
 							<input type="checkbox" bind:checked={settings.allowFallbacks} />
-							<span>Allow Fallbacks</span>
+							<span>Allow backup preceptors</span>
 						</label>
 						{#if settings.allowFallbacks}
 							<label class="ml-6 flex items-center gap-2">
 								<input type="checkbox" bind:checked={settings.fallbackRequiresApproval} />
-								<span>Fallback Requires Approval</span>
+								<span>Require approval before using a backup</span>
 							</label>
 							<label class="ml-6 flex items-center gap-2">
 								<input type="checkbox" bind:checked={settings.fallbackAllowCrossSystem} />
-								<span>Allow Cross-System Fallbacks</span>
+								<span>Allow backups from other health systems</span>
 							</label>
 						{/if}
 					</div>
 				</div>
 
 				<div class="flex justify-end">
-					<Button onclick={handleSaveSettings}>Save Settings</Button>
+					<Button onclick={handleSaveSettings}>Save settings</Button>
 				</div>
 			</div>
 		</Card>
@@ -540,7 +552,7 @@
 					{#each associatedSites as site (site.id)}
 						<div class="flex items-center justify-between rounded-md border p-3">
 							<div>
-								<a href="/sites/{site.id}/edit" class="text-blue-600 hover:underline">
+								<a href="/locations?tab=sites" class="text-blue-600 hover:underline">
 									{site.name}
 								</a>
 								{#if hasDependencies(site.id)}

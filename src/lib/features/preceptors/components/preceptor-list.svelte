@@ -130,7 +130,7 @@
 							<td class="px-4 py-3 text-sm">
 								{#if preceptor.clerkships && preceptor.clerkships.length > 0}
 									{#each preceptor.clerkships as clerkship, i}
-										<a href="/clerkships/{clerkship.id}/config" class="text-blue-600 hover:underline">
+										<a href="/clerkships/{clerkship.id}" class="text-blue-600 hover:underline">
 											{clerkship.name}
 										</a>{i < preceptor.clerkships.length - 1 ? ', ' : ''}
 									{/each}

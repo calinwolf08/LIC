@@ -2,11 +2,9 @@
 	import type { PageData } from './$types';
 	import type { Clerkships } from '$lib/db/types';
 	import ClerkshipList from '$lib/features/clerkships/components/clerkship-list.svelte';
-	import ClerkshipForm from '$lib/features/clerkships/components/clerkship-form.svelte';
 	import DeleteClerkshipDialog from '$lib/features/clerkships/components/delete-clerkship-dialog.svelte';
 	import GlobalDefaultsForm from '$lib/features/scheduling-config/components/global-defaults-form.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -18,12 +16,11 @@
 	// Tab state
 	let activeTab = $state<'clerkships' | 'scheduling-defaults'>('clerkships');
 
-	let showForm = $state(false);
 	let showDeleteDialog = $state(false);
 	let selectedClerkship = $state<Clerkships | undefined>(undefined);
 
 	function handleAdd() {
-		showForm = true;
+		goto('/clerkships/new');
 	}
 
 	function handleDelete(clerkship: Clerkships) {
@@ -32,16 +29,7 @@
 	}
 
 	function handleConfigure(clerkship: Clerkships) {
-		goto(`/clerkships/${clerkship.id}/config`);
-	}
-
-	async function handleFormSuccess() {
-		showForm = false;
-		await invalidateAll();
-	}
-
-	function handleFormCancel() {
-		showForm = false;
+		goto(`/clerkships/${clerkship.id}`);
 	}
 
 	async function handleDeleteConfirm(clerkship: Clerkships) {
@@ -113,16 +101,6 @@
 		<GlobalDefaultsForm />
 	{/if}
 </div>
-
-<!-- Add Clerkship dialog -->
-<Dialog.Root bind:open={showForm}>
-	<Dialog.Content class="max-w-2xl">
-		<Dialog.Header>
-			<Dialog.Title>Add Clerkship</Dialog.Title>
-		</Dialog.Header>
-		<ClerkshipForm onSuccess={handleFormSuccess} onCancel={handleFormCancel} />
-	</Dialog.Content>
-</Dialog.Root>
 
 <!-- Delete Dialog -->
 <DeleteClerkshipDialog
