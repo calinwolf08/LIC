@@ -9,7 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import ElectivesManager from '$lib/features/electives/components/electives-manager.svelte';
-	import { PageHeader, EntityTabs, type EntityTab } from '$lib/components';
+	import { PageHeader, EntityTabs, toast, type EntityTab } from '$lib/components';
 
 	let { data }: { data: PageData } = $props();
 
@@ -32,15 +32,15 @@
 	});
 
 	// Tab state
-	let activeTab = $state<'overview' | 'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'>(
-		'overview'
-	);
+	let activeTab = $state<
+		'overview' | 'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'
+	>('overview');
 
 	let tabs = $derived.by(() => {
 		const t: EntityTab[] = [
 			{ id: 'overview', label: 'Overview' },
 			{ id: 'basic-info', label: 'Details' },
-			{ id: 'sites', label: 'Allowed sites', badge: (data.sites?.length ?? 0) },
+			{ id: 'sites', label: 'Allowed sites', badge: data.sites?.length ?? 0 },
 			{ id: 'electives', label: 'Electives' }
 		];
 		if (hasAutogen) {
@@ -223,9 +223,13 @@
 				}
 				selectedSiteToAdd = '';
 				showAddSiteModal = false;
+			} else {
+				const body = await res.json();
+				toast.error(body.error?.message || 'Failed to add site');
 			}
 		} catch (err) {
-			// Handle error
+			console.error('Failed to add site', err);
+			toast.error('Failed to add site');
 		}
 	}
 
@@ -248,9 +252,13 @@
 
 			if (res.ok) {
 				associatedSites = associatedSites.filter((s: any) => s.id !== siteId);
+			} else {
+				const body = await res.json();
+				toast.error(body.error?.message || 'Failed to remove site');
 			}
 		} catch (err) {
-			// Handle error
+			console.error('Failed to remove site', err);
+			toast.error('Failed to remove site');
 		}
 	}
 </script>
@@ -259,7 +267,10 @@
 	<PageHeader
 		title={data.clerkship?.name || 'Clerkship'}
 		description={`${data.clerkship?.clerkship_type === 'inpatient' ? 'Inpatient' : 'Outpatient'} · ${data.clerkship?.required_days ?? 0} days required`}
-		breadcrumbs={[{ label: 'Clerkships', href: '/clerkships' }, { label: data.clerkship?.name || 'Clerkship' }]}
+		breadcrumbs={[
+			{ label: 'Clerkships', href: '/clerkships' },
+			{ label: data.clerkship?.name || 'Clerkship' }
+		]}
 	/>
 
 	<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
@@ -287,8 +298,8 @@
 				</div>
 			</div>
 			<p class="text-sm text-muted-foreground">
-				{clerkshipAggregate.atRisk} of {clerkshipAggregate.total} students still have unscheduled days for this clerkship.
-				Manage each student's assignments from their page.
+				{clerkshipAggregate.atRisk} of {clerkshipAggregate.total} students still have unscheduled days
+				for this clerkship. Manage each student's assignments from their page.
 			</p>
 		</Card>
 	{:else if activeTab === 'basic-info'}
