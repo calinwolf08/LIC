@@ -127,6 +127,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -155,7 +157,14 @@ async function insertTestData(
 		sites?: Array<{ id: string; name: string; health_system_id?: string }>;
 		preceptorSites?: Array<{ id: string; preceptor_id: string; site_id: string }>;
 		clerkships?: Array<{ id: string; name: string; specialty: string; required_days: number }>;
-		assignments?: Array<{ id: string; student_id: string; preceptor_id: string; clerkship_id: string; date: string; status: string }>;
+		assignments?: Array<{
+			id: string;
+			student_id: string;
+			preceptor_id: string;
+			clerkship_id: string;
+			date: string;
+			status: string;
+		}>;
 		availability?: Array<{ id: string; preceptor_id: string; date: string; is_available: number }>;
 	}
 ) {
@@ -163,97 +172,121 @@ async function insertTestData(
 
 	if (data.healthSystems) {
 		for (const hs of data.healthSystems) {
-			await db.insertInto('health_systems').values({
-				...hs,
-				location: null,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('health_systems')
+				.values({
+					...hs,
+					location: null,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.students) {
 		for (const s of data.students) {
-			await db.insertInto('students').values({
-				...s,
-				cohort: '2024',
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('students')
+				.values({
+					...s,
+					cohort: '2024',
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.preceptors) {
 		for (const p of data.preceptors) {
-			await db.insertInto('preceptors').values({
-				id: p.id,
-				name: p.name,
-				email: p.email,
-				phone: null,
-				health_system_id: p.health_system_id || null,
-				site_id: null,
-				max_students: 2,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('preceptors')
+				.values({
+					id: p.id,
+					name: p.name,
+					email: p.email,
+					phone: null,
+					health_system_id: p.health_system_id || null,
+					site_id: null,
+					max_students: 2,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.sites) {
 		for (const s of data.sites) {
-			await db.insertInto('sites').values({
-				id: s.id,
-				name: s.name,
-				health_system_id: s.health_system_id || null,
-				address: null,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('sites')
+				.values({
+					id: s.id,
+					name: s.name,
+					health_system_id: s.health_system_id || null,
+					address: null,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.preceptorSites) {
 		for (const ps of data.preceptorSites) {
-			await db.insertInto('preceptor_sites').values({
-				...ps,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('preceptor_sites')
+				.values({
+					...ps,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.clerkships) {
 		for (const c of data.clerkships) {
-			await db.insertInto('clerkships').values({
-				id: c.id,
-				name: c.name,
-				specialty: c.specialty,
-				clerkship_type: 'outpatient',
-				required_days: c.required_days,
-				description: null,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('clerkships')
+				.values({
+					id: c.id,
+					name: c.name,
+					specialty: c.specialty,
+					clerkship_type: 'outpatient',
+					required_days: c.required_days,
+					description: null,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.assignments) {
 		for (const a of data.assignments) {
-			await db.insertInto('schedule_assignments').values({
-				...a,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					...a,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 
 	if (data.availability) {
 		for (const a of data.availability) {
-			await db.insertInto('preceptor_availability').values({
-				...a,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('preceptor_availability')
+				.values({
+					...a,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		}
 	}
 }
@@ -295,7 +328,9 @@ describe('Schedule Views Service', () => {
 
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }]
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				]
 			});
 
 			const result = await getStudentScheduleData(db, studentId);
@@ -317,11 +352,34 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -362,11 +420,34 @@ describe('Schedule Views Service', () => {
 					{ id: generateTestId('clps'), preceptor_id: preceptorId, site_id: siteId1 },
 					{ id: generateTestId('clps'), preceptor_id: preceptorId, site_id: siteId2 }
 				],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -390,20 +471,43 @@ describe('Schedule Views Service', () => {
 					{ id: preceptorId1, name: 'Dr. Smith', email: 'smith@hospital.com' },
 					{ id: preceptorId2, name: 'Dr. Jones', email: 'jones@hospital.com' }
 				],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId1, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId1, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId2, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId1,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId1,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId2,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 				]
 			});
 
 			const result = await getStudentScheduleData(db, studentId);
 
 			expect(result!.clerkshipProgress[0].preceptors).toHaveLength(2);
-			const preceptor1 = result!.clerkshipProgress[0].preceptors.find(p => p.id === preceptorId1);
+			const preceptor1 = result!.clerkshipProgress[0].preceptors.find((p) => p.id === preceptorId1);
 			expect(preceptor1?.daysAssigned).toBe(2);
-			const preceptor2 = result!.clerkshipProgress[0].preceptors.find(p => p.id === preceptorId2);
+			const preceptor2 = result!.clerkshipProgress[0].preceptors.find((p) => p.id === preceptorId2);
 			expect(preceptor2?.daysAssigned).toBe(1);
 		});
 
@@ -447,9 +551,18 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -493,10 +606,30 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
 				availability: [
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-15', is_available: 1 },
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-16', is_available: 1 },
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-17', is_available: 0 }, // unavailable
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-18', is_available: 1 }
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1
+					},
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-16',
+						is_available: 1
+					},
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-17',
+						is_available: 0
+					}, // unavailable
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-18',
+						is_available: 1
+					}
 				]
 			});
 
@@ -515,16 +648,52 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				availability: [
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-15', is_available: 1 },
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-16', is_available: 1 },
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-17', is_available: 1 },
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-18', is_available: 1 }
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1
+					},
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-16',
+						is_available: 1
+					},
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-17',
+						is_available: 1
+					},
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-18',
+						is_available: 1
+					}
 				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -548,11 +717,34 @@ describe('Schedule Views Service', () => {
 					{ id: studentId2, name: 'Bob Smith', email: 'bob@example.com' }
 				],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId2, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId2,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -560,10 +752,10 @@ describe('Schedule Views Service', () => {
 
 			expect(result!.assignedStudents).toHaveLength(2);
 
-			const alice = result!.assignedStudents.find(s => s.studentId === studentId1);
+			const alice = result!.assignedStudents.find((s) => s.studentId === studentId1);
 			expect(alice?.daysAssigned).toBe(2);
 
-			const bob = result!.assignedStudents.find(s => s.studentId === studentId2);
+			const bob = result!.assignedStudents.find((s) => s.studentId === studentId2);
 			expect(bob?.daysAssigned).toBe(1);
 		});
 
@@ -573,7 +765,14 @@ describe('Schedule Views Service', () => {
 
 			await insertTestData(db, {
 				healthSystems: [{ id: healthSystemId, name: 'University Hospital' }],
-				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com', health_system_id: healthSystemId }]
+				preceptors: [
+					{
+						id: preceptorId,
+						name: 'Dr. Smith',
+						email: 'smith@hospital.com',
+						health_system_id: healthSystemId
+					}
+				]
 			});
 
 			const result = await getPreceptorScheduleData(db, preceptorId);
@@ -589,16 +788,40 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				availability: [
 					// January availability
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-15', is_available: 1 },
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-01-16', is_available: 1 },
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1
+					},
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-16',
+						is_available: 1
+					},
 					// February availability
-					{ id: generateTestId('clavail'), preceptor_id: preceptorId, date: '2024-02-15', is_available: 1 }
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-02-15',
+						is_available: 1
+					}
 				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -606,7 +829,7 @@ describe('Schedule Views Service', () => {
 
 			expect(result!.monthlyCapacity.length).toBeGreaterThan(0);
 
-			const january = result!.monthlyCapacity.find(m => m.periodName.includes('January'));
+			const january = result!.monthlyCapacity.find((m) => m.periodName.includes('January'));
 			expect(january).toBeDefined();
 			expect(january!.availableDays).toBe(2);
 			expect(january!.assignedDays).toBe(1);
@@ -631,10 +854,26 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -660,13 +899,36 @@ describe('Schedule Views Service', () => {
 					{ id: studentId3, name: 'Charlie Brown', email: 'charlie@example.com' }
 				],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 2 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 2 }
+				],
 				assignments: [
 					// Alice gets 2 days (fully scheduled)
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
 					// Bob gets 1 day (partially scheduled)
-					{ id: generateTestId('classign'), student_id: studentId2, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId2,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 					// Charlie gets 0 days (no assignments)
 				]
 			});
@@ -698,11 +960,39 @@ describe('Schedule Views Service', () => {
 				],
 				assignments: [
 					// FM: 3 assignments to 2 students
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId1, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId1, date: '2024-01-16', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId2, preceptor_id: preceptorId, clerkship_id: clerkshipId1, date: '2024-01-17', status: 'confirmed' },
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId1,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId1,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId2,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId1,
+						date: '2024-01-17',
+						status: 'confirmed'
+					},
 					// Surgery: 1 assignment to 1 student
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId2, date: '2024-01-18', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId2,
+						date: '2024-01-18',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -710,11 +1000,11 @@ describe('Schedule Views Service', () => {
 
 			expect(result.clerkshipBreakdown).toHaveLength(2);
 
-			const fm = result.clerkshipBreakdown.find(c => c.clerkshipId === clerkshipId1);
+			const fm = result.clerkshipBreakdown.find((c) => c.clerkshipId === clerkshipId1);
 			expect(fm?.totalAssignments).toBe(3);
 			expect(fm?.studentsAssigned).toBe(2);
 
-			const surgery = result.clerkshipBreakdown.find(c => c.clerkshipId === clerkshipId2);
+			const surgery = result.clerkshipBreakdown.find((c) => c.clerkshipId === clerkshipId2);
 			expect(surgery?.totalAssignments).toBe(1);
 			expect(surgery?.studentsAssigned).toBe(1);
 		});
@@ -731,11 +1021,34 @@ describe('Schedule Views Service', () => {
 					{ id: preceptorId1, name: 'Dr. Smith', email: 'smith@hospital.com' },
 					{ id: preceptorId2, name: 'Dr. Jones', email: 'jones@hospital.com' }
 				],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId1, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId1, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId2, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId1,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId1,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId2,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -756,13 +1069,36 @@ describe('Schedule Views Service', () => {
 					{ id: studentId2, name: 'Bob Smith', email: 'bob@example.com' }
 				],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
 				assignments: [
 					// Alice: 2 assignments = gap of 8
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId1, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' },
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId1,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					},
 					// Bob: 1 assignment = gap of 9
-					{ id: generateTestId('classign'), student_id: studentId2, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-17', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId2,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-17',
+						status: 'confirmed'
+					}
 				]
 			});
 
@@ -780,10 +1116,26 @@ describe('Schedule Views Service', () => {
 			await insertTestData(db, {
 				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
-				clerkships: [{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 2 }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 2 }
+				],
 				assignments: [
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-15', status: 'confirmed' },
-					{ id: generateTestId('classign'), student_id: studentId, preceptor_id: preceptorId, clerkship_id: clerkshipId, date: '2024-01-16', status: 'confirmed' }
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-16',
+						status: 'confirmed'
+					}
 				]
 			});
 

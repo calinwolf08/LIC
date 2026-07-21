@@ -89,6 +89,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -203,7 +205,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ date: '2024-01-10' });
 			const assignment3 = createMockAssignment({ date: '2024-01-20' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignments(db);
 
@@ -262,7 +267,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ date: '2024-01-15' });
 			const assignment3 = createMockAssignment({ date: '2024-01-25' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignments(db, {
 				start_date: '2024-01-10',
@@ -278,7 +286,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ date: '2024-01-15' });
 			const assignment3 = createMockAssignment({ date: '2024-01-25' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignments(db, { start_date: '2024-01-10' });
 
@@ -292,7 +303,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ date: '2024-01-15' });
 			const assignment3 = createMockAssignment({ date: '2024-01-25' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignments(db, { end_date: '2024-01-20' });
 
@@ -320,7 +334,10 @@ describe('Assignment Service', () => {
 				date: '2024-01-15'
 			});
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignments(db, {
 				student_id: studentId,
@@ -357,7 +374,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ student_id: studentId, date: '2024-01-10' });
 			const assignment3 = createMockAssignment({ student_id: 'other-student', date: '2024-01-15' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignmentsByStudent(db, studentId);
 
@@ -378,9 +398,15 @@ describe('Assignment Service', () => {
 			const preceptorId = 'preceptor-123';
 			const assignment1 = createMockAssignment({ preceptor_id: preceptorId, date: '2024-01-20' });
 			const assignment2 = createMockAssignment({ preceptor_id: preceptorId, date: '2024-01-10' });
-			const assignment3 = createMockAssignment({ preceptor_id: 'other-preceptor', date: '2024-01-15' });
+			const assignment3 = createMockAssignment({
+				preceptor_id: 'other-preceptor',
+				date: '2024-01-15'
+			});
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignmentsByPreceptor(db, preceptorId);
 
@@ -402,7 +428,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ date: '2024-01-15' });
 			const assignment3 = createMockAssignment({ date: '2024-01-25' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignmentsByDateRange(db, '2024-01-10', '2024-01-20');
 
@@ -415,7 +444,10 @@ describe('Assignment Service', () => {
 			const assignment2 = createMockAssignment({ date: '2024-01-15' });
 			const assignment3 = createMockAssignment({ date: '2024-01-20' });
 
-			await db.insertInto('schedule_assignments').values([assignment1, assignment2, assignment3]).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values([assignment1, assignment2, assignment3])
+				.execute();
 
 			const result = await getAssignmentsByDateRange(db, '2024-01-10', '2024-01-20');
 
@@ -583,7 +615,9 @@ describe('Assignment Service', () => {
 			};
 
 			await expect(createAssignment(db, assignmentData)).rejects.toThrow(ValidationError);
-			await expect(createAssignment(db, assignmentData)).rejects.toThrow('already has an assignment');
+			await expect(createAssignment(db, assignmentData)).rejects.toThrow(
+				'already has an assignment'
+			);
 		});
 
 		it('throws ValidationError when preceptor at capacity', async () => {
@@ -611,7 +645,9 @@ describe('Assignment Service', () => {
 			};
 
 			await expect(createAssignment(db, assignmentData)).rejects.toThrow(ValidationError);
-			await expect(createAssignment(db, assignmentData)).rejects.toThrow('maximum student capacity');
+			await expect(createAssignment(db, assignmentData)).rejects.toThrow(
+				'maximum student capacity'
+			);
 		});
 
 		it('throws ValidationError when preceptor not available', async () => {
@@ -722,9 +758,9 @@ describe('Assignment Service', () => {
 		});
 
 		it('throws NotFoundError when assignment does not exist', async () => {
-			await expect(updateAssignment(db, 'non-existent-id', { status: 'completed' })).rejects.toThrow(
-				NotFoundError
-			);
+			await expect(
+				updateAssignment(db, 'non-existent-id', { status: 'completed' })
+			).rejects.toThrow(NotFoundError);
 		});
 
 		it('validates updated assignment for conflicts', async () => {
@@ -1025,8 +1061,12 @@ describe('Assignment Service', () => {
 
 			// Add 5 assignments for cardiology, 3 for neurology
 			const assignments = [
-				...Array(5).fill(null).map(() => createMockAssignment({ student_id: student.id, clerkship_id: clerkship1.id })),
-				...Array(3).fill(null).map(() => createMockAssignment({ student_id: student.id, clerkship_id: clerkship2.id }))
+				...Array(5)
+					.fill(null)
+					.map(() => createMockAssignment({ student_id: student.id, clerkship_id: clerkship1.id })),
+				...Array(3)
+					.fill(null)
+					.map(() => createMockAssignment({ student_id: student.id, clerkship_id: clerkship2.id }))
 			];
 			await db.insertInto('schedule_assignments').values(assignments).execute();
 
@@ -1067,9 +1107,9 @@ describe('Assignment Service', () => {
 			await db.insertInto('clerkships').values(clerkship).execute();
 
 			// Add 10 assignments (exceeding requirement of 5)
-			const assignments = Array(10).fill(null).map(() =>
-				createMockAssignment({ student_id: student.id, clerkship_id: clerkship.id })
-			);
+			const assignments = Array(10)
+				.fill(null)
+				.map(() => createMockAssignment({ student_id: student.id, clerkship_id: clerkship.id }));
 			await db.insertInto('schedule_assignments').values(assignments).execute();
 
 			const result = await getStudentProgress(db, student.id);

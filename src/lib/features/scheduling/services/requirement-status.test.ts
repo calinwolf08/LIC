@@ -14,16 +14,49 @@ async function seed(db: Kysely<DB>) {
 	const ts = new Date().toISOString();
 	await db
 		.insertInto('scheduling_periods')
-		.values({ id: SCHED, name: 'T', start_date: '2025-01-01', end_date: '2025-12-31', created_at: ts, updated_at: ts })
+		.values({
+			id: SCHED,
+			name: 'T',
+			start_date: '2025-01-01',
+			end_date: '2025-12-31',
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
-	await db.insertInto('students').values({ id: STU, name: 'A', email: 'a@x.com', created_at: ts, updated_at: ts }).execute();
+	await db
+		.insertInto('students')
+		.values({ id: STU, name: 'A', email: 'a@x.com', created_at: ts, updated_at: ts })
+		.execute();
 	await db
 		.insertInto('clerkships')
-		.values({ id: CLERK, name: 'Medicine', clerkship_type: 'outpatient', required_days: 3, created_at: ts, updated_at: ts })
+		.values({
+			id: CLERK,
+			name: 'Medicine',
+			clerkship_type: 'outpatient',
+			required_days: 3,
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
-	await db.insertInto('preceptors').values({ id: PREC, name: 'P', email: 'p@x.com', max_students: 5, created_at: ts, updated_at: ts }).execute();
-	await db.insertInto('schedule_students').values({ id: 'ss-1', schedule_id: SCHED, student_id: STU, created_at: ts }).execute();
-	await db.insertInto('schedule_clerkships').values({ id: 'sc-1', schedule_id: SCHED, clerkship_id: CLERK, created_at: ts }).execute();
+	await db
+		.insertInto('preceptors')
+		.values({
+			id: PREC,
+			name: 'P',
+			email: 'p@x.com',
+			max_students: 5,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('schedule_students')
+		.values({ id: 'ss-1', schedule_id: SCHED, student_id: STU, created_at: ts })
+		.execute();
+	await db
+		.insertInto('schedule_clerkships')
+		.values({ id: 'sc-1', schedule_id: SCHED, clerkship_id: CLERK, created_at: ts })
+		.execute();
 }
 
 async function addAssignment(db: Kysely<DB>, id: string, date: string) {
@@ -55,7 +88,12 @@ describe('getStudentStatuses', () => {
 
 	it('reports all-unscheduled with no assignments (state=none)', async () => {
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
-		expect(status.overall).toMatchObject({ required: 3, completed: 0, scheduled: 0, unscheduled: 3 });
+		expect(status.overall).toMatchObject({
+			required: 3,
+			completed: 0,
+			scheduled: 0,
+			unscheduled: 3
+		});
 		expect(status.scheduling_state).toBe('none');
 	});
 
@@ -95,5 +133,80 @@ describe('getStudentStatuses', () => {
 		await addAssignment(db, 'a1', '2025-05-05');
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
 		expect(status.conflict_count).toBe(0);
+	});
+
+	it('counts an assignment dated exactly today as scheduled, not completed', async () => {
+		await addAssignment(db, 'a-today', TODAY);
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		expect(status.per_clerkship[0].completed).toBe(0);
+		expect(status.per_clerkship[0].scheduled).toBe(1);
+	});
+
+	it('tracks multiple clerkships independently', async () => {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: 'clerk-2',
+				name: 'Surgery',
+				clerkship_type: 'inpatient',
+				required_days: 2,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		await db
+			.insertInto('schedule_clerkships')
+			.values({ id: 'sc2', schedule_id: SCHED, clerkship_id: 'clerk-2', created_at: ts })
+			.execute();
+		// 1 completed day in Medicine, 2 scheduled days in Surgery.
+		await addAssignment(db, 'm1', '2025-05-01');
+		await db
+			.insertInto('schedule_assignments')
+			.values([
+				{
+					id: 's1',
+					student_id: STU,
+					preceptor_id: PREC,
+					clerkship_id: 'clerk-2',
+					date: '2025-07-01',
+					status: 'scheduled',
+					created_at: ts,
+					updated_at: ts
+				},
+				{
+					id: 's2',
+					student_id: STU,
+					preceptor_id: PREC,
+					clerkship_id: 'clerk-2',
+					date: '2025-07-02',
+					status: 'scheduled',
+					created_at: ts,
+					updated_at: ts
+				}
+			])
+			.execute();
+
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const med = status.per_clerkship.find((c) => c.clerkship_id === CLERK)!;
+		const surg = status.per_clerkship.find((c) => c.clerkship_id === 'clerk-2')!;
+		expect(med).toMatchObject({ required: 3, completed: 1, scheduled: 0, unscheduled: 2 });
+		expect(surg).toMatchObject({ required: 2, completed: 0, scheduled: 2, unscheduled: 0 });
+		// Overall aggregates both clerkships.
+		expect(status.overall).toMatchObject({
+			required: 5,
+			completed: 1,
+			scheduled: 2,
+			unscheduled: 2
+		});
+		expect(status.scheduling_state).toBe('partial');
+	});
+
+	it('reports over_scheduled per clerkship without going negative on unscheduled', async () => {
+		// required_days = 3; add 4 assignments.
+		for (let i = 1; i <= 4; i++) await addAssignment(db, `x${i}`, `2025-05-0${i}`);
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		expect(status.per_clerkship[0].over_scheduled).toBe(1);
+		expect(status.per_clerkship[0].unscheduled).toBe(0);
 	});
 });

@@ -138,6 +138,79 @@ describe('validateSchedule', () => {
 		const r = await validateSchedule(db, SCHED);
 		expect(r.violations).toHaveLength(0);
 	});
+
+	it('flags preceptor over-capacity when two students share a slot (max 1)', async () => {
+		const ts = new Date().toISOString();
+		// Onboard STU so the only violation is capacity.
+		await db
+			.insertInto('student_health_system_onboarding')
+			.values({
+				id: 'ob1',
+				student_id: STU,
+				health_system_id: HS,
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// Second student, onboarded too.
+		await db
+			.insertInto('students')
+			.values({ id: 'stu-2', name: 'B', email: 'b@x.com', created_at: ts, updated_at: ts })
+			.execute();
+		await db
+			.insertInto('schedule_students')
+			.values({ id: 'ss2', schedule_id: SCHED, student_id: 'stu-2', created_at: ts })
+			.execute();
+		await db
+			.insertInto('student_health_system_onboarding')
+			.values({
+				id: 'ob2',
+				student_id: 'stu-2',
+				health_system_id: HS,
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// Two assignments, same preceptor + date (max_students = 1).
+		await addAssignment(db, 'a1', '2025-03-03');
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id: 'a2',
+				student_id: 'stu-2',
+				preceptor_id: PREC,
+				clerkship_id: CLERK,
+				date: '2025-03-03',
+				status: 'scheduled',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		const r = await validateSchedule(db, SCHED);
+		// Both assignments on that date are over capacity.
+		expect(r.counts['preceptor_capacity']).toBe(2);
+		expect(r.byPreceptor[PREC]?.filter((v) => v.code === 'preceptor_capacity')).toHaveLength(2);
+		expect(r.byDate['2025-03-03']?.some((v) => v.code === 'preceptor_capacity')).toBe(true);
+	});
+
+	it('indexes violations by date, student, and preceptor', async () => {
+		await addAssignment(db, 'a1', '2025-03-03'); // not_onboarded soft
+		const r = await validateSchedule(db, SCHED);
+		expect(Object.keys(r.byDate)).toContain('2025-03-03');
+		expect(Object.keys(r.byStudent)).toContain(STU);
+		expect(Object.keys(r.byPreceptor)).toContain(PREC);
+		// Each index entry carries the assignment id.
+		expect(r.byStudent[STU][0].assignment_id).toBe('a1');
+	});
+
+	it('does not double-book-flag a single assignment against itself', async () => {
+		await addAssignment(db, 'a1', '2025-03-03');
+		const r = await validateSchedule(db, SCHED);
+		expect(r.violations.some((v) => v.code === 'student_double_booked')).toBe(false);
+	});
 });
 
 describe('getSetupChecklist', () => {

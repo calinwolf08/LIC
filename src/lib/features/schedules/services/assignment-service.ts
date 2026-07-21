@@ -441,7 +441,31 @@ export async function bulkCreateAssignments(
 		const key = `${assignment.student_id}:${assignment.date}`;
 		assignmentMap.set(key, assignment);
 	}
-	const dedupedAssignments = Array.from(assignmentMap.values());
+	let dedupedAssignments = Array.from(assignmentMap.values());
+
+	// Preserve any assignments that already exist for the same (student, date) —
+	// notably locked/preset assignments that survived a regeneration. Skipping
+	// them here keeps the existing row and avoids a UNIQUE(student_id, date)
+	// violation, so auto-generation always works around locked assignments.
+	const studentIds = [...new Set(dedupedAssignments.map((a) => a.student_id))];
+	if (studentIds.length > 0) {
+		const existing = await db
+			.selectFrom('schedule_assignments')
+			.select(['student_id', 'date'])
+			.where('student_id', 'in', studentIds)
+			.execute();
+		const taken = new Set(existing.map((e) => `${e.student_id}:${e.date}`));
+		if (taken.size > 0) {
+			dedupedAssignments = dedupedAssignments.filter(
+				(a) => !taken.has(`${a.student_id}:${a.date}`)
+			);
+		}
+	}
+
+	if (dedupedAssignments.length === 0) {
+		log.info('Bulk create: all candidate slots already occupied');
+		return [];
+	}
 
 	const timestamp = new Date().toISOString();
 	const assignments = dedupedAssignments.map((assignment) => ({
@@ -451,6 +475,7 @@ export async function bulkCreateAssignments(
 		clerkship_id: assignment.clerkship_id,
 		date: assignment.date,
 		status: assignment.status || 'scheduled',
+		source: 'generated',
 		created_at: timestamp,
 		updated_at: timestamp
 	}));

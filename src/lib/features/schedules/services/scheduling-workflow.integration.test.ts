@@ -116,6 +116,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -840,10 +842,9 @@ describe('Scheduling Workflow Integration Tests', () => {
 			for (const dateStr of availabilityDates) {
 				const date = parseDate(dateStr);
 				const dayOfWeek = date.getUTCDay();
-				expect(
-					[0, 6],
-					`Date ${dateStr} should be Sat/Sun but was day ${dayOfWeek}`
-				).toContain(dayOfWeek);
+				expect([0, 6], `Date ${dateStr} should be Sat/Sun but was day ${dayOfWeek}`).toContain(
+					dayOfWeek
+				);
 			}
 
 			// Specific checks for December 2025
