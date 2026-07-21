@@ -132,9 +132,36 @@
 		}
 	}
 
+	// Validation markers
+	let violationDates = $state<Set<string>>(new Set());
+	let violationMessages = $state<Record<string, string[]>>({});
+	let violationCount = $state(0);
+
+	async function loadValidation() {
+		try {
+			const res = await fetch('/api/schedules/validation');
+			const body = await res.json();
+			if (body.success) {
+				const byDate = body.data.byDate as Record<string, { message: string }[]>;
+				violationDates = new Set(Object.keys(byDate));
+				violationMessages = Object.fromEntries(
+					Object.entries(byDate).map(([d, vs]) => [d, vs.map((v) => v.message)])
+				);
+				violationCount = body.data.violations.length;
+			}
+		} catch (e) {
+			console.error('Failed to load validation', e);
+		}
+	}
+
 	// Load calendar on mount and when filters change
 	$effect(() => {
 		loadCalendar();
+	});
+
+	// Validation is independent of filters — load once on mount and after edits.
+	$effect(() => {
+		loadValidation();
 	});
 
 	// Group events by date
@@ -195,6 +222,7 @@
 		showEditModal = false;
 		selectedAssignment = null;
 		loadCalendar();
+		loadValidation();
 	}
 
 	function handleEditCancel() {
@@ -206,6 +234,7 @@
 		showEditModal = false;
 		selectedAssignment = null;
 		loadCalendar();
+		loadValidation();
 	}
 
 	// Reassign
@@ -219,6 +248,7 @@
 		showReassignModal = false;
 		selectedAssignment = null;
 		loadCalendar();
+		loadValidation();
 	}
 
 	function handleReassignCancel() {
@@ -235,6 +265,7 @@
 	}
 	function handleAssignmentCreated() {
 		loadCalendar();
+		loadValidation();
 	}
 
 	// Regenerate schedule
@@ -461,6 +492,18 @@
 		</div>
 	</div>
 
+	<!-- Conflict summary -->
+	{#if violationCount > 0}
+		<div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
+			{violationCount} scheduling conflict{violationCount > 1 ? 's' : ''} in this schedule. Days with
+			conflicts are marked with a red dot in the calendar view.
+		</div>
+	{:else}
+		<div class="mb-6 rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950/20">
+			No scheduling conflicts.
+		</div>
+	{/if}
+
 	<!-- Blackout Dates Panel -->
 	{#if showBlackoutPanel}
 		<div class="mb-6">
@@ -621,6 +664,8 @@
 				months={calendarMonths()}
 				mode="student"
 				blackoutDates={blackoutDateSet}
+				{violationDates}
+				{violationMessages}
 				onDayClick={handleDayClick}
 				onAssignmentClick={handleAssignmentClick}
 			/>

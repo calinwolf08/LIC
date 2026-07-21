@@ -5,11 +5,22 @@
 		months: CalendarMonth[];
 		mode?: 'student' | 'preceptor';
 		blackoutDates?: Set<string>;
+		/** Dates with validation conflicts (red corner marker). Optional message per date for the tooltip. */
+		violationDates?: Set<string>;
+		violationMessages?: Record<string, string[]>;
 		onDayClick?: (day: CalendarDay) => void;
 		onAssignmentClick?: (day: CalendarDay, assignment: CalendarDayAssignment) => void;
 	}
 
-	let { months, mode = 'student', blackoutDates = new Set(), onDayClick, onAssignmentClick }: Props = $props();
+	let {
+		months,
+		mode = 'student',
+		blackoutDates = new Set(),
+		violationDates = new Set(),
+		violationMessages = {},
+		onDayClick,
+		onAssignmentClick
+	}: Props = $props();
 
 	function isBlackoutDate(date: string): boolean {
 		return blackoutDates.has(date);
@@ -87,6 +98,14 @@
 								<span class="text-xs font-medium {day.isToday ? 'text-primary' : ''}">
 									{day.dayOfMonth}
 								</span>
+
+								{#if violationDates.has(day.date) && day.isCurrentMonth}
+									<span
+										class="absolute right-0.5 top-0.5 z-10 h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-900"
+										title={(violationMessages[day.date] ?? ['Scheduling conflict']).join('\n')}
+										aria-label="Scheduling conflict"
+									></span>
+								{/if}
 
 								{#if day.assignments && day.assignments.length > 0}
 									<div class="mt-1 space-y-0.5 overflow-hidden" style="max-height: calc(100% - 20px);">
