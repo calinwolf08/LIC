@@ -308,7 +308,8 @@ export async function bulkReassign(
 export async function clearAllAssignments(db: Kysely<DB>, fromDate?: string): Promise<number> {
 	log.debug('Clearing assignments', { fromDate: fromDate || 'all' });
 
-	let query = db.deleteFrom('schedule_assignments');
+	// Locked (preset) assignments are always preserved by auto-generation.
+	let query = db.deleteFrom('schedule_assignments').where('locked', '=', 0);
 
 	if (fromDate) {
 		query = query.where('date', '>=', fromDate);

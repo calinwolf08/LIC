@@ -114,6 +114,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -934,6 +936,67 @@ describe('Editing Service Integration Tests', () => {
 			});
 
 			expect(remaining).toHaveLength(0);
+		});
+
+		it('preserves locked assignments (auto-generation lock honoring)', async () => {
+			const healthSystem = await createHealthSystem(db);
+			const student = await createStudent(db, {
+				name: 'Locked Student',
+				email: 'locked@example.com',
+				cohort: '2024'
+			});
+			const preceptor = await createPreceptorDirect(db, {
+				name: 'Dr. Lock',
+				email: 'lock@hospital.com',
+				health_system_id: healthSystem.id,
+				max_students: 2
+			});
+			const clerkship = await createClerkshipDirect(db, {
+				name: 'Neurology',
+				clerkship_type: 'outpatient',
+				required_days: 10
+			});
+
+			const ts = new Date().toISOString();
+			// One unlocked, one locked assignment.
+			await db
+				.insertInto('schedule_assignments')
+				.values([
+					{
+						id: 'unlocked-1',
+						student_id: student.id,
+						preceptor_id: preceptor.id,
+						clerkship_id: clerkship.id,
+						date: '2024-02-01',
+						status: 'scheduled',
+						locked: 0,
+						source: 'generated',
+						created_at: ts,
+						updated_at: ts
+					},
+					{
+						id: 'locked-1',
+						student_id: student.id,
+						preceptor_id: preceptor.id,
+						clerkship_id: clerkship.id,
+						date: '2024-02-02',
+						status: 'scheduled',
+						locked: 1,
+						source: 'manual',
+						created_at: ts,
+						updated_at: ts
+					}
+				])
+				.execute();
+
+			const count = await clearAllAssignments(db);
+			expect(count).toBe(1); // only the unlocked one
+
+			const remaining = await db
+				.selectFrom('schedule_assignments')
+				.select('id')
+				.execute();
+			expect(remaining.map((r) => r.id)).toEqual(['locked-1']);
 		});
 	});
 });

@@ -46,7 +46,7 @@
 		{ href: '/clerkships', label: 'Clerkships', icon: GraduationCap },
 		{ href: '/locations', label: 'Locations', icon: MapPin },
 		{ href: '/schedules', label: 'Schedules', icon: CalendarRange },
-		{ href: '/schedule/results', label: 'Auto-Generate', icon: Wand2, autogenOnly: true }
+		{ href: '/generate', label: 'Auto-Generate', icon: Wand2, autogenOnly: true }
 	];
 
 	let navItems = $derived(allNavItems.filter((item) => !item.autogenOnly || hasAutogen));

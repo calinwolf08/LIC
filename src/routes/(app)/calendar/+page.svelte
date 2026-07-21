@@ -457,7 +457,7 @@
 						</p>
 					</div>
 				</div>
-				<Button variant="outline" size="sm" onclick={() => goto('/schedule/results')}>
+				<Button variant="outline" size="sm" onclick={() => goto('/generate/results')}>
 					View Details
 				</Button>
 			</div>
@@ -483,7 +483,7 @@
 			</Button>
 			<Button onclick={openCreateAssignment}>Add assignment</Button>
 			{#if hasAutogen}
-				<Button variant="outline" onclick={() => goto('/schedule/results')}>Schedule Results</Button
+				<Button variant="outline" onclick={() => goto('/generate/results')}>Schedule Results</Button
 				>
 				<Button variant="default" onclick={handleRegenerateClick}>
 					{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
