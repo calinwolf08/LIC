@@ -34,3 +34,6 @@ vite.config.ts.timestamp-*
 sqlite.db
 sqlite.db-shm
 sqlite.db-wal
+test-sqlite.db*
+test-results/
+playwright-report/

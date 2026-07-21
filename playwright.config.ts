@@ -1,23 +1,28 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const DB = 'DATABASE_PATH=./test-sqlite.db';
+const ENV =
+	'PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing';
+
 export default defineConfig({
-	globalSetup: './e2e/global-setup.ts',
-	globalTeardown: './e2e/global-teardown.ts',
 	webServer: {
-		command: 'DATABASE_PATH=./test-sqlite.db npx tsx e2e/setup-test-db.ts && DATABASE_PATH=./test-sqlite.db E2E_TESTING=true PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing npm run build && DATABASE_PATH=./test-sqlite.db E2E_TESTING=true PUBLIC_BASE_URL=http://localhost:4173 BETTER_AUTH_SECRET=test-secret-key-for-e2e-testing npm run preview',
+		// Fresh migrated DB → seed demo data + users (real auth, no E2E bypass) → build → preview
+		command: `${DB} npx tsx e2e/setup-test-db.ts && ${DB} ${ENV} npx tsx src/lib/db/scripts/seed.ts && ${DB} ${ENV} npm run build && ${DB} ${ENV} npm run preview`,
 		port: 4173,
-		timeout: 180000, // 3 minutes for build + server start
-		reuseExistingServer: false
+		timeout: 240000,
+		// Reuse a locally-running server during iteration; always build fresh in CI.
+		reuseExistingServer: !process.env.CI
 	},
-	testDir: 'e2e',
-	timeout: 60000, // 60 seconds per test (increased from 30)
-	fullyParallel: false, // Run tests sequentially to avoid resource exhaustion
-	workers: 1, // Single worker to prevent browser crashes
-	retries: 2, // Retry failed tests twice for stability
+	testDir: 'e2e/journeys',
+	timeout: 60000,
+	expect: { timeout: 10000 },
+	fullyParallel: false,
+	workers: 1,
+	retries: 1,
 	use: {
 		baseURL: 'http://localhost:4173',
 		headless: true,
-		viewport: { width: 1280, height: 1024 }, // Taller viewport for modal dialogs
+		viewport: { width: 1280, height: 1024 },
 		launchOptions: {
 			args: [
 				'--no-sandbox',
@@ -28,5 +33,6 @@ export default defineConfig({
 				'--disable-extensions'
 			]
 		}
-	}
+	},
+	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }]
 });
