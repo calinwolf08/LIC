@@ -24,11 +24,12 @@ interface HealthSystem {
 export const load: PageLoad = async ({ params, fetch }) => {
 	try {
 		// Load all required data in parallel
-		const [studentRes, healthSystemsRes, onboardingRes, scheduleRes] = await Promise.all([
+		const [studentRes, healthSystemsRes, onboardingRes, scheduleRes, statusRes] = await Promise.all([
 			fetch(`/api/students/${params.id}`),
 			fetch('/api/health-systems'),
 			fetch('/api/student-onboarding'),
-			fetch(`/api/students/${params.id}/schedule`)
+			fetch(`/api/students/${params.id}/schedule`),
+			fetch('/api/schedules/status')
 		]);
 
 		if (!studentRes.ok) {
@@ -69,11 +70,21 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			schedule = scheduleResult.data;
 		}
 
+		// Requirement status for this student
+		let status = null;
+		if (statusRes.ok) {
+			const statusResult = await statusRes.json();
+			status = (statusResult.data ?? []).find(
+				(s: { student_id: string }) => s.student_id === params.id
+			) ?? null;
+		}
+
 		return {
 			student,
 			healthSystems,
 			onboardingStatus: Object.fromEntries(onboardingStatus),
 			schedule,
+			status,
 			studentId: params.id
 		};
 	} catch (err) {

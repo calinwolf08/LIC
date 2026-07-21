@@ -45,11 +45,7 @@
 		<Button href="/students/new">Add Student</Button>
 	</div>
 
-	<StudentList
-		students={data.students}
-		completionStats={data.completionStats}
-		onDelete={handleDelete}
-	/>
+	<StudentList students={data.students} statuses={data.statuses} onDelete={handleDelete} />
 
 	<DeleteStudentDialog
 		open={showDeleteDialog}

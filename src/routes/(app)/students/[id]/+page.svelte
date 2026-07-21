@@ -3,41 +3,77 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import {
-		ClerkshipProgressCard,
-		StudentRequirementsSummary
-	} from '$lib/features/schedules/components';
+		PageHeader,
+		EntityTabs,
+		ConfirmDialog,
+		EmptyState,
+		toast,
+		type EntityTab
+	} from '$lib/components';
+	import { CreateAssignmentDialog } from '$lib/features/schedules/components';
 	import StudentForm from '$lib/features/students/components/student-form.svelte';
 	import SharedEntityWarning from '$lib/components/shared-entity-warning.svelte';
+	import { completionPercent } from '$lib/features/scheduling/services/requirement-status';
 
 	let { data }: { data: PageData } = $props();
 
-	// Tab state - Details is now first
-	let activeTab = $state<'details' | 'onboarding' | 'progress' | 'calendar'>('details');
+	const tabs: EntityTab[] = [
+		{ id: 'overview', label: 'Overview' },
+		{ id: 'schedule', label: 'Schedule' },
+		{ id: 'details', label: 'Details' },
+		{ id: 'onboarding', label: 'Onboarding' }
+	];
+	let activeTab = $state('overview');
 
-	// Success message for form
-	let successMessage = $state<string | null>(null);
+	let status = $derived(data.status);
+	let overallPct = $derived(status ? completionPercent(status.overall) : 0);
 
-	async function handleFormSuccess() {
-		successMessage = 'Student updated successfully';
+	// ---- Create assignment ----
+	let showCreate = $state(false);
+	let prefillClerkship = $state('');
+	function addDays(clerkshipId = '') {
+		prefillClerkship = clerkshipId;
+		showCreate = true;
+	}
+	async function onAssignmentSaved() {
 		await invalidateAll();
-		setTimeout(() => {
-			successMessage = null;
-		}, 3000);
 	}
 
-	// Compute completed onboarding count
+	// ---- Delete assignment ----
+	let showDelete = $state(false);
+	let deleteId = $state<string | null>(null);
+	function requestDelete(id: string) {
+		deleteId = id;
+		showDelete = true;
+	}
+	async function confirmDelete() {
+		if (!deleteId) return;
+		const res = await fetch(`/api/schedules/assignments/${deleteId}`, { method: 'DELETE' });
+		if (!res.ok) {
+			const body = await res.json();
+			throw new Error(body.error?.message || 'Failed to delete assignment');
+		}
+		toast.success('Assignment removed');
+		await invalidateAll();
+	}
+
+	// ---- Details form ----
+	let successMessage = $state<string | null>(null);
+	async function handleFormSuccess() {
+		successMessage = 'Student updated';
+		await invalidateAll();
+		setTimeout(() => (successMessage = null), 3000);
+	}
+
+	// ---- Onboarding ----
 	let completedOnboarding = $derived(
 		Object.values(data.onboardingStatus).filter((r) => r.is_completed === 1).length
 	);
-
-	// Toggle onboarding status
 	async function toggleOnboarding(healthSystemId: string) {
 		const existing = data.onboardingStatus[healthSystemId];
 		const isCompleted = existing?.is_completed === 1;
-
 		try {
 			const response = await fetch('/api/student-onboarding', {
 				method: 'PUT',
@@ -49,13 +85,12 @@
 					completed_date: isCompleted ? null : new Date().toISOString().split('T')[0]
 				})
 			});
-
 			if (!response.ok) throw new Error('Failed to update onboarding');
-
-			// Refresh the page to get updated data
-			window.location.reload();
+			toast.success(isCompleted ? 'Marked pending' : 'Marked complete');
+			await invalidateAll();
 		} catch (err) {
 			console.error('Failed to update onboarding:', err);
+			toast.error('Failed to update onboarding');
 		}
 	}
 </script>
@@ -65,106 +100,148 @@
 </svelte:head>
 
 <div class="container mx-auto max-w-6xl p-6">
-	<!-- Breadcrumb -->
-	<nav class="mb-6 text-sm text-muted-foreground">
-		<a href="/students" class="hover:underline">Students</a>
-		<span class="mx-2">/</span>
-		<span>{data.student.name}</span>
-	</nav>
+	<PageHeader
+		title={data.student.name}
+		description={data.student.email}
+		breadcrumbs={[{ label: 'Students', href: '/students' }, { label: data.student.name }]}
+	>
+		{#snippet actions()}
+			<Button onclick={() => addDays('')}>Add assignment</Button>
+		{/snippet}
+	</PageHeader>
 
-	<!-- Header -->
-	<div class="mb-6 flex items-start justify-between">
-		<div>
-			<h1 class="text-3xl font-bold">{data.student.name}</h1>
-			<p class="text-muted-foreground">{data.student.email}</p>
+	<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
+
+	{#if activeTab === 'overview'}
+		{#if status && status.conflict_count > 0}
+			<div class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+				This student has {status.conflict_count} scheduling conflict{status.conflict_count > 1 ? 's' : ''}.
+			</div>
+		{/if}
+
+		<!-- Summary cards -->
+		<div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+			<Card class="p-4 text-center">
+				<div class="text-2xl font-bold">{status?.overall.required ?? 0}</div>
+				<div class="text-sm text-muted-foreground">Days required</div>
+			</Card>
+			<Card class="p-4 text-center">
+				<div class="text-2xl font-bold text-green-600">{status?.overall.completed ?? 0}</div>
+				<div class="text-sm text-muted-foreground">Completed</div>
+			</Card>
+			<Card class="p-4 text-center">
+				<div class="text-2xl font-bold text-blue-600">{status?.overall.scheduled ?? 0}</div>
+				<div class="text-sm text-muted-foreground">Scheduled</div>
+			</Card>
+			<Card class="p-4 text-center">
+				<div class="text-2xl font-bold text-amber-600">{status?.overall.unscheduled ?? 0}</div>
+				<div class="text-sm text-muted-foreground">Unscheduled</div>
+			</Card>
 		</div>
-		<Button onclick={() => goto(`/students/${data.studentId}/schedule`)}>View Full Schedule</Button>
-	</div>
 
-	<!-- Tabs -->
-	<div class="mb-6 border-b">
-		<nav class="-mb-px flex space-x-8">
-			<button
-				onclick={() => (activeTab = 'details')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'details'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Details
-			</button>
-			<button
-				onclick={() => (activeTab = 'onboarding')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'onboarding'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Health System Onboarding
-				<Badge variant="secondary" class="ml-2">
-					{completedOnboarding} / {data.healthSystems.length}
-				</Badge>
-			</button>
-			<button
-				onclick={() => (activeTab = 'progress')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'progress'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Clerkship Progress
-				{#if data.schedule}
-					<Badge variant="secondary" class="ml-2">
-						{data.schedule.summary.overallPercentComplete}%
-					</Badge>
-				{/if}
-			</button>
-			<button
-				onclick={() => (activeTab = 'calendar')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'calendar'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Calendar
-			</button>
-		</nav>
-	</div>
-
-	<!-- Tab Content -->
-	{#if activeTab === 'details'}
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Student Information</h2>
-
-			<SharedEntityWarning
-				entityType="students"
-				entityId={data.studentId}
-				entityName={data.student.name}
-			/>
-
+			<h2 class="mb-4 text-xl font-semibold">Clerkship progress <span class="text-sm font-normal text-muted-foreground">({overallPct}% overall)</span></h2>
+			{#if !status || status.per_clerkship.length === 0}
+				<EmptyState icon="📋" title="No clerkship requirements" description="Add clerkships with required days to track this student's progress." />
+			{:else}
+				<div class="space-y-4">
+					{#each status.per_clerkship as c (c.clerkship_id)}
+						{@const total = Math.max(c.required, c.completed + c.scheduled)}
+						<div class="rounded-lg border p-4">
+							<div class="mb-2 flex items-center justify-between">
+								<a href="/clerkships/{c.clerkship_id}" class="font-medium text-primary hover:underline">
+									{c.clerkship_name}
+								</a>
+								<span class="text-sm text-muted-foreground">
+									{c.completed} done · {c.scheduled} scheduled · {c.unscheduled} left / {c.required}
+								</span>
+							</div>
+							<!-- Segmented progress bar -->
+							<div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
+								<div class="h-full bg-green-500" style="width: {(c.completed / total) * 100}%"></div>
+								<div class="h-full bg-blue-500" style="width: {(c.scheduled / total) * 100}%"></div>
+							</div>
+							{#if c.unscheduled > 0}
+								<div class="mt-2">
+									<Button size="sm" variant="outline" onclick={() => addDays(c.clerkship_id)}>
+										Add days
+									</Button>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</Card>
+	{:else if activeTab === 'schedule'}
+		<Card class="p-6">
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-xl font-semibold">Schedule</h2>
+				<Button onclick={() => addDays('')}>Add assignment</Button>
+			</div>
+			{#if !data.schedule || data.schedule.assignments.length === 0}
+				<EmptyState
+					icon="📅"
+					title="No assignments yet"
+					description="Add assignments to build this student's schedule."
+				>
+					{#snippet action()}
+						<Button onclick={() => addDays('')}>Add assignment</Button>
+					{/snippet}
+				</EmptyState>
+			{:else}
+				<div class="overflow-x-auto rounded-lg border">
+					<table class="w-full text-sm">
+						<thead class="bg-muted/50">
+							<tr>
+								<th class="px-3 py-2 text-left font-medium">Date</th>
+								<th class="px-3 py-2 text-left font-medium">Clerkship</th>
+								<th class="px-3 py-2 text-left font-medium">Preceptor</th>
+								<th class="px-3 py-2 text-left font-medium"></th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each data.schedule.assignments as a (a.id)}
+								<tr class="border-t">
+									<td class="px-3 py-2">{a.date}</td>
+									<td class="px-3 py-2">
+										<a href="/clerkships/{a.clerkship_id}" class="text-primary hover:underline">{a.clerkship_name}</a>
+									</td>
+									<td class="px-3 py-2">
+										<a href="/preceptors/{a.preceptor_id}" class="text-primary hover:underline">{a.preceptor_name}</a>
+									</td>
+									<td class="px-3 py-2 text-right">
+										<Button size="sm" variant="ghost" class="text-red-600 hover:bg-red-50" onclick={() => requestDelete(a.id)}>
+											Remove
+										</Button>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</Card>
+	{:else if activeTab === 'details'}
+		<Card class="p-6">
+			<h2 class="mb-4 text-xl font-semibold">Student information</h2>
+			<SharedEntityWarning entityType="students" entityId={data.studentId} entityName={data.student.name} />
 			{#if successMessage}
-				<div class="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800 mb-4">
+				<div class="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
 					{successMessage}
 				</div>
 			{/if}
-
 			<div class="max-w-xl">
 				<StudentForm student={data.student} onSuccess={handleFormSuccess} />
 			</div>
-
-			<div class="mt-6 pt-6 border-t">
-				<h3 class="text-sm font-medium text-muted-foreground mb-2">Additional Information</h3>
+			<div class="mt-6 border-t pt-6">
 				<dl class="grid grid-cols-2 gap-4 text-sm">
 					<div>
 						<dt class="text-muted-foreground">Created</dt>
 						<dd>{new Date(String(data.student.created_at)).toLocaleDateString()}</dd>
 					</div>
 					<div>
-						<dt class="text-muted-foreground">Last Updated</dt>
+						<dt class="text-muted-foreground">Last updated</dt>
 						<dd>{new Date(String(data.student.updated_at)).toLocaleDateString()}</dd>
 					</div>
 				</dl>
@@ -172,27 +249,25 @@
 		</Card>
 	{:else if activeTab === 'onboarding'}
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Health System Onboarding</h2>
-			<p class="text-sm text-muted-foreground mb-6">
-				Track {data.student.name}'s completion of onboarding at each health system. Students must
-				complete onboarding before they can be scheduled at a health system.
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-xl font-semibold">Health system onboarding</h2>
+				<Badge variant="secondary">{completedOnboarding} / {data.healthSystems.length}</Badge>
+			</div>
+			<p class="mb-6 text-sm text-muted-foreground">
+				Students must complete onboarding at a health system before being scheduled there.
 			</p>
-
 			{#if data.healthSystems.length === 0}
-				<div class="text-center py-8 text-muted-foreground">
-					<p>No health systems configured.</p>
-					<Button variant="outline" class="mt-4" onclick={() => goto('/health-systems')}>
-						Manage Health Systems
-					</Button>
-				</div>
+				<EmptyState icon="🏥" title="No health systems" description="Add health systems in Locations.">
+					{#snippet action()}
+						<Button variant="outline" onclick={() => goto('/locations?tab=health-systems')}>Manage locations</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
 				<div class="space-y-3">
-					{#each data.healthSystems as healthSystem}
+					{#each data.healthSystems as healthSystem (healthSystem.id)}
 						{@const record = data.onboardingStatus[healthSystem.id]}
 						{@const isCompleted = record?.is_completed === 1}
-						<div
-							class="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-						>
+						<div class="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50">
 							<div class="flex items-center gap-4">
 								<input
 									type="checkbox"
@@ -201,133 +276,35 @@
 									onchange={() => toggleOnboarding(healthSystem.id)}
 									class="h-5 w-5 rounded border-gray-300"
 								/>
-								<label for={`onboarding-${healthSystem.id}`} class="font-medium cursor-pointer">
+								<label for={`onboarding-${healthSystem.id}`} class="cursor-pointer font-medium">
 									{healthSystem.name}
 								</label>
 							</div>
-							<div class="flex items-center gap-3">
-								{#if isCompleted && record?.completed_date}
-									<span class="text-sm text-muted-foreground">
-										Completed {record.completed_date}
-									</span>
-								{/if}
-								{#if isCompleted}
-									<Badge variant="default" class="bg-green-600">Completed</Badge>
-								{:else}
-									<Badge variant="secondary">Pending</Badge>
-								{/if}
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</Card>
-	{:else if activeTab === 'progress'}
-		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Clerkship Progress</h2>
-
-			{#if !data.schedule || !data.schedule.period}
-				<div class="text-center py-8 text-muted-foreground">
-					<p>No scheduling period is currently active.</p>
-					<p class="text-sm mt-2">
-						Generate a schedule to see clerkship progress for this student.
-					</p>
-					<Button variant="outline" class="mt-4" onclick={() => goto('/calendar')}>
-						Go to Calendar
-					</Button>
-				</div>
-			{:else if data.schedule.clerkshipProgress.length === 0}
-				<div class="text-center py-8 text-muted-foreground">
-					<p>No clerkship requirements found.</p>
-				</div>
-			{:else}
-				<div class="mb-6">
-					<StudentRequirementsSummary summary={data.schedule.summary} />
-				</div>
-
-				<div class="space-y-4">
-					{#each data.schedule.clerkshipProgress as progress}
-						<ClerkshipProgressCard {progress} />
-					{/each}
-				</div>
-			{/if}
-		</Card>
-	{:else if activeTab === 'calendar'}
-		<Card class="p-6">
-			<div class="flex items-center justify-between mb-4">
-				<h2 class="text-xl font-semibold">Schedule Calendar</h2>
-				<Button onclick={() => goto(`/students/${data.studentId}/schedule`)}>
-					View Full Schedule
-				</Button>
-			</div>
-
-			{#if !data.schedule || !data.schedule.period}
-				<div class="text-center py-8 text-muted-foreground">
-					<p>No scheduling period is currently active.</p>
-					<p class="text-sm mt-2">Generate a schedule to see calendar assignments.</p>
-					<Button variant="outline" class="mt-4" onclick={() => goto('/calendar')}>
-						Go to Calendar
-					</Button>
-				</div>
-			{:else}
-				<div class="mb-4">
-					<p class="text-sm text-muted-foreground">
-						Schedule Period: {data.schedule.period.name}
-						({data.schedule.period.start_date} to {data.schedule.period.end_date})
-					</p>
-				</div>
-
-				<!-- Summary stats -->
-				<div class="grid grid-cols-3 gap-4 mb-6">
-					<div class="border rounded-lg p-4 text-center">
-						<div class="text-2xl font-bold">{data.schedule.summary.totalAssignedDays}</div>
-						<div class="text-sm text-muted-foreground">Days Assigned</div>
-					</div>
-					<div class="border rounded-lg p-4 text-center">
-						<div class="text-2xl font-bold">{data.schedule.summary.totalRequiredDays}</div>
-						<div class="text-sm text-muted-foreground">Days Required</div>
-					</div>
-					<div class="border rounded-lg p-4 text-center">
-						<div class="text-2xl font-bold">{data.schedule.summary.overallPercentComplete}%</div>
-						<div class="text-sm text-muted-foreground">Complete</div>
-					</div>
-				</div>
-
-				<!-- Assignment list (preview) -->
-				<div class="border rounded-lg">
-					<div class="p-3 border-b bg-muted/50 font-medium">Upcoming Assignments</div>
-					{#if data.schedule.assignments.length === 0}
-						<div class="p-8 text-center text-muted-foreground">No assignments scheduled</div>
-					{:else}
-						<div class="max-h-96 overflow-y-auto">
-							{#each data.schedule.assignments.slice(0, 10) as assignment}
-								<div class="flex items-center justify-between p-3 border-b last:border-b-0">
-									<div>
-										<div class="font-medium">{assignment.date}</div>
-										<div class="text-sm text-muted-foreground">
-											{assignment.clerkship_name}
-										</div>
-									</div>
-									<div class="text-sm text-right">
-										<div>{assignment.preceptor_name}</div>
-										<div class="text-muted-foreground">{assignment.status}</div>
-									</div>
-								</div>
-							{/each}
-							{#if data.schedule.assignments.length > 10}
-								<div class="p-3 text-center">
-									<Button
-										variant="ghost"
-										onclick={() => goto(`/students/${data.studentId}/schedule`)}
-									>
-										View all {data.schedule.assignments.length} assignments
-									</Button>
-								</div>
+							{#if isCompleted}
+								<Badge class="bg-green-600">Completed</Badge>
+							{:else}
+								<Badge variant="secondary">Pending</Badge>
 							{/if}
 						</div>
-					{/if}
+					{/each}
 				</div>
 			{/if}
 		</Card>
 	{/if}
 </div>
+
+<CreateAssignmentDialog
+	bind:open={showCreate}
+	studentId={data.studentId}
+	lockStudent={true}
+	clerkshipId={prefillClerkship}
+	onSaved={onAssignmentSaved}
+/>
+
+<ConfirmDialog
+	bind:open={showDelete}
+	title="Remove assignment?"
+	description="This removes the assignment from the schedule."
+	confirmLabel="Remove"
+	onConfirm={confirmDelete}
+/>
