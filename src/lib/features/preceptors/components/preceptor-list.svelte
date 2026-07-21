@@ -2,16 +2,15 @@
 	import type { PreceptorWithAssociations } from '$lib/features/preceptors/services/preceptor-service';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { goto } from '$app/navigation';
 
 	interface Props {
 		preceptors: PreceptorWithAssociations[];
 		loading?: boolean;
-		onEdit?: (preceptor: PreceptorWithAssociations) => void;
 		onDelete?: (preceptor: PreceptorWithAssociations) => void;
-		onManageAvailability?: (preceptor: PreceptorWithAssociations) => void;
 	}
 
-	let { preceptors, loading = false, onEdit, onDelete, onManageAvailability }: Props = $props();
+	let { preceptors, loading = false, onDelete }: Props = $props();
 
 	let sortColumn = $state<'name' | 'email' | null>(null);
 	let sortDirection = $state<'asc' | 'desc'>('asc');
@@ -102,11 +101,15 @@
 				{:else}
 					{#each sortedPreceptors() as preceptor}
 						<tr class="border-b transition-colors hover:bg-muted/50">
-							<td class="px-4 py-3 text-sm">{preceptor.name}</td>
+							<td class="px-4 py-3 text-sm">
+								<a href="/preceptors/{preceptor.id}" class="font-medium text-primary hover:underline">
+									{preceptor.name}
+								</a>
+							</td>
 							<td class="px-4 py-3 text-sm">{preceptor.email}</td>
 							<td class="px-4 py-3 text-sm">
 								{#if preceptor.health_system_name}
-									<a href="/health-systems" class="text-blue-600 hover:underline">
+									<a href="/locations?tab=health-systems" class="text-blue-600 hover:underline">
 										{preceptor.health_system_name}
 									</a>
 								{:else}
@@ -116,7 +119,7 @@
 							<td class="px-4 py-3 text-sm">
 								{#if preceptor.sites && preceptor.sites.length > 0}
 									{#each preceptor.sites as site, i}
-										<a href="/sites/{site.id}/edit" class="text-blue-600 hover:underline">
+										<a href="/locations?tab=sites" class="text-blue-600 hover:underline">
 											{site.name}
 										</a>{i < preceptor.sites.length - 1 ? ', ' : ''}
 									{/each}
@@ -160,22 +163,9 @@
 							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
-									{#if onEdit}
-										<Button size="sm" variant="outline" onclick={() => onEdit?.(preceptor)}>
-											Edit
-										</Button>
-									{/if}
-									{#if onManageAvailability}
-										<Button
-											size="sm"
-											variant="outline"
-											onclick={() => onManageAvailability?.(preceptor)}
-											disabled={!preceptor.sites || preceptor.sites.length === 0}
-											title={!preceptor.sites || preceptor.sites.length === 0 ? 'Assign this preceptor to a site first' : 'Manage availability patterns'}
-										>
-											Availability
-										</Button>
-									{/if}
+									<Button size="sm" variant="ghost" onclick={() => goto(`/preceptors/${preceptor.id}`)}>
+										View
+									</Button>
 									{#if onDelete}
 										<Button
 											size="sm"

@@ -2,12 +2,9 @@
 	import type { PageData } from './$types';
 	import type { PreceptorWithAssociations } from '$lib/features/preceptors/services/preceptor-service';
 	import PreceptorList from '$lib/features/preceptors/components/preceptor-list.svelte';
-	import PreceptorForm from '$lib/features/preceptors/components/preceptor-form.svelte';
-	import PatternAvailabilityBuilder from '$lib/features/preceptors/components/pattern-availability-builder.svelte';
 	import DeletePreceptorDialog from '$lib/features/preceptors/components/delete-preceptor-dialog.svelte';
 	import TeamList from '$lib/features/teams/components/team-list.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -33,8 +30,6 @@
 	});
 
 	// Preceptor state
-	let showForm = $state(false);
-	let showAvailability = $state(false);
 	let showDeleteDialog = $state(false);
 	let selectedPreceptor = $state<PreceptorWithAssociations | undefined>(undefined);
 
@@ -76,41 +71,9 @@
 		goto('/preceptors/new');
 	}
 
-	function handleEdit(preceptor: PreceptorWithAssociations) {
-		selectedPreceptor = preceptor;
-		showForm = true;
-	}
-
-	function handleManageAvailability(preceptor: PreceptorWithAssociations) {
-		selectedPreceptor = preceptor;
-		showAvailability = true;
-	}
-
 	function handleDelete(preceptor: PreceptorWithAssociations) {
 		selectedPreceptor = preceptor;
 		showDeleteDialog = true;
-	}
-
-	async function handleFormSuccess() {
-		showForm = false;
-		selectedPreceptor = undefined;
-		await invalidateAll();
-	}
-
-	function handleFormCancel() {
-		showForm = false;
-		selectedPreceptor = undefined;
-	}
-
-	async function handleAvailabilitySuccess() {
-		showAvailability = false;
-		selectedPreceptor = undefined;
-		await invalidateAll();
-	}
-
-	function handleAvailabilityCancel() {
-		showAvailability = false;
-		selectedPreceptor = undefined;
 	}
 
 	async function handleDeleteConfirm(preceptor: { id: string; name: string }) {
@@ -210,12 +173,7 @@
 			<Button onclick={handleAdd}>Add Preceptor</Button>
 		</div>
 
-		<PreceptorList
-			preceptors={data.preceptors}
-			onEdit={handleEdit}
-			onDelete={handleDelete}
-			onManageAvailability={handleManageAvailability}
-		/>
+		<PreceptorList preceptors={data.preceptors} onDelete={handleDelete} />
 	{:else if activeTab === 'teams'}
 		<div class="space-y-6">
 			<div class="flex items-center justify-between">
@@ -241,40 +199,6 @@
 		</div>
 	{/if}
 </div>
-
-<!-- Preceptor Form dialog -->
-<Dialog.Root bind:open={showForm}>
-	<Dialog.Content class="max-w-2xl">
-		<Dialog.Header>
-			<Dialog.Title>{selectedPreceptor ? 'Edit Preceptor' : 'Add Preceptor'}</Dialog.Title>
-		</Dialog.Header>
-		<PreceptorForm
-			preceptor={selectedPreceptor}
-			healthSystems={data.healthSystems}
-			sites={data.sites}
-			onSuccess={handleFormSuccess}
-			onCancel={handleFormCancel}
-		/>
-	</Dialog.Content>
-</Dialog.Root>
-
-<!-- Availability dialog -->
-<Dialog.Root bind:open={showAvailability}>
-	<Dialog.Content class="max-w-6xl">
-		<Dialog.Header>
-			<Dialog.Title
-				>Availability{selectedPreceptor ? ` — ${selectedPreceptor.name}` : ''}</Dialog.Title
-			>
-		</Dialog.Header>
-		{#if selectedPreceptor}
-			<PatternAvailabilityBuilder
-				preceptor={selectedPreceptor}
-				onSuccess={handleAvailabilitySuccess}
-				onCancel={handleAvailabilityCancel}
-			/>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
 
 <!-- Delete Preceptor Dialog -->
 <DeletePreceptorDialog
