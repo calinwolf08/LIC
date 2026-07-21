@@ -19,10 +19,10 @@ test('manual scheduling: add an assignment from a student page', async ({ page }
 	await page.getByRole('button', { name: 'Add assignment' }).first().click();
 	await expect(page.getByRole('heading', { name: 'Add assignment' })).toBeVisible();
 
-	// Wait for the async option lists to load, then choose a clerkship + preceptor
-	// (student is pre-filled & locked).
-	await expect(page.locator('#ca-clerkship option')).not.toHaveCount(1);
-	await expect(page.locator('#ca-preceptor option')).not.toHaveCount(1);
+	// Wait for the async option lists to load (can be slow on a cold server),
+	// then choose a clerkship + preceptor (student is pre-filled & locked).
+	await expect(page.locator('#ca-clerkship option')).not.toHaveCount(1, { timeout: 20000 });
+	await expect(page.locator('#ca-preceptor option')).not.toHaveCount(1, { timeout: 20000 });
 	await page.locator('#ca-clerkship').selectOption({ index: 1 });
 	await page.locator('#ca-preceptor').selectOption({ index: 1 });
 	// Vary the offset so re-runs against a non-fresh DB don't double-book the
