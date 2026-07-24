@@ -23,7 +23,11 @@
 		editPattern?: CreatePattern | null;
 	}
 
-	let { preceptorId, sites, onSuccess, onCancel, editPattern = null }: Props = $props();
+	// Default sites to [] so the component never crashes when a caller passes a
+	// preceptor payload without a sites array (the reported "$$props.sites is
+	// undefined" TypeError). The real fix is the guaranteed API shape (below);
+	// this default is the defensive backstop.
+	let { preceptorId, sites = [], onSuccess, onCancel, editPattern = null }: Props = $props();
 
 	// Form state
 	let patternType = $state<'weekly' | 'monthly' | 'block' | 'individual'>('weekly');

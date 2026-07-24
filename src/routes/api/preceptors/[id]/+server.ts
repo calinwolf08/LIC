@@ -20,7 +20,8 @@ import {
 	updatePreceptor,
 	deletePreceptor,
 	setPreceptorSites,
-	getPreceptorSites
+	getPreceptorSites,
+	getPreceptorSitesWithDetails
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { updatePreceptorSchema, preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -46,8 +47,13 @@ export const GET: RequestHandler = async ({ params }) => {
 			return notFoundResponse('Preceptor');
 		}
 
-		// Get site IDs for this preceptor
-		const siteIds = await getPreceptorSites(db, id);
+		// Get site IDs and full site records for this preceptor. `sites` is always
+		// an array so consumers (e.g. the availability builder) never dereference
+		// undefined.
+		const [siteIds, sites] = await Promise.all([
+			getPreceptorSites(db, id),
+			getPreceptorSitesWithDetails(db, id)
+		]);
 
 		log.info('Preceptor fetched', {
 			id,
@@ -57,7 +63,8 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		return successResponse({
 			...preceptor,
-			site_ids: siteIds
+			site_ids: siteIds,
+			sites
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {

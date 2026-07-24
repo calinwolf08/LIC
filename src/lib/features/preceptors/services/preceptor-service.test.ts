@@ -473,7 +473,55 @@ import {
 	createTestPreceptors,
 	associatePreceptorWithSchedule
 } from '$lib/testing/integration-helpers';
-import { getPreceptorsBySchedule } from './preceptor-service';
+import { getPreceptorsBySchedule, getPreceptorSitesWithDetails, setPreceptorSites } from './preceptor-service';
+
+describe('getPreceptorSitesWithDetails()', () => {
+	let db: Kysely<DB>;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+	});
+
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	async function makeHealthSystem(id: string, name: string) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('health_systems')
+			.values({ id, name, created_at: ts, updated_at: ts })
+			.execute();
+	}
+
+	async function makeSite(id: string, name: string, hsId: string) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('sites')
+			.values({ id, name, health_system_id: hsId, created_at: ts, updated_at: ts })
+			.execute();
+	}
+
+	it('returns [] for a preceptor with no sites (never undefined)', async () => {
+		const [preceptor] = await createTestPreceptors(db, 1);
+		const sites = await getPreceptorSitesWithDetails(db, preceptor);
+		expect(Array.isArray(sites)).toBe(true);
+		expect(sites).toEqual([]);
+	});
+
+	it('returns full site records (id + name) for an associated preceptor', async () => {
+		const [preceptor] = await createTestPreceptors(db, 1);
+		await makeHealthSystem('hs-1', 'Metro Health');
+		await makeSite('site-a', 'Metro General', 'hs-1');
+		await makeSite('site-b', 'Community Clinic', 'hs-1');
+		await setPreceptorSites(db, preceptor, ['site-a', 'site-b']);
+
+		const sites = await getPreceptorSitesWithDetails(db, preceptor);
+		expect(sites).toHaveLength(2);
+		expect(sites.map((s) => s.name).sort()).toEqual(['Community Clinic', 'Metro General']);
+		expect(sites.every((s) => typeof s.id === 'string' && typeof s.name === 'string')).toBe(true);
+	});
+});
 
 describe('Preceptor Service - Multi-tenancy', () => {
 	let db: Kysely<DB>;

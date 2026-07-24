@@ -250,6 +250,24 @@ export async function getPreceptorSites(db: Kysely<DB>, preceptorId: string): Pr
 }
 
 /**
+ * Full site records for a preceptor (id, name, health_system_id), joined via
+ * the preceptor_sites junction. Callers that render availability need names,
+ * not just ids. Always returns an array (possibly empty).
+ */
+export async function getPreceptorSitesWithDetails(
+	db: Kysely<DB>,
+	preceptorId: string
+): Promise<Array<{ id: string; name: string; health_system_id: string | null }>> {
+	const rows = await db
+		.selectFrom('preceptor_sites')
+		.innerJoin('sites', 'sites.id', 'preceptor_sites.site_id')
+		.select(['sites.id as id', 'sites.name as name', 'sites.health_system_id as health_system_id'])
+		.where('preceptor_sites.preceptor_id', '=', preceptorId)
+		.execute();
+	return rows.map((r) => ({ id: r.id as string, name: r.name, health_system_id: r.health_system_id }));
+}
+
+/**
  * Set sites for a preceptor (replaces all existing)
  */
 export async function setPreceptorSites(
