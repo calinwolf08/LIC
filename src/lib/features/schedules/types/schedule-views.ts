@@ -60,6 +60,8 @@ export interface CalendarDay {
 	dayOfMonth: number;
 	dayOfWeek: number; // 0-6 (Sun-Sat)
 	isCurrentMonth: boolean;
+	/** True when the date falls within the active schedule's start/end range. */
+	isInRange?: boolean;
 	isToday: boolean;
 	isWeekend: boolean;
 	/** All assignments for this day */

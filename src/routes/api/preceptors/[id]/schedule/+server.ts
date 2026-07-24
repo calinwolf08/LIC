@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, notFoundResponse, handleApiError } from '$lib/api';
 import { getPreceptorScheduleData } from '$lib/features/schedules/services/schedule-views-service';
+import { getActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('api:preceptor-schedule');
@@ -16,11 +17,14 @@ const log = createServerLogger('api:preceptor-schedule');
  * GET /api/preceptors/[id]/schedule
  * Returns preceptor's complete schedule with availability and capacity
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching preceptor schedule', { preceptorId: params.id });
 
 	try {
-		const schedule = await getPreceptorScheduleData(db, params.id);
+		const scheduleId = locals.session?.user?.id
+			? await getActiveScheduleId(locals.session.user.id)
+			: null;
+		const schedule = await getPreceptorScheduleData(db, params.id, scheduleId);
 
 		if (!schedule) {
 			log.warn('Preceptor not found', { preceptorId: params.id });

@@ -75,7 +75,12 @@ export async function getSchedulingPeriodById(
 }
 
 /**
- * Get the currently active scheduling period
+ * Get the currently active scheduling period from the global `is_active` flag.
+ *
+ * @deprecated This resolves the schedule per-installation, not per-user, and can
+ * surface one user's schedule to another. Prefer `getActiveScheduleForUser(db, userId)`
+ * from `$lib/api/schedule-context`. Retained only for the Stage 2 generation
+ * fallback when there is no user context.
  */
 export async function getActiveSchedulingPeriod(
 	db: Kysely<DB>

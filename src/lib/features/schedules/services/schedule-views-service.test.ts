@@ -15,12 +15,10 @@ import {
 	getScheduleSummaryData
 } from './schedule-views-service';
 
-// Mock the scheduling period service
-vi.mock('$lib/features/scheduling/services/scheduling-period-service', () => ({
-	getActiveSchedulingPeriod: vi.fn()
-}));
-
-import { getActiveSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
+// The active schedule is now resolved per-caller by id, not via a global
+// getActiveSchedulingPeriod() lookup. Tests insert a real period row and pass
+// its id explicitly.
+const PERIOD_ID = 'clperiod000000000001';
 
 /**
  * Generate a CUID2-like test ID (20-30 characters)
@@ -140,6 +138,19 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Scheduling periods table (the range source; resolved per-caller by id)
+	await db.schema
+		.createTable('scheduling_periods')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('start_date', 'text', (col) => col.notNull())
+		.addColumn('end_date', 'text', (col) => col.notNull())
+		.addColumn('is_active', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('user_id', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -299,16 +310,20 @@ describe('Schedule Views Service', () => {
 		db = createTestDb();
 		await initializeSchema(db);
 
-		// Mock active period
-		vi.mocked(getActiveSchedulingPeriod).mockResolvedValue({
-			id: generateTestId('clperiod'),
-			name: 'Fall 2024',
-			start_date: '2024-01-01',
-			end_date: '2024-03-31',
-			is_active: 1,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		});
+		// Insert the active period the tests resolve against.
+		await db
+			.insertInto('scheduling_periods')
+			.values({
+				id: PERIOD_ID,
+				name: 'Fall 2024',
+				start_date: '2024-01-01',
+				end_date: '2024-03-31',
+				is_active: 1,
+				user_id: null,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -318,7 +333,7 @@ describe('Schedule Views Service', () => {
 
 	describe('getStudentScheduleData()', () => {
 		it('returns null for non-existent student', async () => {
-			const result = await getStudentScheduleData(db, 'nonexistent00000001');
+			const result = await getStudentScheduleData(db, 'nonexistent00000001', PERIOD_ID);
 			expect(result).toBeNull();
 		});
 
@@ -333,7 +348,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
 
 			expect(result).not.toBeNull();
 			expect(result!.student.id).toBe(studentId);
@@ -383,7 +398,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
 
 			expect(result).not.toBeNull();
 			expect(result!.summary.totalAssignedDays).toBe(3);
@@ -451,7 +466,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
 
 			// Should be 3 assignments, NOT 6 (which would happen with row multiplication)
 			expect(result!.summary.totalAssignedDays).toBe(3);
@@ -502,7 +517,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
 
 			expect(result!.clerkshipProgress[0].preceptors).toHaveLength(2);
 			const preceptor1 = result!.clerkshipProgress[0].preceptors.find((p) => p.id === preceptorId1);
@@ -519,7 +534,7 @@ describe('Schedule Views Service', () => {
 				clerkships: []
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
 
 			expect(result!.period).not.toBeNull();
 			expect(result!.period!.name).toBe('Fall 2024');
@@ -527,9 +542,7 @@ describe('Schedule Views Service', () => {
 			expect(result!.period!.endDate).toBe('2024-03-31');
 		});
 
-		it('handles no active period', async () => {
-			vi.mocked(getActiveSchedulingPeriod).mockResolvedValue(null);
-
+		it('handles no active period (null scheduleId → empty, no fabricated year)', async () => {
 			const studentId = generateTestId('clstudent');
 
 			await insertTestData(db, {
@@ -537,10 +550,51 @@ describe('Schedule Views Service', () => {
 				clerkships: []
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, null);
 
 			expect(result).not.toBeNull();
 			expect(result!.period).toBeNull();
+			// No calendar is fabricated when there is no active schedule.
+			expect(result!.calendar).toEqual([]);
+			expect(result!.assignments).toEqual([]);
+		});
+
+		it('bounds the calendar to the schedule range (no out-of-range months)', async () => {
+			// A short 2-month schedule must yield exactly 2 month buckets — never a
+			// full calendar year (regression for the "full year" fallback).
+			const shortId = 'clperiodshort0000001';
+			await db
+				.insertInto('scheduling_periods')
+				.values({
+					id: shortId,
+					name: 'Summer',
+					start_date: '2026-07-01',
+					end_date: '2026-08-31',
+					is_active: 0,
+					user_id: null,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
+
+			const studentId = generateTestId('clstudent');
+			await insertTestData(db, {
+				students: [{ id: studentId, name: 'Sam', email: 'sam@example.com' }],
+				clerkships: []
+			});
+
+			const result = await getStudentScheduleData(db, studentId, shortId);
+			expect(result!.calendar.length).toBe(2);
+			expect(result!.calendar[0].monthName).toContain('July');
+			expect(result!.calendar[1].monthName).toContain('August');
+			expect(result!.calendar.some((m) => m.monthName.includes('January'))).toBe(false);
+
+			// Days before the start / after the end are flagged out-of-range.
+			const july = result!.calendar[0];
+			const jun30 = july.weeks.flatMap((w) => w.days).find((d) => d.date === '2026-06-30');
+			const jul1 = july.weeks.flatMap((w) => w.days).find((d) => d.date === '2026-07-01');
+			expect(jun30?.isInRange).toBe(false);
+			expect(jul1?.isInRange).toBe(true);
 		});
 
 		it('builds calendar months correctly', async () => {
@@ -566,7 +620,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getStudentScheduleData(db, studentId);
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
 
 			expect(result!.calendar).toBeDefined();
 			expect(result!.calendar.length).toBeGreaterThan(0);
@@ -579,7 +633,7 @@ describe('Schedule Views Service', () => {
 
 	describe('getPreceptorScheduleData()', () => {
 		it('returns null for non-existent preceptor', async () => {
-			const result = await getPreceptorScheduleData(db, 'nonexistent00000001');
+			const result = await getPreceptorScheduleData(db, 'nonexistent00000001', PERIOD_ID);
 			expect(result).toBeNull();
 		});
 
@@ -590,7 +644,7 @@ describe('Schedule Views Service', () => {
 				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }]
 			});
 
-			const result = await getPreceptorScheduleData(db, preceptorId);
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
 
 			expect(result).not.toBeNull();
 			expect(result!.preceptor.id).toBe(preceptorId);
@@ -633,7 +687,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getPreceptorScheduleData(db, preceptorId);
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
 
 			expect(result!.overallCapacity.availableDays).toBe(3);
 			expect(result!.overallCapacity.openSlots).toBe(3);
@@ -697,7 +751,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getPreceptorScheduleData(db, preceptorId);
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
 
 			expect(result!.overallCapacity.availableDays).toBe(4);
 			expect(result!.overallCapacity.assignedDays).toBe(2);
@@ -748,7 +802,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getPreceptorScheduleData(db, preceptorId);
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
 
 			expect(result!.assignedStudents).toHaveLength(2);
 
@@ -775,7 +829,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getPreceptorScheduleData(db, preceptorId);
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
 
 			expect(result!.preceptor.healthSystemName).toBe('University Hospital');
 		});
@@ -825,7 +879,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getPreceptorScheduleData(db, preceptorId);
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
 
 			expect(result!.monthlyCapacity.length).toBeGreaterThan(0);
 
@@ -838,7 +892,7 @@ describe('Schedule Views Service', () => {
 
 	describe('getScheduleSummaryData()', () => {
 		it('returns empty summary with no data', async () => {
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.stats.totalStudents).toBe(0);
 			expect(result.stats.totalAssignments).toBe(0);
@@ -877,7 +931,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.isComplete).toBe(false);
 			expect(result.studentsWithUnmetRequirements).toHaveLength(1);
@@ -933,7 +987,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.stats.totalStudents).toBe(3);
 			expect(result.stats.studentsFullyScheduled).toBe(1);
@@ -996,7 +1050,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.clerkshipBreakdown).toHaveLength(2);
 
@@ -1052,7 +1106,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.stats.totalPreceptors).toBe(2);
 		});
@@ -1102,7 +1156,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.studentsWithUnmetRequirements[0].studentId).toBe(studentId2); // gap of 9 first
 			expect(result.studentsWithUnmetRequirements[1].studentId).toBe(studentId1); // gap of 8 second
@@ -1139,7 +1193,7 @@ describe('Schedule Views Service', () => {
 				]
 			});
 
-			const result = await getScheduleSummaryData(db);
+			const result = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(result.isComplete).toBe(true);
 			expect(result.studentsWithUnmetRequirements).toHaveLength(0);

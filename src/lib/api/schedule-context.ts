@@ -5,9 +5,10 @@
  */
 
 import { db } from '$lib/db';
-import type { Kysely } from 'kysely';
-import type { DB } from '$lib/db/types';
+import type { Kysely, Selectable } from 'kysely';
+import type { DB, SchedulingPeriods } from '$lib/db/types';
 import { nanoid } from 'nanoid';
+import { NotFoundError } from './errors';
 
 /**
  * Get the active schedule ID for a user
@@ -20,6 +21,51 @@ export async function getActiveScheduleId(userId: string): Promise<string | null
 		.executeTakeFirst();
 
 	return user?.active_schedule_id || null;
+}
+
+/**
+ * Resolve a user's active schedule to the full period row.
+ *
+ * This is the single source of truth for "which schedule am I working in".
+ * It reads `user.active_schedule_id` — never the global `scheduling_periods.is_active`
+ * flag, which is per-installation and would leak one user's range into another's views.
+ */
+export async function getActiveScheduleForUser(
+	dbConn: Kysely<DB>,
+	userId: string
+): Promise<Selectable<SchedulingPeriods> | null> {
+	const user = await dbConn
+		.selectFrom('user')
+		.select('active_schedule_id')
+		.where('id', '=', userId)
+		.executeTakeFirst();
+
+	if (!user?.active_schedule_id) return null;
+
+	const period = await dbConn
+		.selectFrom('scheduling_periods')
+		.selectAll()
+		.where('id', '=', user.active_schedule_id)
+		.executeTakeFirst();
+
+	return period ?? null;
+}
+
+/**
+ * Get the date range for a schedule. Throws if the schedule does not exist.
+ */
+export async function getScheduleRange(
+	dbConn: Kysely<DB>,
+	scheduleId: string
+): Promise<{ start: string; end: string }> {
+	const period = await dbConn
+		.selectFrom('scheduling_periods')
+		.select(['start_date', 'end_date'])
+		.where('id', '=', scheduleId)
+		.executeTakeFirst();
+
+	if (!period) throw new NotFoundError('Schedule');
+	return { start: period.start_date, end: period.end_date };
 }
 
 /**

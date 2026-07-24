@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		getStudents(db),
 		getPreceptors(db),
 		getClerkships(db),
-		getScheduleSummaryData(db),
+		getScheduleSummaryData(db, activeSchedule?.id ?? null),
 		getBlackoutDates(db)
 	]);
 

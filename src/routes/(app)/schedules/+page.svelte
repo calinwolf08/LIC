@@ -7,7 +7,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { PageHeader, ConfirmDialog, EmptyState, toast } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { selectSchedule, formatDateRange } from '$lib/stores/schedule-store';
+	import { selectSchedule, formatDateRange, refreshSchedules } from '$lib/stores/schedule-store';
 
 	let { data }: { data: PageData } = $props();
 
@@ -80,6 +80,7 @@
 			}
 			showEdit = false;
 			await invalidateAll();
+			await refreshSchedules();
 			toast.success('Schedule updated');
 		} catch (error) {
 			console.error('Failed to update schedule:', error);
@@ -105,6 +106,7 @@
 		}
 		toast.success('Schedule deleted');
 		await invalidateAll();
+		await refreshSchedules();
 	}
 </script>
 

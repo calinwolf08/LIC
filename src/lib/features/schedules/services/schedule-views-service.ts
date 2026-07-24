@@ -20,7 +20,6 @@ import type {
 	PreceptorCapacitySummary,
 	StudentWithUnmetRequirements
 } from '../types/schedule-views';
-import { getActiveSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
 import {
 	parseUTCDate,
 	formatUTCDate,
@@ -41,9 +40,10 @@ const log = createServerLogger('service:schedules:views');
  */
 export async function getStudentScheduleData(
 	db: Kysely<DB>,
-	studentId: string
+	studentId: string,
+	scheduleId: string | null
 ): Promise<StudentSchedule | null> {
-	log.debug('Fetching student schedule data', { studentId });
+	log.debug('Fetching student schedule data', { studentId, scheduleId });
 
 	// Get student info
 	const student = await db
@@ -57,10 +57,16 @@ export async function getStudentScheduleData(
 		return null;
 	}
 
-	// Get active scheduling period
-	const period = await getActiveSchedulingPeriod(db);
-	const startDate = period?.start_date || getDefaultStartDate();
-	const endDate = period?.end_date || getDefaultEndDate();
+	// Resolve the range from the caller's active schedule — never the global
+	// is_active flag, and never a fabricated calendar-year fallback. When there
+	// is no active schedule, return an empty (but valid) payload the UI renders
+	// as its "no active schedule" state.
+	const period = await resolvePeriod(db, scheduleId);
+	if (!period) {
+		return emptyStudentSchedule(student);
+	}
+	const startDate = period.start_date;
+	const endDate = period.end_date;
 
 	// Get all clerkship requirements
 	const clerkships = await db
@@ -242,9 +248,10 @@ export async function getStudentScheduleData(
  */
 export async function getPreceptorScheduleData(
 	db: Kysely<DB>,
-	preceptorId: string
+	preceptorId: string,
+	scheduleId: string | null
 ): Promise<PreceptorSchedule | null> {
-	log.debug('Fetching preceptor schedule data', { preceptorId });
+	log.debug('Fetching preceptor schedule data', { preceptorId, scheduleId });
 
 	// Get preceptor info
 	const preceptor = await db
@@ -259,10 +266,13 @@ export async function getPreceptorScheduleData(
 		return null;
 	}
 
-	// Get active scheduling period
-	const period = await getActiveSchedulingPeriod(db);
-	const startDate = period?.start_date || getDefaultStartDate();
-	const endDate = period?.end_date || getDefaultEndDate();
+	// Resolve the range from the caller's active schedule (see student note above).
+	const period = await resolvePeriod(db, scheduleId);
+	if (!period) {
+		return emptyPreceptorSchedule(preceptor);
+	}
+	const startDate = period.start_date;
+	const endDate = period.end_date;
 
 	// Get preceptor availability
 	const availability = await db
@@ -480,13 +490,19 @@ export async function getPreceptorScheduleData(
 /**
  * Get overall schedule results summary
  */
-export async function getScheduleSummaryData(db: Kysely<DB>): Promise<ScheduleResultsSummary> {
-	log.debug('Fetching schedule summary data');
+export async function getScheduleSummaryData(
+	db: Kysely<DB>,
+	scheduleId: string | null
+): Promise<ScheduleResultsSummary> {
+	log.debug('Fetching schedule summary data', { scheduleId });
 
-	// Get active scheduling period
-	const period = await getActiveSchedulingPeriod(db);
-	const startDate = period?.start_date || getDefaultStartDate();
-	const endDate = period?.end_date || getDefaultEndDate();
+	// Resolve the range from the caller's active schedule; no schedule → empty summary.
+	const period = await resolvePeriod(db, scheduleId);
+	if (!period) {
+		return emptyScheduleSummary();
+	}
+	const startDate = period.start_date;
+	const endDate = period.end_date;
 
 	// Get all students
 	const students = await db
@@ -629,14 +645,83 @@ export async function getScheduleSummaryData(db: Kysely<DB>): Promise<ScheduleRe
 // Helper Functions
 // ============================================================================
 
-function getDefaultStartDate(): string {
-	const now = new Date();
-	return `${now.getFullYear()}-01-01`;
+/**
+ * Resolve a schedule id to its period row. Returns null when the id is null or
+ * the row is missing — callers must handle the "no active schedule" case rather
+ * than falling back to a fabricated date range.
+ */
+async function resolvePeriod(
+	db: Kysely<DB>,
+	scheduleId: string | null
+): Promise<{ id: string | null; name: string; start_date: string; end_date: string } | null> {
+	if (!scheduleId) return null;
+	const period = await db
+		.selectFrom('scheduling_periods')
+		.select(['id', 'name', 'start_date', 'end_date'])
+		.where('id', '=', scheduleId)
+		.executeTakeFirst();
+	return period ?? null;
 }
 
-function getDefaultEndDate(): string {
-	const now = new Date();
-	return `${now.getFullYear()}-12-31`;
+function emptyStudentSchedule(student: {
+	id: string | null;
+	name: string;
+	email: string;
+}): StudentSchedule {
+	return {
+		student: { id: student.id as string, name: student.name, email: student.email },
+		period: null,
+		clerkshipProgress: [],
+		summary: {
+			totalAssignedDays: 0,
+			totalRequiredDays: 0,
+			overallPercentComplete: 0,
+			clerkshipsComplete: 0,
+			clerkshipsTotal: 0,
+			clerkshipsWithNoAssignments: 0
+		},
+		calendar: [],
+		assignments: []
+	};
+}
+
+function emptyPreceptorSchedule(preceptor: {
+	id: string | null;
+	name: string;
+	email: string;
+	health_system_name: string | null;
+}): PreceptorSchedule {
+	return {
+		preceptor: {
+			id: preceptor.id as string,
+			name: preceptor.name,
+			email: preceptor.email,
+			healthSystemName: preceptor.health_system_name || undefined
+		},
+		period: null,
+		monthlyCapacity: [],
+		overallCapacity: { availableDays: 0, assignedDays: 0, openSlots: 0, utilizationPercent: 0 },
+		calendar: [],
+		assignedStudents: [],
+		assignments: []
+	};
+}
+
+function emptyScheduleSummary(): ScheduleResultsSummary {
+	return {
+		period: null,
+		stats: {
+			totalAssignments: 0,
+			totalStudents: 0,
+			totalPreceptors: 0,
+			studentsFullyScheduled: 0,
+			studentsPartiallyScheduled: 0,
+			studentsWithNoAssignments: 0
+		},
+		studentsWithUnmetRequirements: [],
+		clerkshipBreakdown: [],
+		isComplete: true
+	};
 }
 
 function getClerkshipColor(specialty: string): string {
@@ -701,6 +786,7 @@ function buildCalendarMonths(
 					dayOfMonth,
 					dayOfWeek,
 					isCurrentMonth,
+					isInRange: dateStr >= startDate && dateStr <= endDate,
 					isToday: dateStr === today,
 					isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
 					assignments: dayAssignments,
@@ -774,6 +860,7 @@ function buildCalendarMonthsWithAvailability(
 					dayOfMonth,
 					dayOfWeek,
 					isCurrentMonth,
+					isInRange: dateStr >= startDate && dateStr <= endDate,
 					isToday: dateStr === today,
 					isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
 					assignments: dayAssignments,
