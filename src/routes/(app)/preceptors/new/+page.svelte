@@ -10,6 +10,7 @@
 	import PatternAvailabilityBuilder from '$lib/features/preceptors/components/pattern-availability-builder.svelte';
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 	import SiteForm from '$lib/features/sites/components/site-form.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
 
 	let { data }: { data: PageData } = $props();
 
@@ -241,13 +242,13 @@
 	}
 </script>
 
-<div class="container mx-auto py-8 max-w-4xl">
+<div class="container mx-auto max-w-4xl py-8">
 	<div class="mb-6">
 		<a href="/preceptors" class="text-sm text-muted-foreground hover:text-foreground">
 			&larr; Back to Preceptors
 		</a>
-		<h1 class="text-3xl font-bold mt-2">Add New Preceptor</h1>
-		<p class="text-muted-foreground mt-1">
+		<h1 class="mt-2 text-3xl font-bold">Add New Preceptor</h1>
+		<p class="mt-1 text-muted-foreground">
 			Create a new preceptor and set up their availability in one flow.
 		</p>
 	</div>
@@ -259,7 +260,7 @@
 				<div class="flex items-center {step.number < totalSteps ? 'flex-1' : ''}">
 					<div class="flex flex-col items-center">
 						<div
-							class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors
+							class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition-colors
 								{currentStep > step.number
 								? 'bg-primary text-primary-foreground'
 								: currentStep === step.number
@@ -273,15 +274,21 @@
 							{/if}
 						</div>
 						<div class="mt-2 text-center">
-							<p class="text-sm font-medium {currentStep >= step.number ? 'text-foreground' : 'text-muted-foreground'}">
+							<p
+								class="text-sm font-medium {currentStep >= step.number
+									? 'text-foreground'
+									: 'text-muted-foreground'}"
+							>
 								{step.title}
 							</p>
-							<p class="text-xs text-muted-foreground hidden sm:block">{step.description}</p>
+							<p class="hidden text-xs text-muted-foreground sm:block">{step.description}</p>
 						</div>
 					</div>
 					{#if step.number < totalSteps}
 						<div
-							class="flex-1 h-1 mx-4 rounded {currentStep > step.number ? 'bg-primary' : 'bg-muted'}"
+							class="mx-4 h-1 flex-1 rounded {currentStep > step.number
+								? 'bg-primary'
+								: 'bg-muted'}"
 						></div>
 					{/if}
 				</div>
@@ -290,7 +297,9 @@
 	</div>
 
 	{#if generalError}
-		<div class="mb-6 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+		<div
+			class="mb-6 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+		>
 			{generalError}
 		</div>
 	{/if}
@@ -298,10 +307,8 @@
 	<!-- Step 1: Basic Information -->
 	{#if currentStep === 1}
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Basic Information</h2>
-			<p class="text-sm text-muted-foreground mb-6">
-				Enter the preceptor's contact details.
-			</p>
+			<h2 class="mb-4 text-xl font-semibold">Basic Information</h2>
+			<p class="mb-6 text-sm text-muted-foreground">Enter the preceptor's contact details.</p>
 
 			<div class="space-y-4">
 				<div class="space-y-2">
@@ -373,8 +380,8 @@
 	<!-- Step 2: Health System & Sites -->
 	{#if currentStep === 2}
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Health System & Sites</h2>
-			<p class="text-sm text-muted-foreground mb-6">
+			<h2 class="mb-4 text-xl font-semibold">Health System & Sites</h2>
+			<p class="mb-6 text-sm text-muted-foreground">
 				Select where this preceptor works. This helps with scheduling and team assignment.
 			</p>
 
@@ -386,7 +393,9 @@
 						bind:value={formData.health_system_id}
 						onchange={handleHealthSystemChange}
 						disabled={isSubmitting}
-						class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id ? 'border-destructive' : ''}"
+						class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id
+							? 'border-destructive'
+							: ''}"
 					>
 						<option value="">Select a health system...</option>
 						{#each healthSystemsList as hs}
@@ -403,23 +412,26 @@
 
 				<div class="space-y-2">
 					<Label>Sites (Optional)</Label>
-					<p class="text-xs text-muted-foreground mb-2">
+					<p class="mb-2 text-xs text-muted-foreground">
 						Select the clinical locations where this preceptor works.
 					</p>
 					<div class="max-h-48 overflow-y-auto rounded-md border border-input p-2">
 						{#if filteredSites.length === 0}
-							<p class="text-sm text-muted-foreground py-2">
+							<p class="py-2 text-sm text-muted-foreground">
 								{#if sitesList.length === 0}
 									No sites exist yet. Create a site first using the button below.
 								{:else if formData.health_system_id}
-									No sites found for this health system. Create one or select a different health system.
+									No sites found for this health system. Create one or select a different health
+									system.
 								{:else}
 									Select a health system to see available sites, or create a new site.
 								{/if}
 							</p>
 						{:else}
 							{#each filteredSites as site}
-								<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-1 cursor-pointer">
+								<label
+									class="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-muted/50"
+								>
 									<input
 										type="checkbox"
 										checked={selectedSiteIds.includes(site.id)}
@@ -454,23 +466,24 @@
 	<!-- Step 3: Availability -->
 	{#if currentStep === 3 && createdPreceptor}
 		<Card class="p-6">
-			<div class="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+			<div
+				class="mb-4 rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950"
+			>
 				<p class="text-sm text-green-800 dark:text-green-200">
-					<strong>{createdPreceptor.name}</strong> has been created. Now set up their availability to include them in schedule generation.
+					<strong>{createdPreceptor.name}</strong> has been created. Now set up their availability to
+					include them in schedule generation.
 				</p>
 			</div>
 
 			{#if createdPreceptor.sites.length === 0}
-				<div class="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md">
+				<div
+					class="mb-4 rounded-md border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950"
+				>
 					<p class="text-sm text-yellow-800 dark:text-yellow-200">
-						<strong>Note:</strong> No sites are assigned to this preceptor. You'll need to assign sites before setting up availability patterns.
+						<strong>Note:</strong> No sites are assigned to this preceptor. You'll need to assign sites
+						before setting up availability patterns.
 					</p>
-					<Button
-						variant="outline"
-						size="sm"
-						class="mt-2"
-						onclick={() => goto(`/preceptors`)}
-					>
+					<Button variant="outline" size="sm" class="mt-2" onclick={() => goto(`/preceptors`)}>
 						Go to Preceptors List
 					</Button>
 				</div>
@@ -487,7 +500,7 @@
 			<div class="mt-4 text-center">
 				<button
 					type="button"
-					class="text-sm text-muted-foreground hover:text-foreground underline"
+					class="text-sm text-muted-foreground underline hover:text-foreground"
 					onclick={handleSkipAvailability}
 				>
 					Skip for now - I'll set up availability later
@@ -498,7 +511,7 @@
 
 	<!-- Navigation Buttons -->
 	{#if currentStep < 3}
-		<div class="flex justify-between mt-6">
+		<div class="mt-6 flex justify-between">
 			<div>
 				{#if currentStep > 1}
 					<Button type="button" variant="outline" onclick={handleBack} disabled={isSubmitting}>
@@ -527,33 +540,29 @@
 	{/if}
 </div>
 
-<!-- Nested Health System Form Modal -->
-{#if showHealthSystemForm}
-	<div
-		class="fixed inset-0 z-[60] bg-black/50"
-		onclick={() => (showHealthSystemForm = false)}
-		role="presentation"
-	></div>
-	<div class="fixed left-1/2 top-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
+<!-- Nested Health System Form dialog -->
+<Dialog.Root bind:open={showHealthSystemForm}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Add Health System</Dialog.Title>
+		</Dialog.Header>
 		<HealthSystemForm
 			onSuccess={handleHealthSystemCreated}
 			onCancel={() => (showHealthSystemForm = false)}
 		/>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog.Root>
 
-<!-- Nested Site Form Modal -->
-{#if showSiteForm}
-	<div
-		class="fixed inset-0 z-[60] bg-black/50"
-		onclick={() => (showSiteForm = false)}
-		role="presentation"
-	></div>
-	<div class="fixed left-1/2 top-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
+<!-- Nested Site Form dialog -->
+<Dialog.Root bind:open={showSiteForm}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Add Site</Dialog.Title>
+		</Dialog.Header>
 		<SiteForm
 			healthSystems={healthSystemsList}
 			onSuccess={handleSiteCreated}
 			onCancel={() => (showSiteForm = false)}
 		/>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog.Root>

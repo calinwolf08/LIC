@@ -114,6 +114,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -144,13 +146,16 @@ async function initializeSchema(db: Kysely<DB>) {
 async function createHealthSystem(db: Kysely<DB>): Promise<{ id: string }> {
 	const timestamp = new Date().toISOString();
 	const id = nanoid();
-	await db.insertInto('health_systems').values({
-		id,
-		name: 'Test Health System',
-		location: 'Test Location',
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('health_systems')
+		.values({
+			id,
+			name: 'Test Health System',
+			location: 'Test Location',
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id };
 }
 
@@ -159,19 +164,28 @@ async function createHealthSystem(db: Kysely<DB>): Promise<{ id: string }> {
  */
 async function createPreceptorDirect(
 	db: Kysely<DB>,
-	data: { name: string; email: string; health_system_id: string; max_students?: number; specialty?: string }
+	data: {
+		name: string;
+		email: string;
+		health_system_id: string;
+		max_students?: number;
+		specialty?: string;
+	}
 ): Promise<{ id: string; name: string; specialty?: string }> {
 	const timestamp = new Date().toISOString();
 	const id = nanoid();
-	await db.insertInto('preceptors').values({
-		id,
-		name: data.name,
-		email: data.email,
-		health_system_id: data.health_system_id,
-		max_students: data.max_students ?? 2,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('preceptors')
+		.values({
+			id,
+			name: data.name,
+			email: data.email,
+			health_system_id: data.health_system_id,
+			max_students: data.max_students ?? 2,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id, name: data.name, specialty: data.specialty };
 }
 
@@ -184,22 +198,28 @@ async function createClerkshipDirect(
 ): Promise<{ id: string; name: string; specialty?: string }> {
 	const timestamp = new Date().toISOString();
 	const clerkshipId = nanoid();
-	await db.insertInto('clerkships').values({
-		id: clerkshipId,
-		name: data.name,
-		clerkship_type: data.clerkship_type,
-		specialty: data.specialty,
-		required_days: data.required_days,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('clerkships')
+		.values({
+			id: clerkshipId,
+			name: data.name,
+			clerkship_type: data.clerkship_type,
+			specialty: data.specialty,
+			required_days: data.required_days,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	// Also create clerkship configuration
-	await db.insertInto('clerkship_configurations').values({
-		id: nanoid(),
-		clerkship_id: clerkshipId,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('clerkship_configurations')
+		.values({
+			id: nanoid(),
+			clerkship_id: clerkshipId,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id: clerkshipId, name: data.name, specialty: data.specialty };
 }
 
@@ -498,8 +518,16 @@ describe('Calendar Service Integration Tests', () => {
 			]);
 
 			const clerkships = await Promise.all([
-				createClerkshipDirect(db, { name: 'Cardiology', clerkship_type: 'outpatient', required_days: 10 }),
-				createClerkshipDirect(db, { name: 'Neurology', clerkship_type: 'inpatient', required_days: 10 })
+				createClerkshipDirect(db, {
+					name: 'Cardiology',
+					clerkship_type: 'outpatient',
+					required_days: 10
+				}),
+				createClerkshipDirect(db, {
+					name: 'Neurology',
+					clerkship_type: 'inpatient',
+					required_days: 10
+				})
 			]);
 
 			await bulkCreateAssignments(db, {
@@ -851,8 +879,16 @@ describe('Editing Service Integration Tests', () => {
 			});
 
 			const clerkships = await Promise.all([
-				createClerkshipDirect(db, { name: 'Cardiology', clerkship_type: 'outpatient', required_days: 10 }),
-				createClerkshipDirect(db, { name: 'Neurology', clerkship_type: 'inpatient', required_days: 10 })
+				createClerkshipDirect(db, {
+					name: 'Cardiology',
+					clerkship_type: 'outpatient',
+					required_days: 10
+				}),
+				createClerkshipDirect(db, {
+					name: 'Neurology',
+					clerkship_type: 'inpatient',
+					required_days: 10
+				})
 			]);
 
 			const futureDate1 = getFutureDate(30);
@@ -934,6 +970,136 @@ describe('Editing Service Integration Tests', () => {
 			});
 
 			expect(remaining).toHaveLength(0);
+		});
+
+		it('preserves locked assignments (auto-generation lock honoring)', async () => {
+			const healthSystem = await createHealthSystem(db);
+			const student = await createStudent(db, {
+				name: 'Locked Student',
+				email: 'locked@example.com',
+				cohort: '2024'
+			});
+			const preceptor = await createPreceptorDirect(db, {
+				name: 'Dr. Lock',
+				email: 'lock@hospital.com',
+				health_system_id: healthSystem.id,
+				max_students: 2
+			});
+			const clerkship = await createClerkshipDirect(db, {
+				name: 'Neurology',
+				clerkship_type: 'outpatient',
+				required_days: 10
+			});
+
+			const ts = new Date().toISOString();
+			// One unlocked, one locked assignment.
+			await db
+				.insertInto('schedule_assignments')
+				.values([
+					{
+						id: 'unlocked-1',
+						student_id: student.id,
+						preceptor_id: preceptor.id,
+						clerkship_id: clerkship.id,
+						date: '2024-02-01',
+						status: 'scheduled',
+						locked: 0,
+						source: 'generated',
+						created_at: ts,
+						updated_at: ts
+					},
+					{
+						id: 'locked-1',
+						student_id: student.id,
+						preceptor_id: preceptor.id,
+						clerkship_id: clerkship.id,
+						date: '2024-02-02',
+						status: 'scheduled',
+						locked: 1,
+						source: 'manual',
+						created_at: ts,
+						updated_at: ts
+					}
+				])
+				.execute();
+
+			const count = await clearAllAssignments(db);
+			expect(count).toBe(1); // only the unlocked one
+
+			const remaining = await db.selectFrom('schedule_assignments').select('id').execute();
+			expect(remaining.map((r) => r.id)).toEqual(['locked-1']);
+		});
+	});
+
+	describe('bulkCreateAssignments() — lock/existing honoring', () => {
+		it('skips generated assignments that would collide with an existing (student,date) and marks source=generated', async () => {
+			const healthSystem = await createHealthSystem(db);
+			const student = await createStudent(db, {
+				name: 'Gen Student',
+				email: 'gen@example.com',
+				cohort: '2024'
+			});
+			const preceptor = await createPreceptorDirect(db, {
+				name: 'Dr. Gen',
+				email: 'gen@hospital.com',
+				health_system_id: healthSystem.id,
+				max_students: 5
+			});
+			const clerkship = await createClerkshipDirect(db, {
+				name: 'Cardio',
+				clerkship_type: 'outpatient',
+				required_days: 10
+			});
+
+			const ts = new Date().toISOString();
+			// A locked assignment already occupies (student, 2024-03-01).
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: 'locked-x',
+					student_id: student.id,
+					preceptor_id: preceptor.id,
+					clerkship_id: clerkship.id,
+					date: '2024-03-01',
+					status: 'scheduled',
+					locked: 1,
+					source: 'manual',
+					created_at: ts,
+					updated_at: ts
+				})
+				.execute();
+
+			// Generation output includes a colliding slot (2024-03-01) and a free one (2024-03-02).
+			const inserted = await bulkCreateAssignments(db, {
+				assignments: [
+					{
+						student_id: student.id,
+						preceptor_id: preceptor.id,
+						clerkship_id: clerkship.id,
+						date: '2024-03-01'
+					},
+					{
+						student_id: student.id,
+						preceptor_id: preceptor.id,
+						clerkship_id: clerkship.id,
+						date: '2024-03-02'
+					}
+				]
+			});
+
+			// Only the non-colliding slot is created (no UNIQUE violation).
+			expect(inserted).toHaveLength(1);
+			expect(inserted[0].date).toBe('2024-03-02');
+			expect(inserted[0].source).toBe('generated');
+
+			// The locked assignment is untouched.
+			const locked = await db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('id', '=', 'locked-x')
+				.executeTakeFirst();
+			expect(locked?.locked).toBe(1);
+			expect(locked?.source).toBe('manual');
 		});
 	});
 });

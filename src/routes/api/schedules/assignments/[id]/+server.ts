@@ -8,16 +8,13 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, ValidationError, handleApiError } from '$lib/api/errors';
 import {
 	getAssignmentById,
 	updateAssignment,
-	deleteAssignment
+	deleteAssignment,
+	setAssignmentLock
 } from '$lib/features/schedules/services/assignment-service.js';
 import { assignmentIdSchema, updateAssignmentSchema } from '$lib/features/schedules/schemas.js';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -54,7 +51,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		if (error instanceof ZodError) {
 			log.warn('Invalid assignment ID format', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -74,8 +71,24 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
 		const body = await request.json();
-		const updates = updateAssignmentSchema.parse(body);
 
+		// Handle the lock toggle separately (not part of updateAssignmentSchema).
+		if (typeof body?.locked === 'boolean') {
+			await setAssignmentLock(db, id, body.locked);
+		}
+
+		// If only `locked` was provided, we're done.
+		const { locked: _locked, ...rest } = body ?? {};
+		if (Object.keys(rest).length === 0) {
+			const current = await db
+				.selectFrom('schedule_assignments')
+				.selectAll()
+				.where('id', '=', id)
+				.executeTakeFirst();
+			return successResponse(current);
+		}
+
+		const updates = updateAssignmentSchema.parse(rest);
 		const updated = await updateAssignment(db, id, updates);
 
 		log.info('Assignment updated', {
@@ -90,7 +103,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		if (error instanceof ZodError) {
 			log.warn('Assignment update validation failed', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -105,13 +118,15 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 				id: params.id,
 				message: error.message
 			});
-			return validationErrorResponse(new ZodError([
-				{
-					code: 'custom',
-					path: [],
-					message: error.message
-				}
-			]));
+			return validationErrorResponse(
+				new ZodError([
+					{
+						code: 'custom',
+						path: [],
+						message: error.message
+					}
+				])
+			);
 		}
 
 		log.error('Failed to update assignment', { id: params.id, error });
@@ -137,7 +152,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		if (error instanceof ZodError) {
 			log.warn('Invalid assignment ID format for deletion', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

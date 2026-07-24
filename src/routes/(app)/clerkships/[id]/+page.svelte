@@ -1,0 +1,680 @@
+<script lang="ts">
+	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Card } from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import ElectivesManager from '$lib/features/electives/components/electives-manager.svelte';
+	import { PageHeader, EntityTabs, toast, type EntityTab } from '$lib/components';
+
+	let { data }: { data: PageData } = $props();
+
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
+
+	// Aggregate student progress for this clerkship (from the status service)
+	let clerkshipAggregate = $derived.by(() => {
+		const statuses = (data.statuses ?? []) as Array<{
+			per_clerkship: Array<{ clerkship_id: string; unscheduled: number }>;
+		}>;
+		let onTrack = 0;
+		let atRisk = 0;
+		for (const s of statuses) {
+			const row = s.per_clerkship.find((c) => c.clerkship_id === data.clerkship?.id);
+			if (!row) continue;
+			if (row.unscheduled > 0) atRisk++;
+			else onTrack++;
+		}
+		return { onTrack, atRisk, total: onTrack + atRisk };
+	});
+
+	// Tab state
+	let activeTab = $state<
+		'overview' | 'basic-info' | 'scheduling' | 'sites' | 'teams' | 'electives'
+	>('overview');
+
+	let tabs = $derived.by(() => {
+		const t: EntityTab[] = [
+			{ id: 'overview', label: 'Overview' },
+			{ id: 'basic-info', label: 'Details' },
+			{ id: 'sites', label: 'Allowed sites', badge: data.sites?.length ?? 0 },
+			{ id: 'electives', label: 'Electives' }
+		];
+		if (hasAutogen) {
+			t.push({ id: 'scheduling', label: 'Auto-scheduling' });
+			t.push({ id: 'teams', label: 'Preceptor teams', badge: data.teams?.length || 0 });
+		}
+		return t;
+	});
+
+	// Clerkship basic info (editable)
+	let name = $state(data.clerkship?.name || '');
+	let clerkshipType = $state(data.clerkship?.clerkship_type || 'outpatient');
+	let requiredDays = $state(data.clerkship?.required_days || 1);
+	let description = $state(data.clerkship?.description || '');
+
+	// Settings (from global defaults or overrides)
+	let settings = $state(
+		data.settings || {
+			overrideMode: 'inherit',
+			assignmentStrategy: 'team_continuity',
+			healthSystemRule: 'no_preference',
+			maxStudentsPerDay: 1,
+			maxStudentsPerYear: 3,
+			allowTeams: false,
+			allowFallbacks: true,
+			fallbackRequiresApproval: false,
+			fallbackAllowCrossSystem: false
+		}
+	);
+
+	let isUsingDefaults = $derived(settings.overrideMode === 'inherit');
+
+	// Associated sites (mutable copy)
+	let associatedSites = $state(data.sites || []);
+
+	// Available sites (not already associated)
+	let availableSites = $derived(
+		(data.allSites || []).filter(
+			(site: any) => !associatedSites.some((as: any) => as.id === site.id)
+		)
+	);
+
+	// Site dependency tracking
+	let siteDependencies = $state<Record<string, { teamId: string; teamName: string }[]>>({});
+	let removeSiteError = $state<string | null>(null);
+
+	// Add site modal state
+	let showAddSiteModal = $state(false);
+	let selectedSiteToAdd = $state('');
+
+	// Status messages
+	let basicInfoStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null);
+	let settingsStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null);
+
+	// Load dependencies for associated sites
+	async function loadSiteDependencies() {
+		const deps: Record<string, { teamId: string; teamName: string }[]> = {};
+		for (const site of associatedSites) {
+			try {
+				const res = await fetch(
+					`/api/clerkship-sites/dependencies?clerkship_id=${data.clerkship.id}&site_id=${site.id}`
+				);
+				if (res.ok) {
+					const result = await res.json();
+					deps[site.id] = result.data || [];
+				}
+			} catch {
+				// Ignore errors, assume no dependencies
+			}
+		}
+		siteDependencies = deps;
+	}
+
+	// Load dependencies when sites change
+	$effect(() => {
+		if (associatedSites.length > 0) {
+			loadSiteDependencies();
+		}
+	});
+
+	function hasDependencies(siteId: string): boolean {
+		return (siteDependencies[siteId]?.length || 0) > 0;
+	}
+
+	function getDependencyCount(siteId: string): number {
+		return siteDependencies[siteId]?.length || 0;
+	}
+
+	async function handleSaveBasicInfo() {
+		basicInfoStatus = null;
+		try {
+			const res = await fetch(`/api/clerkships/${data.clerkship.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name,
+					clerkship_type: clerkshipType,
+					required_days: requiredDays,
+					description: description || undefined
+				})
+			});
+
+			if (res.ok) {
+				basicInfoStatus = { type: 'success', message: 'Basic information saved successfully' };
+				setTimeout(() => (basicInfoStatus = null), 3000);
+			} else {
+				const result = await res.json();
+				basicInfoStatus = { type: 'error', message: result.error?.message || 'Failed to save' };
+			}
+		} catch (err) {
+			basicInfoStatus = { type: 'error', message: 'Failed to save basic information' };
+		}
+	}
+
+	async function handleSaveSettings() {
+		settingsStatus = null;
+		try {
+			const res = await fetch(`/api/clerkships/${data.clerkship.id}/settings`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					...settings,
+					overrideMode: 'override'
+				})
+			});
+
+			if (res.ok) {
+				settings.overrideMode = 'override';
+				settingsStatus = { type: 'success', message: 'Settings saved successfully' };
+				setTimeout(() => (settingsStatus = null), 3000);
+			} else {
+				settingsStatus = { type: 'error', message: 'Failed to save settings' };
+			}
+		} catch (err) {
+			settingsStatus = { type: 'error', message: 'Failed to save settings' };
+		}
+	}
+
+	async function handleReturnToDefaults() {
+		settingsStatus = null;
+		try {
+			const res = await fetch(`/api/clerkships/${data.clerkship.id}/settings`, {
+				method: 'DELETE'
+			});
+
+			if (res.ok) {
+				// Reload settings (will get defaults for current type)
+				const settingsRes = await fetch(`/api/clerkships/${data.clerkship.id}/settings`);
+				if (settingsRes.ok) {
+					const newSettings = await settingsRes.json();
+					settings = newSettings.data;
+					settingsStatus = { type: 'success', message: 'Reset to global defaults' };
+					setTimeout(() => (settingsStatus = null), 3000);
+				}
+			} else {
+				settingsStatus = { type: 'error', message: 'Failed to reset settings' };
+			}
+		} catch (err) {
+			settingsStatus = { type: 'error', message: 'Failed to reset settings' };
+		}
+	}
+
+	async function handleAddSite() {
+		if (!selectedSiteToAdd) return;
+
+		try {
+			const res = await fetch('/api/clerkship-sites', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					clerkship_id: data.clerkship.id,
+					site_id: selectedSiteToAdd
+				})
+			});
+
+			if (res.ok) {
+				const siteToAdd = data.allSites.find((s: any) => s.id === selectedSiteToAdd);
+				if (siteToAdd) {
+					associatedSites = [...associatedSites, siteToAdd];
+				}
+				selectedSiteToAdd = '';
+				showAddSiteModal = false;
+			} else {
+				const body = await res.json();
+				toast.error(body.error?.message || 'Failed to add site');
+			}
+		} catch (err) {
+			console.error('Failed to add site', err);
+			toast.error('Failed to add site');
+		}
+	}
+
+	async function handleRemoveSite(siteId: string) {
+		removeSiteError = null;
+
+		// Check for dependencies first
+		const dependencies = siteDependencies[siteId] || [];
+		if (dependencies.length > 0) {
+			const teamNames = dependencies.map((d) => d.teamName).join(', ');
+			removeSiteError = `Cannot remove site. The following teams depend on this site: ${teamNames}. Please update or remove these teams first.`;
+			return;
+		}
+
+		try {
+			const res = await fetch(
+				`/api/clerkship-sites?clerkship_id=${data.clerkship.id}&site_id=${siteId}`,
+				{ method: 'DELETE' }
+			);
+
+			if (res.ok) {
+				associatedSites = associatedSites.filter((s: any) => s.id !== siteId);
+			} else {
+				const body = await res.json();
+				toast.error(body.error?.message || 'Failed to remove site');
+			}
+		} catch (err) {
+			console.error('Failed to remove site', err);
+			toast.error('Failed to remove site');
+		}
+	}
+</script>
+
+<div class="container mx-auto max-w-4xl py-8">
+	<PageHeader
+		title={data.clerkship?.name || 'Clerkship'}
+		description={`${data.clerkship?.clerkship_type === 'inpatient' ? 'Inpatient' : 'Outpatient'} · ${data.clerkship?.required_days ?? 0} days required`}
+		breadcrumbs={[
+			{ label: 'Clerkships', href: '/clerkships' },
+			{ label: data.clerkship?.name || 'Clerkship' }
+		]}
+	/>
+
+	<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
+
+	<!-- Tab Content -->
+	{#if activeTab === 'overview'}
+		<Card class="p-6">
+			<h2 class="mb-4 text-xl font-semibold">Overview</h2>
+			<div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold">{data.clerkship?.required_days ?? 0}</div>
+					<div class="text-sm text-muted-foreground">Days required</div>
+				</div>
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold text-green-600">{clerkshipAggregate.onTrack}</div>
+					<div class="text-sm text-muted-foreground">On track</div>
+				</div>
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold text-amber-600">{clerkshipAggregate.atRisk}</div>
+					<div class="text-sm text-muted-foreground">At risk</div>
+				</div>
+				<div class="rounded-lg border p-4 text-center">
+					<div class="text-2xl font-bold">{associatedSites.length}</div>
+					<div class="text-sm text-muted-foreground">Allowed sites</div>
+				</div>
+			</div>
+			<p class="text-sm text-muted-foreground">
+				{clerkshipAggregate.atRisk} of {clerkshipAggregate.total} students still have unscheduled days
+				for this clerkship. Manage each student's assignments from their page.
+			</p>
+		</Card>
+	{:else if activeTab === 'basic-info'}
+		<Card class="p-6">
+			<h2 class="mb-4 text-xl font-semibold">Details</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
+				Required days is how many days each student must complete in this clerkship.
+			</p>
+
+			{#if basicInfoStatus}
+				<div
+					class="mb-4 rounded border p-3 text-sm {basicInfoStatus.type === 'success'
+						? 'border-green-500 bg-green-50 text-green-700'
+						: 'border-destructive bg-destructive/10 text-destructive'}"
+				>
+					{basicInfoStatus.message}
+				</div>
+			{/if}
+
+			<div class="grid gap-4">
+				<div class="space-y-2">
+					<Label for="name">Name *</Label>
+					<Input id="name" bind:value={name} required />
+				</div>
+
+				<div class="space-y-2">
+					<Label>Type *</Label>
+					<div class="flex gap-4">
+						<label class="flex items-center gap-2">
+							<input
+								type="radio"
+								name="type"
+								value="inpatient"
+								checked={clerkshipType === 'inpatient'}
+								onchange={() => (clerkshipType = 'inpatient')}
+							/>
+							<span>Inpatient</span>
+						</label>
+						<label class="flex items-center gap-2">
+							<input
+								type="radio"
+								name="type"
+								value="outpatient"
+								checked={clerkshipType === 'outpatient'}
+								onchange={() => (clerkshipType = 'outpatient')}
+							/>
+							<span>Outpatient</span>
+						</label>
+					</div>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="required-days">Required Days *</Label>
+					<Input id="required-days" type="number" min="1" bind:value={requiredDays} required />
+				</div>
+
+				<div class="space-y-2">
+					<Label for="description">Description</Label>
+					<textarea
+						id="description"
+						bind:value={description}
+						class="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					></textarea>
+				</div>
+
+				<div class="flex justify-end">
+					<Button onclick={handleSaveBasicInfo}>Save Basic Info</Button>
+				</div>
+			</div>
+		</Card>
+	{:else if activeTab === 'scheduling'}
+		<Card class="p-6">
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-xl font-semibold">Auto-scheduling</h2>
+				<div class="flex items-center gap-2">
+					{#if isUsingDefaults}
+						<Badge variant="secondary">Using global defaults</Badge>
+					{:else}
+						<Badge>Custom settings</Badge>
+						<Button variant="outline" size="sm" onclick={handleReturnToDefaults}>
+							Return to defaults
+						</Button>
+					{/if}
+				</div>
+			</div>
+			<p class="mb-4 text-sm text-muted-foreground">
+				These control how the auto-generation engine builds schedules for this clerkship. They
+				override the global defaults set in Auto-Generate settings.
+			</p>
+
+			{#if settingsStatus}
+				<div
+					class="mb-4 rounded border p-3 text-sm {settingsStatus.type === 'success'
+						? 'border-green-500 bg-green-50 text-green-700'
+						: 'border-destructive bg-destructive/10 text-destructive'}"
+				>
+					{settingsStatus.message}
+				</div>
+			{/if}
+
+			<div class="grid gap-6">
+				<!-- Assignment Strategy -->
+				<div class="space-y-2">
+					<Label for="strategy">Assignment strategy</Label>
+					<select
+						id="strategy"
+						value={settings.assignmentStrategy === 'block_based'
+							? 'block_based'
+							: settings.assignmentStrategy === 'daily_rotation'
+								? 'daily_rotation'
+								: 'team_continuity'}
+						onchange={(e) => (settings.assignmentStrategy = e.currentTarget.value)}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="team_continuity">Continuity (recommended)</option>
+						<option value="block_based">Block-based</option>
+						<option value="daily_rotation">Daily rotation</option>
+					</select>
+					<p class="text-xs text-muted-foreground">
+						{#if settings.assignmentStrategy === 'block_based'}
+							Splits the rotation into fixed-size blocks with one preceptor per block. Best for
+							inpatient rotations.
+						{:else if settings.assignmentStrategy === 'daily_rotation'}
+							Rotates the student through different preceptors day by day. Days need not be
+							consecutive.
+						{:else}
+							Keeps the student with one preceptor for as many days as possible, then fills the rest
+							from the team by priority. Best for continuity of care.
+						{/if}
+					</p>
+				</div>
+
+				<!-- Health System Rule -->
+				<div class="space-y-2">
+					<Label for="health-rule">Health system continuity</Label>
+					<select
+						id="health-rule"
+						bind:value={settings.healthSystemRule}
+						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						<option value="enforce_same_system">Keep the student within one health system</option>
+						<option value="prefer_same_system">Prefer one health system, but allow others</option>
+						<option value="no_preference">No preference</option>
+					</select>
+					<p class="text-xs text-muted-foreground">
+						Whether generation should keep a student's assignments within a single health system.
+					</p>
+				</div>
+
+				<!-- Capacity Settings -->
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label for="max-day">Max students per preceptor per day</Label>
+						<Input id="max-day" type="number" min="1" bind:value={settings.maxStudentsPerDay} />
+					</div>
+					<div class="space-y-2">
+						<Label for="max-year">Max students per preceptor per year</Label>
+						<Input id="max-year" type="number" min="1" bind:value={settings.maxStudentsPerYear} />
+					</div>
+				</div>
+
+				<!-- Inpatient-specific settings -->
+				{#if clerkshipType === 'inpatient'}
+					<div class="border-t pt-4">
+						<h4 class="mb-4 font-medium">Inpatient Settings</h4>
+						<div class="grid grid-cols-2 gap-4">
+							<div class="space-y-2">
+								<Label for="block-size">Block Size (Days)</Label>
+								<Input id="block-size" type="number" min="1" bind:value={settings.blockSizeDays} />
+							</div>
+							<div class="space-y-2">
+								<Label for="max-block">Max Students Per Block</Label>
+								<Input
+									id="max-block"
+									type="number"
+									min="1"
+									bind:value={settings.maxStudentsPerBlock}
+								/>
+							</div>
+						</div>
+						<div class="mt-4 space-y-2">
+							<label class="flex items-center gap-2">
+								<input type="checkbox" bind:checked={settings.allowPartialBlocks} />
+								<span>Allow Partial Blocks</span>
+							</label>
+							<label class="flex items-center gap-2">
+								<input type="checkbox" bind:checked={settings.preferContinuousBlocks} />
+								<span>Prefer Continuous Blocks</span>
+							</label>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Team Settings -->
+				<div class="border-t pt-4">
+					<h4 class="mb-4 font-medium">Team Settings</h4>
+					<label class="mb-4 flex items-center gap-2">
+						<input type="checkbox" bind:checked={settings.allowTeams} />
+						<span>Allow Teams</span>
+					</label>
+					{#if settings.allowTeams}
+						<div class="grid grid-cols-2 gap-4">
+							<div class="space-y-2">
+								<Label for="team-min">Min Team Size</Label>
+								<Input id="team-min" type="number" min="1" bind:value={settings.teamSizeMin} />
+							</div>
+							<div class="space-y-2">
+								<Label for="team-max">Max Team Size</Label>
+								<Input id="team-max" type="number" min="1" bind:value={settings.teamSizeMax} />
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Backup preceptor settings -->
+				<div class="border-t pt-4">
+					<h4 class="mb-1 font-medium">Backup preceptors</h4>
+					<p class="mb-4 text-xs text-muted-foreground">
+						Backup (fallback) preceptors cover days the primary preceptor can't.
+					</p>
+					<div class="space-y-2">
+						<label class="flex items-center gap-2">
+							<input type="checkbox" bind:checked={settings.allowFallbacks} />
+							<span>Allow backup preceptors</span>
+						</label>
+						{#if settings.allowFallbacks}
+							<label class="ml-6 flex items-center gap-2">
+								<input type="checkbox" bind:checked={settings.fallbackRequiresApproval} />
+								<span>Require approval before using a backup</span>
+							</label>
+							<label class="ml-6 flex items-center gap-2">
+								<input type="checkbox" bind:checked={settings.fallbackAllowCrossSystem} />
+								<span>Allow backups from other health systems</span>
+							</label>
+						{/if}
+					</div>
+				</div>
+
+				<div class="flex justify-end">
+					<Button onclick={handleSaveSettings}>Save settings</Button>
+				</div>
+			</div>
+		</Card>
+	{:else if activeTab === 'sites'}
+		<Card class="p-6">
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-xl font-semibold">Allowed Sites</h2>
+				<Button onclick={() => (showAddSiteModal = true)}>Add Site</Button>
+			</div>
+
+			<!-- Error message for dependency blocking -->
+			{#if removeSiteError}
+				<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+					<p class="font-medium">Cannot Remove Site</p>
+					<p class="mt-1 text-sm">{removeSiteError}</p>
+				</div>
+			{/if}
+
+			{#if associatedSites.length > 0}
+				<div class="space-y-2">
+					{#each associatedSites as site (site.id)}
+						<div class="flex items-center justify-between rounded-md border p-3">
+							<div>
+								<a href="/locations?tab=sites" class="text-blue-600 hover:underline">
+									{site.name}
+								</a>
+								{#if hasDependencies(site.id)}
+									<p class="mt-1 text-xs text-amber-600">
+										Used by {getDependencyCount(site.id)} team{getDependencyCount(site.id) > 1
+											? 's'
+											: ''}
+									</p>
+								{/if}
+							</div>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => handleRemoveSite(site.id)}
+								disabled={hasDependencies(site.id)}
+								title={hasDependencies(site.id)
+									? 'Cannot remove: teams depend on this site'
+									: 'Remove site'}
+							>
+								Remove
+							</Button>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="py-8 text-center text-muted-foreground">
+					No sites associated with this clerkship.
+					<br />
+					<span class="text-sm">Add sites to define where this clerkship is offered.</span>
+				</p>
+			{/if}
+		</Card>
+
+		<!-- Add Site dialog -->
+		<Dialog.Root bind:open={showAddSiteModal}>
+			<Dialog.Content class="max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>Add Site</Dialog.Title>
+				</Dialog.Header>
+				<div class="space-y-4">
+					<div class="space-y-2">
+						<Label for="site-select">Select Site</Label>
+						<select
+							id="site-select"
+							bind:value={selectedSiteToAdd}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">Choose a site...</option>
+							{#each availableSites as site (site.id)}
+								<option value={site.id}>{site.name}</option>
+							{/each}
+						</select>
+					</div>
+					{#if availableSites.length === 0}
+						<p class="text-sm text-muted-foreground">
+							All sites are already associated with this clerkship.
+						</p>
+					{/if}
+				</div>
+				<Dialog.Footer>
+					<Button variant="outline" onclick={() => (showAddSiteModal = false)}>Cancel</Button>
+					<Button onclick={handleAddSite} disabled={!selectedSiteToAdd}>Add</Button>
+				</Dialog.Footer>
+			</Dialog.Content>
+		</Dialog.Root>
+	{:else if activeTab === 'teams'}
+		<Card class="p-6">
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-xl font-semibold">Preceptor Teams</h2>
+				<Button
+					variant="outline"
+					onclick={() => goto(`/preceptors?tab=teams&fromClerkship=${data.clerkship.id}`)}
+				>
+					Manage Teams
+				</Button>
+			</div>
+
+			{#if data.teams?.length > 0}
+				<div class="space-y-2">
+					{#each data.teams as team (team.id)}
+						<div class="flex items-center justify-between rounded-md border p-3">
+							<div>
+								<a
+									href="/preceptors/teams/{team.id}?fromClerkship={data.clerkship.id}"
+									class="font-medium text-blue-600 hover:underline"
+								>
+									{team.name || 'Unnamed Team'}
+								</a>
+								<p class="text-sm text-muted-foreground">
+									{team.members?.length || 0} members
+								</p>
+							</div>
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => goto(`/preceptors/teams/${team.id}`)}
+							>
+								Configure
+							</Button>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="py-8 text-center text-muted-foreground">
+					No teams created for this clerkship.
+					<br />
+					<span class="text-sm">Teams can be created on the Preceptors page.</span>
+				</p>
+			{/if}
+		</Card>
+	{:else if activeTab === 'electives'}
+		<ElectivesManager clerkshipId={data.clerkship.id} allSites={data.allSites} />
+	{/if}
+</div>

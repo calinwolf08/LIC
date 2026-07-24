@@ -7,12 +7,9 @@
  */
 
 import type { RequestHandler } from './$types';
+import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { CapacityRuleService } from '$lib/features/scheduling-config/services/capacity.service';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -25,7 +22,8 @@ const service = new CapacityRuleService(db);
  * GET /api/scheduling-config/capacity-rules/[id]
  * Returns a specific capacity rule by ID
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
+	requireAutogen(locals);
 	const { id } = params;
 
 	log.debug('Fetching capacity rule', { id });
@@ -50,7 +48,8 @@ export const GET: RequestHandler = async ({ params }) => {
  * PATCH /api/scheduling-config/capacity-rules/[id]
  * Updates a capacity rule
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
+	requireAutogen(locals);
 	const { id } = params;
 
 	log.debug('Updating capacity rule', { id });
@@ -71,7 +70,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		if (error instanceof ZodError) {
 			log.warn('Capacity rule update validation failed', {
 				id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -85,7 +84,8 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/scheduling-config/capacity-rules/[id]
  * Deletes a capacity rule
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+	requireAutogen(locals);
 	const { id } = params;
 
 	log.debug('Deleting capacity rule', { id });

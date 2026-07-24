@@ -3,9 +3,13 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { ConfirmDialog } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { teamsClient, formatApiError } from '$lib/features/scheduling-config/clients/teams-client';
+	import {
+		teamsClient,
+		formatApiError
+	} from '$lib/features/scheduling-config/clients/teams-client';
 	import { createClientLogger } from '$lib/utils/logger.client';
 
 	const log = createClientLogger('team-edit');
@@ -103,28 +107,17 @@
 		}
 	}
 
+	let showDeleteConfirm = $state(false);
+
 	async function handleDelete() {
-		if (!confirm('Are you sure you want to delete this team? This action cannot be undone.')) {
-			return;
-		}
-
 		log.debug('Deleting team', { teamId: data.teamId });
-
-		try {
-			const result = await teamsClient.delete(data.teamId);
-
-			if (!result.success) {
-				log.error('Failed to delete team', { error: result.error });
-				error = formatApiError(result.error);
-				return;
-			}
-
-			log.info('Team deleted successfully', { teamId: data.teamId });
-			goto(backUrl);
-		} catch (err) {
-			log.error('Unexpected delete error', { error: err });
-			error = err instanceof Error ? err.message : 'Failed to delete team';
+		const result = await teamsClient.delete(data.teamId);
+		if (!result.success) {
+			log.error('Failed to delete team', { error: result.error });
+			throw new Error(formatApiError(result.error));
 		}
+		log.info('Team deleted successfully', { teamId: data.teamId });
+		goto(backUrl);
 	}
 
 	function cancelEdit() {
@@ -208,7 +201,9 @@
 	<!-- Breadcrumb -->
 	<nav class="mb-6 text-sm text-muted-foreground">
 		{#if fromClerkshipId && data.team?.clerkshipId === fromClerkshipId}
-			<a href="/clerkships/{fromClerkshipId}/config" class="hover:underline">{data.team.clerkshipName}</a>
+			<a href="/clerkships/{fromClerkshipId}/config" class="hover:underline"
+				>{data.team.clerkshipName}</a
+			>
 			<span class="mx-2">/</span>
 			<a href={backUrl} class="hover:underline">Teams</a>
 		{:else}
@@ -230,7 +225,10 @@
 				<h1 class="text-3xl font-bold">{data.team.name || 'Unnamed Team'}</h1>
 				{#if data.team.clerkshipName}
 					<p class="text-muted-foreground">
-						Clerkship: <a href="/clerkships/{data.team.clerkshipId}/config" class="text-blue-600 hover:underline">
+						Clerkship: <a
+							href="/clerkships/{data.team.clerkshipId}/config"
+							class="text-blue-600 hover:underline"
+						>
 							{data.team.clerkshipName}
 						</a>
 					</p>
@@ -244,13 +242,15 @@
 					</Button>
 				{:else}
 					<Button variant="outline" onclick={() => (isEditing = true)}>Edit</Button>
-					<Button variant="destructive" onclick={handleDelete}>Delete</Button>
+					<Button variant="destructive" onclick={() => (showDeleteConfirm = true)}>Delete</Button>
 				{/if}
 			</div>
 		</div>
 
 		{#if error}
-			<div class="mb-6 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+			<div
+				class="mb-6 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+			>
 				{error}
 			</div>
 		{/if}
@@ -305,7 +305,7 @@
 						</div>
 						<div>
 							<span class="text-sm text-muted-foreground">Formation Rules:</span>
-							<ul class="ml-4 mt-1 list-disc text-sm">
+							<ul class="mt-1 ml-4 list-disc text-sm">
 								{#if data.team.requireSameHealthSystem}
 									<li>Same health system required</li>
 								{/if}
@@ -326,9 +326,11 @@
 				<h2 class="mb-4 text-xl font-semibold">Sites</h2>
 
 				{#if isEditing}
-					<div class="max-h-48 overflow-y-auto space-y-1">
+					<div class="max-h-48 space-y-1 overflow-y-auto">
 						{#each data.sites as site}
-							<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-1 cursor-pointer">
+							<label
+								class="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-muted/50"
+							>
 								<input
 									type="checkbox"
 									checked={selectedSiteIds.includes(site.id)}
@@ -363,7 +365,7 @@
 				{#if isEditing}
 					<!-- Add Member -->
 					{#if selectedSiteIds.length > 0}
-						<div class="flex gap-2 mb-4">
+						<div class="mb-4 flex gap-2">
 							<div class="flex-1">
 								<select
 									bind:value={selectedPreceptorId}
@@ -384,12 +386,19 @@
 									disabled={isSaving}
 								/>
 							</div>
-							<Button type="button" variant="outline" onclick={addMember} disabled={isSaving || !selectedPreceptorId}>
+							<Button
+								type="button"
+								variant="outline"
+								onclick={addMember}
+								disabled={isSaving || !selectedPreceptorId}
+							>
 								Add
 							</Button>
 						</div>
 					{:else}
-						<p class="text-sm text-muted-foreground mb-4">Select sites first to see available preceptors.</p>
+						<p class="mb-4 text-sm text-muted-foreground">
+							Select sites first to see available preceptors.
+						</p>
 					{/if}
 
 					<!-- Editable Member List -->
@@ -470,3 +479,11 @@
 		</div>
 	{/if}
 </div>
+
+<ConfirmDialog
+	bind:open={showDeleteConfirm}
+	title="Delete team?"
+	description="This action cannot be undone."
+	confirmLabel="Delete"
+	onConfirm={handleDelete}
+/>

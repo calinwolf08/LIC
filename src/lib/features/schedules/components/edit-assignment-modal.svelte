@@ -61,10 +61,13 @@
 		}
 	}
 
+	let confirmingDelete = $state(false);
+
 	async function handleDelete() {
 		if (!assignment) return;
 
-		if (!confirm('Are you sure you want to delete this assignment?')) {
+		if (!confirmingDelete) {
+			confirmingDelete = true;
 			return;
 		}
 
@@ -101,12 +104,12 @@
 	<div class="fixed inset-0 z-50 bg-black/50" onclick={onCancel} role="presentation"></div>
 
 	<!-- Modal -->
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
+	<div class="fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Edit Assignment</h2>
+			<h2 class="mb-4 text-xl font-semibold">Edit Assignment</h2>
 
 			<!-- Read-only Info -->
-			<div class="space-y-2 p-4 bg-muted rounded mb-4">
+			<div class="mb-4 space-y-2 rounded bg-muted p-4">
 				<p><strong>Student:</strong> {assignment.student_name}</p>
 				<p><strong>Preceptor:</strong> {assignment.preceptor_name}</p>
 				<p><strong>Clerkship:</strong> {assignment.clerkship_name}</p>
@@ -115,7 +118,7 @@
 			</div>
 
 			<!-- Editable Date -->
-			<div class="space-y-2 mb-4">
+			<div class="mb-4 space-y-2">
 				<Label for="date">Date</Label>
 				<Input id="date" type="date" bind:value={editedDate} disabled={isSaving || isDeleting} />
 			</div>
@@ -123,8 +126,8 @@
 			<!-- Errors -->
 			{#if errors.length > 0}
 				<div class="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-					<p class="font-semibold mb-1">Errors:</p>
-					<ul class="list-disc list-inside">
+					<p class="mb-1 font-semibold">Errors:</p>
+					<ul class="list-inside list-disc">
 						{#each errors as error}
 							<li>{error}</li>
 						{/each}
@@ -138,12 +141,8 @@
 					<Button variant="outline" onclick={handleReassignClick} disabled={isSaving || isDeleting}>
 						Reassign Preceptor
 					</Button>
-					<Button
-						variant="destructive"
-						onclick={handleDelete}
-						disabled={isSaving || isDeleting}
-					>
-						{isDeleting ? 'Deleting...' : 'Delete'}
+					<Button variant="destructive" onclick={handleDelete} disabled={isSaving || isDeleting}>
+						{isDeleting ? 'Deleting...' : confirmingDelete ? 'Click again to confirm' : 'Delete'}
 					</Button>
 				</div>
 

@@ -5,12 +5,9 @@
  */
 
 import type { RequestHandler } from './$types';
+import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -27,13 +24,15 @@ const executeSchedulingSchema = z.object({
 	clerkshipIds: z.array(z.string()).min(1, 'At least one clerkship ID is required'),
 	startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in YYYY-MM-DD format'),
 	endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in YYYY-MM-DD format'),
-	options: z.object({
-		enableTeamFormation: z.boolean().optional(),
-		enableFallbacks: z.boolean().optional(),
-		enableOptimization: z.boolean().optional(),
-		maxRetriesPerStudent: z.number().int().positive().optional(),
-		dryRun: z.boolean().optional(),
-	}).optional(),
+	options: z
+		.object({
+			enableTeamFormation: z.boolean().optional(),
+			enableFallbacks: z.boolean().optional(),
+			enableOptimization: z.boolean().optional(),
+			maxRetriesPerStudent: z.number().int().positive().optional(),
+			dryRun: z.boolean().optional()
+		})
+		.optional()
 });
 
 /**
@@ -68,7 +67,8 @@ const executeSchedulingSchema = z.object({
  *   }
  * }
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	requireAutogen(locals);
 	log.debug('Scheduling execution request received');
 
 	try {
@@ -94,15 +94,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			dryRun: validatedData.options?.dryRun || false
 		});
 
-		const result = await engine.schedule(
-			validatedData.studentIds,
-			validatedData.clerkshipIds,
-			{
-				startDate: validatedData.startDate,
-				endDate: validatedData.endDate,
-				...validatedData.options,
-			}
-		);
+		const result = await engine.schedule(validatedData.studentIds, validatedData.clerkshipIds, {
+			startDate: validatedData.startDate,
+			endDate: validatedData.endDate,
+			...validatedData.options
+		});
 
 		log.info('Scheduling execution complete', {
 			success: result.success,
@@ -118,7 +114,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Scheduling execution validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

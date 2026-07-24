@@ -18,11 +18,7 @@ import type { DB } from '$lib/db/types';
 // Import services
 import { createStudent } from '$lib/features/students/services/student-service';
 import { setAvailability } from '$lib/features/preceptors/services/availability-service';
-import {
-	createAssignment,
-	getAssignments,
-	getAssignmentsByDateRange
-} from './assignment-service';
+import { createAssignment, getAssignments, getAssignmentsByDateRange } from './assignment-service';
 import { clearAllAssignments } from './editing-service';
 import {
 	prepareRegenerationContext,
@@ -118,6 +114,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -172,13 +170,16 @@ async function initializeSchema(db: Kysely<DB>) {
 async function createHealthSystem(db: Kysely<DB>): Promise<{ id: string }> {
 	const timestamp = new Date().toISOString();
 	const id = nanoid();
-	await db.insertInto('health_systems').values({
-		id,
-		name: 'Test Health System',
-		location: 'Test Location',
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('health_systems')
+		.values({
+			id,
+			name: 'Test Health System',
+			location: 'Test Location',
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id };
 }
 
@@ -188,28 +189,38 @@ async function createHealthSystem(db: Kysely<DB>): Promise<{ id: string }> {
 async function createSite(db: Kysely<DB>, healthSystemId: string): Promise<{ id: string }> {
 	const timestamp = new Date().toISOString();
 	const id = nanoid();
-	await db.insertInto('sites').values({
-		id,
-		name: 'Test Site',
-		health_system_id: healthSystemId,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('sites')
+		.values({
+			id,
+			name: 'Test Site',
+			health_system_id: healthSystemId,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id };
 }
 
 /**
  * Link preceptor to site
  */
-async function linkPreceptorToSite(db: Kysely<DB>, preceptorId: string, siteId: string): Promise<void> {
+async function linkPreceptorToSite(
+	db: Kysely<DB>,
+	preceptorId: string,
+	siteId: string
+): Promise<void> {
 	const timestamp = new Date().toISOString();
-	await db.insertInto('preceptor_sites').values({
-		id: nanoid(),
-		preceptor_id: preceptorId,
-		site_id: siteId,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('preceptor_sites')
+		.values({
+			id: nanoid(),
+			preceptor_id: preceptorId,
+			site_id: siteId,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 }
 
 /**
@@ -221,15 +232,18 @@ async function createPreceptorDirect(
 ): Promise<{ id: string; name: string }> {
 	const timestamp = new Date().toISOString();
 	const id = nanoid();
-	await db.insertInto('preceptors').values({
-		id,
-		name: data.name,
-		email: data.email,
-		health_system_id: data.health_system_id,
-		max_students: data.max_students ?? 2,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('preceptors')
+		.values({
+			id,
+			name: data.name,
+			email: data.email,
+			health_system_id: data.health_system_id,
+			max_students: data.max_students ?? 2,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id, name: data.name };
 }
 
@@ -242,21 +256,27 @@ async function createClerkshipDirect(
 ): Promise<{ id: string }> {
 	const timestamp = new Date().toISOString();
 	const clerkshipId = nanoid();
-	await db.insertInto('clerkships').values({
-		id: clerkshipId,
-		name: data.name,
-		clerkship_type: data.clerkship_type,
-		required_days: data.required_days,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('clerkships')
+		.values({
+			id: clerkshipId,
+			name: data.name,
+			clerkship_type: data.clerkship_type,
+			required_days: data.required_days,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	// Also create clerkship configuration
-	await db.insertInto('clerkship_configurations').values({
-		id: nanoid(),
-		clerkship_id: clerkshipId,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('clerkship_configurations')
+		.values({
+			id: nanoid(),
+			clerkship_id: clerkshipId,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 	return { id: clerkshipId };
 }
 
@@ -453,9 +473,7 @@ describe('Schedule Regeneration Integration Tests', () => {
 			expect(result.creditResult.totalPastAssignments).toBe(2);
 
 			// Student requirement should be reduced from 5 to 3
-			const studentRequirement = context.studentRequirements
-				.get(student.id)
-				?.get(clerkship.id);
+			const studentRequirement = context.studentRequirements.get(student.id)?.get(clerkship.id);
 			expect(studentRequirement).toBe(3); // 5 required - 2 completed = 3 remaining
 		});
 

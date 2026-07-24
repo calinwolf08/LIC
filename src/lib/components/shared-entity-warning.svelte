@@ -55,7 +55,7 @@
 {:else if error}
 	<!-- Silently ignore errors - this is supplementary info -->
 {:else if isShared}
-	<div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+	<div class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
 		<div class="flex gap-3">
 			<div class="flex-shrink-0 text-yellow-600">
 				<svg
@@ -64,7 +64,7 @@
 					viewBox="0 0 24 24"
 					stroke-width="1.5"
 					stroke="currentColor"
-					class="w-6 h-6"
+					class="h-6 w-6"
 				>
 					<path
 						stroke-linecap="round"
@@ -76,19 +76,17 @@
 			<div>
 				<h3 class="text-sm font-semibold text-yellow-800">Shared {entityTypeLabels[entityType]}</h3>
 				<p class="mt-1 text-sm text-yellow-700">
-					This {entityTypeLabels[entityType]}{entityName ? ` (${entityName})` : ''} is used in {schedules.length} schedules.
-					Changes will affect all of them:
+					This {entityTypeLabels[entityType]}{entityName ? ` (${entityName})` : ''} is used in {schedules.length}
+					schedules. Changes will affect all of them:
 				</p>
-				<ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
+				<ul class="mt-2 list-inside list-disc text-sm text-yellow-700">
 					{#each schedules as schedule}
 						<li>
 							<span class="font-medium">{schedule.name}</span>
 							<span class="text-yellow-600">
 								({schedule.startDate} - {schedule.endDate})
 								{#if schedule.isActive}
-									<span
-										class="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full"
-									>
+									<span class="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-xs text-green-700">
 										Active
 									</span>
 								{/if}

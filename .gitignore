@@ -29,3 +29,11 @@ vite.config.ts.timestamp-*
 *.db
 *.db-shm
 *.db-wal
+
+# Local dev database
+sqlite.db
+sqlite.db-shm
+sqlite.db-wal
+test-sqlite.db*
+test-results/
+playwright-report/

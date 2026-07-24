@@ -62,36 +62,18 @@ export interface ClerkshipElectives {
   is_required: Generated<number>;
   minimum_days: number;
   name: string;
-  specialty: string | null;
-  // Settings override columns (inherit from clerkship by default)
-  override_mode: Generated<string>;
+  override_allow_fallbacks: number | null;
+  override_allow_teams: number | null;
   override_assignment_strategy: string | null;
+  override_fallback_allow_cross_system: number | null;
+  override_fallback_requires_approval: number | null;
   override_health_system_rule: string | null;
   override_max_students_per_day: number | null;
   override_max_students_per_year: number | null;
-  override_allow_fallbacks: number | null;
-  override_allow_teams: number | null;
-  override_fallback_requires_approval: number | null;
-  override_fallback_allow_cross_system: number | null;
+  override_mode: Generated<string>;
+  specialty: string | null;
   updated_at: Generated<string>;
 }
-
-export interface ElectivePreceptors {
-  created_at: Generated<string>;
-  elective_id: string;
-  id: string | null;
-  preceptor_id: string;
-}
-
-export interface ElectiveSites {
-  created_at: Generated<string>;
-  elective_id: string;
-  id: string | null;
-  site_id: string;
-}
-
-// ClerkshipRequirements and ClerkshipRequirementOverrides removed in migration 025
-// Electives now link directly to clerkships via clerkship_id
 
 export interface Clerkships {
   clerkship_type: string;
@@ -107,6 +89,20 @@ export interface Clerkships {
 export interface ClerkshipSites {
   clerkship_id: string;
   created_at: Generated<string>;
+  site_id: string;
+}
+
+export interface ElectivePreceptors {
+  created_at: Generated<string>;
+  elective_id: string;
+  id: string | null;
+  preceptor_id: string;
+}
+
+export interface ElectiveSites {
+  created_at: Generated<string>;
+  elective_id: string;
+  id: string | null;
   site_id: string;
 }
 
@@ -233,7 +229,7 @@ export interface Preceptors {
   email: string;
   health_system_id: string | null;
   id: string | null;
-  is_global_fallback_only: Generated<number>;
+  is_global_fallback_only: Generated<number | null>;
   max_students: Generated<number>;
   name: string;
   phone: string | null;
@@ -249,7 +245,7 @@ export interface PreceptorSites {
 export interface PreceptorTeamMembers {
   created_at: Generated<string>;
   id: string | null;
-  is_fallback_only: Generated<number>;
+  is_fallback_only: Generated<number | null>;
   preceptor_id: string;
   priority: Generated<number>;
   role: string | null;
@@ -274,11 +270,62 @@ export interface ScheduleAssignments {
   date: string;
   elective_id: string | null;
   id: string | null;
+  locked: Generated<number>;
   preceptor_id: string;
   site_id: string | null;
+  source: Generated<string>;
   status: Generated<string>;
   student_id: string;
   updated_at: Generated<string>;
+}
+
+export interface ScheduleClerkships {
+  clerkship_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  schedule_id: string;
+}
+
+export interface ScheduleConfigurations {
+  configuration_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  schedule_id: string;
+}
+
+export interface ScheduleHealthSystems {
+  created_at: Generated<string>;
+  health_system_id: string;
+  id: string | null;
+  schedule_id: string;
+}
+
+export interface SchedulePreceptors {
+  created_at: Generated<string>;
+  id: string | null;
+  preceptor_id: string;
+  schedule_id: string;
+}
+
+export interface ScheduleSites {
+  created_at: Generated<string>;
+  id: string | null;
+  schedule_id: string;
+  site_id: string;
+}
+
+export interface ScheduleStudents {
+  created_at: Generated<string>;
+  id: string | null;
+  schedule_id: string;
+  student_id: string;
+}
+
+export interface ScheduleTeams {
+  created_at: Generated<string>;
+  id: string | null;
+  schedule_id: string;
+  team_id: string;
 }
 
 export interface SchedulingPeriods {
@@ -291,55 +338,6 @@ export interface SchedulingPeriods {
   updated_at: Generated<string>;
   user_id: string | null;
   year: number | null;
-}
-
-export interface ScheduleStudents {
-  id: string | null;
-  schedule_id: string;
-  student_id: string;
-  created_at: Generated<string>;
-}
-
-export interface SchedulePreceptors {
-  id: string | null;
-  schedule_id: string;
-  preceptor_id: string;
-  created_at: Generated<string>;
-}
-
-export interface ScheduleSites {
-  id: string | null;
-  schedule_id: string;
-  site_id: string;
-  created_at: Generated<string>;
-}
-
-export interface ScheduleHealthSystems {
-  id: string | null;
-  schedule_id: string;
-  health_system_id: string;
-  created_at: Generated<string>;
-}
-
-export interface ScheduleClerkships {
-  id: string | null;
-  schedule_id: string;
-  clerkship_id: string;
-  created_at: Generated<string>;
-}
-
-export interface ScheduleTeams {
-  id: string | null;
-  schedule_id: string;
-  team_id: string;
-  created_at: Generated<string>;
-}
-
-export interface ScheduleConfigurations {
-  id: string | null;
-  schedule_id: string;
-  configuration_id: string;
-  created_at: Generated<string>;
 }
 
 export interface Session {
@@ -441,6 +439,7 @@ export interface User {
   createdAt: string;
   email: string;
   emailVerified: number;
+  entitlements: Generated<string>;
   id: string;
   image: string | null;
   name: string;

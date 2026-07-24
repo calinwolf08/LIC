@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { ConfirmDialog } from '$lib/components';
 	import PatternForm from './pattern-form.svelte';
 	import PatternList from './pattern-list.svelte';
 	import CalendarPreview from './calendar-preview.svelte';
@@ -105,8 +106,8 @@
 			// Convert Pattern[] to CreatePattern[]
 			// Note: Pattern from DB has is_available/enabled as numbers (0/1), but TypeScript type says boolean
 			const createPatterns = localPatterns
-				.filter(p => p.enabled)
-				.map(p => ({
+				.filter((p) => p.enabled)
+				.map((p) => ({
 					preceptor_id: p.preceptor_id,
 					site_id: p.site_id,
 					pattern_type: p.pattern_type,
@@ -123,8 +124,8 @@
 			const generatedDates = applyPatternsBySpecificity(createPatterns);
 
 			// Calculate stats
-			const availableDates = generatedDates.filter(d => d.is_available).length;
-			const unavailableDates = generatedDates.filter(d => !d.is_available).length;
+			const availableDates = generatedDates.filter((d) => d.is_available).length;
+			const unavailableDates = generatedDates.filter((d) => !d.is_available).length;
 
 			generationResult = {
 				generated_dates: generatedDates.length,
@@ -201,13 +202,19 @@
 	}
 
 	// Delete pattern from local state only
-	function handleDeletePattern(patternId: string) {
-		if (!confirm('Are you sure you want to delete this pattern?')) {
-			return;
-		}
+	let showDeletePatternConfirm = $state(false);
+	let patternIdToDelete = $state<string | null>(null);
 
+	function handleDeletePattern(patternId: string) {
+		patternIdToDelete = patternId;
+		showDeletePatternConfirm = true;
+	}
+
+	function confirmDeletePattern() {
+		if (!patternIdToDelete) return;
 		error = null;
-		localPatterns = localPatterns.filter(p => p.id !== patternId);
+		localPatterns = localPatterns.filter((p) => p.id !== patternIdToDelete);
+		patternIdToDelete = null;
 		generatePreviewLocal();
 	}
 
@@ -215,7 +222,7 @@
 	function handleToggleEnabled(patternId: string, enabled: boolean) {
 		error = null;
 
-		localPatterns = localPatterns.map(p =>
+		localPatterns = localPatterns.map((p) =>
 			p.id === patternId
 				? { ...p, enabled: enabled ? 1 : 0, updated_at: new Date().toISOString() }
 				: p
@@ -226,7 +233,7 @@
 
 	function handleEdit(pattern: { id: string }) {
 		// Find the index
-		const index = localPatterns.findIndex(p => p.id === pattern.id);
+		const index = localPatterns.findIndex((p) => p.id === pattern.id);
 		if (index === -1) return;
 
 		editingPattern = localPatterns[index];
@@ -238,10 +245,6 @@
 	async function handleSaveAll() {
 		if (!generationResult || generationResult.generated_dates === 0) {
 			error = 'No patterns to save. Add patterns first.';
-			return;
-		}
-
-		if (!confirm(`Save ${generationResult.generated_dates} availability dates?`)) {
 			return;
 		}
 
@@ -352,8 +355,8 @@
 			return { start: today, end: today };
 		}
 
-		const startDates = localPatterns.map(p => p.date_range_start);
-		const endDates = localPatterns.map(p => p.date_range_end);
+		const startDates = localPatterns.map((p) => p.date_range_start);
+		const endDates = localPatterns.map((p) => p.date_range_end);
 
 		return {
 			start: startDates.sort()[0],
@@ -362,7 +365,7 @@
 	});
 
 	// Track if there are unsaved changes
-	let hasUnsavedChanges = $derived(localPatterns.some(p => p.id?.startsWith('temp-')));
+	let hasUnsavedChanges = $derived(localPatterns.some((p) => p.id?.startsWith('temp-')));
 
 	// Convert LocalPattern to CreatePattern for the form
 	function localPatternToCreatePattern(p: LocalPattern | null): CreatePattern | null {
@@ -385,7 +388,7 @@
 <div class="space-y-6">
 	<div>
 		<h3 class="text-lg font-semibold">Availability Patterns for {preceptor.name}</h3>
-		<p class="text-sm text-muted-foreground mt-1">
+		<p class="mt-1 text-sm text-muted-foreground">
 			Create patterns to define year-long availability schedules
 			{#if hasUnsavedChanges}
 				<span class="text-orange-600 dark:text-orange-400">• Unsaved changes</span>
@@ -418,9 +421,7 @@
 				}}
 			/>
 		{:else}
-			<Button onclick={() => (showPatternForm = true)}>
-				+ Add Pattern
-			</Button>
+			<Button onclick={() => (showPatternForm = true)}>+ Add Pattern</Button>
 		{/if}
 
 		<!-- Existing Patterns -->
@@ -474,7 +475,7 @@
 		{:else if localPatterns.length > 0}
 			<Card class="p-6">
 				<div class="text-center">
-					<p class="text-sm text-muted-foreground mb-4">
+					<p class="mb-4 text-sm text-muted-foreground">
 						Click "Refresh Preview" to see generated availability
 					</p>
 					<Button size="sm" onclick={generatePreviewLocal} disabled={isGenerating}>
@@ -485,7 +486,7 @@
 		{/if}
 
 		<!-- Actions -->
-		<div class="flex justify-end gap-3 pt-4 border-t">
+		<div class="flex justify-end gap-3 border-t pt-4">
 			{#if onCancel}
 				<Button type="button" variant="outline" onclick={onCancel} disabled={isSaving}>
 					Cancel
@@ -506,3 +507,11 @@
 		</div>
 	{/if}
 </div>
+
+<ConfirmDialog
+	bind:open={showDeletePatternConfirm}
+	title="Delete pattern?"
+	description="This availability pattern will be removed. This action cannot be undone."
+	confirmLabel="Delete"
+	onConfirm={confirmDeletePattern}
+/>

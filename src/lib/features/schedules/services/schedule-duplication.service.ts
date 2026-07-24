@@ -72,7 +72,8 @@ export async function duplicateToNewSchedule(
 	startDate: string,
 	endDate: string,
 	year: number,
-	options: DuplicationOptions
+	options: DuplicationOptions,
+	userId?: string | null
 ): Promise<DuplicationResult> {
 	log.debug('Duplicating schedule', {
 		sourceScheduleId,
@@ -83,12 +84,14 @@ export async function duplicateToNewSchedule(
 		options
 	});
 
-	// Create the new schedule (not active by default)
+	// Create the new schedule (not active by default), owned by the requesting
+	// user so it shows up in their schedules list.
 	const newSchedule = await createSchedulingPeriod(db, {
 		name,
 		start_date: startDate,
 		end_date: endDate,
 		is_active: false,
+		user_id: userId ?? null,
 	});
 
 	// Update the year field separately since createSchedulingPeriod doesn't support it

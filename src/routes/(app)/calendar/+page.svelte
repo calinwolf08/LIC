@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { CalendarEvent, EnrichedAssignment } from '$lib/features/schedules/types';
-	import type { CalendarMonth, CalendarDay, CalendarDayAssignment } from '$lib/features/schedules/types/schedule-views';
+	import type {
+		CalendarMonth,
+		CalendarDay,
+		CalendarDayAssignment
+	} from '$lib/features/schedules/types/schedule-views';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
@@ -9,8 +13,11 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
+	import { CreateAssignmentDialog } from '$lib/features/schedules/components';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { toast } from '$lib/components';
 	import { Filter, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import {
 		formatDisplayDate as formatDateDisplay,
@@ -23,9 +30,11 @@
 
 	let { data }: { data: PageData } = $props();
 
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
+
 	// Blackout dates state
 	let blackoutDates = $state(
-		(data.blackoutDates || []).map(bd => ({
+		(data.blackoutDates || []).map((bd) => ({
 			...bd,
 			id: bd.id! // Non-null: queried from database
 		}))
@@ -34,7 +43,7 @@
 	let showFilters = $state(false);
 
 	// Create a Set of blackout dates for efficient lookup
-	let blackoutDateSet = $derived(new Set(blackoutDates.map(bd => bd.date)));
+	let blackoutDateSet = $derived(new Set(blackoutDates.map((bd) => bd.date)));
 
 	// Refresh blackout dates
 	async function refreshBlackoutDates() {
@@ -123,9 +132,36 @@
 		}
 	}
 
+	// Validation markers
+	let violationDates = $state<Set<string>>(new Set());
+	let violationMessages = $state<Record<string, string[]>>({});
+	let violationCount = $state(0);
+
+	async function loadValidation() {
+		try {
+			const res = await fetch('/api/schedules/validation');
+			const body = await res.json();
+			if (body.success) {
+				const byDate = body.data.byDate as Record<string, { message: string }[]>;
+				violationDates = new Set(Object.keys(byDate));
+				violationMessages = Object.fromEntries(
+					Object.entries(byDate).map(([d, vs]) => [d, vs.map((v) => v.message)])
+				);
+				violationCount = body.data.violations.length;
+			}
+		} catch (e) {
+			console.error('Failed to load validation', e);
+		}
+	}
+
 	// Load calendar on mount and when filters change
 	$effect(() => {
 		loadCalendar();
+	});
+
+	// Validation is independent of filters — load once on mount and after edits.
+	$effect(() => {
+		loadValidation();
 	});
 
 	// Group events by date
@@ -186,6 +222,7 @@
 		showEditModal = false;
 		selectedAssignment = null;
 		loadCalendar();
+		loadValidation();
 	}
 
 	function handleEditCancel() {
@@ -197,6 +234,7 @@
 		showEditModal = false;
 		selectedAssignment = null;
 		loadCalendar();
+		loadValidation();
 	}
 
 	// Reassign
@@ -210,11 +248,24 @@
 		showReassignModal = false;
 		selectedAssignment = null;
 		loadCalendar();
+		loadValidation();
 	}
 
 	function handleReassignCancel() {
 		showReassignModal = false;
 		selectedAssignment = null;
+	}
+
+	// Create assignment
+	let showCreateAssignment = $state(false);
+	let createDate = $state('');
+	function openCreateAssignment() {
+		createDate = '';
+		showCreateAssignment = true;
+	}
+	function handleAssignmentCreated() {
+		loadCalendar();
+		loadValidation();
 	}
 
 	// Regenerate schedule
@@ -269,7 +320,7 @@
 			window.URL.revokeObjectURL(downloadUrl);
 		} catch (error) {
 			console.error('Export error:', error);
-			alert('Failed to export schedule');
+			toast.error('Failed to export schedule');
 		} finally {
 			isExporting = false;
 		}
@@ -351,14 +402,17 @@
 		return result;
 	});
 
-	// Handle day click in calendar grid (opens first assignment if any)
+	// Handle day click in calendar grid: open the first assignment, or create
+	// a new assignment on an empty day.
 	function handleDayClick(day: CalendarDay) {
 		if (day.assignments && day.assignments.length > 0) {
-			// Find the full event to get the enriched assignment
 			const event = events.find((e) => e.assignment.id === day.assignments[0].id);
 			if (event) {
 				handleEditClick(event.assignment);
 			}
+		} else {
+			createDate = day.date;
+			showCreateAssignment = true;
 		}
 	}
 
@@ -372,9 +426,9 @@
 </script>
 
 <div class="container mx-auto py-8">
-	<!-- Schedule completeness banner -->
-	{#if data.scheduleSummary && !data.scheduleSummary.isComplete}
-		<Card class="p-4 mb-6 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+	<!-- Schedule completeness banner (auto-generation diagnostics) -->
+	{#if hasAutogen && data.scheduleSummary && !data.scheduleSummary.isComplete}
+		<Card class="mb-6 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
 					<div class="text-amber-600 dark:text-amber-400">
@@ -396,48 +450,65 @@
 					<div>
 						<p class="font-medium text-amber-800 dark:text-amber-200">Schedule Incomplete</p>
 						<p class="text-sm text-amber-700 dark:text-amber-300">
-							{data.scheduleSummary.studentsWithUnmetRequirements.length} student{data.scheduleSummary.studentsWithUnmetRequirements.length === 1 ? '' : 's'} with unmet requirements
+							{data.scheduleSummary.studentsWithUnmetRequirements.length} student{data
+								.scheduleSummary.studentsWithUnmetRequirements.length === 1
+								? ''
+								: 's'} with unmet requirements
 						</p>
 					</div>
 				</div>
-				<Button variant="outline" size="sm" onclick={() => goto('/schedule/results')}>
+				<Button variant="outline" size="sm" onclick={() => goto('/generate/results')}>
 					View Details
 				</Button>
 			</div>
 		</Card>
 	{/if}
 
-	<div class="mb-6 flex items-center justify-between flex-wrap gap-4">
-		<h1 class="text-3xl font-bold">Schedule Calendar</h1>
-		<div class="flex gap-3 flex-wrap">
+	<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+		<h1 class="text-3xl font-bold">Calendar</h1>
+		<div class="flex flex-wrap gap-3">
 			<Button
 				variant={showBlackoutPanel ? 'default' : 'outline'}
 				onclick={() => (showBlackoutPanel = !showBlackoutPanel)}
 			>
 				{showBlackoutPanel ? 'Hide' : 'Show'} Blackout Dates
 				{#if blackoutDates.length > 0}
-					<span class="ml-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs">
+					<span class="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-xs text-white">
 						{blackoutDates.length}
 					</span>
 				{/if}
 			</Button>
-			<Button variant="outline" onclick={() => goto('/schedule/results')}>
-				Schedule Results
-			</Button>
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
-			<Button variant="default" onclick={handleRegenerateClick}>
-				{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
-			</Button>
+			<Button onclick={openCreateAssignment}>Add assignment</Button>
+			{#if hasAutogen}
+				<Button variant="outline" onclick={() => goto('/generate/results')}>Schedule Results</Button
+				>
+				<Button variant="default" onclick={handleRegenerateClick}>
+					{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
+				</Button>
+			{/if}
 		</div>
 	</div>
+
+	<!-- Conflict summary -->
+	{#if violationCount > 0}
+		<div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
+			{violationCount} scheduling conflict{violationCount > 1 ? 's' : ''} in this schedule. Days with
+			conflicts are marked with a red dot in the calendar view.
+		</div>
+	{:else}
+		<div class="mb-6 rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950/20">
+			No scheduling conflicts.
+		</div>
+	{/if}
 
 	<!-- Blackout Dates Panel -->
 	{#if showBlackoutPanel}
 		<div class="mb-6">
 			<BlackoutDateManager
-				blackoutDates={blackoutDates}
+				{blackoutDates}
 				onAdd={refreshBlackoutDates}
 				onDelete={refreshBlackoutDates}
 				onRegenerateNeeded={() => (showRegenerateDialog = true)}
@@ -449,7 +520,7 @@
 	<div class="mb-6">
 		<Button
 			variant="outline"
-			onclick={() => showFilters = !showFilters}
+			onclick={() => (showFilters = !showFilters)}
 			class="flex items-center gap-2"
 		>
 			<Filter class="h-4 w-4" />
@@ -463,11 +534,11 @@
 	</div>
 
 	{#if showFilters}
-		<Card class="p-6 mb-6">
-			<p class="text-sm text-muted-foreground mb-4">
+		<Card class="mb-6 p-6">
+			<p class="mb-4 text-sm text-muted-foreground">
 				These filters only change what is displayed. They do not affect schedule generation.
 			</p>
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<!-- Date Range -->
 				<div class="space-y-2">
 					<Label for="start_date">Start Date</Label>
@@ -535,7 +606,7 @@
 				</div>
 			</div>
 
-			<div class="flex gap-3 mt-4">
+			<div class="mt-4 flex gap-3">
 				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
 				{#if data.activeSchedule}
 					<Button variant="outline" onclick={resetToScheduleDates}>View Full Schedule</Button>
@@ -545,7 +616,7 @@
 	{/if}
 
 	<!-- Month Navigation and View Toggle -->
-	<div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+	<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
 		<Button variant="outline" onclick={previousMonth}>&larr; Previous Month</Button>
 		<div class="flex items-center gap-4">
 			<h2 class="text-xl font-semibold">
@@ -555,7 +626,7 @@
 			<div class="flex rounded-md border">
 				<button
 					type="button"
-					class="px-3 py-1.5 text-sm font-medium rounded-l-md transition-colors {viewMode === 'list'
+					class="rounded-l-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'list'
 						? 'bg-primary text-primary-foreground'
 						: 'hover:bg-muted'}"
 					onclick={() => (viewMode = 'list')}
@@ -564,7 +635,8 @@
 				</button>
 				<button
 					type="button"
-					class="px-3 py-1.5 text-sm font-medium rounded-r-md transition-colors {viewMode === 'calendar'
+					class="rounded-r-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+					'calendar'
 						? 'bg-primary text-primary-foreground'
 						: 'hover:bg-muted'}"
 					onclick={() => (viewMode = 'calendar')}
@@ -588,7 +660,15 @@
 	{:else if viewMode === 'calendar'}
 		<!-- Calendar Grid View -->
 		{#if calendarMonths().length > 0}
-			<ScheduleCalendarGrid months={calendarMonths()} mode="student" blackoutDates={blackoutDateSet} onDayClick={handleDayClick} onAssignmentClick={handleAssignmentClick} />
+			<ScheduleCalendarGrid
+				months={calendarMonths()}
+				mode="student"
+				blackoutDates={blackoutDateSet}
+				{violationDates}
+				{violationMessages}
+				onDayClick={handleDayClick}
+				onAssignmentClick={handleAssignmentClick}
+			/>
 		{:else}
 			<Card class="p-8 text-center">
 				<p class="text-muted-foreground">No data to display</p>
@@ -603,40 +683,41 @@
 		<div class="space-y-4">
 			{#each groupedEvents() as { date, events }}
 				<Card class="p-6">
-					<h3 class="text-lg font-semibold mb-4">{formatDateDisplay(date)}</h3>
+					<h3 class="mb-4 text-lg font-semibold">{formatDateDisplay(date)}</h3>
 					<div class="space-y-3">
 						{#each events as event}
 							<div
-								class="p-4 rounded-lg border-l-4"
+								class="rounded-lg border-l-4 p-4"
 								style="border-left-color: {event.color}; background-color: {event.color}10;"
 							>
-								<div class="flex items-start justify-between flex-wrap gap-2">
+								<div class="flex flex-wrap items-start justify-between gap-2">
 									<div>
 										<p class="font-medium">
 											<button
 												onclick={() => goto(`/students/${event.assignment.student_id}`)}
-												class="text-primary hover:underline text-left"
+												class="text-left text-primary hover:underline"
 											>
 												{event.assignment.student_name}
 											</button>
-											<span class="text-muted-foreground mx-1">-</span>
+											<span class="mx-1 text-muted-foreground">-</span>
 											<span>{event.assignment.clerkship_name}</span>
 										</p>
-										<p class="text-sm text-muted-foreground mt-1">
+										<p class="mt-1 text-sm text-muted-foreground">
 											Preceptor:
 											<button
-												onclick={() => goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
+												onclick={() =>
+													goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
 												class="text-primary hover:underline"
 											>
 												{event.assignment.preceptor_name}
 											</button>
 										</p>
-										<div class="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+										<div class="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
 											<span>Status: {event.assignment.status}</span>
 											<span>Specialty: {event.assignment.clerkship_specialty}</span>
 										</div>
 									</div>
-									<div class="flex gap-2 flex-wrap">
+									<div class="flex flex-wrap gap-2">
 										<Button
 											size="sm"
 											variant="ghost"
@@ -680,10 +761,18 @@
 	onCancel={handleReassignCancel}
 />
 
-<RegenerateDialog
-	open={showRegenerateDialog}
-	scheduleStartDate={data.activeSchedule?.startDate}
-	scheduleEndDate={data.activeSchedule?.endDate}
-	onConfirm={handleRegenerateConfirm}
-	onCancel={handleRegenerateCancel}
+{#if hasAutogen}
+	<RegenerateDialog
+		open={showRegenerateDialog}
+		scheduleStartDate={data.activeSchedule?.startDate}
+		scheduleEndDate={data.activeSchedule?.endDate}
+		onConfirm={handleRegenerateConfirm}
+		onCancel={handleRegenerateCancel}
+	/>
+{/if}
+
+<CreateAssignmentDialog
+	bind:open={showCreateAssignment}
+	date={createDate}
+	onSaved={handleAssignmentCreated}
 />

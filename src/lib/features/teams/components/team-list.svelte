@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
+	import { ConfirmDialog, toast } from '$lib/components';
 
 	interface TeamMember {
 		id: string;
@@ -46,26 +47,25 @@
 		filterClerkshipId ? teams.filter((t) => t.clerkshipId === filterClerkshipId) : teams
 	);
 
-	async function handleDelete(team: Team) {
-		if (!confirm(`Are you sure you want to delete this team?`)) {
-			return;
+	let showDeleteConfirm = $state(false);
+	let teamToDelete = $state<Team | null>(null);
+
+	function requestDelete(team: Team) {
+		teamToDelete = team;
+		showDeleteConfirm = true;
+	}
+
+	async function handleDelete() {
+		if (!teamToDelete) return;
+		const response = await fetch(`/api/preceptors/teams/${teamToDelete.id}`, {
+			method: 'DELETE'
+		});
+		if (!response.ok) {
+			const result = await response.json();
+			throw new Error(result.error?.message || 'Failed to delete team');
 		}
-
-		try {
-			const response = await fetch(`/api/preceptors/teams/${team.id}`, {
-				method: 'DELETE'
-			});
-
-			if (!response.ok) {
-				const result = await response.json();
-				alert(result.error?.message || 'Failed to delete team');
-				return;
-			}
-
-			onDelete(team);
-		} catch (error) {
-			alert(error instanceof Error ? error.message : 'Failed to delete team');
-		}
+		toast.success('Team deleted');
+		onDelete(teamToDelete);
 	}
 </script>
 
@@ -118,7 +118,7 @@
 								<td class="px-4 py-3 text-sm">
 									<a
 										href="/preceptors/teams/{team.id}"
-										class="text-blue-600 hover:underline font-medium"
+										class="font-medium text-blue-600 hover:underline"
 									>
 										{team.name || 'Unnamed Team'}
 									</a>
@@ -151,10 +151,8 @@
 								</td>
 								<td class="px-4 py-3 text-sm">
 									<div class="flex gap-2">
-										<Button size="sm" variant="outline" onclick={() => onEdit(team)}>
-											Edit
-										</Button>
-										<Button size="sm" variant="destructive" onclick={() => handleDelete(team)}>
+										<Button size="sm" variant="outline" onclick={() => onEdit(team)}>Edit</Button>
+										<Button size="sm" variant="destructive" onclick={() => requestDelete(team)}>
 											Delete
 										</Button>
 									</div>
@@ -167,3 +165,11 @@
 		</div>
 	</Card>
 </div>
+
+<ConfirmDialog
+	bind:open={showDeleteConfirm}
+	title="Delete team?"
+	description="This action cannot be undone."
+	confirmLabel="Delete"
+	onConfirm={handleDelete}
+/>

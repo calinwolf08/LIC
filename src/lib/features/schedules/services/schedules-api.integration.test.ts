@@ -26,11 +26,7 @@ import {
 	getPreceptorScheduleData,
 	getScheduleSummaryData
 } from './schedule-views-service';
-import {
-	reassignToPreceptor,
-	swapAssignments,
-	clearAllAssignments
-} from './editing-service';
+import { reassignToPreceptor, swapAssignments, clearAllAssignments } from './editing-service';
 import { setAvailability } from '$lib/features/preceptors/services/availability-service';
 
 // Mock the scheduling period service for schedule-views tests
@@ -165,6 +161,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -727,7 +725,9 @@ describe('Schedules API Integration Tests', () => {
 
 			const summary = await getScheduleSummaryData(db);
 
-			const fmBreakdown = summary.clerkshipBreakdown.find(c => c.clerkshipName === 'Family Medicine');
+			const fmBreakdown = summary.clerkshipBreakdown.find(
+				(c) => c.clerkshipName === 'Family Medicine'
+			);
 			expect(fmBreakdown!.totalAssignments).toBe(3);
 			expect(fmBreakdown!.studentsAssigned).toBe(2);
 		});
@@ -1005,10 +1005,7 @@ describe('Schedules API Integration Tests', () => {
 			expect(deletedCount).toBe(5);
 
 			// Verify all are gone
-			const remaining = await db
-				.selectFrom('schedule_assignments')
-				.selectAll()
-				.execute();
+			const remaining = await db.selectFrom('schedule_assignments').selectAll().execute();
 			expect(remaining).toHaveLength(0);
 		});
 
@@ -1055,10 +1052,7 @@ describe('Schedules API Integration Tests', () => {
 			expect(deletedCount).toBe(2); // On and after cutoff
 
 			// Verify only early assignment remains
-			const remaining = await db
-				.selectFrom('schedule_assignments')
-				.selectAll()
-				.execute();
+			const remaining = await db.selectFrom('schedule_assignments').selectAll().execute();
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].date).toBe('2024-06-10');
 		});
@@ -1177,8 +1171,8 @@ describe('Schedules API Integration Tests', () => {
 
 			expect(schedule!.clerkshipProgress[0].preceptors).toHaveLength(2);
 
-			const p1 = schedule!.clerkshipProgress[0].preceptors.find(p => p.id === preceptor1.id);
-			const p2 = schedule!.clerkshipProgress[0].preceptors.find(p => p.id === preceptor2.id);
+			const p1 = schedule!.clerkshipProgress[0].preceptors.find((p) => p.id === preceptor1.id);
+			const p2 = schedule!.clerkshipProgress[0].preceptors.find((p) => p.id === preceptor2.id);
 
 			expect(p1!.daysAssigned).toBe(2);
 			expect(p2!.daysAssigned).toBe(1);

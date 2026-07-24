@@ -22,13 +22,19 @@ import type { DB } from '../types';
 const TEST_USER = {
 	email: 'admin@example.com',
 	password: 'password123',
-	name: 'Admin User',
+	name: 'Admin User'
+};
+
+const BASIC_USER = {
+	email: 'basic@example.com',
+	password: 'password123',
+	name: 'Basic User'
 };
 
 const TEST_SCHEDULE = {
 	name: 'Demo Schedule 2025',
 	startDate: '2025-01-06',
-	endDate: '2025-06-30',
+	endDate: '2025-06-30'
 };
 
 // Helper to get or create entity
@@ -70,12 +76,15 @@ async function ensureScheduleAssociation(
 		.executeTakeFirst();
 
 	if (!existing) {
-		await db.insertInto(junctionTable).values({
-			id: nanoid(),
-			schedule_id: scheduleId,
-			[entityIdField]: entityId,
-			created_at: timestamp,
-		}).execute();
+		await db
+			.insertInto(junctionTable)
+			.values({
+				id: nanoid(),
+				schedule_id: scheduleId,
+				[entityIdField]: entityId,
+				created_at: timestamp
+			})
+			.execute();
 	}
 }
 
@@ -101,8 +110,8 @@ async function seed(db: Kysely<DB>) {
 				body: {
 					email: TEST_USER.email,
 					password: TEST_USER.password,
-					name: TEST_USER.name,
-				},
+					name: TEST_USER.name
+				}
 			});
 
 			if (!result.user) {
@@ -124,6 +133,35 @@ async function seed(db: Kysely<DB>) {
 			} else {
 				throw error;
 			}
+		}
+	}
+
+	// Grant the admin user the Stage 2 (auto-generation) entitlement.
+	await db
+		.updateTable('user')
+		.set({ entitlements: JSON.stringify(['autogen']) })
+		.where('id', '=', userId)
+		.execute();
+	console.log('  Granted "autogen" entitlement to admin user');
+
+	// Create a second user WITHOUT the autogen entitlement (for gating tests).
+	const existingBasic = await db
+		.selectFrom('user')
+		.select('id')
+		.where('email', '=', BASIC_USER.email)
+		.executeTakeFirst();
+	if (!existingBasic) {
+		try {
+			await auth.api.signUpEmail({
+				body: {
+					email: BASIC_USER.email,
+					password: BASIC_USER.password,
+					name: BASIC_USER.name
+				}
+			});
+			console.log(`  Created basic (non-entitled) user: ${BASIC_USER.email}`);
+		} catch {
+			console.log(`  Basic user ${BASIC_USER.email} already exists`);
 		}
 	}
 
@@ -158,7 +196,7 @@ async function seed(db: Kysely<DB>) {
 					end_date: TEST_SCHEDULE.endDate,
 					year: 2025,
 					is_active: 1,
-					updated_at: timestamp,
+					updated_at: timestamp
 				})
 				.where('id', '=', scheduleId)
 				.execute();
@@ -176,7 +214,7 @@ async function seed(db: Kysely<DB>) {
 					is_active: 1,
 					user_id: userId,
 					created_at: timestamp,
-					updated_at: timestamp,
+					updated_at: timestamp
 				})
 				.execute();
 			console.log(`  Created schedule: ${TEST_SCHEDULE.name}`);
@@ -195,22 +233,44 @@ async function seed(db: Kysely<DB>) {
 	const healthSystemIds: string[] = [];
 
 	const healthSystemsData = [
-		{ name: 'Metro Health Network', location: 'Downtown Metro Area', description: 'Large urban health network' },
-		{ name: 'Community Care Partners', location: 'Suburban Region', description: 'Community-focused healthcare' },
+		{
+			name: 'Metro Health Network',
+			location: 'Downtown Metro Area',
+			description: 'Large urban health network'
+		},
+		{
+			name: 'Community Care Partners',
+			location: 'Suburban Region',
+			description: 'Community-focused healthcare'
+		}
 	];
 
 	for (const data of healthSystemsData) {
-		let hs = await db.selectFrom('health_systems').selectAll().where('name', '=', data.name).executeTakeFirst();
+		let hs = await db
+			.selectFrom('health_systems')
+			.selectAll()
+			.where('name', '=', data.name)
+			.executeTakeFirst();
 
 		if (!hs) {
 			const id = nanoid();
-			await db.insertInto('health_systems').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			await db
+				.insertInto('health_systems')
+				.values({ id, ...data, created_at: timestamp, updated_at: timestamp })
+				.execute();
 			healthSystemIds.push(id);
 		} else {
 			healthSystemIds.push(hs.id!);
 		}
 
-		await ensureScheduleAssociation(db, 'schedule_health_systems', scheduleId, 'health_system_id', healthSystemIds[healthSystemIds.length - 1], timestamp);
+		await ensureScheduleAssociation(
+			db,
+			'schedule_health_systems',
+			scheduleId,
+			'health_system_id',
+			healthSystemIds[healthSystemIds.length - 1],
+			timestamp
+		);
 	}
 	console.log(`  Created/found ${healthSystemIds.length} health systems`);
 
@@ -219,24 +279,42 @@ async function seed(db: Kysely<DB>) {
 	const siteIds: string[] = [];
 
 	const sitesData = [
-		{ name: 'Metro General Hospital', health_system_id: healthSystemIds[0], address: '123 Main St' },
+		{
+			name: 'Metro General Hospital',
+			health_system_id: healthSystemIds[0],
+			address: '123 Main St'
+		},
 		{ name: 'Metro Family Clinic', health_system_id: healthSystemIds[0], address: '456 Oak Ave' },
 		{ name: 'Community Hospital', health_system_id: healthSystemIds[1], address: '789 Elm Rd' },
-		{ name: 'Suburban Primary Care', health_system_id: healthSystemIds[1], address: '321 Pine St' },
+		{ name: 'Suburban Primary Care', health_system_id: healthSystemIds[1], address: '321 Pine St' }
 	];
 
 	for (const data of sitesData) {
-		let site = await db.selectFrom('sites').selectAll().where('name', '=', data.name).executeTakeFirst();
+		let site = await db
+			.selectFrom('sites')
+			.selectAll()
+			.where('name', '=', data.name)
+			.executeTakeFirst();
 
 		if (!site) {
 			const id = nanoid();
-			await db.insertInto('sites').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			await db
+				.insertInto('sites')
+				.values({ id, ...data, created_at: timestamp, updated_at: timestamp })
+				.execute();
 			siteIds.push(id);
 		} else {
 			siteIds.push(site.id!);
 		}
 
-		await ensureScheduleAssociation(db, 'schedule_sites', scheduleId, 'site_id', siteIds[siteIds.length - 1], timestamp);
+		await ensureScheduleAssociation(
+			db,
+			'schedule_sites',
+			scheduleId,
+			'site_id',
+			siteIds[siteIds.length - 1],
+			timestamp
+		);
 	}
 	console.log(`  Created/found ${siteIds.length} sites`);
 
@@ -245,26 +323,55 @@ async function seed(db: Kysely<DB>) {
 	const clerkshipIds: string[] = [];
 
 	const clerkshipsData = [
-		{ name: 'Family Medicine', specialty: 'Family Medicine', clerkship_type: 'outpatient', required_days: 28 },
-		{ name: 'Internal Medicine', specialty: 'Internal Medicine', clerkship_type: 'inpatient', required_days: 28 },
-		{ name: 'Pediatrics', specialty: 'Pediatrics', clerkship_type: 'outpatient', required_days: 28 },
+		{
+			name: 'Family Medicine',
+			specialty: 'Family Medicine',
+			clerkship_type: 'outpatient',
+			required_days: 28
+		},
+		{
+			name: 'Internal Medicine',
+			specialty: 'Internal Medicine',
+			clerkship_type: 'inpatient',
+			required_days: 28
+		},
+		{
+			name: 'Pediatrics',
+			specialty: 'Pediatrics',
+			clerkship_type: 'outpatient',
+			required_days: 28
+		},
 		{ name: 'Surgery', specialty: 'Surgery', clerkship_type: 'inpatient', required_days: 28 },
 		{ name: 'OB/GYN', specialty: 'OB/GYN', clerkship_type: 'inpatient', required_days: 28 },
-		{ name: 'Psychiatry', specialty: 'Psychiatry', clerkship_type: 'outpatient', required_days: 14 },
+		{ name: 'Psychiatry', specialty: 'Psychiatry', clerkship_type: 'outpatient', required_days: 14 }
 	];
 
 	for (const data of clerkshipsData) {
-		let clerkship = await db.selectFrom('clerkships').selectAll().where('name', '=', data.name).executeTakeFirst();
+		let clerkship = await db
+			.selectFrom('clerkships')
+			.selectAll()
+			.where('name', '=', data.name)
+			.executeTakeFirst();
 
 		if (!clerkship) {
 			const id = nanoid();
-			await db.insertInto('clerkships').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			await db
+				.insertInto('clerkships')
+				.values({ id, ...data, created_at: timestamp, updated_at: timestamp })
+				.execute();
 			clerkshipIds.push(id);
 		} else {
 			clerkshipIds.push(clerkship.id!);
 		}
 
-		await ensureScheduleAssociation(db, 'schedule_clerkships', scheduleId, 'clerkship_id', clerkshipIds[clerkshipIds.length - 1], timestamp);
+		await ensureScheduleAssociation(
+			db,
+			'schedule_clerkships',
+			scheduleId,
+			'clerkship_id',
+			clerkshipIds[clerkshipIds.length - 1],
+			timestamp
+		);
 	}
 	console.log(`  Created/found ${clerkshipIds.length} clerkships`);
 
@@ -287,21 +394,35 @@ async function seed(db: Kysely<DB>) {
 		{ name: 'Grace Lee', email: 'glee@medschool.edu' },
 		{ name: 'Henry Brown', email: 'hbrown@medschool.edu' },
 		{ name: 'Ivy Wilson', email: 'iwilson@medschool.edu' },
-		{ name: 'Jack Davis', email: 'jdavis@medschool.edu' },
+		{ name: 'Jack Davis', email: 'jdavis@medschool.edu' }
 	];
 
 	for (const data of studentsData) {
-		let student = await db.selectFrom('students').selectAll().where('email', '=', data.email).executeTakeFirst();
+		let student = await db
+			.selectFrom('students')
+			.selectAll()
+			.where('email', '=', data.email)
+			.executeTakeFirst();
 
 		if (!student) {
 			const id = nanoid();
-			await db.insertInto('students').values({ id, ...data, created_at: timestamp, updated_at: timestamp }).execute();
+			await db
+				.insertInto('students')
+				.values({ id, ...data, created_at: timestamp, updated_at: timestamp })
+				.execute();
 			studentIds.push(id);
 		} else {
 			studentIds.push(student.id!);
 		}
 
-		await ensureScheduleAssociation(db, 'schedule_students', scheduleId, 'student_id', studentIds[studentIds.length - 1], timestamp);
+		await ensureScheduleAssociation(
+			db,
+			'schedule_students',
+			scheduleId,
+			'student_id',
+			studentIds[studentIds.length - 1],
+			timestamp
+		);
 	}
 	console.log(`  Created/found ${studentIds.length} students`);
 
@@ -310,58 +431,127 @@ async function seed(db: Kysely<DB>) {
 	const preceptorIds: string[] = [];
 
 	const preceptorsData = [
-		{ name: 'Dr. Amanda Smith', email: 'asmith@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 0 },
-		{ name: 'Dr. James Brown', email: 'jbrown@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 1 },
-		{ name: 'Dr. Maria Garcia', email: 'mgarcia@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 0 },
-		{ name: 'Dr. Robert Chen', email: 'rchen@metro.edu', health_system_id: healthSystemIds[0], siteIndex: 1 },
-		{ name: 'Dr. Sarah Wilson', email: 'swilson@community.edu', health_system_id: healthSystemIds[1], siteIndex: 2 },
-		{ name: 'Dr. Michael Lee', email: 'mlee@community.edu', health_system_id: healthSystemIds[1], siteIndex: 2 },
-		{ name: 'Dr. Jennifer Park', email: 'jpark@community.edu', health_system_id: healthSystemIds[1], siteIndex: 3 },
-		{ name: 'Dr. David Miller', email: 'dmiller@community.edu', health_system_id: healthSystemIds[1], siteIndex: 3 },
+		{
+			name: 'Dr. Amanda Smith',
+			email: 'asmith@metro.edu',
+			health_system_id: healthSystemIds[0],
+			siteIndex: 0
+		},
+		{
+			name: 'Dr. James Brown',
+			email: 'jbrown@metro.edu',
+			health_system_id: healthSystemIds[0],
+			siteIndex: 1
+		},
+		{
+			name: 'Dr. Maria Garcia',
+			email: 'mgarcia@metro.edu',
+			health_system_id: healthSystemIds[0],
+			siteIndex: 0
+		},
+		{
+			name: 'Dr. Robert Chen',
+			email: 'rchen@metro.edu',
+			health_system_id: healthSystemIds[0],
+			siteIndex: 1
+		},
+		{
+			name: 'Dr. Sarah Wilson',
+			email: 'swilson@community.edu',
+			health_system_id: healthSystemIds[1],
+			siteIndex: 2
+		},
+		{
+			name: 'Dr. Michael Lee',
+			email: 'mlee@community.edu',
+			health_system_id: healthSystemIds[1],
+			siteIndex: 2
+		},
+		{
+			name: 'Dr. Jennifer Park',
+			email: 'jpark@community.edu',
+			health_system_id: healthSystemIds[1],
+			siteIndex: 3
+		},
+		{
+			name: 'Dr. David Miller',
+			email: 'dmiller@community.edu',
+			health_system_id: healthSystemIds[1],
+			siteIndex: 3
+		}
 	];
 
 	for (const data of preceptorsData) {
 		const { siteIndex, ...preceptorData } = data;
-		let preceptor = await db.selectFrom('preceptors').selectAll().where('email', '=', data.email).executeTakeFirst();
+		let preceptor = await db
+			.selectFrom('preceptors')
+			.selectAll()
+			.where('email', '=', data.email)
+			.executeTakeFirst();
 
 		if (!preceptor) {
 			const id = nanoid();
-			await db.insertInto('preceptors').values({ id, ...preceptorData, max_students: 2, created_at: timestamp, updated_at: timestamp }).execute();
+			await db
+				.insertInto('preceptors')
+				.values({
+					id,
+					...preceptorData,
+					max_students: 2,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 			preceptorIds.push(id);
 
 			// Add site association
-			await db.insertInto('preceptor_sites').values({ preceptor_id: id, site_id: siteIds[siteIndex], created_at: timestamp }).execute();
+			await db
+				.insertInto('preceptor_sites')
+				.values({ preceptor_id: id, site_id: siteIds[siteIndex], created_at: timestamp })
+				.execute();
 
 			// Add capacity rule
-			await db.insertInto('preceptor_capacity_rules').values({
-				id: nanoid(),
-				preceptor_id: id,
-				max_students_per_day: 2,
-				max_students_per_year: 50,
-				created_at: timestamp,
-				updated_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_capacity_rules')
+				.values({
+					id: nanoid(),
+					preceptor_id: id,
+					max_students_per_day: 2,
+					max_students_per_year: 50,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 
 			// Add availability pattern
-			await db.insertInto('preceptor_availability_patterns').values({
-				id: nanoid(),
-				preceptor_id: id,
-				site_id: siteIds[siteIndex],
-				pattern_type: 'weekly',
-				config: JSON.stringify({ daysOfWeek: [1, 2, 3, 4, 5] }),
-				date_range_start: TEST_SCHEDULE.startDate,
-				date_range_end: TEST_SCHEDULE.endDate,
-				is_available: 1,
-				enabled: 1,
-				specificity: 1,
-				created_at: timestamp,
-				updated_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_availability_patterns')
+				.values({
+					id: nanoid(),
+					preceptor_id: id,
+					site_id: siteIds[siteIndex],
+					pattern_type: 'weekly',
+					config: JSON.stringify({ daysOfWeek: [1, 2, 3, 4, 5] }),
+					date_range_start: TEST_SCHEDULE.startDate,
+					date_range_end: TEST_SCHEDULE.endDate,
+					is_available: 1,
+					enabled: 1,
+					specificity: 1,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 		} else {
 			preceptorIds.push(preceptor.id!);
 		}
 
-		await ensureScheduleAssociation(db, 'schedule_preceptors', scheduleId, 'preceptor_id', preceptorIds[preceptorIds.length - 1], timestamp);
+		await ensureScheduleAssociation(
+			db,
+			'schedule_preceptors',
+			scheduleId,
+			'preceptor_id',
+			preceptorIds[preceptorIds.length - 1],
+			timestamp
+		);
 	}
 	console.log(`  Created/found ${preceptorIds.length} preceptors`);
 
@@ -373,37 +563,47 @@ async function seed(db: Kysely<DB>) {
 		{ name: 'Family Medicine Team A', clerkshipIndex: 0, preceptorIndices: [0, 1] },
 		{ name: 'Internal Medicine Team A', clerkshipIndex: 1, preceptorIndices: [2, 3] },
 		{ name: 'Pediatrics Team A', clerkshipIndex: 2, preceptorIndices: [4, 5] },
-		{ name: 'Surgery Team A', clerkshipIndex: 3, preceptorIndices: [6, 7] },
+		{ name: 'Surgery Team A', clerkshipIndex: 3, preceptorIndices: [6, 7] }
 	];
 
 	for (const data of teamsData) {
-		let team = await db.selectFrom('preceptor_teams').selectAll().where('name', '=', data.name).executeTakeFirst();
+		let team = await db
+			.selectFrom('preceptor_teams')
+			.selectAll()
+			.where('name', '=', data.name)
+			.executeTakeFirst();
 
 		if (!team) {
 			const teamId = nanoid();
-			await db.insertInto('preceptor_teams').values({
-				id: teamId,
-				name: data.name,
-				clerkship_id: clerkshipIds[data.clerkshipIndex],
-				require_same_health_system: 0,
-				require_same_site: 0,
-				require_same_specialty: 0,
-				requires_admin_approval: 0,
-				created_at: timestamp,
-				updated_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_teams')
+				.values({
+					id: teamId,
+					name: data.name,
+					clerkship_id: clerkshipIds[data.clerkshipIndex],
+					require_same_health_system: 0,
+					require_same_site: 0,
+					require_same_specialty: 0,
+					requires_admin_approval: 0,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 
 			// Add team members
 			for (let i = 0; i < data.preceptorIndices.length; i++) {
-				await db.insertInto('preceptor_team_members').values({
-					id: nanoid(),
-					team_id: teamId,
-					preceptor_id: preceptorIds[data.preceptorIndices[i]],
-					role: i === 0 ? 'lead' : 'member',
-					priority: i + 1,
-					is_fallback_only: 0,
-					created_at: timestamp,
-				}).execute();
+				await db
+					.insertInto('preceptor_team_members')
+					.values({
+						id: nanoid(),
+						team_id: teamId,
+						preceptor_id: preceptorIds[data.preceptorIndices[i]],
+						role: i === 0 ? 'lead' : 'member',
+						priority: i + 1,
+						is_fallback_only: 0,
+						created_at: timestamp
+					})
+					.execute();
 			}
 
 			teamIds.push(teamId);
@@ -411,7 +611,14 @@ async function seed(db: Kysely<DB>) {
 			teamIds.push(team.id!);
 		}
 
-		await ensureScheduleAssociation(db, 'schedule_teams', scheduleId, 'team_id', teamIds[teamIds.length - 1], timestamp);
+		await ensureScheduleAssociation(
+			db,
+			'schedule_teams',
+			scheduleId,
+			'team_id',
+			teamIds[teamIds.length - 1],
+			timestamp
+		);
 	}
 	console.log(`  Created/found ${teamIds.length} teams`);
 
@@ -438,7 +645,10 @@ async function seed(db: Kysely<DB>) {
 async function main() {
 	console.log('Starting database seed...\n');
 
-	const db = createDB();
+	// Respect DATABASE_PATH so the seed targets the same DB as auth.ts's rawDb
+	// (e.g. ./test-sqlite.db during e2e). createDB() otherwise defaults to
+	// ./sqlite.db, which would split entities and users across two files.
+	const db = createDB(process.env.DATABASE_PATH || './sqlite.db');
 
 	try {
 		await seed(db);

@@ -2,24 +2,25 @@
 	import type { PageData } from './$types';
 	import type { Clerkships } from '$lib/db/types';
 	import ClerkshipList from '$lib/features/clerkships/components/clerkship-list.svelte';
-	import ClerkshipForm from '$lib/features/clerkships/components/clerkship-form.svelte';
 	import DeleteClerkshipDialog from '$lib/features/clerkships/components/delete-clerkship-dialog.svelte';
 	import GlobalDefaultsForm from '$lib/features/scheduling-config/components/global-defaults-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
+
+	let hasAutogen = $derived(($page.data.entitlements ?? []).includes('autogen'));
 
 	// Tab state
 	let activeTab = $state<'clerkships' | 'scheduling-defaults'>('clerkships');
 
-	let showForm = $state(false);
 	let showDeleteDialog = $state(false);
 	let selectedClerkship = $state<Clerkships | undefined>(undefined);
 
 	function handleAdd() {
-		showForm = true;
+		goto('/clerkships/new');
 	}
 
 	function handleDelete(clerkship: Clerkships) {
@@ -28,16 +29,7 @@
 	}
 
 	function handleConfigure(clerkship: Clerkships) {
-		goto(`/clerkships/${clerkship.id}/config`);
-	}
-
-	async function handleFormSuccess() {
-		showForm = false;
-		await invalidateAll();
-	}
-
-	function handleFormCancel() {
-		showForm = false;
+		goto(`/clerkships/${clerkship.id}`);
 	}
 
 	async function handleDeleteConfirm(clerkship: Clerkships) {
@@ -71,7 +63,7 @@
 		<nav class="-mb-px flex space-x-8">
 			<button
 				onclick={() => (activeTab = 'clerkships')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
 					activeTab === 'clerkships'
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -79,16 +71,18 @@
 			>
 				Clerkships ({data.clerkships.length})
 			</button>
-			<button
-				onclick={() => (activeTab = 'scheduling-defaults')}
-				class={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-					activeTab === 'scheduling-defaults'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Default Scheduling Rules
-			</button>
+			{#if hasAutogen}
+				<button
+					onclick={() => (activeTab = 'scheduling-defaults')}
+					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+						activeTab === 'scheduling-defaults'
+							? 'border-primary text-primary'
+							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+					}`}
+				>
+					Default Scheduling Rules
+				</button>
+			{/if}
 		</nav>
 	</div>
 
@@ -107,17 +101,6 @@
 		<GlobalDefaultsForm />
 	{/if}
 </div>
-
-<!-- Form Modal (for adding new clerkships only) -->
-{#if showForm}
-	<div class="fixed inset-0 z-50 bg-black/50" onclick={handleFormCancel} role="presentation"></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
-		<ClerkshipForm
-			onSuccess={handleFormSuccess}
-			onCancel={handleFormCancel}
-		/>
-	</div>
-{/if}
 
 <!-- Delete Dialog -->
 <DeleteClerkshipDialog

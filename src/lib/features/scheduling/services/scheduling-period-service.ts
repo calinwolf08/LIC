@@ -94,7 +94,7 @@ export async function getActiveSchedulingPeriod(
  */
 export async function createSchedulingPeriod(
 	db: Kysely<DB>,
-	data: CreateSchedulingPeriod
+	data: CreateSchedulingPeriod & { user_id?: string | null }
 ): Promise<Selectable<SchedulingPeriods>> {
 	log.debug('Creating scheduling period', {
 		name: data.name,
@@ -125,6 +125,10 @@ export async function createSchedulingPeriod(
 		start_date: data.start_date,
 		end_date: data.end_date,
 		is_active: data.is_active ? 1 : 0,
+		// Persist ownership so the schedule shows up in the owner's list. Without
+		// this, wizard/API-created schedules were orphaned (user_id null) and
+		// never appeared on /schedules.
+		user_id: data.user_id ?? null,
 		created_at: timestamp,
 		updated_at: timestamp
 	};
