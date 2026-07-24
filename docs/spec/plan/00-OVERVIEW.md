@@ -37,6 +37,12 @@ Recommended execution order: 01 → 02 → 03 → 04 → 05 → 09 → 10 → 06
 4. All quality gates green: `npm run lint`, `npm run check`, `npm run test:unit -- --run`, `npm run build`, `npm run test:e2e`.
 5. The core-journey e2e suite (defined in step 14) passes in CI.
 
+## Round 2 (steps 15–24)
+
+Steps 01–14 are complete. Issues found during first real use of the shipped app are planned
+in **`ROUND-2-OVERVIEW.md`** (steps 15–24), which carries its own dependency graph, a
+root-cause briefing, and an issue→step traceability table. Start there for any post-beta work.
+
 ## Out of scope (backlog — do not implement)
 
 Half-day/AM-PM scheduling (F1/F2), email notifications, student/preceptor portals, exam scheduling, multi-user collaboration on one schedule, payment/billing integration (entitlement is a manual flag for now).
