@@ -794,9 +794,13 @@
 	/>
 {/if}
 
+<!--
+	Clicking a day pre-fills and locks that date; the toolbar button opens the
+	dialog with no date, where locking would leave the user unable to pick one.
+-->
 <AssignmentDialog
 	bind:open={showCreateAssignment}
 	date={createDate}
-	lockDate={true}
+	lockDate={!!createDate}
 	onSaved={handleAssignmentCreated}
 />

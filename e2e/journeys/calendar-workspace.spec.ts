@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { login, ADMIN } from './helpers';
+import { login, ADMIN, fromToday } from './helpers';
+import {
+	openAssignmentDialog,
+	selectClerkship,
+	selectPreceptor,
+	pickDay,
+	submitAcceptingOverrides
+} from './assignment-helpers';
 
 /**
  * Step 20 — the calendar as the working surface.
@@ -83,36 +90,16 @@ test('creating an assignment with an accepted warning lists it under Overrides',
 	await page.getByRole('button', { name: /^create$/i }).click();
 	await expect(page).toHaveURL(/\/students$/);
 
-	// Assign a day from the student page; the student is not onboarded, so this
-	// raises a soft warning that must be explicitly accepted.
+	// Assign a future day from the student page; the student is not onboarded to
+	// the preceptor's health system, so this raises a soft warning that must be
+	// explicitly accepted.
 	await page.getByRole('button', { name }).click();
-	await page.getByRole('button', { name: 'Add assignment' }).first().click();
-	await expect(page.getByRole('heading', { name: /add assignment/i })).toBeVisible();
+	await openAssignmentDialog(page);
+	await selectClerkship(page, clerkshipName);
+	await selectPreceptor(page, preceptorName);
+	await pickDay(page, fromToday(40));
+	await submitAcceptingOverrides(page);
 
-	await expect(page.locator('#ad-clerkship option')).not.toHaveCount(1, { timeout: 20000 });
-	await page.locator('#ad-clerkship').selectOption({ label: clerkshipName });
-	await page.locator('#ad-preceptor').selectOption({ label: preceptorName });
-
-	// Move two months forward so the chosen day is in the future — otherwise a
-	// `past_date` conversation stacks on top of the onboarding one.
-	await page.getByRole('button', { name: 'Next month' }).click();
-	await page.getByRole('button', { name: 'Next month' }).click();
-	const day = page.locator('[data-testid="assignment-day-grid"] button:not([disabled])').last();
-	await expect(day).toBeVisible({ timeout: 15000 });
-	await day.click();
-
-	// Submit; the not-onboarded warning opens an override conversation that must
-	// be explicitly accepted. Drain any queued conversations.
-	await page.getByRole('button', { name: 'Create', exact: true }).click();
-	for (let i = 0; i < 4; i++) {
-		const accept = page
-			.getByRole('dialog')
-			.getByRole('button', { name: /assign anyway|assign and mark|double-book|continue anyway/i })
-			.first();
-		if (!(await accept.count())) break;
-		await accept.click();
-		await page.waitForTimeout(400);
-	}
 	// The dialog closes once the assignment is saved.
 	await expect(page.getByRole('heading', { name: /add assignment/i })).toHaveCount(0, {
 		timeout: 15000

@@ -49,14 +49,17 @@ export async function selectStudent(page: Page, label: string) {
  */
 export async function pickDay(page: Page, date: string) {
 	const wanted = date.slice(0, 7);
-	const cell = page.getByTestId(`day-${date}`);
+	// Scope to the dialog: the calendar page has its own "Next Month →" control,
+	// which would otherwise make these lookups ambiguous.
+	const dialog = page.getByRole('dialog').filter({ has: page.getByTestId('assignment-day-grid') });
+	const cell = dialog.getByTestId(`day-${date}`);
 
 	for (let i = 0; i < 24; i++) {
 		if (await cell.isVisible().catch(() => false)) break;
-		const shown = (await page.getByTestId('picker-month').textContent()) ?? '';
+		const shown = (await dialog.getByTestId('picker-month').textContent()) ?? '';
 		const shownMonth = monthKeyFromLabel(shown);
 		const button = shownMonth < wanted ? 'Next month' : 'Previous month';
-		await page.getByRole('button', { name: button }).click();
+		await dialog.getByRole('button', { name: button, exact: true }).click();
 		await page.waitForTimeout(150);
 	}
 

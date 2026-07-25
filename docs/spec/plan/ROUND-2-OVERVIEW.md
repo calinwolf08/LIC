@@ -2,10 +2,10 @@
 
 Steps 01–14 built the two-stage product. Round 2 addresses issues found during first real use of the app on a fresh account. Read `GUIDELINES.md` first — it binds every step.
 
-> **Picking this up mid-round?** Start with **`HANDOFF.md`** — it records what is already shipped
-> (steps 15–23), what remains (24), and the operational gotchas (build/seed loop,
-> the real seeded schedule name and date range, hand-built test schemas) that cost real time to
-> rediscover.
+> **Round 2 is complete** — steps 15–24 are all shipped. See the Round 2 status table in
+> `../DESIGN_REVIEW.md` for the issue-by-issue outcome and the verification evidence, and
+> **`HANDOFF.md`** for the operational gotchas (build/seed loop, the seeded schedule's shape,
+> hand-built test schemas) that cost real time to rediscover.
 
 ## Execution order
 
@@ -32,7 +32,7 @@ Steps are ordered by dependency. **15 must run first** (it fixes a root cause be
 | 21 | Preceptor page assignments | 16, 17, 18 | ✅ shipped |
 | 22 | Entity consistency: "Manage" + read-only overviews | — | ✅ shipped |
 | 23 | Navigation: fold Schedules into the switcher | 15 | ✅ shipped |
-| 24 | Integrated regression | all | ⬜ next |
+| 24 | Integrated regression | all | ✅ shipped |
 
 ## Root causes worth knowing before you start
 

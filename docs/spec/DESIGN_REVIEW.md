@@ -78,3 +78,75 @@ Deferred items (tracked, low-risk): E4 baseline-migration consolidation; calenda
 ## Verdict
 
 Priorities, in order: (1) establish the interaction grammar and shared primitives so later steps land consistently; (2) reset the schema + seed + entitlements; (3) gate Stage 2; (4) rebuild navigation; (5) standardize entity modules; (6) ship manual scheduling + standalone validation (the actual product core); (7) consolidate Stage 2 into its own hub; (8) production hardening. This ordering is encoded in `docs/spec/plan/00-OVERVIEW.md`.
+
+---
+
+## Round 2 status (Steps 15–24) — post-beta fixes
+
+Round 2 addressed the issues found during the first real use of the shipped app on a fresh
+account. Every reported issue below is fixed and covered by at least one automated test.
+The plan lives in `docs/spec/plan/ROUND-2-OVERVIEW.md`; `HANDOFF.md` carries the operational
+notes.
+
+**Three root causes** explained a disproportionate share of the symptoms:
+
+1. **Two competing definitions of "active schedule."** `getActiveSchedulingPeriod()` resolved the
+   working schedule from the global `scheduling_periods.is_active` flag while the rest of the app
+   used the per-user `user.active_schedule_id`. New users' schedules are created with
+   `is_active = 0`, so the lookup returned nothing and the view service fell back to a whole
+   calendar year — producing both the "full year calendar" and "capacity months outside my range"
+   reports, and risking a cross-tenant range leak. **Fixed in step 15.**
+2. **A camelCase/snake_case mismatch** between `getStudentScheduleData` and the student schedule
+   table — the blank Clerkship/Preceptor columns. **Fixed in step 19.**
+3. **An unguarded `sites` prop** in `pattern-form.svelte`, plus a preceptor API shape that did not
+   guarantee the field — the reported `TypeError`, and the wizard's false "no sites" message.
+   **Fixed in step 16.**
+
+| #  | Reported issue                                                                | Step   | Status  |
+|----|-------------------------------------------------------------------------------|--------|---------|
+| 1  | Schedule rename doesn't update the sidebar dropdown until refresh              | 15     | Fixed   |
+| 2  | Preceptor wizard step 3: no way to actually set availability                   | 16     | Fixed   |
+| 3  | Wizard says "no sites" though a site was chosen on the previous step           | 16     | Fixed   |
+| 4  | Capacity Overview shows months outside the schedule range                      | 15, 16 | Fixed   |
+| 5  | Availability/schedule tabs show a full year, not the schedule range            | 15, 16 | Fixed   |
+| 6  | Must scroll to the bottom to edit availability                                 | 16     | Fixed   |
+| 7  | `TypeError: can't access property "length", $$props.sites is undefined`        | 16     | Fixed   |
+| 8  | Details-tab info not visible (read-only) on Overview                           | 22     | Fixed   |
+| 9  | Add-assignment doesn't filter clerkship/preceptor/site to valid combinations   | 17, 18 | Fixed   |
+| 10 | Dates ignore preceptor availability; don't show already-scheduled days         | 17, 18 | Fixed   |
+| 11 | No range/block/individual day selection when assigning                         | 18     | Fixed   |
+| 12 | No availability override prompt (+ option to update preceptor availability)    | 17, 18 | Fixed   |
+| 13 | No double-book prompt (double-book / move other student; raise limit vs once)  | 17, 18 | Fixed   |
+| 14 | "Lock this assignment" visible without the autogen entitlement                 | 18     | Fixed   |
+| 15 | Can't see student progress + assigned preceptors while assigning               | 18, 19 | Fixed   |
+| 16 | No warning when assigning more days than a clerkship requires                  | 17, 18 | Fixed   |
+| 17 | No onboarding warning (linking to the Onboarding tab) on the student page      | 19     | Fixed   |
+| 18 | Student schedule tab: Clerkship/Preceptor columns empty                        | 19     | Fixed   |
+| 19 | Student schedule should default to calendar, with a list toggle                | 19     | Fixed   |
+| 20 | Assignments can only be removed, not edited                                    | 19–21  | Fixed   |
+| 21 | Past-dated assignments: need an override to remove/replace                     | 17, 19 | Fixed   |
+| 22 | Lists say "View"/"Edit" — should be "Manage"; drop the locations edit dialog   | 22     | Fixed   |
+| 23 | Calendar opens in list view                                                    | 20     | Fixed   |
+| 24 | Calendar day cells show "Int" instead of student·clerkship·preceptor           | 20     | Fixed   |
+| 25 | Calendar edit popup should be the full assignment dialog (single day)          | 20     | Fixed   |
+| 26 | Calendar add-assignment = student-page dialog + a student dropdown             | 20     | Fixed   |
+| 27 | Preceptor page add-assignment needs the same logic and context                 | 21     | Fixed   |
+| 28 | Schedule health not visible from the calendar                                  | 20     | Fixed   |
+| 29 | Overrides aren't tracked or reviewable                                         | 17, 20 | Fixed   |
+| 30 | `/schedules` vs `/calendar` is confusing; move to the switcher                 | 23     | Fixed   |
+| 31 | All of the above need real test coverage                                       | all    | Fixed   |
+
+### Found and fixed while testing (not in the original report)
+
+- **Orphaned schedules.** `createSchedulingPeriod` never persisted `user_id`, so every schedule made
+  through the wizard/API was invisible in its owner's list.
+- **Calendar toolbar "Add assignment" was unusable** — the dialog was opened with `lockDate` always
+  true, so with no pre-filled date the user could not pick one. Now only the day-click path locks.
+
+### Verification
+
+- **1511 unit tests**, `svelte-check` clean, production build succeeds.
+- **29 e2e journeys**, run twice from a cold seeded database with **zero retries and no flakes**;
+  the new and cross-cutting journeys additionally pass under `--repeat-each=2`.
+- Cross-cutting journeys: whole-app end-to-end (now creating and switching into a short schedule
+  first), fresh-signup-to-first-assignment, and the override lifecycle (both side-effect branches).

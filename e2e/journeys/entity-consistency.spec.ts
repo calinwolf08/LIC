@@ -50,10 +50,11 @@ test('sites: Manage opens a detail page (no edit popup), editable on Details', a
 	await expect(page.getByRole('heading', { name: 'Site details' })).toBeVisible();
 	await page.getByRole('button', { name: 'Edit details' }).click();
 
-	// Details tab edits the record.
+	// Details tab edits the record. Assert on the persisted name in the page
+	// header rather than the success toast, which auto-dismisses.
 	await page.locator('#name').fill(renamed);
 	await page.getByRole('button', { name: 'Update Site' }).click();
-	await expect(page.getByText('Site updated')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole('heading', { name: renamed })).toBeVisible({ timeout: 10000 });
 
 	// Clean up via the danger zone.
 	await page.getByRole('tab', { name: 'Details' }).click();

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, ADMIN } from './helpers';
+import { login, ADMIN, monthStart, monthEnd } from './helpers';
 import {
 	openAssignmentDialog,
 	pickDay,
@@ -21,12 +21,14 @@ import {
  *   (double-book) → hit a SOFT conflict (preceptor capacity) → edit an entity →
  *   make another assignment → re-validate (clean) → confirm requirement status.
  *
- * D1/D2 are inside the seeded schedule range and in the future, so they count
- * as "scheduled" rather than "completed".
+ * The journey first creates a deliberately short schedule and switches into it,
+ * so the whole arc also exercises the range plumbing (step 15). D1/D2 sit inside
+ * that window and in the future, so they count as "scheduled", not "completed".
  */
 
 // Unique names so the run is independent on the shared test DB.
 const STAMP = Date.now();
+const SCHEDULE = `E2E Schedule ${STAMP}`;
 const HS = `E2E-HS ${STAMP}`;
 const SITE = `E2E-Site ${STAMP}`;
 const PRECEPTOR = `Dr. E2E ${STAMP}`;
@@ -38,6 +40,22 @@ const EMAIL_A = `e2e_a_${STAMP}@example.com`;
 const EMAIL_B = `e2e_b_${STAMP}@example.com`;
 const D1 = fromToday(45);
 const D2 = fromToday(46);
+
+/** Set by the test so afterEach can restore the seeded active schedule. */
+let scheduleCleanup: (() => Promise<void>) | null = null;
+
+async function activeScheduleId(page: Page): Promise<string | null> {
+	const res = await page.request.get('/api/user/active-schedule');
+	if (!res.ok()) return null;
+	return (await res.json()).data?.schedule?.id ?? null;
+}
+
+test.afterEach(async () => {
+	if (scheduleCleanup) {
+		await scheduleCleanup().catch(() => {});
+		scheduleCleanup = null;
+	}
+});
 
 /** Open a student's detail page from the students list. */
 async function openStudent(page: Page, name: string) {
@@ -86,8 +104,31 @@ async function addAssignment(
 test('end-to-end: build entities, assign, validate, edit, reassign, revalidate', async ({
 	page
 }) => {
-	test.setTimeout(120000);
+	test.setTimeout(180000);
 	await login(page, ADMIN);
+
+	// --- 0. Work inside a purpose-made, deliberately short schedule ---
+	// Creating and switching into it up front means the whole arc below also
+	// exercises the range plumbing (step 15): everything that follows must stay
+	// bounded to this window rather than a fabricated calendar year.
+	const baselineId = await activeScheduleId(page);
+	const created = await page.request.post('/api/scheduling-periods', {
+		data: { name: SCHEDULE, start_date: monthStart(0), end_date: monthEnd(2) }
+	});
+	expect(created.ok()).toBeTruthy();
+	const scheduleId = (await created.json()).data.id;
+	await page.request.put('/api/user/active-schedule', { data: { scheduleId } });
+
+	// Restore the seeded schedule afterwards so sibling specs stay isolated.
+	scheduleCleanup = async () => {
+		if (baselineId) {
+			await page.request.put('/api/user/active-schedule', { data: { scheduleId: baselineId } });
+		}
+		await page.request.delete(`/api/scheduling-periods/${scheduleId}`);
+	};
+
+	await page.goto('/dashboard');
+	await expect(page.getByRole('button', { name: SCHEDULE })).toBeVisible();
 
 	// --- 1. Add a location (health system + site) ---
 	await page.goto('/locations');
