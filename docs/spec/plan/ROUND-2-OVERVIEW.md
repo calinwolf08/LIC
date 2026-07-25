@@ -3,7 +3,7 @@
 Steps 01–14 built the two-stage product. Round 2 addresses issues found during first real use of the app on a fresh account. Read `GUIDELINES.md` first — it binds every step.
 
 > **Picking this up mid-round?** Start with **`HANDOFF.md`** — it records what is already shipped
-> (steps 15, 16, 22, 23), what remains (17–21, 24), and the operational gotchas (build/seed loop,
+> (steps 15–23), what remains (24), and the operational gotchas (build/seed loop,
 > the real seeded schedule name and date range, hand-built test schemas) that cost real time to
 > rediscover.
 
@@ -25,14 +25,14 @@ Steps are ordered by dependency. **15 must run first** (it fixes a root cause be
 |---|---|---|---|
 | 15 | Schedule scoping correctness & range foundation | — | ✅ shipped |
 | 16 | Preceptor availability: crash fix, wizard, layout | 15 | ✅ shipped |
-| 17 | Assignment eligibility, day states, override model (backend) | 15, 16 | ⬜ next |
-| 18 | One assignment dialog everywhere | 17 | ⬜ |
-| 19 | Student page rework | 15, 17, 18 | ⬜ |
-| 20 | Calendar page rework | 15, 17, 18 | ⬜ |
-| 21 | Preceptor page assignments | 16, 17, 18 | ⬜ |
+| 17 | Assignment eligibility, day states, override model (backend) | 15, 16 | ✅ shipped |
+| 18 | One assignment dialog everywhere | 17 | ✅ shipped |
+| 19 | Student page rework | 15, 17, 18 | ✅ shipped |
+| 20 | Calendar page rework | 15, 17, 18 | ✅ shipped |
+| 21 | Preceptor page assignments | 16, 17, 18 | ✅ shipped |
 | 22 | Entity consistency: "Manage" + read-only overviews | — | ✅ shipped |
 | 23 | Navigation: fold Schedules into the switcher | 15 | ✅ shipped |
-| 24 | Integrated regression | all | ⬜ |
+| 24 | Integrated regression | all | ⬜ next |
 
 ## Root causes worth knowing before you start
 

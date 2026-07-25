@@ -66,10 +66,16 @@ moving on. Update `docs/spec/DESIGN_REVIEW.md`'s Round-2 status as you go.
   `pkill -f "vite preview"`, `npm run build`, seed, and `npm run preview` as **separate** Bash calls
   — never chain a build after a pkill in one command, or the build silently doesn't complete and
   you'll debug a stale build for an hour.
-- **Seed reality ≠ intent:** the admin's active schedule is named **"My Schedule"**, range
-  **2026-07-01 → 2027-06-30** (the auth hook creates it and the seed reuses it — it does NOT become
-  "Demo Schedule 2025"). So **in-range assignment dates are 2026-07 … 2027-06**. Step 24 makes the
-  seed authoritative; until then, write tests against "My Schedule" and 2026–2027 dates.
+- **Seed:** step 17's work made the seed authoritative (`seed-schedule.ts`). The admin's active
+  schedule is now **"Demo Schedule"**, spanning roughly **one month before today → ~9 months after**
+  (e.g. 2026-06-01 → 2027-04-30 when "today" is 2026-07-25), so it always straddles today. Two
+  consequences for tests: the **first selectable day in the picker is in the past** (a `past_date`
+  conversation stacks on whatever else you triggered — advance a month or two first), and dates you
+  hard-code must sit inside that window.
+- **Overrides need the right preconditions.** `not_onboarded` only fires when the preceptor has a
+  `health_system_id`; a preceptor created via API without one produces a clean assignment and no
+  override row. Likewise `preceptor_capacity` needs `max_students` already met. If a test asserts on
+  an override, construct the precondition explicitly.
 - **`schedule_assignments` has no `schedule_id` column** — assignments scope transitively via
   `schedule_students`. Step 17 adds `override_codes` / `override_note`; after any migration run
   `npm run db:types` and **update every hand-built test schema** that does
