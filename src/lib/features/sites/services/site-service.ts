@@ -89,18 +89,18 @@ export class SiteService {
 			throw new ConflictError(`Site with name "${input.name}" already exists`);
 		}
 
-		// Verify health system exists (only if provided)
-		if (input.health_system_id) {
-			const healthSystem = await this.db
-				.selectFrom('health_systems')
-				.select('id')
-				.where('id', '=', input.health_system_id)
-				.executeTakeFirst();
+		// A site must belong to a real health system (NOT NULL + FK in the schema).
+		const healthSystem = await this.db
+			.selectFrom('health_systems')
+			.select('id')
+			.where('id', '=', input.health_system_id)
+			.executeTakeFirst();
 
-			if (!healthSystem) {
-				log.warn('Health system not found for site creation', { healthSystemId: input.health_system_id });
-				throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
-			}
+		if (!healthSystem) {
+			log.warn('Health system not found for site creation', {
+				healthSystemId: input.health_system_id
+			});
+			throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
 		}
 
 		const id = nanoid();
@@ -111,8 +111,7 @@ export class SiteService {
 			.values({
 				id,
 				name: input.name,
-				// Note: DB schema requires health_system_id but app allows optional - this may fail at DB level
-				health_system_id: (input.health_system_id || '') as string,
+				health_system_id: input.health_system_id,
 				address: input.address || null,
 				office_phone: input.office_phone || null,
 				contact_person: input.contact_person || null,

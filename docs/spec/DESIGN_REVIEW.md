@@ -142,11 +142,19 @@ notes.
   through the wizard/API was invisible in its owner's list.
 - **Calendar toolbar "Add assignment" was unusable** — the dialog was opened with `lockDate` always
   true, so with no pre-filled date the user could not pick one. Now only the day-click path locks.
+- **Creating a site without a health system failed silently.** The field was labelled "(Optional)"
+  and the schema parsed `''` to `undefined`, but `sites.health_system_id` is NOT NULL with a foreign
+  key, so the insert blew up and returned an opaque 500 — the dialog just sat there. A site does
+  belong to a health system (the app's own copy says so, and health-system onboarding is what gates
+  scheduling a student at a site), so the field is now genuinely required: the create schema rejects
+  an empty value with "Select a health system", the API answers 400 instead of 500, the form shows
+  the message inline, and the label no longer claims it is optional. Updates treat an empty value as
+  "leave unchanged", so a site's health system can be switched but never cleared.
 
 ### Verification
 
 - **1511 unit tests**, `svelte-check` clean, production build succeeds.
-- **29 e2e journeys**, run twice from a cold seeded database with **zero retries and no flakes**;
+- **30 e2e journeys**, run from a cold seeded database with **zero retries and no flakes**;
   the new and cross-cutting journeys additionally pass under `--repeat-each=2`.
 - Cross-cutting journeys: whole-app end-to-end (now creating and switching into a short schedule
   first), fresh-signup-to-first-assignment, and the override lifecycle (both side-effect branches).

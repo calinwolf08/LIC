@@ -46,17 +46,25 @@ describe('createSiteSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('transforms empty health_system_id to undefined', () => {
-		const validInput = {
+	it('rejects an empty health_system_id with a usable message', () => {
+		// A site belongs to a health system (NOT NULL + FK in the schema).
+		// Previously this parsed to `undefined`, reached the insert, and surfaced
+		// as an opaque 500 the form could not attach to a field.
+		const result = createSiteSchema.safeParse({
 			name: 'Main Hospital',
 			health_system_id: ''
-		};
+		});
 
-		const result = createSiteSchema.safeParse(validInput);
-		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.health_system_id).toBeUndefined();
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			const issue = result.error.issues.find((i) => i.path[0] === 'health_system_id');
+			expect(issue?.message).toBe('Select a health system');
 		}
+	});
+
+	it('rejects a missing health_system_id', () => {
+		const result = createSiteSchema.safeParse({ name: 'Main Hospital' });
+		expect(result.success).toBe(false);
 	});
 
 	it('rejects name shorter than 2 characters', () => {
@@ -107,19 +115,6 @@ describe('createSiteSchema', () => {
 
 		const result = createSiteSchema.safeParse(invalidInput);
 		expect(result.success).toBe(false);
-	});
-
-	it('transforms empty health_system_id to undefined', () => {
-		const validInput = {
-			name: 'Main Hospital',
-			health_system_id: ''
-		};
-
-		const result = createSiteSchema.safeParse(validInput);
-		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.health_system_id).toBeUndefined();
-		}
 	});
 
 	it('transforms empty address string to undefined', () => {

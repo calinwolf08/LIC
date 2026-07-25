@@ -63,6 +63,36 @@ test('sites: Manage opens a detail page (no edit popup), editable on Details', a
 	await expect(page).toHaveURL(/\/locations/);
 });
 
+test('sites: creating without a health system shows an inline error, not a silent failure', async ({
+	page
+}) => {
+	await login(page, ADMIN);
+
+	// A site belongs to a health system. Submitting without one used to hit a
+	// NOT NULL/FK violation and return an opaque 500, so the dialog just sat
+	// there with no explanation.
+	await page.goto('/locations');
+	await page.getByRole('tab', { name: 'Sites' }).click();
+	await page.getByRole('button', { name: 'Add site' }).click();
+
+	const dialog = page.getByRole('dialog');
+	await dialog.locator('#name').fill(`E2E NoHS ${Date.now()}`);
+	await dialog.getByRole('button', { name: 'Create Site' }).click();
+
+	// The dialog stays open (nothing was created) and says what is wrong.
+	// `exact` avoids matching the "Select a health system…" placeholder option.
+	await expect(dialog.getByText('Select a health system', { exact: true })).toBeVisible({
+		timeout: 10000
+	});
+	await expect(dialog.getByRole('button', { name: 'Create Site' })).toBeVisible();
+
+	// The API rejects it as a validation error, not a server error.
+	const res = await page.request.post('/api/sites', {
+		data: { name: `E2E NoHS API ${Date.now()}`, health_system_id: '' }
+	});
+	expect(res.status()).toBe(400);
+});
+
 test('student overview shows identity read-only with a route to Details', async ({ page }) => {
 	await login(page, ADMIN);
 
