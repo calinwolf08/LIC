@@ -132,7 +132,11 @@ export async function getEligibleOptions(
 	const siteName = nameOf(siteRows, selectedSite);
 
 	const clerkships: EligibilityOption[] = clerkshipRows.map((c) => {
-		if (selectedPreceptor && !preceptorClerkships.get(selectedPreceptor)?.has(c.id)) {
+		if (
+			selectedPreceptor &&
+			restricts(preceptorClerkships, selectedPreceptor) &&
+			!preceptorClerkships.get(selectedPreceptor)!.has(c.id)
+		) {
 			return mark(c, `${preceptorName ?? 'This preceptor'} is not on a team for ${c.name}`);
 		}
 		if (
@@ -146,10 +150,18 @@ export async function getEligibleOptions(
 	});
 
 	const preceptors: EligibilityOption[] = preceptorRows.map((p) => {
-		if (selectedClerkship && !clerkshipPreceptors.get(selectedClerkship)?.has(p.id)) {
+		if (
+			selectedClerkship &&
+			restricts(preceptorClerkships, p.id) &&
+			!clerkshipPreceptors.get(selectedClerkship)?.has(p.id)
+		) {
 			return mark(p, `Not on a team for ${clerkshipName ?? 'the selected clerkship'}`);
 		}
-		if (selectedSite && !preceptorSites.get(p.id)?.has(selectedSite)) {
+		if (
+			selectedSite &&
+			restricts(preceptorSites, p.id) &&
+			!preceptorSites.get(p.id)!.has(selectedSite)
+		) {
 			return mark(p, `Does not work at ${siteName ?? 'the selected site'}`);
 		}
 		return ok(p);
@@ -163,7 +175,11 @@ export async function getEligibleOptions(
 		) {
 			return mark(s, `Not an approved site for ${clerkshipName ?? 'the selected clerkship'}`);
 		}
-		if (selectedPreceptor && !sitePreceptors.get(s.id)?.has(selectedPreceptor)) {
+		if (
+			selectedPreceptor &&
+			restricts(preceptorSites, selectedPreceptor) &&
+			!sitePreceptors.get(s.id)?.has(selectedPreceptor)
+		) {
 			return mark(s, `${preceptorName ?? 'The selected preceptor'} does not work here`);
 		}
 		return ok(s);
@@ -180,7 +196,14 @@ function mark(row: { id: string; name: string }, reason: string): EligibilityOpt
 	return { id: row.id, name: row.name, eligible: false, reason };
 }
 
-/** A clerkship with no `clerkship_sites` rows accepts any site. */
+/**
+ * Has this entity actually declared a restriction?
+ *
+ * No rows means "nothing has been said", not "nothing is allowed" — a clerkship
+ * with no `clerkship_sites` runs anywhere, and a preceptor on no team can teach
+ * anything. Treating silence as a total block would make a freshly-created
+ * preceptor unassignable until someone built a team for them.
+ */
 function restricts(map: Map<string, Set<string>>, key: string): boolean {
 	const set = map.get(key);
 	return !!set && set.size > 0;

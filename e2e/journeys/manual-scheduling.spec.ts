@@ -1,9 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { login, ADMIN } from './helpers';
+import {
+	openAssignmentDialog,
+	pickDay,
+	selectClerkship,
+	selectPreceptor,
+	submitAcceptingOverrides,
+	fromToday
+} from './assignment-helpers';
 
 /**
  * Manual scheduling journey (seeded admin): open a student, add an assignment
- * from their page, and see it on their schedule.
+ * from their page through the unified dialog, and see it on their schedule.
  */
 test('manual scheduling: add an assignment from a student page', async ({ page }) => {
 	await login(page, ADMIN);
@@ -15,38 +23,23 @@ test('manual scheduling: add an assignment from a student page', async ({ page }
 	await firstStudent.click();
 	await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible();
 
-	// Open the create-assignment dialog.
-	await page.getByRole('button', { name: 'Add assignment' }).first().click();
-	await expect(page.getByRole('heading', { name: 'Add assignment' })).toBeVisible();
+	await openAssignmentDialog(page);
+	await selectClerkship(page, 'Internal Medicine');
+	await selectPreceptor(page, 'Dr. Maria Garcia');
 
-	// Wait for the async option lists to load (can be slow on a cold server),
-	// then choose a clerkship + preceptor (student is pre-filled & locked).
-	await expect(page.locator('#ca-clerkship option')).not.toHaveCount(1, { timeout: 20000 });
-	await expect(page.locator('#ca-preceptor option')).not.toHaveCount(1, { timeout: 20000 });
-	await page.locator('#ca-clerkship').selectOption({ index: 1 });
-	await page.locator('#ca-preceptor').selectOption({ index: 1 });
 	// Vary the offset so re-runs against a non-fresh DB don't double-book the
-	// same student on the same date (still well within the year-long schedule).
-	const offsetDays = 30 + (Date.now() % 180);
-	const iso = new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
-	await page.locator('#ca-date').fill(iso);
+	// same student on the same date (still well inside the schedule range).
+	const date = fromToday(30 + (Date.now() % 120));
+	await pickDay(page, date);
 
-	// Let the debounced dry-run validation settle, then submit. Seeded students
-	// aren't onboarded, so a soft warning ("Create anyway") is expected.
-	await page.waitForTimeout(700);
-	const anyway = page.getByRole('button', { name: /create anyway/i });
-	if (await anyway.count()) {
-		await anyway.click();
-	} else {
-		await page.getByRole('button', { name: /^create$/i }).click();
-	}
+	// Seeded students aren't onboarded, so an override conversation is expected.
+	await submitAcceptingOverrides(page);
+	await expect(page.getByText(/day\(s\) assigned/i)).toBeVisible({ timeout: 15000 });
 
-	// A success toast appears.
-	await expect(page.getByText(/assignment created/i)).toBeVisible({ timeout: 15000 });
-
-	// The Schedule tab lists the new assignment. Reload first so we assert against
+	// The Schedule tab's list shows it. Reload first so we assert against
 	// server-fresh data rather than racing the post-save invalidation.
 	await page.reload();
 	await page.getByRole('tab', { name: 'Schedule' }).click();
-	await expect(page.locator('table tbody tr', { hasText: iso })).toBeVisible({ timeout: 15000 });
+	await page.getByRole('button', { name: 'List' }).click();
+	await expect(page.locator('table tbody tr', { hasText: date })).toBeVisible({ timeout: 15000 });
 });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, ADMIN } from './helpers';
+import { login, ADMIN, SEED_SCHEDULE } from './helpers';
 
 /**
  * Steps 22 & 23 — entity consistency ("Manage" + read-only overviews) and the
@@ -16,7 +16,7 @@ test('sidebar drops "Schedules"; the switcher offers "Manage schedules"', async 
 	await expect(page.locator('nav a[href="/students"]')).toHaveCount(1);
 
 	// The schedule switcher exposes "Manage schedules" → /schedules.
-	await page.getByRole('button', { name: /My Schedule/ }).click();
+	await page.getByRole('button', { name: SEED_SCHEDULE.name }).click();
 	const manage = page.getByRole('link', { name: 'Manage schedules' });
 	await expect(manage).toBeVisible();
 	await manage.click();

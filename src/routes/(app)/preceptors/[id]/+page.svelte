@@ -7,7 +7,7 @@
 	import {
 		ScheduleCalendarGrid,
 		PreceptorCapacitySummary,
-		CreateAssignmentDialog
+		AssignmentDialog
 	} from '$lib/features/schedules/components';
 	import PreceptorForm from '$lib/features/preceptors/components/preceptor-form.svelte';
 	import PatternAvailabilityBuilder from '$lib/features/preceptors/components/pattern-availability-builder.svelte';
@@ -175,7 +175,7 @@
 	{/if}
 </div>
 
-<CreateAssignmentDialog
+<AssignmentDialog
 	bind:open={showCreate}
 	preceptorId={data.preceptorId}
 	lockPreceptor={true}

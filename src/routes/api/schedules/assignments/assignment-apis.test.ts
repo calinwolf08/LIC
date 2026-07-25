@@ -35,6 +35,7 @@ const SCHEDULE_B = 'sched-b';
 const STUDENT = 'stu-1';
 const PRECEPTOR = 'prec-1';
 const CLERKSHIP = 'clerk-1';
+const OTHER_CLERKSHIP = 'clerk-2';
 const SITE = 'site-1';
 
 const RANGE_START = '2030-01-01';
@@ -155,6 +156,28 @@ async function seed(db: Kysely<DB>) {
 		})
 		.execute();
 
+	// A second clerkship the preceptor's team does NOT cover, so the "narrows on a
+	// partial selection" case has a real restriction to find.
+	await db
+		.insertInto('clerkships')
+		.values({
+			id: OTHER_CLERKSHIP,
+			name: 'Surgery',
+			clerkship_type: 'inpatient',
+			required_days: 5,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('preceptor_teams')
+		.values({ id: 'team-1', clerkship_id: CLERKSHIP, name: 'Peds', created_at: ts, updated_at: ts })
+		.execute();
+	await db
+		.insertInto('preceptor_team_members')
+		.values({ id: 'tm-1', team_id: 'team-1', preceptor_id: PRECEPTOR, created_at: ts })
+		.execute();
+
 	// Everything belongs to schedule A only.
 	await db
 		.insertInto('schedule_students')
@@ -166,7 +189,10 @@ async function seed(db: Kysely<DB>) {
 		.execute();
 	await db
 		.insertInto('schedule_clerkships')
-		.values({ id: 'sc-1', schedule_id: SCHEDULE_A, clerkship_id: CLERKSHIP, created_at: ts })
+		.values([
+			{ id: 'sc-1', schedule_id: SCHEDULE_A, clerkship_id: CLERKSHIP, created_at: ts },
+			{ id: 'sc-2', schedule_id: SCHEDULE_A, clerkship_id: OTHER_CLERKSHIP, created_at: ts }
+		])
 		.execute();
 	await db
 		.insertInto('schedule_sites')
@@ -208,7 +234,7 @@ describe('Step 17 assignment APIs', () => {
 			expect(res.status).toBe(200);
 			const json = await body<{ success: boolean; data: Record<string, unknown[]> }>(res);
 			expect(json.success).toBe(true);
-			expect(json.data.clerkships).toHaveLength(1);
+			expect(json.data.clerkships).toHaveLength(2);
 			expect(json.data.preceptors).toHaveLength(1);
 			expect(json.data.sites).toHaveLength(1);
 		});
@@ -223,15 +249,15 @@ describe('Step 17 assignment APIs', () => {
 
 		it('narrows on a partial selection', async () => {
 			const res = await optionsRoute.GET(
-				getEvent(`/options?clerkshipId=${CLERKSHIP}`, locals(USER_A))
+				getEvent(`/options?clerkshipId=${OTHER_CLERKSHIP}`, locals(USER_A))
 			);
 			const json = await body<{ data: { preceptors: { eligible: boolean; reason?: string }[] } }>(
 				res
 			);
-			// The preceptor is on no team for this clerkship — marked, not hidden.
+			// The preceptor's team covers Pediatrics, not Surgery — marked, not hidden.
 			expect(json.data.preceptors).toHaveLength(1);
 			expect(json.data.preceptors[0].eligible).toBe(false);
-			expect(json.data.preceptors[0].reason).toContain('Pediatrics');
+			expect(json.data.preceptors[0].reason).toContain('Surgery');
 		});
 	});
 

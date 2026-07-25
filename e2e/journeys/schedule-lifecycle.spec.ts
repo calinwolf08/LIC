@@ -1,23 +1,22 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, ADMIN } from './helpers';
+import { login, ADMIN, SEED_SCHEDULE, fromToday } from './helpers';
 
 /**
  * Schedule lifecycle journeys (seeded admin): create a schedule through the
  * wizard, edit it, switch the active schedule, reach the duplicate entry point,
- * and delete it. The seeded baseline active schedule is "My Schedule" (created
- * by the auth hook and populated by the seed); other specs depend on it, so
- * afterEach restores it as active no matter what.
+ * and delete it. The seeded baseline active schedule is the one the seed owns;
+ * other specs depend on it, so afterEach restores it as active no matter what.
  */
 
-const BASE = 'My Schedule';
+const BASE = SEED_SCHEDULE.name;
 
 /** Step through the new-schedule wizard, skipping every entity step. */
 async function createEmptySchedule(page: Page, name: string) {
 	await page.goto('/schedules/new');
 	await expect(page.getByRole('heading', { name: 'Create New Schedule' })).toBeVisible();
 	await page.locator('#name').fill(name);
-	await page.locator('#startDate').fill('2027-01-04');
-	await page.locator('#endDate').fill('2027-06-30');
+	await page.locator('#startDate').fill(fromToday(400));
+	await page.locator('#endDate').fill(fromToday(560));
 
 	// Details → step 1, then Next + "Continue Anyway" through the six entity steps.
 	await page.getByRole('button', { name: 'Next' }).click();

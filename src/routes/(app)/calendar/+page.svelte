@@ -13,7 +13,7 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
-	import { CreateAssignmentDialog } from '$lib/features/schedules/components';
+	import { AssignmentDialog } from '$lib/features/schedules/components';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -771,8 +771,9 @@
 	/>
 {/if}
 
-<CreateAssignmentDialog
+<AssignmentDialog
 	bind:open={showCreateAssignment}
 	date={createDate}
+	lockDate={true}
 	onSaved={handleAssignmentCreated}
 />

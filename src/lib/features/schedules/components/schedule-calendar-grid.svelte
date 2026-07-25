@@ -3,13 +3,22 @@
 
 	interface Props {
 		months: CalendarMonth[];
-		mode?: 'student' | 'preceptor';
+		/**
+		 * Which identity is implied by context and can therefore be left off the
+		 * cell: 'student' pages already know the student, 'preceptor' pages the
+		 * preceptor, and 'schedule' (the calendar) knows neither.
+		 */
+		mode?: 'student' | 'preceptor' | 'schedule';
 		blackoutDates?: Set<string>;
 		/** Dates with validation conflicts (red corner marker). Optional message per date for the tooltip. */
 		violationDates?: Set<string>;
 		violationMessages?: Record<string, string[]>;
 		onDayClick?: (day: CalendarDay) => void;
 		onAssignmentClick?: (day: CalendarDay, assignment: CalendarDayAssignment) => void;
+		/** Opens a drawer listing every assignment on a day that could not fit. */
+		onShowMore?: (day: CalendarDay) => void;
+		/** How many assignments fit in a cell before "+N more". */
+		fitLimit?: number;
 	}
 
 	let {
@@ -19,8 +28,39 @@
 		violationDates = new Set(),
 		violationMessages = {},
 		onDayClick,
-		onAssignmentClick
+		onAssignmentClick,
+		onShowMore,
+		fitLimit = 3
 	}: Props = $props();
+
+	/**
+	 * Days outside the schedule range are inert — they are not part of this
+	 * schedule, so clicking them would create an assignment nobody asked for.
+	 * `isInRange` is optional on the type; treat "not stated" as in range.
+	 */
+	function isInteractive(day: CalendarDay): boolean {
+		return day.isCurrentMonth && day.isInRange !== false;
+	}
+
+	/**
+	 * The cell's own words. Never fall back to a meaningless truncation like
+	 * "Int" — an unreadable label is worse than a longer one that wraps.
+	 */
+	function primaryLabel(a: CalendarDayAssignment): string {
+		if (mode === 'student') return a.clerkshipName;
+		if (mode === 'preceptor') return a.studentName ?? a.clerkshipName;
+		return a.studentName ? `${a.studentName} · ${a.clerkshipName}` : a.clerkshipName;
+	}
+
+	function secondaryLabel(a: CalendarDayAssignment): string {
+		if (mode === 'student') return a.preceptorName;
+		if (mode === 'preceptor') return a.clerkshipName;
+		return a.preceptorName;
+	}
+
+	function assignmentTitle(a: CalendarDayAssignment): string {
+		return [a.studentName, a.clerkshipName, a.preceptorName].filter(Boolean).join(' · ');
+	}
 
 	function isBlackoutDate(date: string): boolean {
 		return blackoutDates.has(date);
@@ -30,6 +70,7 @@
 		const classes = ['calendar-day'];
 
 		if (!day.isCurrentMonth) classes.push('opacity-30');
+		if (day.isInRange === false) classes.push('out-of-range bg-muted/40 opacity-50');
 		if (day.isToday) classes.push('ring-2 ring-primary');
 
 		// Blackout dates take precedence over weekend styling
@@ -54,6 +95,7 @@
 	}
 
 	function handleDayClick(day: CalendarDay) {
+		if (!isInteractive(day)) return;
 		if (onDayClick) {
 			onDayClick(day);
 		}
@@ -61,6 +103,7 @@
 
 	function handleAssignmentClick(event: MouseEvent, day: CalendarDay, assignment: CalendarDayAssignment) {
 		event.stopPropagation();
+		if (!isInteractive(day)) return;
 		if (onAssignmentClick) {
 			onAssignmentClick(day, assignment);
 		} else if (onDayClick) {
@@ -91,9 +134,11 @@
 							<div
 								role="button"
 								tabindex={day.isCurrentMonth ? 0 : -1}
-								class="{getDayClasses(day)} min-h-[60px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative cursor-pointer {!day.isCurrentMonth ? 'pointer-events-none' : ''}"
-								onclick={() => day.isCurrentMonth && handleDayClick(day)}
-								onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && day.isCurrentMonth && handleDayClick(day)}
+								data-date={day.date}
+								data-in-range={day.isInRange !== false}
+								class="{getDayClasses(day)} min-h-[76px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative cursor-pointer {!isInteractive(day) ? 'pointer-events-none' : ''}"
+								onclick={() => handleDayClick(day)}
+								onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleDayClick(day)}
 							>
 								<span class="text-xs font-medium {day.isToday ? 'text-primary' : ''}">
 									{day.dayOfMonth}
@@ -108,26 +153,34 @@
 								{/if}
 
 								{#if day.assignments && day.assignments.length > 0}
-									<div class="mt-1 space-y-0.5 overflow-hidden" style="max-height: calc(100% - 20px);">
-										{#each day.assignments.slice(0, 3) as assignment}
+									<div class="mt-1 space-y-0.5 overflow-hidden">
+										{#each day.assignments.slice(0, fitLimit) as assignment}
 											<button
 												type="button"
-												class="w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded truncate hover:opacity-80 transition-opacity"
+												data-testid="calendar-assignment"
+												data-assignment-id={assignment.id}
+												class="w-full rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-opacity hover:opacity-80"
 												style="background-color: {assignment.color}20; color: {assignment.color}; border-left: 2px solid {assignment.color};"
-												title="{assignment.clerkshipName} - {assignment.preceptorName}{assignment.studentName ? ' (' + assignment.studentName + ')' : ''}"
+												title={assignmentTitle(assignment)}
 												onclick={(e) => handleAssignmentClick(e, day, assignment)}
 											>
-												{#if mode === 'student'}
-													{assignment.clerkshipAbbrev || assignment.clerkshipName.slice(0, 3)}
-												{:else}
-													{assignment.studentInitials || assignment.studentName?.split(' ').map(n => n[0]).join('') || assignment.clerkshipName.slice(0, 3)}
+												<span class="block truncate font-medium">{primaryLabel(assignment)}</span>
+												{#if secondaryLabel(assignment)}
+													<span class="block truncate opacity-80">{secondaryLabel(assignment)}</span>
 												{/if}
 											</button>
 										{/each}
-										{#if day.assignments.length > 3}
-											<div class="text-[9px] text-muted-foreground text-center">
-												+{day.assignments.length - 3} more
-											</div>
+										{#if day.assignments.length > fitLimit}
+											<button
+												type="button"
+												class="w-full text-center text-[9px] text-muted-foreground hover:underline"
+												onclick={(e) => {
+													e.stopPropagation();
+													onShowMore ? onShowMore(day) : handleDayClick(day);
+												}}
+											>
+												+{day.assignments.length - fitLimit} more
+											</button>
 										{/if}
 									</div>
 								{:else if isBlackoutDate(day.date) && day.isCurrentMonth}

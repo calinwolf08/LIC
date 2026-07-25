@@ -6,6 +6,7 @@
 
 import type { PageLoad } from './$types';
 import type { Students } from '$lib/db/types';
+import type { StudentSchedule } from '$lib/features/schedules/types/schedule-views';
 import { error } from '@sveltejs/kit';
 
 interface OnboardingRecord {
@@ -63,11 +64,12 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			}
 		}
 
-		// Schedule data (may not exist if no scheduling period)
-		let schedule = null;
+		// Schedule data (may not exist if no scheduling period). Typed so a rename
+		// on the service side becomes a compile error rather than a blank cell.
+		let schedule: StudentSchedule | null = null;
 		if (scheduleRes.ok) {
 			const scheduleResult = await scheduleRes.json();
-			schedule = scheduleResult.data;
+			schedule = (scheduleResult.data ?? null) as StudentSchedule | null;
 		}
 
 		// Requirement status for this student

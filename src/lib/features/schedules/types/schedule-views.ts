@@ -139,7 +139,11 @@ export interface StudentAssignment {
 	clerkshipColor: string;
 	preceptorId: string;
 	preceptorName: string;
+	siteId?: string;
 	siteName?: string;
+	/** The preceptor's health system — drives the student's onboarding warning. */
+	healthSystemId?: string;
+	healthSystemName?: string;
 	status: string;
 }
 

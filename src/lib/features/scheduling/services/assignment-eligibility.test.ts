@@ -263,6 +263,31 @@ describe('getEligibleOptions', () => {
 		expect(find(r.preceptors, PATEL)!.eligible).toBe(false);
 	});
 
+	it('treats a preceptor on no team as unrestricted, not as unassignable', async () => {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('preceptors')
+			.values({ id: 'prec-new', name: 'Dr New', email: 'new@x.com', created_at: ts, updated_at: ts })
+			.execute();
+		await db
+			.insertInto('schedule_preceptors')
+			.values({ id: 'sp-new', schedule_id: SCHEDULE, preceptor_id: 'prec-new', created_at: ts })
+			.execute();
+
+		// Nobody has said what this preceptor teaches, so nothing rules them out.
+		const byClerkship = await getEligibleOptions(db, SCHEDULE, { clerkshipId: PEDS });
+		expect(find(byClerkship.preceptors, 'prec-new')!.eligible).toBe(true);
+
+		// …and no site rows means they are not tied to a site either.
+		const bySite = await getEligibleOptions(db, SCHEDULE, { siteId: SOUTH });
+		expect(find(bySite.preceptors, 'prec-new')!.eligible).toBe(true);
+
+		// Selecting them leaves every clerkship and site open.
+		const byPreceptor = await getEligibleOptions(db, SCHEDULE, { preceptorId: 'prec-new' });
+		expect(byPreceptor.clerkships.every((c) => c.eligible)).toBe(true);
+		expect(byPreceptor.sites.every((s) => s.eligible)).toBe(true);
+	});
+
 	it('returns empty lists for a schedule with no entities', async () => {
 		const r = await getEligibleOptions(db, 'sched-empty', {});
 		expect(r).toEqual({ clerkships: [], preceptors: [], sites: [] });

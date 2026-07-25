@@ -18,6 +18,7 @@ import { auth } from '../../auth';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
+import { TEST_SCHEDULE as SEED_SCHEDULE } from './seed-schedule';
 
 const TEST_USER = {
 	email: 'admin@example.com',
@@ -31,11 +32,10 @@ const BASIC_USER = {
 	name: 'Basic User'
 };
 
-const TEST_SCHEDULE = {
-	name: 'Demo Schedule 2025',
-	startDate: '2025-01-06',
-	endDate: '2025-06-30'
-};
+// The seed owns its schedule outright — see seed-schedule.ts for why the range
+// is anchored to today. Previously the auth hook's "My Schedule" was silently
+// reused as-is, so the seed's stated intent and its result disagreed.
+const TEST_SCHEDULE = SEED_SCHEDULE;
 
 // Helper to get or create entity
 async function getOrCreate<T extends { id: string }>(
@@ -176,8 +176,21 @@ async function seed(db: Kysely<DB>) {
 		.executeTakeFirst();
 
 	if (existingSchedule) {
-		console.log(`  Schedule already exists for user`);
+		// The auth hook creates a schedule on sign-up. Claim it and make it match
+		// what this seed says it creates, rather than inheriting its name/range.
 		scheduleId = existingSchedule.id!;
+		await db
+			.updateTable('scheduling_periods')
+			.set({
+				name: TEST_SCHEDULE.name,
+				start_date: TEST_SCHEDULE.startDate,
+				end_date: TEST_SCHEDULE.endDate,
+				year: null,
+				updated_at: timestamp
+			})
+			.where('id', '=', scheduleId)
+			.execute();
+		console.log(`  Claimed the sign-up schedule as ${TEST_SCHEDULE.name}`);
 	} else {
 		const orphanSchedule = await db
 			.selectFrom('scheduling_periods')
@@ -194,7 +207,7 @@ async function seed(db: Kysely<DB>) {
 					name: TEST_SCHEDULE.name,
 					start_date: TEST_SCHEDULE.startDate,
 					end_date: TEST_SCHEDULE.endDate,
-					year: 2025,
+					year: null,
 					is_active: 1,
 					updated_at: timestamp
 				})
@@ -210,7 +223,7 @@ async function seed(db: Kysely<DB>) {
 					name: TEST_SCHEDULE.name,
 					start_date: TEST_SCHEDULE.startDate,
 					end_date: TEST_SCHEDULE.endDate,
-					year: 2025,
+					year: null,
 					is_active: 1,
 					user_id: userId,
 					created_at: timestamp,
@@ -220,6 +233,20 @@ async function seed(db: Kysely<DB>) {
 			console.log(`  Created schedule: ${TEST_SCHEDULE.name}`);
 		}
 	}
+
+	// The legacy global is_active flag is uniquely indexed, so clear it elsewhere
+	// before claiming it. Per-user `active_schedule_id` is the real source of
+	// truth (step 15) — this only keeps the old column self-consistent.
+	await db
+		.updateTable('scheduling_periods')
+		.set({ is_active: 0 })
+		.where('id', '!=', scheduleId)
+		.execute();
+	await db
+		.updateTable('scheduling_periods')
+		.set({ is_active: 1 })
+		.where('id', '=', scheduleId)
+		.execute();
 
 	// Set as user's active schedule
 	await db

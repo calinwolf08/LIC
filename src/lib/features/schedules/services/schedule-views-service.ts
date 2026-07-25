@@ -89,7 +89,8 @@ export async function getStudentScheduleData(
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
 			'sa.preceptor_id',
-			'p.name as preceptor_name'
+			'p.name as preceptor_name',
+			'p.health_system_id as health_system_id'
 		])
 		.where('sa.student_id', '=', studentId)
 		.where('sa.date', '>=', startDate)
@@ -99,6 +100,21 @@ export async function getStudentScheduleData(
 
 	// Get unique preceptor IDs to fetch their sites separately
 	const preceptorIds = [...new Set(assignments.map((a) => a.preceptor_id))];
+
+	// Health system names, so the page can name an onboarding gap without a
+	// second round trip.
+	const healthSystemIds = [
+		...new Set(assignments.map((a) => a.health_system_id).filter((id): id is string => !!id))
+	];
+	const healthSystemRows =
+		healthSystemIds.length > 0
+			? await db
+					.selectFrom('health_systems')
+					.select(['id', 'name'])
+					.where('id', 'in', healthSystemIds)
+					.execute()
+			: [];
+	const healthSystemNames = new Map(healthSystemRows.map((h) => [h.id as string, h.name]));
 
 	// Fetch preceptor sites separately (one query, no multiplication)
 	const preceptorSitesData = preceptorIds.length > 0
@@ -186,6 +202,8 @@ export async function getStudentScheduleData(
 			clerkshipName: a.clerkship_name,
 			preceptorId: a.preceptor_id,
 			preceptorName: a.preceptor_name,
+			studentId: student.id as string,
+			studentName: student.name,
 			color: getClerkshipColor(a.clerkship_specialty ?? 'General')
 		}
 	})));
@@ -199,7 +217,12 @@ export async function getStudentScheduleData(
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
 		preceptorId: a.preceptor_id,
 		preceptorName: a.preceptor_name,
+		siteId: a.site_id ?? undefined,
 		siteName: a.site_name || undefined,
+		healthSystemId: a.health_system_id ?? undefined,
+		healthSystemName: a.health_system_id
+			? (healthSystemNames.get(a.health_system_id) ?? undefined)
+			: undefined,
 		status: a.status
 	}));
 

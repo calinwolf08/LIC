@@ -1,5 +1,13 @@
 import { expect, type Page } from '@playwright/test';
 
+export {
+	TEST_SCHEDULE as SEED_SCHEDULE,
+	fromToday,
+	today,
+	monthStart,
+	monthEnd
+} from '../../src/lib/db/scripts/seed-schedule';
+
 export const ADMIN = { email: 'admin@example.com', password: 'password123' };
 export const BASIC = { email: 'basic@example.com', password: 'password123' };
 

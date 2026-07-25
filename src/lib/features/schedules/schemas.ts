@@ -26,6 +26,7 @@ export const updateAssignmentSchema = z
 		student_id: cuid2Schema.optional(),
 		preceptor_id: cuid2Schema.optional(),
 		clerkship_id: cuid2Schema.optional(),
+		site_id: cuid2Schema.nullish(),
 		date: dateStringSchema.optional(),
 		status: z.string().optional()
 	})

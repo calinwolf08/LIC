@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, ADMIN } from './helpers';
+import { login, ADMIN, SEED_SCHEDULE, fromToday } from './helpers';
 
 /**
  * Step 15 — schedule scoping foundation.
@@ -10,7 +10,7 @@ import { login, ADMIN } from './helpers';
  * sidebar reads, so the dropdown stayed stale until a hard reload.)
  *
  * The test works on a throwaway schedule it creates and activates, restoring the
- * baseline "My Schedule" in a finally block so a mid-test failure can't poison
+ * baseline seeded schedule in a finally block so a mid-test failure can't poison
  * the shared DB that other specs depend on.
  */
 
@@ -31,12 +31,12 @@ test('schedule rename updates the sidebar switcher without a refresh', async ({ 
 	const orig = `Scope Test ${Date.now()}`;
 	const renamed = `${orig} edited`;
 	let testId: string | null = null;
-	const baselineId = await scheduleIdByName(page, 'My Schedule');
+	const baselineId = await scheduleIdByName(page, SEED_SCHEDULE.name);
 
 	try {
 		// Create a throwaway schedule and make it active.
 		const created = await page.request.post('/api/scheduling-periods', {
-			data: { name: orig, start_date: '2026-07-01', end_date: '2026-08-31' }
+			data: { name: orig, start_date: fromToday(400), end_date: fromToday(460) }
 		});
 		expect(created.ok()).toBeTruthy();
 		testId = (await created.json()).data.id;

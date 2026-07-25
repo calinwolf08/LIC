@@ -1,5 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, ADMIN } from './helpers';
+import {
+	openAssignmentDialog,
+	pickDay,
+	selectClerkship,
+	selectPreceptor,
+	submitAcceptingOverrides,
+	fromToday
+} from './assignment-helpers';
 
 /**
  * End-to-end "whole app" journey.
@@ -13,8 +21,8 @@ import { login, ADMIN } from './helpers';
  *   (double-book) → hit a SOFT conflict (preceptor capacity) → edit an entity →
  *   make another assignment → re-validate (clean) → confirm requirement status.
  *
- * The seeded active schedule ("My Schedule") runs 2026-07-01 → 2027-06-30, so
- * D1/D2 below are in range and in the future (they count as "scheduled").
+ * D1/D2 are inside the seeded schedule range and in the future, so they count
+ * as "scheduled" rather than "completed".
  */
 
 // Unique names so the run is independent on the shared test DB.
@@ -28,8 +36,8 @@ const STUDENT_A2 = `${STUDENT_A} (renamed)`;
 const STUDENT_B = `E2E Student B ${STAMP}`;
 const EMAIL_A = `e2e_a_${STAMP}@example.com`;
 const EMAIL_B = `e2e_b_${STAMP}@example.com`;
-const D1 = '2026-10-05';
-const D2 = '2026-10-06';
+const D1 = fromToday(45);
+const D2 = fromToday(46);
 
 /** Open a student's detail page from the students list. */
 async function openStudent(page: Page, name: string) {
@@ -39,9 +47,9 @@ async function openStudent(page: Page, name: string) {
 }
 
 /**
- * Drive the create-assignment dialog on a student's page (student is locked).
- * `outcome` controls the expectation: a clean create, a soft-warning "create
- * anyway", or a hard block that cannot be submitted.
+ * Drive the unified assignment dialog on a student's page (student is locked).
+ * `outcome` controls the expectation: a clean create, an overridable warning, or
+ * a hard conflict that can never be submitted.
  */
 async function addAssignment(
 	page: Page,
@@ -53,35 +61,25 @@ async function addAssignment(
 		warning?: RegExp;
 	}
 ) {
-	await page.getByRole('button', { name: 'Add assignment' }).first().click();
-	await expect(page.getByRole('heading', { name: 'Add assignment' })).toBeVisible();
-
-	// Option lists load async from the API; wait for our entities to appear.
-	await expect(page.locator('#ca-clerkship option', { hasText: opts.clerkship })).toHaveCount(1, {
-		timeout: 20000
-	});
-	await expect(page.locator('#ca-preceptor option', { hasText: opts.preceptor })).toHaveCount(1, {
-		timeout: 20000
-	});
-	await page.locator('#ca-clerkship').selectOption({ label: opts.clerkship });
-	await page.locator('#ca-preceptor').selectOption({ label: opts.preceptor });
-	await page.locator('#ca-date').fill(opts.date);
-	await page.waitForTimeout(700); // debounced dry-run validation
+	await openAssignmentDialog(page);
+	await selectClerkship(page, opts.clerkship);
+	await selectPreceptor(page, opts.preceptor);
+	await pickDay(page, opts.date);
 
 	if (opts.outcome === 'clean') {
-		await expect(page.getByText('No conflicts.')).toBeVisible();
+		await expect(page.getByTestId('override-summary')).toHaveCount(0);
 		await page.getByRole('button', { name: /^create$/i }).click();
-		await expect(page.getByText(/assignment created/i)).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText(/day\(s\) assigned/i)).toBeVisible({ timeout: 15000 });
 	} else if (opts.outcome === 'soft') {
-		if (opts.warning) await expect(page.getByText(opts.warning)).toBeVisible();
-		await page.getByRole('button', { name: /create anyway/i }).click();
-		await expect(page.getByText(/assignment created/i)).toBeVisible({ timeout: 15000 });
+		if (opts.warning) await expect(page.getByTestId('override-summary')).toContainText(opts.warning);
+		await submitAcceptingOverrides(page);
+		await expect(page.getByText(/day\(s\) assigned/i)).toBeVisible({ timeout: 15000 });
 	} else {
-		// hard: cannot create, dialog stays open
-		await expect(page.getByText('Cannot create:')).toBeVisible();
-		if (opts.warning) await expect(page.getByText(opts.warning)).toBeVisible();
+		// Hard: the day is listed as skipped and nothing can be submitted.
+		await expect(page.getByTestId('blocked-days')).toBeVisible();
+		if (opts.warning) await expect(page.getByTestId('blocked-days')).toContainText(opts.warning);
 		await expect(page.getByRole('button', { name: /^create$/i })).toBeDisabled();
-		await page.getByRole('button', { name: 'Cancel' }).click();
+		await page.getByRole('button', { name: 'Cancel' }).first().click();
 	}
 }
 
@@ -186,7 +184,7 @@ test('end-to-end: build entities, assign, validate, edit, reassign, revalidate',
 		preceptor: PRECEPTOR,
 		date: D1,
 		outcome: 'soft',
-		warning: /capacity/i
+		warning: /already has a student/i
 	});
 
 	// --- 9. Edit an entity mid-flow (rename Student A) ---
