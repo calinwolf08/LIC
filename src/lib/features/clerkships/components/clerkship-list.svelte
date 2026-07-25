@@ -128,7 +128,7 @@
 								<div class="flex gap-2">
 									{#if onConfigure}
 										<Button size="sm" variant="default" onclick={() => onConfigure?.(clerkship)}>
-											Configure
+											Manage
 										</Button>
 									{/if}
 									{#if onDelete}

@@ -25,10 +25,9 @@
 	interface Props {
 		healthSystems: HealthSystemWithCounts[];
 		onDelete: (healthSystem: HealthSystemWithCounts) => void | Promise<void>;
-		onEdit?: (healthSystem: HealthSystemWithCounts) => void;
 	}
 
-	let { healthSystems, onDelete, onEdit }: Props = $props();
+	let { healthSystems, onDelete }: Props = $props();
 
 	// Track dependencies for each health system
 	let dependenciesMap = $state<Map<string, Dependencies>>(new Map());
@@ -194,12 +193,9 @@
 							</td>
 							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="ghost" onclick={() => goto(`/health-systems/${hs.id}`)}>
-										View
+									<Button size="sm" variant="outline" onclick={() => goto(`/health-systems/${hs.id}`)}>
+										Manage
 									</Button>
-									{#if onEdit}
-										<Button size="sm" variant="outline" onclick={() => onEdit(hs)}>Edit</Button>
-									{/if}
 									{#if loadingDependencies}
 										<Button size="sm" variant="destructive" disabled title="Loading...">
 											Delete

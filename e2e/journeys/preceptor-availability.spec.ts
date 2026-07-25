@@ -18,9 +18,20 @@ test('availability tab: editor sits above the calendar and adding a pattern does
 
 	await login(page, ADMIN);
 
-	// Open the first seeded preceptor (seeded preceptors have a site).
-	await page.goto('/preceptors');
-	await page.locator('table tbody tr').first().locator('a').first().click();
+	// Create a dedicated preceptor with a site so the test starts from zero
+	// patterns and never mutates shared seed data across re-runs.
+	const siteId = (await (await page.request.get('/api/sites')).json()).data[0].id;
+	const created = await page.request.post('/api/preceptors', {
+		data: {
+			name: `Dr. AvailUnit ${Date.now()}`,
+			email: `availunit_${Date.now()}@example.com`,
+			max_students: 2,
+			site_ids: [siteId]
+		}
+	});
+	const preceptorId = (await created.json()).data.id;
+
+	await page.goto(`/preceptors/${preceptorId}`);
 	await expect(page.getByRole('tab', { name: 'Availability' })).toBeVisible();
 	await page.getByRole('tab', { name: 'Availability' }).click();
 

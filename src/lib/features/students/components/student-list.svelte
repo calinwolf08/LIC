@@ -122,7 +122,7 @@
 							</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
-									<Button size="sm" variant="ghost" onclick={() => handleView(student)}>View</Button>
+									<Button size="sm" variant="ghost" onclick={() => handleView(student)}>Manage</Button>
 									{#if onDelete}
 										<Button size="sm" variant="destructive" onclick={() => onDelete?.(student)}>Delete</Button>
 									{/if}

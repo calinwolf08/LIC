@@ -9,8 +9,10 @@
 		EntityTabs,
 		ConfirmDialog,
 		EmptyState,
+		DetailSummary,
 		toast,
-		type EntityTab
+		type EntityTab,
+		type DetailSummaryItem
 	} from '$lib/components';
 	import { CreateAssignmentDialog } from '$lib/features/schedules/components';
 	import StudentForm from '$lib/features/students/components/student-form.svelte';
@@ -29,6 +31,11 @@
 
 	let status = $derived(data.status);
 	let overallPct = $derived(status ? completionPercent(status.overall) : 0);
+
+	let summaryItems = $derived<DetailSummaryItem[]>([
+		{ label: 'Name', value: data.student.name },
+		{ label: 'Email', value: data.student.email }
+	]);
 
 	// ---- Create assignment ----
 	let showCreate = $state(false);
@@ -118,6 +125,15 @@
 				This student has {status.conflict_count} scheduling conflict{status.conflict_count > 1 ? 's' : ''}.
 			</div>
 		{/if}
+
+		<!-- Read-only identity summary; editing lives on the Details tab -->
+		<Card class="mb-6 p-6">
+			<DetailSummary
+				title="Student details"
+				items={summaryItems}
+				onEdit={() => (activeTab = 'details')}
+			/>
+		</Card>
 
 		<!-- Summary cards -->
 		<div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">

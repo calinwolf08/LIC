@@ -164,7 +164,7 @@
 							<td class="px-4 py-3 text-sm">
 								<div class="flex gap-2">
 									<Button size="sm" variant="ghost" onclick={() => goto(`/preceptors/${preceptor.id}`)}>
-										View
+										Manage
 									</Button>
 									{#if onDelete}
 										<Button

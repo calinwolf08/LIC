@@ -36,13 +36,15 @@ test('locations: create, edit, and delete a health system', async ({ page }) => 
 	const row = page.locator('tr', { hasText: name });
 	await expect(row).toBeVisible();
 
-	// --- Edit ---
-	await row.getByRole('button', { name: 'Edit' }).click();
-	const editDialog = page.getByRole('dialog');
-	await expect(editDialog.getByText('Edit health system')).toBeVisible();
-	await editDialog.locator('#name').fill(renamed);
-	await editDialog.getByRole('button', { name: 'Update' }).click();
+	// --- Edit on the detail page (Manage → detail, no edit popup) ---
+	await row.getByRole('button', { name: 'Manage' }).click();
+	await expect(page).toHaveURL(/\/health-systems\/[^/]+$/);
+	await page.locator('#name').fill(renamed);
+	await page.getByRole('button', { name: 'Update' }).click();
+	await expect(page.getByText(/updated/i)).toBeVisible({ timeout: 10000 });
 
+	// Back on the list, the rename is reflected.
+	await openHealthSystemsTab(page);
 	const renamedRow = page.locator('tr', { hasText: renamed });
 	await expect(renamedRow).toBeVisible();
 

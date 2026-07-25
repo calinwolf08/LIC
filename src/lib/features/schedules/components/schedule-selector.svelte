@@ -130,15 +130,23 @@
 					<div class="px-4 py-3 text-sm text-gray-400 text-center">No schedules available</div>
 				{/if}
 
-				<!-- New Schedule Link -->
+				<!-- Schedule actions: create a new one or manage the full list -->
 				<div class="border-t border-gray-700">
 					<a
 						href="/schedules/new"
-						class="w-full px-4 py-2 flex items-center gap-2 text-sm text-blue-400 hover:bg-gray-700 transition-colors rounded-b-lg"
+						class="w-full px-4 py-2 flex items-center gap-2 text-sm text-blue-400 hover:bg-gray-700 transition-colors"
 						onclick={closeDropdown}
 					>
 						<span>+</span>
 						<span>New Schedule</span>
+					</a>
+					<a
+						href="/schedules"
+						class="w-full px-4 py-2 flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors rounded-b-lg"
+						onclick={closeDropdown}
+					>
+						<span>⚙️</span>
+						<span>Manage schedules</span>
 					</a>
 				</div>
 			</div>

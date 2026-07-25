@@ -3,6 +3,7 @@
 	import type { Sites } from '$lib/db/types';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { goto } from '$app/navigation';
 	import { DeleteSiteDialog } from './index';
 
 	interface SiteWithHealthSystem extends Selectable<Sites> {
@@ -11,11 +12,10 @@
 
 	interface Props {
 		sites: SiteWithHealthSystem[];
-		onEdit: (site: SiteWithHealthSystem) => void;
 		onDelete: (site: SiteWithHealthSystem) => void;
 	}
 
-	let { sites, onEdit, onDelete }: Props = $props();
+	let { sites, onDelete }: Props = $props();
 
 	let siteToDelete = $state<SiteWithHealthSystem | null>(null);
 	let deleteDialogOpen = $state(false);
@@ -65,7 +65,7 @@
 							<td class="px-4 py-3 text-sm">{site.address || '-'}</td>
 							<td class="px-4 py-3 text-sm">
 								<div class="flex items-center gap-2">
-									<Button size="sm" variant="outline" onclick={() => onEdit(site)}>Edit</Button>
+									<Button size="sm" variant="outline" onclick={() => goto(`/sites/${site.id}`)}>Manage</Button>
 									<Button size="sm" variant="destructive" onclick={() => handleDeleteClick(site)}>
 										Delete
 									</Button>

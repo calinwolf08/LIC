@@ -30,7 +30,7 @@ test('clerkships: create, configure, and delete', async ({ page }) => {
 	await expect(row.getByRole('cell', { name: '7', exact: true })).toBeVisible();
 
 	// --- Configure (drill-through to the detail page) ---
-	await row.getByRole('button', { name: 'Configure' }).click();
+	await row.getByRole('button', { name: 'Manage' }).click();
 	await expect(page).toHaveURL(/\/clerkships\/[^/]+$/);
 	await expect(page.getByRole('heading', { name, exact: false }).first()).toBeVisible();
 

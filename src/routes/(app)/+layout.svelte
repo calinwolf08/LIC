@@ -10,7 +10,6 @@
 		Stethoscope,
 		GraduationCap,
 		MapPin,
-		CalendarRange,
 		Wand2,
 		type Icon as IconType
 	} from '@lucide/svelte';
@@ -45,7 +44,6 @@
 		{ href: '/preceptors', label: 'Preceptors', icon: Stethoscope },
 		{ href: '/clerkships', label: 'Clerkships', icon: GraduationCap },
 		{ href: '/locations', label: 'Locations', icon: MapPin },
-		{ href: '/schedules', label: 'Schedules', icon: CalendarRange },
 		{ href: '/generate', label: 'Auto-Generate', icon: Wand2, autogenOnly: true }
 	];
 
