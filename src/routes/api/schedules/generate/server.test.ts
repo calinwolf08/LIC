@@ -349,6 +349,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
@@ -397,6 +399,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -414,6 +418,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -521,6 +527,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -591,6 +599,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
@@ -634,6 +644,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -704,6 +716,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))
@@ -751,6 +765,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -768,6 +784,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}
@@ -995,6 +1013,8 @@ describe('POST /api/schedules/generate', () => {
 					status: 'scheduled' as const,
 					locked: 0,
 					source: 'manual' as const,
+					override_codes: '[]',
+					override_note: null,
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString()
 				}))

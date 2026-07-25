@@ -13,6 +13,42 @@ import {
 	setAssignmentLock
 } from '$lib/features/schedules/services/assignment-service';
 
+/**
+ * Dates are anchored relative to today. Since Step 17 a past date is itself a
+ * (soft) `past_date` violation on the manual-create path, so a fixture pinned
+ * to fixed calendar dates silently rots into "creating in the past" once that
+ * day passes. `MON` is the first Monday at least 30 days out.
+ */
+function isoPlusDays(days: number): string {
+	const d = new Date();
+	d.setUTCHours(0, 0, 0, 0);
+	d.setUTCDate(d.getUTCDate() + days);
+	return d.toISOString().split('T')[0];
+}
+
+function firstMondayAtLeast(days: number): string {
+	let offset = days;
+	while (new Date(isoPlusDays(offset) + 'T00:00:00.000Z').getUTCDay() !== 1) offset++;
+	return isoPlusDays(offset);
+}
+
+const MON = firstMondayAtLeast(30);
+const TUE = isoPlusDays(dayOffset(MON) + 1);
+const WED = isoPlusDays(dayOffset(MON) + 2);
+const THU = isoPlusDays(dayOffset(MON) + 3);
+const FRI = isoPlusDays(dayOffset(MON) + 4);
+const SUN = isoPlusDays(dayOffset(MON) + 6);
+const RANGE_START = isoPlusDays(0);
+const RANGE_END = isoPlusDays(730);
+/** Inside the future, outside the schedule range. */
+const OUT_OF_RANGE = isoPlusDays(1000);
+
+function dayOffset(date: string): number {
+	const today = new Date(isoPlusDays(0) + 'T00:00:00.000Z').getTime();
+	const target = new Date(date + 'T00:00:00.000Z').getTime();
+	return Math.round((target - today) / 86400000);
+}
+
 const SCHEDULE = 'sched-1';
 const STUDENT = 'stu-1';
 const STUDENT2 = 'stu-2';
@@ -26,8 +62,8 @@ async function seed(db: Kysely<DB>) {
 		.values({
 			id: SCHEDULE,
 			name: 'Test',
-			start_date: '2025-01-01',
-			end_date: '2025-12-31',
+			start_date: RANGE_START,
+			end_date: RANGE_END,
 			created_at: ts,
 			updated_at: ts
 		})
@@ -76,7 +112,7 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 	});
 
 	it('accepts a clean candidate', async () => {
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2025-03-03' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
 		expect(r.valid).toBe(true);
 		expect(r.hard).toHaveLength(0);
 		expect(r.soft).toHaveLength(0);
@@ -86,15 +122,15 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		const r = await validateAssignmentCandidate(db, SCHEDULE, {
 			...base,
 			student_id: 'nope',
-			date: '2025-03-03'
+			date: MON
 		});
 		expect(r.valid).toBe(false);
 		expect(r.hard.some((v) => v.code === 'entity_missing')).toBe(true);
 	});
 
 	it('flags student double-booking as hard', async () => {
-		await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-03' });
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2025-03-03' });
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
 		expect(r.valid).toBe(false);
 		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
 	});
@@ -102,25 +138,25 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 	it('flags a blackout date as soft', async () => {
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-1', date: '2025-03-04', created_at: new Date().toISOString() })
+			.values({ id: 'bo-1', date: TUE, created_at: new Date().toISOString() })
 			.execute();
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2025-03-04' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: TUE });
 		expect(r.valid).toBe(true);
 		expect(r.soft.some((v) => v.code === 'blackout_date')).toBe(true);
 	});
 
 	it('flags a date outside the schedule range as soft', async () => {
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2030-01-01' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: OUT_OF_RANGE });
 		expect(r.soft.some((v) => v.code === 'outside_schedule')).toBe(true);
 	});
 
 	it('flags preceptor capacity as soft (different student, same slot)', async () => {
-		await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-05' });
+		await createManualAssignment(db, SCHEDULE, { ...base, date: WED });
 		const r = await validateAssignmentCandidate(db, SCHEDULE, {
 			student_id: STUDENT2,
 			preceptor_id: PRECEPTOR,
 			clerkship_id: CLERKSHIP,
-			date: '2025-03-05'
+			date: WED
 		});
 		expect(r.soft.some((v) => v.code === 'preceptor_capacity')).toBe(true);
 	});
@@ -137,7 +173,7 @@ describe('createManualAssignment', () => {
 	});
 
 	it('creates a clean assignment with source=manual', async () => {
-		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-03' });
+		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		expect(r.ok).toBe(true);
 		if (r.ok) {
 			expect(r.assignment.source).toBe('manual');
@@ -147,19 +183,14 @@ describe('createManualAssignment', () => {
 	});
 
 	it('rejects a hard conflict even with force', async () => {
-		await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-03' });
-		const r = await createManualAssignment(
-			db,
-			SCHEDULE,
-			{ ...base, date: '2025-03-03' },
-			{ force: true }
-		);
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: MON }, { force: true });
 		expect(r.ok).toBe(false);
 		if (!r.ok) expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
 	});
 
 	it('rejects a soft violation without force', async () => {
-		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: '2030-01-01' });
+		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: OUT_OF_RANGE });
 		expect(r.ok).toBe(false);
 	});
 
@@ -167,7 +198,7 @@ describe('createManualAssignment', () => {
 		const r = await createManualAssignment(
 			db,
 			SCHEDULE,
-			{ ...base, date: '2030-01-01' },
+			{ ...base, date: OUT_OF_RANGE },
 			{ force: true }
 		);
 		expect(r.ok).toBe(true);
@@ -177,7 +208,7 @@ describe('createManualAssignment', () => {
 	it('respects the locked flag', async () => {
 		const r = await createManualAssignment(db, SCHEDULE, {
 			...base,
-			date: '2025-03-03',
+			date: MON,
 			locked: true
 		});
 		expect(r.ok).toBe(true);
@@ -199,8 +230,8 @@ describe('createManualAssignmentsBulk', () => {
 		// 2025-03-03 is a Monday; Mon/Wed/Fri over one week.
 		const r = await createManualAssignmentsBulk(db, SCHEDULE, {
 			...base,
-			start_date: '2025-03-03',
-			end_date: '2025-03-09',
+			start_date: MON,
+			end_date: SUN,
 			weekdays: [1, 3, 5]
 		});
 		expect(r.createdCount).toBe(3);
@@ -208,13 +239,13 @@ describe('createManualAssignmentsBulk', () => {
 	});
 
 	it('skips dates the student is already booked (hard conflict)', async () => {
-		await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-03' });
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await createManualAssignmentsBulk(db, SCHEDULE, {
 			...base,
-			start_date: '2025-03-03',
-			end_date: '2025-03-05'
+			start_date: MON,
+			end_date: WED
 		});
-		const conflict = r.results.find((x) => x.date === '2025-03-03');
+		const conflict = r.results.find((x) => x.date === MON);
 		expect(conflict?.created).toBe(false);
 		expect(conflict?.skipped).toBe('hard_conflict');
 	});
@@ -231,7 +262,7 @@ describe('setAssignmentLock', () => {
 	});
 
 	it('toggles the lock flag', async () => {
-		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-03' });
+		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		if (!created.ok) throw new Error('setup failed');
 		const locked = await setAssignmentLock(db, created.assignment.id!, true);
 		expect(locked.locked).toBe(1);
@@ -391,12 +422,12 @@ describe('validateAssignmentCandidate — edge cases (DB-backed)', () => {
 	it('does not flag capacity when exactly at max (only when over)', async () => {
 		// max_students = 1. One existing assignment on the date fills capacity for
 		// a *different* student, so the next candidate is at/over → flagged.
-		await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-05' });
+		await createManualAssignment(db, SCHEDULE, { ...base, date: WED });
 		const atLimit = await validateAssignmentCandidate(db, SCHEDULE, {
 			student_id: STUDENT2,
 			preceptor_id: PRECEPTOR,
 			clerkship_id: CLERKSHIP,
-			date: '2025-03-05'
+			date: WED
 		});
 		expect(atLimit.soft.some((v) => v.code === 'preceptor_capacity')).toBe(true);
 
@@ -405,17 +436,17 @@ describe('validateAssignmentCandidate — edge cases (DB-backed)', () => {
 			student_id: STUDENT2,
 			preceptor_id: PRECEPTOR,
 			clerkship_id: CLERKSHIP,
-			date: '2025-03-06'
+			date: THU
 		});
 		expect(under.soft.some((v) => v.code === 'preceptor_capacity')).toBe(false);
 	});
 
 	it('excludeId lets an edit re-validate its own slot without capacity/self conflicts', async () => {
-		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: '2025-03-07' });
+		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: FRI });
 		if (!created.ok) throw new Error('setup');
 		const r = await validateAssignmentCandidate(db, SCHEDULE, {
 			...base,
-			date: '2025-03-07',
+			date: FRI,
 			excludeId: created.assignment.id!
 		});
 		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(false);
@@ -444,7 +475,7 @@ describe('validateAssignmentCandidate — edge cases (DB-backed)', () => {
 				updated_at: ts
 			})
 			.execute();
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2025-03-03' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
 		expect(r.soft.some((v) => v.code === 'not_onboarded')).toBe(true);
 	});
 

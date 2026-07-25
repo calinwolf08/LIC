@@ -60,6 +60,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('site_id', 'text')
 		.addColumn('status', 'text', (col) => col.notNull())
+		.addColumn('override_codes', 'text', (col) => col.notNull().defaultTo('[]'))
+		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();

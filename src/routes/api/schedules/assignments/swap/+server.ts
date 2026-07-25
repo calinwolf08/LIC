@@ -4,13 +4,9 @@
  * POST /api/schedules/assignments/swap - Swap two assignments
  */
 
-import type { RequestHandler} from './$types';
+import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { swapAssignments } from '$lib/features/schedules/services/editing-service.js';
 import { cuid2Schema } from '$lib/validation/common-schemas';
@@ -59,7 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Swap validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

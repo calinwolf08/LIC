@@ -127,6 +127,7 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	const { up: migration024 } = await import('./migrations/024_add_active_schedule_to_user');
 	const { up: migration025 } = await import('./migrations/025_electives_direct_clerkship_link');
 	const { up: migration026 } = await import('./migrations/026_entitlements_and_assignment_flags');
+	const { up: migration027 } = await import('./migrations/027_assignment_overrides');
 
 	await migration001(db);
 	await migration002(db);
@@ -154,6 +155,7 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	await migration024(db);
 	await migration025(db);
 	await migration026(db);
+	await migration027(db);
 }
 
 /**

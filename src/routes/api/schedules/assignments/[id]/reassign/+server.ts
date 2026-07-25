@@ -6,11 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { reassignToPreceptor } from '$lib/features/schedules/services/editing-service.js';
 import { assignmentIdSchema } from '$lib/features/schedules/schemas.js';
@@ -55,7 +51,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		if (error instanceof ZodError) {
 			log.warn('Reassignment validation failed', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
