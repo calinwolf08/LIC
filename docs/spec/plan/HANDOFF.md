@@ -99,3 +99,19 @@ for 17–21 but worth a fix if you touch site creation.
 
 `npx vitest run`, `npx svelte-check --tsconfig ./tsconfig.json`, `npx playwright test`,
 `npm run build`.
+
+---
+
+## Round 3 (steps 25–33) — next up
+
+Round 2 is shipped. **Round 3 is planned but not started**: see `ROUND-3-OVERVIEW.md`.
+
+Two of its steps are a **data-privacy defect, not product polish** — today a signed-in user can see
+and modify another user's students, preceptors, clerkships, sites, health systems and assignments.
+Verified: the dashboard totals, `/locations`, the calendar's filter lists and
+`getEnrichedAssignments` are all unscoped, and **no entity mutation route contains a single
+ownership check**. Do **step 26 (reads) then 27 (mutations) before anything else in the round**, and
+prove the fix by running the new isolation tests against the pre-fix commit and watching them fail.
+
+Step 25 (dev data commands: reset one user / reset everything) is small and comes first, because
+verifying isolation by hand needs a second account whose data must survive resetting the first.

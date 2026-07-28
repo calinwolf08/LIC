@@ -7,6 +7,10 @@ Steps 01–14 built the two-stage product. Round 2 addresses issues found during
 > **`HANDOFF.md`** for the operational gotchas (build/seed loop, the seeded schedule's shape,
 > hand-built test schemas) that cost real time to rediscover.
 
+> **Round 3** (steps 25–33) addresses the second round of beta findings — including a
+> **tenant-isolation defect** where one user could see and modify another's data. See
+> `ROUND-3-OVERVIEW.md`; steps 26 and 27 take priority over everything else.
+
 ## Execution order
 
 Steps are ordered by dependency. **15 must run first** (it fixes a root cause behind several symptoms). 17 → 18 is a hard chain (backend before the dialog that consumes it). 22 and 23 are independent and may run in parallel.
