@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { CalendarMonth, CalendarDay, CalendarDayAssignment } from '../types/schedule-views';
+	import { getStudentColor } from '../utils/entity-colors';
 
 	interface Props {
 		months: CalendarMonth[];
@@ -9,6 +10,12 @@
 		 * preceptor, and 'schedule' (the calendar) knows neither.
 		 */
 		mode?: 'student' | 'preceptor' | 'schedule';
+		/**
+		 * What the cell colour encodes. 'clerkship' (default) keeps the
+		 * student/preceptor pages as-is; 'student' colours schedule-wide by who the
+		 * assignment is for, so a student is one colour at a glance.
+		 */
+		colorBy?: 'clerkship' | 'student';
 		blackoutDates?: Set<string>;
 		/** Dates with validation conflicts (red corner marker). Optional message per date for the tooltip. */
 		violationDates?: Set<string>;
@@ -24,6 +31,7 @@
 	let {
 		months,
 		mode = 'student',
+		colorBy = 'clerkship',
 		blackoutDates = new Set(),
 		violationDates = new Set(),
 		violationMessages = {},
@@ -60,6 +68,16 @@
 
 	function assignmentTitle(a: CalendarDayAssignment): string {
 		return [a.studentName, a.clerkshipName, a.preceptorName].filter(Boolean).join(' · ');
+	}
+
+	/**
+	 * The cell's colour. `colorBy: 'student'` colours by who the assignment is
+	 * for (schedule-wide identity); otherwise use the clerkship colour the service
+	 * already computed.
+	 */
+	function cellColor(a: CalendarDayAssignment): string {
+		if (colorBy === 'student' && a.studentId) return getStudentColor(a.studentId);
+		return a.color;
 	}
 
 	function isBlackoutDate(date: string): boolean {
@@ -155,12 +173,14 @@
 								{#if day.assignments && day.assignments.length > 0}
 									<div class="mt-1 space-y-0.5 overflow-hidden">
 										{#each day.assignments.slice(0, fitLimit) as assignment}
+											{@const color = cellColor(assignment)}
 											<button
 												type="button"
 												data-testid="calendar-assignment"
 												data-assignment-id={assignment.id}
+												data-color={color}
 												class="w-full rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-opacity hover:opacity-80"
-												style="background-color: {assignment.color}20; color: {assignment.color}; border-left: 2px solid {assignment.color};"
+												style="background-color: {color}20; color: {color}; border-left: 2px solid {color};"
 												title={assignmentTitle(assignment)}
 												onclick={(e) => handleAssignmentClick(e, day, assignment)}
 											>

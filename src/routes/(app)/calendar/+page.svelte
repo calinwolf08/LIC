@@ -685,7 +685,8 @@
 		{#if calendarMonths().length > 0}
 			<ScheduleCalendarGrid
 				months={calendarMonths()}
-				mode="student"
+				mode="schedule"
+				colorBy="student"
 				blackoutDates={blackoutDateSet}
 				{violationDates}
 				{violationMessages}
@@ -723,7 +724,12 @@
 												{event.assignment.student_name}
 											</button>
 											<span class="mx-1 text-muted-foreground">-</span>
-											<span>{event.assignment.clerkship_name}</span>
+											<button
+												onclick={() => goto(`/clerkships/${event.assignment.clerkship_id}`)}
+												class="text-left text-primary hover:underline"
+											>
+												{event.assignment.clerkship_name}
+											</button>
 										</p>
 										<p class="mt-1 text-sm text-muted-foreground">
 											Preceptor:
