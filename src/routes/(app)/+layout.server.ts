@@ -8,15 +8,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
 	}
 
-	// Allow bypass during E2E testing for schedule-related checks only
-	const isE2ETesting = process.env.E2E_TESTING === 'true';
-
 	// Schedule-first architecture: Check if user has an active schedule
 	// If not, redirect to create schedule (unless already on schedule pages)
 	const scheduleExemptRoutes = ['/schedules'];
 	const isScheduleExemptRoute = scheduleExemptRoutes.some(route => url.pathname.startsWith(route));
 
-	if (!isScheduleExemptRoute && !isE2ETesting) {
+	if (!isScheduleExemptRoute) {
 		try {
 			const user = await db
 				.selectFrom('user')
