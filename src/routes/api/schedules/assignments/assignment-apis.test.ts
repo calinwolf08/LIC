@@ -330,6 +330,7 @@ describe('Step 17 assignment APIs', () => {
 			student_id: STUDENT,
 			preceptor_id: PRECEPTOR,
 			clerkship_id: CLERKSHIP,
+			site_id: SITE,
 			date: FUTURE
 		};
 
@@ -341,6 +342,18 @@ describe('Step 17 assignment APIs', () => {
 		it('rejects an invalid body', async () => {
 			const res = await createRoute.POST(postEvent({ student_id: STUDENT }, locals(USER_A)));
 			expect(res.status).toBe(400);
+		});
+
+		it('rejects a create with no site_id (site is required)', async () => {
+			const { site_id, ...noSite } = payload;
+			void site_id;
+			const res = await createRoute.POST(postEvent(noSite, locals(USER_A)));
+			expect(res.status).toBe(400);
+		});
+
+		it('accepts a create with a site_id', async () => {
+			const res = await createRoute.POST(postEvent(payload, locals(USER_A)));
+			expect(res.status).toBe(201);
 		});
 
 		it('creates and returns the assignment', async () => {

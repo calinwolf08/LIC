@@ -75,7 +75,9 @@ const baseSchema = z.object({
 	student_id: z.string().min(1),
 	preceptor_id: z.string().min(1),
 	clerkship_id: z.string().min(1),
-	site_id: z.string().min(1).nullish(),
+	// Site is required on create (a client-only rule is not a rule): preceptor
+	// availability is site-scoped and the mark-available side effect needs it.
+	site_id: z.string().min(1, 'Select a site'),
 	locked: z.boolean().optional(),
 	dry_run: z.boolean().optional(),
 	force: z.boolean().optional(),

@@ -92,11 +92,30 @@
 		return date >= rangeStart && date <= rangeEnd;
 	}
 
-	function classesFor(date: string): string {
+	/**
+	 * A machine-readable state for the day, independent of selection. Taken /
+	 * full / busy are distinct so the cell can render (and be tested) distinctly.
+	 */
+	function dataState(date: string): string {
+		if (!inRange(date)) return 'out-of-range';
+		const day = dayStates.get(date);
+		if (!day) return 'unset';
+		if (day.studentBusy) return 'busy';
+		if (day.preceptorAtCapacity) return 'full';
+		if (day.preceptorBookings.length > 0) return 'taken';
+		if (day.state === 'blackout') return 'blackout';
+		return day.state; // available | unavailable | unset
+	}
+
+	/** The fill/colour for the day's state — never short-circuited by selection. */
+	function baseStateClass(date: string): string {
 		if (!inRange(date)) return 'cursor-not-allowed bg-muted/40 text-muted-foreground/50';
 		const day = dayStates.get(date);
-		if (selected.includes(date)) return 'bg-primary text-primary-foreground border-primary';
+		// Hard conflict for the student takes precedence over preceptor state.
 		if (day?.studentBusy) return 'bg-red-100 text-red-800 border-red-300';
+		if (day?.preceptorAtCapacity) return 'bg-orange-200 text-orange-900 border-orange-400';
+		if (day && day.preceptorBookings.length > 0)
+			return 'bg-amber-100 text-amber-900 border-amber-300';
 		switch (day?.state) {
 			case 'blackout':
 				return 'bg-slate-200 text-slate-600 border-slate-300';
@@ -109,21 +128,54 @@
 		}
 	}
 
-	/** Short marker under the day number: who has the preceptor, or why it is odd. */
+	/**
+	 * Selection composes with state: keep the state colour and add an
+	 * unmistakable ring, so a day that is both selected AND a problem reads as
+	 * both at a glance (the reported "fills solid so the conflict disappears").
+	 */
+	function classesFor(date: string): string {
+		const base = baseStateClass(date);
+		if (inRange(date) && selected.includes(date)) {
+			return `${base} ring-2 ring-primary ring-offset-1 font-semibold`;
+		}
+		return base;
+	}
+
+	/**
+	 * Short marker under the day number. A glyph + word so the state is legible
+	 * without relying on colour (accessibility).
+	 */
 	function markerFor(date: string): string {
 		const day = dayStates.get(date);
 		if (!day) return '';
-		if (day.studentBusy) return 'busy';
+		if (day.studentBusy) return '⛔ busy';
+		if (day.preceptorAtCapacity) return '● full';
 		if (day.preceptorBookings.length > 0) {
 			const first = day.preceptorBookings[0].studentName.split(' ')[0];
 			return day.preceptorBookings.length > 1
-				? `${first} +${day.preceptorBookings.length - 1}`
-				: first;
+				? `👤 ${first} +${day.preceptorBookings.length - 1}`
+				: `👤 ${first}`;
 		}
-		if (day.state === 'blackout') return 'blackout';
+		if (day.state === 'blackout') return '× blackout';
 		if (day.isPast) return 'past';
 		return '';
 	}
+
+	const CONFLICT_REASON: Record<string, string> = {
+		busy: 'student already assigned',
+		full: 'preceptor at capacity',
+		taken: 'preceptor already booked',
+		unavailable: 'preceptor unavailable',
+		blackout: 'blackout date'
+	};
+
+	/** Selected days that carry a conflict — surfaced so one bad day in a big selection is not lost. */
+	let selectedConflicts = $derived(
+		selected
+			.filter((d) => inRange(d))
+			.map((d) => ({ date: d, reason: CONFLICT_REASON[dataState(d)] }))
+			.filter((c): c is { date: string; reason: string } => Boolean(c.reason))
+	);
 
 	function titleFor(date: string): string {
 		const day = dayStates.get(date);
@@ -267,7 +319,7 @@
 					type="button"
 					data-testid="day-{cell.date}"
 					data-date={cell.date}
-					data-state={dayStates.get(cell.date)?.state ?? 'unset'}
+					data-state={dataState(cell.date)}
 					data-selected={selected.includes(cell.date)}
 					disabled={disabled || !inRange(cell.date)}
 					title={titleFor(cell.date)}
@@ -287,6 +339,20 @@
 		{/each}
 	</div>
 
+	{#if selectedConflicts.length > 0}
+		<div
+			class="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900"
+			data-testid="selected-conflicts"
+		>
+			<p class="font-medium">Selected days needing attention:</p>
+			<ul class="list-inside list-disc">
+				{#each selectedConflicts as c (c.date)}
+					<li>{c.date} — {c.reason}</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
+
 	<div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
 		<span class="flex items-center gap-1"
 			><span class="inline-block h-3 w-3 rounded border border-green-200 bg-green-50"></span
@@ -301,12 +367,28 @@
 			set</span
 		>
 		<span class="flex items-center gap-1"
+			><span class="inline-block h-3 w-3 rounded border border-amber-300 bg-amber-100"></span>👤
+			Taken</span
+		>
+		<span class="flex items-center gap-1"
+			><span class="inline-block h-3 w-3 rounded border border-orange-400 bg-orange-200"></span>●
+			Full</span
+		>
+		<span class="flex items-center gap-1"
+			><span class="inline-block h-3 w-3 rounded border border-red-300 bg-red-100"></span>⛔ Student
+			busy</span
+		>
+		<span class="flex items-center gap-1"
 			><span class="inline-block h-3 w-3 rounded border border-slate-300 bg-slate-200"></span
 			>Blackout</span
 		>
 		<span class="flex items-center gap-1"
-			><span class="inline-block h-3 w-3 rounded border border-red-300 bg-red-100"></span>Student
-			busy</span
+			><span class="inline-block h-3 w-3 rounded border border-muted bg-muted/40"></span>Out of
+			range</span
+		>
+		<span class="flex items-center gap-1"
+			><span class="inline-block h-3 w-3 rounded border border-primary ring-2 ring-primary"></span
+			>Selected</span
 		>
 	</div>
 </div>

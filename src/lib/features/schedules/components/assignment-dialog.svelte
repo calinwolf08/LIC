@@ -329,7 +329,7 @@
 	 * know about (onboarding, site rules).
 	 */
 	$effect(() => {
-		if (!open || !student || !clerkship || !preceptor || selectedDates.length === 0) {
+		if (!open || !student || !clerkship || !preceptor || !site || selectedDates.length === 0) {
 			serverSoftCodes = [];
 			hardErrors = [];
 			probing = false;
@@ -346,7 +346,7 @@
 					student_id: student,
 					preceptor_id: preceptor,
 					clerkship_id: clerkship,
-					site_id: site || null,
+					site_id: site,
 					date: probe,
 					dry_run: true,
 					...(mode === 'edit' && assignmentId ? { excludeId: assignmentId } : {})
@@ -401,6 +401,7 @@
 			!!student &&
 			!!clerkship &&
 			!!preceptor &&
+			!!site &&
 			selectedDates.length > 0 &&
 			liveAnalysis.submittableDates.length > 0
 	);
@@ -588,7 +589,7 @@
 						student_id: student,
 						preceptor_id: preceptor,
 						clerkship_id: clerkship,
-						site_id: site || null,
+						site_id: site,
 						date: day,
 						...(canLock ? { locked } : {})
 					})
@@ -697,13 +698,13 @@
 				</div>
 
 				<div class="space-y-1">
-					<Label for="ad-site">Site <span class="text-muted-foreground">(optional)</span></Label>
+					<Label for="ad-site">Site <span class="text-destructive">*</span></Label>
 					<select
 						id="ad-site"
 						bind:value={site}
 						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 					>
-						<option value="">No specific site</option>
+						<option value="">Select a site…</option>
 						{#each options.sites as s (s.id)}
 							<option value={s.id} disabled={!s.eligible}>{optionLabel(s)}</option>
 						{/each}
@@ -834,7 +835,7 @@
 			bind:open={conversationOpen}
 			title={CATEGORY_COPY.preceptor_unavailable.title}
 			description="{CATEGORY_COPY.preceptor_unavailable.describe} {current.dates.join(', ')}"
-			confirmLabel={site ? 'Assign and mark available' : 'Assign anyway'}
+			confirmLabel="Assign and mark available"
 			cancelLabel="Cancel"
 			destructive={false}
 			onConfirm={() => acceptCurrent(markAvailableEffect())}
@@ -842,23 +843,12 @@
 		>
 			{#snippet details()}
 				<p class="text-muted-foreground">
-					{#if site}
-						"Assign anyway" makes a one-time exception; "Assign and mark available" also updates the
-						preceptor's availability for these days.
-					{:else}
-						Pick a site to also update the preceptor's availability for these days.
-					{/if}
+					"Assign anyway" makes a one-time exception; "Assign and mark available" also updates the
+					preceptor's availability for these days.
 				</p>
-				{#if site}
-					<Button
-						variant="outline"
-						size="sm"
-						class="mt-2"
-						onclick={() => acceptCurrent(undefined)}
-					>
-						Assign anyway (one-time exception)
-					</Button>
-				{/if}
+				<Button variant="outline" size="sm" class="mt-2" onclick={() => acceptCurrent(undefined)}>
+					Assign anyway (one-time exception)
+				</Button>
 			{/snippet}
 		</ConfirmDialog>
 	{:else if current.category === 'preceptor_capacity'}
