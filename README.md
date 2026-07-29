@@ -41,11 +41,36 @@ npm run dev             # http://localhost:5173
 | `admin@example.com` | `password123` | `autogen` (sees Stage 2) |
 | `basic@example.com` | `password123` | none (Stage 1 only)      |
 
+The seed also creates a second account whose data is all named **"Tenant B …"**
+(owned by `basic@example.com`), so tenant-isolation can be checked by hand and
+by the `tenant-isolation` e2e journey. The seed is idempotent.
+
 Grant/revoke the Stage 2 entitlement manually:
 
 ```bash
 npx tsx scripts/set-entitlement.ts <email> autogen on|off
 ```
+
+### Resetting data
+
+```bash
+# Remove ONE account and everything it exclusively owns (entities shared with
+# another user, and other accounts, are left intact). Asks to confirm first.
+npm run db:reset-user -- --email=someone@example.com
+npm run db:reset-user -- --email=someone@example.com --dry-run   # counts only
+npm run db:reset-user -- --email=someone@example.com --yes       # no prompt
+
+# Wipe the whole database back to an empty (migrated) state. Refuses to run with
+# NODE_ENV=production unless --force-production is also passed.
+npm run db:reset -- --yes
+npm run db:reset -- --yes --seed                                 # fresh + reseed
+```
+
+All reset/seed commands target `DATABASE_PATH` (default `./sqlite.db`); prefix it
+to point at another database, e.g. the e2e DB:
+`DATABASE_PATH=./test-sqlite.db npm run db:reset-user -- --email=admin@example.com --yes`.
+Do **not** run a reset against `./test-sqlite.db` while a preview/e2e run is
+using it.
 
 ## Development commands
 
