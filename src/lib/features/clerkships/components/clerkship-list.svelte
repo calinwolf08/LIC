@@ -103,8 +103,22 @@
 					</tr>
 				{:else}
 					{#each sortedClerkships() as clerkship}
-						<tr class="border-b transition-colors hover:bg-muted/50">
-							<td class="px-4 py-3 text-sm font-medium">{clerkship.name}</td>
+						<tr
+							class="border-b transition-colors hover:bg-muted/50 {onConfigure ? 'cursor-pointer' : ''}"
+							onclick={() => onConfigure?.(clerkship)}
+						>
+							<td class="px-4 py-3 text-sm font-medium">
+								{#if onConfigure}
+									<button
+										onclick={() => onConfigure?.(clerkship)}
+										class="text-left font-medium text-primary hover:underline"
+									>
+										{clerkship.name}
+									</button>
+								{:else}
+									{clerkship.name}
+								{/if}
+							</td>
 							<td class="px-4 py-3 text-sm">
 								<span
 									class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium {clerkship.clerkship_type ===
@@ -124,7 +138,7 @@
 							<td class="px-4 py-3 text-sm text-muted-foreground">
 								{formatDate(clerkship.created_at as unknown as string)}
 							</td>
-							<td class="px-4 py-3 text-sm">
+							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
 									{#if onConfigure}
 										<Button size="sm" variant="default" onclick={() => onConfigure?.(clerkship)}>

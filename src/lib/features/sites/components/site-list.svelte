@@ -59,13 +59,18 @@
 					</tr>
 				{:else}
 					{#each sites as site}
-						<tr class="border-b transition-colors hover:bg-muted/50">
-							<td class="px-4 py-3 text-sm">{site.name}</td>
+						<tr
+							class="cursor-pointer border-b transition-colors hover:bg-muted/50"
+							onclick={() => goto(`/sites/${site.id}`)}
+						>
+							<td class="px-4 py-3 text-sm">
+								<a href="/sites/{site.id}" class="font-medium text-primary hover:underline">{site.name}</a>
+							</td>
 							<td class="px-4 py-3 text-sm">{site.health_system_name || '-'}</td>
 							<td class="px-4 py-3 text-sm">{site.address || '-'}</td>
-							<td class="px-4 py-3 text-sm">
+							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex items-center gap-2">
-									<Button size="sm" variant="outline" onclick={() => goto(`/sites/${site.id}`)}>Manage</Button>
+									<Button size="sm" variant="default" onclick={() => goto(`/sites/${site.id}`)}>Manage</Button>
 									<Button size="sm" variant="destructive" onclick={() => handleDeleteClick(site)}>
 										Delete
 									</Button>

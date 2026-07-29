@@ -100,7 +100,10 @@
 					</tr>
 				{:else}
 					{#each sortedPreceptors() as preceptor}
-						<tr class="border-b transition-colors hover:bg-muted/50">
+						<tr
+							class="cursor-pointer border-b transition-colors hover:bg-muted/50"
+							onclick={() => goto(`/preceptors/${preceptor.id}`)}
+						>
 							<td class="px-4 py-3 text-sm">
 								<a href="/preceptors/{preceptor.id}" class="font-medium text-primary hover:underline">
 									{preceptor.name}
@@ -161,9 +164,9 @@
 								{/if}
 							</td>
 							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
-							<td class="px-4 py-3 text-sm">
+							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="ghost" onclick={() => goto(`/preceptors/${preceptor.id}`)}>
+									<Button size="sm" variant="default" onclick={() => goto(`/preceptors/${preceptor.id}`)}>
 										Manage
 									</Button>
 									{#if onDelete}

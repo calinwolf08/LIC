@@ -193,7 +193,7 @@
 							</td>
 							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="outline" onclick={() => goto(`/health-systems/${hs.id}`)}>
+									<Button size="sm" variant="default" onclick={() => goto(`/health-systems/${hs.id}`)}>
 										Manage
 									</Button>
 									{#if loadingDependencies}
