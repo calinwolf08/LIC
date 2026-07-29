@@ -9,6 +9,12 @@ step. `HANDOFF.md` carries the operational notes (build/seed loop, seeded schedu
 > `tenant-isolation.spec.ts` e2e journey. See the Round 3 section of `../DESIGN_REVIEW.md` for the
 > issue-by-issue outcome and verification evidence.
 
+> **Round 4 (steps 34–40) is planned**: see `ROUND-4-OVERVIEW.md`. It closes what Round 3 assumed
+> rather than verified — **14 mutating API routes accept unauthenticated requests** because
+> `hooks.server.ts` has no global `/api/*` guard — plus the Stage-2 config routes' missing tenant
+> guards and a confirmed cross-tenant student name/email leak in `getStudentScheduleData`.
+> **Step 34 is a live security hole; do it first.**
+
 ## Read this first: Round 3 is not cosmetic
 
 **Steps 26 and 27 are a data-privacy defect, not a bug list item.** A signed-in user currently sees

@@ -102,6 +102,18 @@ for 17–21 but worth a fix if you touch site creation.
 
 ---
 
+## Round 4 (steps 34–40) — planned, not started
+
+See `ROUND-4-OVERVIEW.md`. **Step 34 is a live security hole, not hardening:** `hooks.server.ts`
+resolves the session but never rejects, and **14 mutating API route files never reference `locals`**
+— so those `POST`/`PUT`/`PATCH`/`DELETE` endpoints accept unauthenticated requests. An
+`E2E_TESTING=true` env var also disables auth app-wide in the shipped bundle. Do step 34 first and
+alone. Step 35 then finishes the tenant boundary (all `scheduling-config/*` routes, plus a confirmed
+cross-tenant student name/email leak in `getStudentScheduleData`).
+
+Round 3 assumed authentication was already enforced everywhere and only tenancy was missing. That
+assumption was wrong — when adding a guard, check the route actually reads `locals` at all.
+
 ## Round 3 (steps 25–33) — shipped
 
 Round 3 is complete; the privacy defect is closed. See `ROUND-3-OVERVIEW.md` and the Round 3 section
