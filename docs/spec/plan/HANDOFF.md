@@ -115,3 +115,31 @@ prove the fix by running the new isolation tests against the pre-fix commit and 
 
 Step 25 (dev data commands: reset one user / reset everything) is small and comes first, because
 verifying isolation by hand needs a second account whose data must survive resetting the first.
+
+### Dev data reset commands (step 25 — shipped)
+
+Shared FK-safe deletion logic lives in `src/lib/db/scripts/reset-lib.ts` (`resetUser`, `resetAll`);
+the two CLIs wrap it. The reset targets `DATABASE_PATH` (default `./sqlite.db`), so prefix it to hit
+the e2e DB.
+
+- **Reset one account** (removes the user and everything it *exclusively* owns; entities shared with
+  another user's schedule survive, and so does any entity pinned by a shared student's surviving
+  assignment):
+  ```
+  npm run db:reset-user -- --email=someone@example.com            # asks to confirm, shows the plan first
+  npm run db:reset-user -- --email=someone@example.com --dry-run  # per-table counts, writes nothing
+  npm run db:reset-user -- --email=someone@example.com --yes      # no prompt
+  DATABASE_PATH=./test-sqlite.db npm run db:reset-user -- --email=admin@example.com --yes
+  ```
+  Unknown email exits non-zero and changes nothing.
+- **Reset everything** (empties every table; schema stays, so a later `db:seed` works):
+  ```
+  npm run db:reset -- --yes
+  npm run db:reset -- --yes --seed        # one-liner fresh environment
+  npm run db:reset -- --dry-run
+  ```
+  Refuses to run with `NODE_ENV=production` unless `--force-production` is also passed.
+
+Gotcha learned here: a migration seeds an ownerless `default-2026` `scheduling_periods` row
+(`user_id = NULL`). `reset-user` never touches it (it isn't anyone's), so absolute
+`scheduling_periods` counts in tests include it — assert on specific ids, not totals.
