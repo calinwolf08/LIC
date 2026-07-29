@@ -10,6 +10,7 @@ import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { FallbackService } from '$lib/features/scheduling-config/services/fallbacks.service';
 import { preceptorFallbackInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -33,6 +34,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			log.warn('Missing preceptorId parameter');
 			return errorResponse('preceptorId query parameter is required', 400);
 		}
+
+		// Tenant boundary: the preceptor must be in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', preceptorId);
 
 		const result = await service.getFallbackChain(preceptorId);
 
@@ -67,6 +72,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
 		const validatedData = preceptorFallbackInputSchema.parse(body);
+
+		// Tenant boundary: both preceptors in the fallback must be in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', validatedData.primaryPreceptorId);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', validatedData.fallbackPreceptorId);
 
 		const result = await service.createFallback(validatedData);
 

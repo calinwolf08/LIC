@@ -16,6 +16,11 @@ import {
 	validationErrorResponse
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import {
+	requireActiveScheduleId,
+	assertElectiveInSchedule,
+	assertEntityInSchedule
+} from '$lib/api/schedule-context';
 import { ElectiveService } from '$lib/features/scheduling-config/services/electives.service';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { z } from 'zod';
@@ -36,10 +41,13 @@ const setPreceptorsSchema = z.object({
  * GET /api/scheduling-config/electives/[id]/preceptors
  * Returns preceptors associated with an elective
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching preceptors for elective', { electiveId: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const result = await service.getPreceptorsForElective(params.id);
 
 		if (!result.success) {
@@ -70,12 +78,18 @@ export const GET: RequestHandler = async ({ params }) => {
  * POST /api/scheduling-config/electives/[id]/preceptors
  * Adds a preceptor to an elective
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Adding preceptor to elective', { electiveId: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const body = await request.json();
 		const { preceptorId } = addPreceptorSchema.parse(body);
+
+		// The preceptor being linked must also belong to the caller's schedule.
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', preceptorId);
 
 		const result = await service.addPreceptorToElective(params.id, preceptorId);
 
@@ -112,12 +126,20 @@ export const POST: RequestHandler = async ({ params, request }) => {
  * PUT /api/scheduling-config/electives/[id]/preceptors
  * Sets all preceptors for an elective (replaces existing)
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Setting preceptors for elective', { electiveId: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const body = await request.json();
 		const { preceptorIds } = setPreceptorsSchema.parse(body);
+
+		// Every preceptor being set must belong to the caller's schedule.
+		for (const preceptorId of preceptorIds) {
+			await assertEntityInSchedule(db, scheduleId, 'preceptor', preceptorId);
+		}
 
 		const result = await service.setPreceptorsForElective(params.id, preceptorIds);
 
@@ -153,7 +175,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
  * DELETE /api/scheduling-config/electives/[id]/preceptors?preceptorId=xxx
  * Removes a preceptor from an elective
  */
-export const DELETE: RequestHandler = async ({ params, url }) => {
+export const DELETE: RequestHandler = async ({ params, url, locals }) => {
 	const preceptorId = url.searchParams.get('preceptorId');
 
 	log.debug('Removing preceptor from elective', { electiveId: params.id, preceptorId });
@@ -163,6 +185,9 @@ export const DELETE: RequestHandler = async ({ params, url }) => {
 			log.warn('Missing preceptorId parameter for preceptor removal', { electiveId: params.id });
 			return errorResponse('preceptorId query parameter is required', 400);
 		}
+
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
 
 		const result = await service.removePreceptorFromElective(params.id, preceptorId);
 

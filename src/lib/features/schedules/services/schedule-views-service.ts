@@ -45,15 +45,27 @@ export async function getStudentScheduleData(
 ): Promise<StudentSchedule | null> {
 	log.debug('Fetching student schedule data', { studentId, scheduleId });
 
-	// Get student info
+	// No active schedule → nothing to show. Never fall through to an unscoped
+	// student lookup, which would disclose another tenant's name/email.
+	if (!scheduleId) {
+		log.debug('No active schedule', { studentId });
+		return null;
+	}
+
+	// The student must belong to this schedule. Scoping the lookup here (not just
+	// in the caller) makes the service safe regardless of who calls it — a
+	// caller-only guard has been missed before.
 	const student = await db
 		.selectFrom('students')
-		.select(['id', 'name', 'email'])
-		.where('id', '=', studentId)
+		.innerJoin('schedule_students as ss', (join) =>
+			join.onRef('ss.student_id', '=', 'students.id').on('ss.schedule_id', '=', scheduleId)
+		)
+		.select(['students.id', 'students.name', 'students.email'])
+		.where('students.id', '=', studentId)
 		.executeTakeFirst();
 
 	if (!student) {
-		log.debug('Student not found', { studentId });
+		log.debug('Student not found in schedule', { studentId, scheduleId });
 		return null;
 	}
 
@@ -68,10 +80,18 @@ export async function getStudentScheduleData(
 	const startDate = period.start_date;
 	const endDate = period.end_date;
 
-	// Get all clerkship requirements
+	// Clerkship requirements for THIS schedule only — a global list would count
+	// (and disclose) other tenants' clerkships in the progress breakdown.
 	const clerkships = await db
 		.selectFrom('clerkships')
-		.select(['id', 'name', 'specialty', 'required_days'])
+		.innerJoin('schedule_clerkships as sc', 'sc.clerkship_id', 'clerkships.id')
+		.where('sc.schedule_id', '=', scheduleId)
+		.select([
+			'clerkships.id as id',
+			'clerkships.name as name',
+			'clerkships.specialty as specialty',
+			'clerkships.required_days as required_days'
+		])
 		.execute();
 
 	// Get all assignments for this student in the period

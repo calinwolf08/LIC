@@ -144,6 +144,24 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
+	// Junction tables — getStudentScheduleData scopes the student and the
+	// clerkship progress list to the caller's schedule through these.
+	await db.schema
+		.createTable('schedule_students')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_clerkships')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
 	// Scheduling periods table (the range source; resolved per-caller by id)
 	await db.schema
 		.createTable('scheduling_periods')
@@ -206,6 +224,16 @@ async function insertTestData(
 					cohort: '2024',
 					created_at: timestamp,
 					updated_at: timestamp
+				})
+				.execute();
+			// Link to the active period so the scoped lookup finds the student.
+			await db
+				.insertInto('schedule_students')
+				.values({
+					id: `ss-${s.id}`,
+					schedule_id: PERIOD_ID,
+					student_id: s.id,
+					created_at: timestamp
 				})
 				.execute();
 		}
@@ -272,6 +300,16 @@ async function insertTestData(
 					description: null,
 					created_at: timestamp,
 					updated_at: timestamp
+				})
+				.execute();
+			// Link to the active period so the scoped progress list includes it.
+			await db
+				.insertInto('schedule_clerkships')
+				.values({
+					id: `sc-${c.id}`,
+					schedule_id: PERIOD_ID,
+					clerkship_id: c.id,
+					created_at: timestamp
 				})
 				.execute();
 		}
@@ -544,7 +582,7 @@ describe('Schedule Views Service', () => {
 			expect(result!.period!.endDate).toBe('2024-03-31');
 		});
 
-		it('handles no active period (null scheduleId → empty, no fabricated year)', async () => {
+		it('returns null when there is no active schedule (never an unscoped student)', async () => {
 			const studentId = generateTestId('clstudent');
 
 			await insertTestData(db, {
@@ -552,13 +590,11 @@ describe('Schedule Views Service', () => {
 				clerkships: []
 			});
 
+			// With no active schedule the service returns null rather than fetching
+			// the student unscoped (which would disclose their name/email). The route
+			// requires an active schedule, so this path is unreachable in practice.
 			const result = await getStudentScheduleData(db, studentId, null);
-
-			expect(result).not.toBeNull();
-			expect(result!.period).toBeNull();
-			// No calendar is fabricated when there is no active schedule.
-			expect(result!.calendar).toEqual([]);
-			expect(result!.assignments).toEqual([]);
+			expect(result).toBeNull();
 		});
 
 		it('bounds the calendar to the schedule range (no out-of-range months)', async () => {
@@ -584,6 +620,17 @@ describe('Schedule Views Service', () => {
 				students: [{ id: studentId, name: 'Sam', email: 'sam@example.com' }],
 				clerkships: []
 			});
+			// Link the student to the short schedule so the tenant-scoped lookup
+			// resolves against it (insertTestData links to the default period).
+			await db
+				.insertInto('schedule_students')
+				.values({
+					id: `ss-short-${studentId}`,
+					schedule_id: shortId,
+					student_id: studentId,
+					created_at: new Date().toISOString()
+				})
+				.execute();
 
 			const result = await getStudentScheduleData(db, studentId, shortId);
 			expect(result!.calendar.length).toBe(2);

@@ -220,6 +220,60 @@ export async function assertScheduleOwnedByUser(
 }
 
 /**
+ * Config-row ownership (step 35). Scheduling-config rows are not in a
+ * `schedule_*` junction; they belong to a schedule through their **parent**
+ * entity (an elective/requirement to its clerkship; a capacity rule/fallback to
+ * its preceptor). Each helper resolves the parent and delegates to
+ * `assertEntityInSchedule`, throwing `NotFoundError` (→ 404) when the config row
+ * does not exist or its parent is not in the caller's schedule.
+ */
+
+/** Elective → its clerkship must be in the schedule. */
+export async function assertElectiveInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	electiveId: string
+): Promise<void> {
+	const row = await dbConn
+		.selectFrom('clerkship_electives')
+		.select('clerkship_id')
+		.where('id', '=', electiveId)
+		.executeTakeFirst();
+	if (!row) throw new NotFoundError('Elective');
+	await assertEntityInSchedule(dbConn, scheduleId, 'clerkship', row.clerkship_id);
+}
+
+/** Capacity rule → its preceptor must be in the schedule. */
+export async function assertCapacityRuleInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	ruleId: string
+): Promise<void> {
+	const row = await dbConn
+		.selectFrom('preceptor_capacity_rules')
+		.select('preceptor_id')
+		.where('id', '=', ruleId)
+		.executeTakeFirst();
+	if (!row) throw new NotFoundError('Capacity rule');
+	await assertEntityInSchedule(dbConn, scheduleId, 'preceptor', row.preceptor_id);
+}
+
+/** Fallback → its primary preceptor must be in the schedule. */
+export async function assertFallbackInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	fallbackId: string
+): Promise<void> {
+	const row = await dbConn
+		.selectFrom('preceptor_fallbacks')
+		.select('primary_preceptor_id')
+		.where('id', '=', fallbackId)
+		.executeTakeFirst();
+	if (!row) throw new NotFoundError('Fallback');
+	await assertEntityInSchedule(dbConn, scheduleId, 'preceptor', row.primary_preceptor_id);
+}
+
+/**
  * Associate an entity with a schedule
  */
 export async function associateEntityWithSchedule(
