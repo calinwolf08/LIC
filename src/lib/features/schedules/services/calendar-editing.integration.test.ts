@@ -11,9 +11,28 @@ import Database from 'better-sqlite3';
 import type { DB } from '$lib/db/types';
 
 // Import services
-import { createStudent } from '$lib/features/students/services/student-service';
+import { createStudent as createStudentService } from '$lib/features/students/services/student-service';
 import { createAssignment, bulkCreateAssignments } from './assignment-service';
 import { nanoid } from 'nanoid';
+
+// Every calendar read is now scoped to a schedule through schedule_students, so
+// this test operates within a single fixed schedule and links each student to
+// it as they are created.
+const TEST_SCHEDULE_ID = 'test-schedule';
+
+async function createStudent(db: Kysely<DB>, data: any) {
+	const student = await createStudentService(db, data);
+	await db
+		.insertInto('schedule_students')
+		.values({
+			id: nanoid(),
+			schedule_id: TEST_SCHEDULE_ID,
+			student_id: student.id,
+			created_at: new Date().toISOString()
+		})
+		.execute();
+	return student;
+}
 import {
 	getEnrichedAssignments,
 	getCalendarEvents,
@@ -120,6 +139,14 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_students')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
 		.execute();
 
 	await db.schema
@@ -276,6 +303,7 @@ describe('Calendar Service Integration Tests', () => {
 			});
 
 			const enriched = await getEnrichedAssignments(db, {
+				scheduleId: TEST_SCHEDULE_ID,
 				start_date: '2024-01-01',
 				end_date: '2024-12-31'
 			});
@@ -332,6 +360,7 @@ describe('Calendar Service Integration Tests', () => {
 			});
 
 			const enriched = await getEnrichedAssignments(db, {
+				scheduleId: TEST_SCHEDULE_ID,
 				student_id: student1.id,
 				start_date: '2024-01-01',
 				end_date: '2024-12-31'
@@ -386,6 +415,7 @@ describe('Calendar Service Integration Tests', () => {
 			});
 
 			const enriched = await getEnrichedAssignments(db, {
+				scheduleId: TEST_SCHEDULE_ID,
 				start_date: '2024-01-15',
 				end_date: '2024-01-25'
 			});
@@ -425,6 +455,7 @@ describe('Calendar Service Integration Tests', () => {
 			});
 
 			const events = await getCalendarEvents(db, {
+				scheduleId: TEST_SCHEDULE_ID,
 				start_date: '2024-01-01',
 				end_date: '2024-12-31'
 			});
@@ -484,6 +515,7 @@ describe('Calendar Service Integration Tests', () => {
 			});
 
 			const daily = await getDailyAssignments(db, {
+				scheduleId: TEST_SCHEDULE_ID,
 				start_date: '2024-01-01',
 				end_date: '2024-12-31'
 			});
@@ -555,7 +587,7 @@ describe('Calendar Service Integration Tests', () => {
 				]
 			});
 
-			const summary = await getScheduleSummary(db, '2024-01-01', '2024-12-31');
+			const summary = await getScheduleSummary(db, TEST_SCHEDULE_ID, '2024-01-01', '2024-12-31');
 
 			expect(summary.total_assignments).toBe(3);
 			expect(summary.active_students).toBe(2);
@@ -967,6 +999,7 @@ describe('Editing Service Integration Tests', () => {
 
 			// Verify assignments cleared
 			const remaining = await getEnrichedAssignments(db, {
+				scheduleId: TEST_SCHEDULE_ID,
 				start_date: '2024-01-01',
 				end_date: '2024-12-31'
 			});

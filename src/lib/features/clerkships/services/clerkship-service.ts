@@ -12,7 +12,11 @@ import { sql } from 'kysely';
 import { nanoid } from 'nanoid';
 
 /**
- * Get all clerkships, ordered by name
+ * Get all clerkships, ordered by name.
+ *
+ * @deprecated Unscoped — returns EVERY tenant's clerkships. Use
+ * `getClerkshipsBySchedule(db, scheduleId)` in any request path. Retained only
+ * for the seed/scripts.
  */
 export async function getClerkships(db: Kysely<DB>): Promise<Selectable<Clerkships>[]> {
 	return await db.selectFrom('clerkships').selectAll().orderBy('name', 'asc').execute();

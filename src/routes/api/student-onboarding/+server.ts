@@ -9,6 +9,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { sql } from 'kysely';
 
@@ -16,18 +17,25 @@ const log = createServerLogger('api:student-onboarding');
 
 /**
  * GET /api/student-onboarding
- * Returns all student health system onboarding records
+ * Returns onboarding records for students in the caller's active schedule.
  */
-export const GET: RequestHandler = async () => {
-	log.debug('Fetching all student onboarding records');
+export const GET: RequestHandler = async ({ locals }) => {
+	log.debug('Fetching student onboarding records for active schedule');
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+
+		// Scope to this schedule's students — a bare select leaks every tenant's
+		// onboarding rows.
 		const records = await db
-			.selectFrom('student_health_system_onboarding')
-			.selectAll()
+			.selectFrom('student_health_system_onboarding as o')
+			.innerJoin('schedule_students as ss', (join) =>
+				join.onRef('ss.student_id', '=', 'o.student_id').on('ss.schedule_id', '=', scheduleId)
+			)
+			.selectAll('o')
 			.execute();
 
-		log.info('Student onboarding records fetched', { count: records.length });
+		log.info('Student onboarding records fetched', { count: records.length, scheduleId });
 		return successResponse(records);
 	} catch (error) {
 		log.error('Failed to fetch student onboarding records', { error });

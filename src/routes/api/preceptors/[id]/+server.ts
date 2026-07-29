@@ -24,6 +24,7 @@ import {
 	getPreceptorSitesWithDetails
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { updatePreceptorSchema, preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -33,12 +34,16 @@ const log = createServerLogger('api:preceptors:id');
  * GET /api/preceptors/[id]
  * Returns a single preceptor with their site IDs
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching preceptor', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 when the preceptor is not in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		const preceptor = await getPreceptorById(db, id);
 

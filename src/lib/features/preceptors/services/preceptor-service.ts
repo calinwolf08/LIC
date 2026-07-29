@@ -14,7 +14,11 @@ import { createServerLogger } from '$lib/utils/logger.server';
 const log = createServerLogger('service:preceptors:preceptor');
 
 /**
- * Get all preceptors, ordered by name
+ * Get all preceptors, ordered by name.
+ *
+ * @deprecated Unscoped — returns EVERY tenant's preceptors. Use
+ * `getPreceptorsBySchedule(db, scheduleId)` in any request path. Retained only
+ * for the seed/scripts.
  */
 export async function getPreceptors(db: Kysely<DB>): Promise<Selectable<Preceptors>[]> {
 	return await db.selectFrom('preceptors').selectAll().orderBy('name', 'asc').execute();

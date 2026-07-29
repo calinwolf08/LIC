@@ -21,7 +21,11 @@ export class SiteService {
 	}
 
 	/**
-	 * Get all sites
+	 * Get all sites.
+	 *
+	 * @deprecated Unscoped — returns EVERY tenant's sites. Use
+	 * `getSitesBySchedule(scheduleId)` in any request path. Retained only for the
+	 * seed/scripts.
 	 */
 	async getAllSites() {
 		return await this.db

@@ -3,6 +3,8 @@ import { updateSiteSchema, siteIdSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
 import { ConflictError, NotFoundError, handleApiError } from '$lib/api/errors';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
+import { db } from '$lib/db';
 import { createServerLogger } from '$lib/utils/logger.server';
 import type { RequestHandler } from './$types';
 
@@ -12,11 +14,16 @@ const log = createServerLogger('api:sites:id');
  * GET /api/sites/[id]
  * Get a single site by ID
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching site', { id: params.id });
 
 	try {
 		const { id } = siteIdSchema.parse(params);
+
+		// Tenant boundary: 404 when the site is not in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'site', id);
+
 		const site = await siteService.getSiteById(id);
 
 		log.info('Site fetched', {

@@ -14,7 +14,11 @@ import { createServerLogger } from '$lib/utils/logger.server';
 const log = createServerLogger('service:students');
 
 /**
- * Get all students, ordered by name
+ * Get all students, ordered by name.
+ *
+ * @deprecated Unscoped — returns EVERY tenant's students. Use
+ * `getStudentsBySchedule(db, scheduleId)` in any request path. Retained only for
+ * the seed/scripts, which legitimately operate across all data.
  */
 export async function getStudents(db: Kysely<DB>): Promise<Selectable<Students>[]> {
 	return await db.selectFrom('students').selectAll().orderBy('name', 'asc').execute();
@@ -248,7 +252,10 @@ export interface StudentWithOnboarding extends Selectable<Students> {
 }
 
 /**
- * Get all students with their onboarding completion stats
+ * Get all students with their onboarding completion stats.
+ *
+ * @deprecated Unscoped — spans every tenant. Use
+ * `getStudentsWithOnboardingStatsBySchedule(db, scheduleId)` in request paths.
  */
 export async function getStudentsWithOnboardingStats(
 	db: Kysely<DB>
@@ -302,10 +309,12 @@ export async function getStudentsWithOnboardingStatsBySchedule(
 		throw new Error('Schedule ID is required');
 	}
 
-	// Get total health systems count
+	// Total health systems in THIS schedule (the onboarding denominator). A
+	// global count would leak other tenants' health systems into the stat.
 	const healthSystemCount = await db
-		.selectFrom('health_systems')
+		.selectFrom('schedule_health_systems')
 		.select(sql<number>`count(*)`.as('count'))
+		.where('schedule_id', '=', scheduleId)
 		.executeTakeFirst();
 
 	const totalHealthSystems = Number(healthSystemCount?.count || 0);

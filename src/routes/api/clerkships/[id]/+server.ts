@@ -21,6 +21,7 @@ import {
 	deleteClerkship
 } from '$lib/features/clerkships/services/clerkship-service.js';
 import { updateClerkshipSchema, clerkshipIdSchema } from '$lib/features/clerkships/schemas.js';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -30,12 +31,16 @@ const log = createServerLogger('api:clerkships:id');
  * GET /api/clerkships/[id]
  * Returns a single clerkship
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching clerkship', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = clerkshipIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 when the clerkship is not in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', id);
 
 		const clerkship = await getClerkshipById(db, id);
 

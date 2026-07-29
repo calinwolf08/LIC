@@ -8,13 +8,109 @@ import { db } from '$lib/db';
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, SchedulingPeriods } from '$lib/db/types';
 import { nanoid } from 'nanoid';
-import { NotFoundError } from './errors';
+import { NotFoundError, UnauthorizedError, ValidationError } from './errors';
+
+/** The entity kinds that belong to a schedule through a `schedule_*` junction. */
+export type ScheduleEntityKind =
+	| 'student'
+	| 'preceptor'
+	| 'clerkship'
+	| 'site'
+	| 'health_system'
+	| 'team';
+
+const JUNCTION_TABLE: Record<ScheduleEntityKind, keyof DB> = {
+	student: 'schedule_students',
+	preceptor: 'schedule_preceptors',
+	clerkship: 'schedule_clerkships',
+	site: 'schedule_sites',
+	health_system: 'schedule_health_systems',
+	team: 'schedule_teams'
+};
+
+const JUNCTION_ID_COLUMN: Record<ScheduleEntityKind, string> = {
+	student: 'student_id',
+	preceptor: 'preceptor_id',
+	clerkship: 'clerkship_id',
+	site: 'site_id',
+	health_system: 'health_system_id',
+	team: 'team_id'
+};
+
+/** Minimal shape of `event.locals` we need to resolve the active schedule. */
+export interface ScheduleLocals {
+	session: { user?: { id?: string | null } | null } | null;
+}
+
+/**
+ * Resolve the signed-in user's active schedule id, throwing a typed API error
+ * when there is no session (401) or no active schedule (400). This is the one
+ * gate every scoped read/mutation should pass through — services never resolve
+ * the schedule internally.
+ */
+export async function requireActiveScheduleId(
+	locals: ScheduleLocals,
+	dbConn: Kysely<DB> = db
+): Promise<string> {
+	const userId = locals.session?.user?.id;
+	if (!userId) {
+		throw new UnauthorizedError('Authentication required');
+	}
+	const scheduleId = await getActiveScheduleId(userId, dbConn);
+	if (!scheduleId) {
+		throw new ValidationError('No active schedule. Please create or select a schedule first.');
+	}
+	return scheduleId;
+}
+
+/**
+ * True when `entityId` is linked to `scheduleId` through its `schedule_*`
+ * junction. The tenant-boundary check for a single entity.
+ */
+export async function isEntityInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	kind: ScheduleEntityKind,
+	entityId: string
+): Promise<boolean> {
+	const table = JUNCTION_TABLE[kind];
+	const idColumn = JUNCTION_ID_COLUMN[kind];
+	const row = await dbConn
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		.selectFrom(table as any)
+		.select('id')
+		.where('schedule_id', '=', scheduleId)
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		.where(idColumn as any, '=', entityId)
+		.executeTakeFirst();
+	return Boolean(row);
+}
+
+/**
+ * Assert that an entity belongs to the caller's active schedule, throwing
+ * `NotFoundError` (→ 404) when it does not. **404, not 403** — a 403 confirms
+ * the row exists, which is itself a cross-tenant disclosure.
+ */
+export async function assertEntityInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	kind: ScheduleEntityKind,
+	entityId: string
+): Promise<void> {
+	const ok = await isEntityInSchedule(dbConn, scheduleId, kind, entityId);
+	if (!ok) {
+		throw new NotFoundError(kind.replace('_', ' '));
+	}
+}
 
 /**
  * Get the active schedule ID for a user
  */
-export async function getActiveScheduleId(userId: string): Promise<string | null> {
-	const user = await db
+export async function getActiveScheduleId(
+	userId: string,
+	dbConn: Kysely<DB> = db
+): Promise<string | null> {
+	const user = await dbConn
 		.selectFrom('user')
 		.select('active_schedule_id')
 		.where('id', '=', userId)

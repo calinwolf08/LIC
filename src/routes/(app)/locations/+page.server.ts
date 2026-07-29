@@ -1,23 +1,35 @@
 import { db } from '$lib/db';
-import { siteService } from '$lib/features/sites/services/site-service';
+import { SiteService } from '$lib/features/sites/services/site-service';
+import { getActiveScheduleId } from '$lib/api/schedule-context';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const [healthSystems, sites] = await Promise.all([
-		db.selectFrom('health_systems').selectAll().execute(),
-		siteService.getAllSites()
-	]);
+export const load: PageServerLoad = async ({ locals }) => {
+	const userId = locals.session?.user?.id;
+	const scheduleId = userId ? await getActiveScheduleId(userId) : null;
 
-	const sitesWithHealthSystems = await Promise.all(
-		sites.map(async (site) => {
-			const healthSystem = await db
-				.selectFrom('health_systems')
-				.select('name')
-				.where('id', '=', site.health_system_id)
-				.executeTakeFirst();
-			return { ...site, health_system_name: healthSystem?.name || 'Unknown' };
-		})
-	);
+	// No active schedule → nothing to show (never fall back to a global list,
+	// which would leak every tenant's locations).
+	if (!scheduleId) {
+		return { healthSystems: [], sites: [] };
+	}
+
+	// Health systems and sites, both scoped to the active schedule through their
+	// junction tables.
+	const healthSystems = await db
+		.selectFrom('health_systems')
+		.innerJoin('schedule_health_systems', 'health_systems.id', 'schedule_health_systems.health_system_id')
+		.where('schedule_health_systems.schedule_id', '=', scheduleId)
+		.selectAll('health_systems')
+		.orderBy('health_systems.name', 'asc')
+		.execute();
+
+	const sites = await new SiteService(db).getSitesBySchedule(scheduleId);
+
+	const hsNameById = new Map(healthSystems.map((hs) => [hs.id, hs.name]));
+	const sitesWithHealthSystems = sites.map((site) => ({
+		...site,
+		health_system_name: hsNameById.get(site.health_system_id) || 'Unknown'
+	}));
 
 	return {
 		healthSystems,
