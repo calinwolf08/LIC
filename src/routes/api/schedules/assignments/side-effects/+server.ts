@@ -11,7 +11,12 @@
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
-import { getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	getActiveScheduleId,
+	assertEntityInSchedule,
+	assertAssignmentInSchedule
+} from '$lib/api/schedule-context';
+import { isApiError } from '$lib/api/errors';
 import {
 	applyOverrideSideEffects,
 	type OverrideSideEffect
@@ -63,12 +68,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		const input = schema.parse(body);
+
+		// Ownership guard: every side-effect target must be in the caller's
+		// schedule, or the override flow becomes a way to mutate another tenant's
+		// preceptor capacity/availability or delete their assignments. Any miss
+		// throws NotFoundError (404) before the transaction runs.
+		for (const effect of input.side_effects) {
+			if (effect.kind === 'bump_preceptor_capacity') {
+				await assertEntityInSchedule(db, scheduleId, 'preceptor', effect.preceptor_id);
+			} else if (effect.kind === 'mark_preceptor_available') {
+				await assertEntityInSchedule(db, scheduleId, 'preceptor', effect.preceptor_id);
+				await assertEntityInSchedule(db, scheduleId, 'site', effect.site_id);
+			} else if (effect.kind === 'remove_conflicting_assignment') {
+				await assertAssignmentInSchedule(db, scheduleId, effect.assignment_id);
+			}
+		}
+
 		await db.transaction().execute(async (trx) => {
 			await applyOverrideSideEffects(trx, input.side_effects as OverrideSideEffect[]);
 		});
 		return successResponse({ applied: input.side_effects.length });
 	} catch (err) {
 		if (err instanceof z.ZodError) return errorResponse('Invalid request', 400, err.issues);
+		if (isApiError(err)) return errorResponse(err.message, err.status, err.details);
 		log.error('Failed to apply override side effects', { error: err });
 		return errorResponse('Failed to apply the requested changes', 500);
 	}

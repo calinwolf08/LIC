@@ -15,6 +15,7 @@ import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { getSchedulingPeriodById } from '$lib/features/scheduling/services/scheduling-period-service';
 import { duplicateToNewSchedule } from '$lib/features/schedules/services/schedule-duplication.service';
 import { duplicateScheduleSchema } from '$lib/features/preceptors/pattern-schemas';
+import { assertScheduleOwnedByUser } from '$lib/api/schedule-context';
 import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -47,6 +48,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	try {
 		const sourceScheduleId = cuid2Schema.parse(params.id);
+
+		// Ownership guard: only the owner may duplicate their schedule (otherwise
+		// a user could clone another tenant's schedule and its entities).
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, sourceScheduleId);
 
 		// Verify source schedule exists
 		const sourceSchedule = await getSchedulingPeriodById(db, sourceScheduleId);

@@ -19,6 +19,7 @@ import {
 	isDateInPast
 } from '$lib/features/schedules/services/assignment-service.js';
 import { assignmentIdSchema, updateAssignmentSchema } from '$lib/features/schedules/schemas.js';
+import { requireActiveScheduleId, assertAssignmentInSchedule } from '$lib/api/schedule-context';
 import { hasAutogen } from '$lib/server/entitlements';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -29,11 +30,15 @@ const log = createServerLogger('api:schedules:assignments:id');
  * GET /api/schedules/assignments/[id]
  * Returns a single assignment
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching assignment', { id: params.id });
 
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 unless the assignment's student is in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, id);
 
 		const assignment = await getAssignmentById(db, id);
 
@@ -74,6 +79,11 @@ export const PATCH: RequestHandler = async ({ params, request, url, locals }) =>
 
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the assignment's student is in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, id);
+
 		const body = await request.json();
 
 		// Handle the lock toggle separately (not part of updateAssignmentSchema).
@@ -146,12 +156,16 @@ export const PATCH: RequestHandler = async ({ params, request, url, locals }) =>
  * returns 409 carrying the `past_date` code so the UI can offer the explicit
  * "Remove anyway" override (Step 17/19).
  */
-export const DELETE: RequestHandler = async ({ params, url }) => {
+export const DELETE: RequestHandler = async ({ params, url, locals }) => {
 	const force = url.searchParams.get('force') === 'true';
 	log.debug('Deleting assignment', { id: params.id, force });
 
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the assignment's student is in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, id);
 
 		if (!force) {
 			const existing = await getAssignmentById(db, id);

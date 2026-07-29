@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
-import { requireActiveScheduleId } from '$lib/api/schedule-context';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { sql } from 'kysely';
 
@@ -49,7 +49,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  *
  * Body: { student_id, health_system_id, is_completed, completed_date? }
  */
-export const PUT: RequestHandler = async ({ request }) => {
+export const PUT: RequestHandler = async ({ request, locals }) => {
 	log.debug('Upserting student onboarding record');
 
 	try {
@@ -60,6 +60,12 @@ export const PUT: RequestHandler = async ({ request }) => {
 			log.warn('Missing required fields for onboarding upsert');
 			return errorResponse('student_id and health_system_id are required', 400);
 		}
+
+		// Ownership guard: the student and the health system must both be in the
+		// caller's schedule before we write an onboarding row.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', student_id);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', health_system_id);
 
 		log.debug('Processing onboarding upsert', {
 			studentId: student_id,

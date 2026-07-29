@@ -70,12 +70,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
  * PATCH /api/students/[id]
  * Updates a student
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating student', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = studentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the student is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', id);
 
 		// Parse and validate request body
 		const body = await request.json();
@@ -118,12 +122,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/students/[id]
  * Deletes a student
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting student', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = studentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the student is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', id);
 
 		await deleteStudent(db, id);
 

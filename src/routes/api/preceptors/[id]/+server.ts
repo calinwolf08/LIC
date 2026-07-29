@@ -89,12 +89,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
  * PATCH /api/preceptors/[id]
  * Updates a preceptor
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating preceptor', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		// Parse and validate request body
 		const body = await request.json();
@@ -153,12 +157,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/preceptors/[id]
  * Deletes a preceptor
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting preceptor', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		await deletePreceptor(db, id);
 

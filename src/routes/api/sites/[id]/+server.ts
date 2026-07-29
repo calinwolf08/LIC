@@ -53,11 +53,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
  * PATCH /api/sites/[id]
  * Update a site
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating site', { id: params.id });
 
 	try {
 		const { id } = siteIdSchema.parse(params);
+
+		// Ownership guard: 404 unless the site is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'site', id);
+
 		const body = await request.json();
 		const input = updateSiteSchema.parse(body);
 
@@ -98,11 +103,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/sites/[id]
  * Delete a site
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting site', { id: params.id });
 
 	try {
 		const { id } = siteIdSchema.parse(params);
+
+		// Ownership guard: 404 unless the site is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'site', id);
+
 		await siteService.deleteSite(id);
 
 		log.info('Site deleted', { id });

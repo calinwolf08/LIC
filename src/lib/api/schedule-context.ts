@@ -165,6 +165,61 @@ export async function getScheduleRange(
 }
 
 /**
+ * True when `assignmentId` belongs to the caller's schedule. Assignments have
+ * no `schedule_id`; ownership flows through the assigned student's
+ * `schedule_students` row.
+ */
+export async function isAssignmentInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	assignmentId: string
+): Promise<boolean> {
+	const row = await dbConn
+		.selectFrom('schedule_assignments as sa')
+		.innerJoin('schedule_students as ss', (join) =>
+			join.onRef('ss.student_id', '=', 'sa.student_id').on('ss.schedule_id', '=', scheduleId)
+		)
+		.where('sa.id', '=', assignmentId)
+		.select('sa.id')
+		.executeTakeFirst();
+	return Boolean(row);
+}
+
+/**
+ * Assert that an assignment belongs to the caller's schedule, throwing
+ * `NotFoundError` (→ 404) otherwise.
+ */
+export async function assertAssignmentInSchedule(
+	dbConn: Kysely<DB>,
+	scheduleId: string,
+	assignmentId: string
+): Promise<void> {
+	if (!(await isAssignmentInSchedule(dbConn, scheduleId, assignmentId))) {
+		throw new NotFoundError('Assignment');
+	}
+}
+
+/**
+ * Assert that a scheduling period is owned by the given user
+ * (`scheduling_periods.user_id`), throwing `NotFoundError` (→ 404) otherwise.
+ */
+export async function assertScheduleOwnedByUser(
+	dbConn: Kysely<DB>,
+	userId: string,
+	scheduleId: string
+): Promise<void> {
+	const row = await dbConn
+		.selectFrom('scheduling_periods')
+		.select('id')
+		.where('id', '=', scheduleId)
+		.where('user_id', '=', userId)
+		.executeTakeFirst();
+	if (!row) {
+		throw new NotFoundError('Schedule');
+	}
+}
+
+/**
  * Associate an entity with a schedule
  */
 export async function associateEntityWithSchedule(

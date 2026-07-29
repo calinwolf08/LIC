@@ -58,10 +58,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 /**
  * PUT /api/health-systems/[id]
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating health system', { id: params.id });
 
 	try {
+		// Ownership guard: 404 unless the health system is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', params.id);
+
 		const body = await request.json();
 		const validatedData = healthSystemInputSchema.parse(body);
 
@@ -105,10 +109,14 @@ export const PATCH: RequestHandler = PUT;
 /**
  * DELETE /api/health-systems/[id]
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting health system', { id: params.id });
 
 	try {
+		// Ownership guard: 404 unless the health system is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', params.id);
+
 		// Check dependencies first
 		const dependenciesResult = await service.getHealthSystemDependencies(params.id);
 

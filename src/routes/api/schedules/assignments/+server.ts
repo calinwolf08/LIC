@@ -19,7 +19,12 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { json } from '@sveltejs/kit';
 import { successResponse, errorResponse } from '$lib/api/responses';
-import { getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	getActiveScheduleId,
+	assertEntityInSchedule,
+	assertAssignmentInSchedule
+} from '$lib/api/schedule-context';
+import { isApiError } from '$lib/api/errors';
 import {
 	createManualAssignment,
 	createManualAssignmentsBulk,
@@ -88,6 +93,39 @@ const bulkSchema = baseSchema.extend({
 	skip_blackouts: z.boolean().optional()
 });
 
+/**
+ * Ownership guards for a create payload: every entity the assignment references,
+ * plus every side-effect target, must be in the caller's schedule. Throws
+ * NotFoundError (→ 404) on the first miss, before any write.
+ */
+async function guardCreatePayload(
+	scheduleId: string,
+	input: {
+		student_id: string;
+		preceptor_id: string;
+		clerkship_id: string;
+		site_id?: string | null;
+		side_effects?: OverrideSideEffect[];
+	}
+): Promise<void> {
+	await assertEntityInSchedule(db, scheduleId, 'student', input.student_id);
+	await assertEntityInSchedule(db, scheduleId, 'preceptor', input.preceptor_id);
+	await assertEntityInSchedule(db, scheduleId, 'clerkship', input.clerkship_id);
+	if (input.site_id) {
+		await assertEntityInSchedule(db, scheduleId, 'site', input.site_id);
+	}
+	for (const effect of input.side_effects ?? []) {
+		if (effect.kind === 'bump_preceptor_capacity') {
+			await assertEntityInSchedule(db, scheduleId, 'preceptor', effect.preceptor_id);
+		} else if (effect.kind === 'mark_preceptor_available') {
+			await assertEntityInSchedule(db, scheduleId, 'preceptor', effect.preceptor_id);
+			await assertEntityInSchedule(db, scheduleId, 'site', effect.site_id);
+		} else if (effect.kind === 'remove_conflicting_assignment') {
+			await assertAssignmentInSchedule(db, scheduleId, effect.assignment_id);
+		}
+	}
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const userId = locals.session?.user?.id;
 	if (!userId) return errorResponse('Not authenticated', 401);
@@ -113,6 +151,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		if (isDateList || isRange) {
 			const input = isDateList ? datesSchema.parse(body) : bulkSchema.parse(body);
+			await guardCreatePayload(scheduleId, input as unknown as Parameters<typeof guardCreatePayload>[1]);
 			const previewDate = isDateList
 				? (input as z.infer<typeof datesSchema>).dates[0]
 				: (input as z.infer<typeof bulkSchema>).start_date;
@@ -148,6 +187,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const input = singleSchema.parse(body);
+		await guardCreatePayload(scheduleId, input as unknown as Parameters<typeof guardCreatePayload>[1]);
 		const candidate = {
 			student_id: input.student_id,
 			preceptor_id: input.preceptor_id,
@@ -204,6 +244,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		if (err instanceof z.ZodError) {
 			return errorResponse('Invalid request', 400, err.issues);
+		}
+		if (isApiError(err)) {
+			return errorResponse(err.message, err.status, err.details);
 		}
 		log.error('Failed to create manual assignment', { error: err });
 		return errorResponse('Failed to create assignment', 500);

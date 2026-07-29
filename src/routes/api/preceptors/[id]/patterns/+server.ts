@@ -19,6 +19,7 @@ import {
 } from '$lib/features/preceptors/services/pattern-service';
 import { createPatternSchema } from '$lib/features/preceptors/pattern-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -67,12 +68,16 @@ export const GET: RequestHandler = async ({ params }) => {
  * POST /api/preceptors/[id]/patterns
  * Create a new pattern for a preceptor
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Creating preceptor pattern', { preceptorId: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		// Parse and validate request body
 		const body = await request.json();

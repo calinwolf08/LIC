@@ -15,6 +15,7 @@ import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { saveGeneratedDates } from '$lib/features/preceptors/services/pattern-service';
 import { savePatternDatesSchema } from '$lib/features/preceptors/pattern-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -24,12 +25,16 @@ const log = createServerLogger('api:preceptors:patterns:save');
  * POST /api/preceptors/[id]/patterns/save
  * Generate dates from patterns and save to preceptor_availability table
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Saving generated pattern dates', { preceptorId: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		// Parse request body
 		const body = await request.json();

@@ -21,6 +21,7 @@ import {
 } from '$lib/features/preceptors/services/pattern-service';
 import { updatePatternSchema } from '$lib/features/preceptors/pattern-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -96,7 +97,7 @@ export const GET: RequestHandler = async ({ params }) => {
  * PUT /api/preceptors/[id]/patterns/[pattern_id]
  * Update a pattern
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating pattern', {
 		preceptorId: params.id,
 		patternId: params.pattern_id
@@ -106,6 +107,10 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		// Validate IDs
 		const { id: preceptorId } = preceptorIdSchema.parse({ id: params.id });
 		const patternId = cuid2Schema.parse(params.pattern_id);
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', preceptorId);
 
 		// Verify pattern exists and belongs to preceptor
 		const existing = await getPatternById(db, patternId);
@@ -173,7 +178,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
  * DELETE /api/preceptors/[id]/patterns/[pattern_id]
  * Delete a pattern
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting pattern', {
 		preceptorId: params.id,
 		patternId: params.pattern_id
@@ -183,6 +188,10 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		// Validate IDs
 		const { id: preceptorId } = preceptorIdSchema.parse({ id: params.id });
 		const patternId = cuid2Schema.parse(params.pattern_id);
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', preceptorId);
 
 		// Verify pattern exists and belongs to preceptor
 		const existing = await getPatternById(db, patternId);
