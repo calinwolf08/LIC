@@ -37,3 +37,6 @@ sqlite.db-wal
 test-sqlite.db*
 test-results/
 playwright-report/
+
+# Vitest browser-mode failure screenshots
+__screenshots__/
