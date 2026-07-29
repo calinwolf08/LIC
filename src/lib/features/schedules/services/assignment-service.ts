@@ -18,6 +18,7 @@ import { getPreceptorById } from '$lib/features/preceptors/services/preceptor-se
 import { getClerkshipById } from '$lib/features/clerkships/services/clerkship-service';
 import { isDateBlackedOut } from '$lib/features/blackout-dates/services/blackout-date-service';
 import { getAvailabilityByDate } from '$lib/features/preceptors/services/availability-service';
+import { validateSchedule } from '$lib/features/scheduling/services/schedule-validation';
 import { createServerLogger } from '$lib/utils/logger.server';
 import {
 	validateAssignmentCandidate,
@@ -328,6 +329,8 @@ export async function applyOverrideSideEffects(
 	}
 }
 
+export type OverrideStatus = 'active' | 'resolved';
+
 export interface OverrideRecord {
 	assignmentId: string;
 	date: string;
@@ -340,13 +343,46 @@ export interface OverrideRecord {
 	codes: string[];
 	note: string | null;
 	createdAt: string;
+	/**
+	 * `active` — at least one accepted code still corresponds to a live condition
+	 * (or a code we cannot re-evaluate, kept active to be safe). `resolved` — every
+	 * re-checkable code no longer applies (e.g. the student has since onboarded).
+	 */
+	status: OverrideStatus;
+}
+
+/**
+ * Codes `validateSchedule` re-evaluates. A code outside this set (e.g.
+ * `past_date`, `over_required_days`) cannot be proven resolved, so an override
+ * carrying one stays `active` rather than being silently hidden.
+ */
+const REEVALUABLE_CODES = new Set([
+	'not_onboarded',
+	'preceptor_unavailable',
+	'blackout_date',
+	'preceptor_capacity',
+	'site_not_allowed',
+	'outside_schedule',
+	'student_double_booked'
+]);
+
+export interface ListOverridesOptions {
+	/** Include overrides whose conditions no longer apply. Default false (active only). */
+	includeResolved?: boolean;
 }
 
 /**
  * Every assignment in the schedule that carries an accepted override, for the
- * calendar's review list (Step 20).
+ * calendar's review list (Step 20/32). Each override is re-evaluated against
+ * current state: an exception that no longer applies is marked `resolved` and,
+ * by default, filtered out — history is not lost, but stale exceptions do not
+ * masquerade as outstanding.
  */
-export async function listOverrides(db: Kysely<DB>, scheduleId: string): Promise<OverrideRecord[]> {
+export async function listOverrides(
+	db: Kysely<DB>,
+	scheduleId: string,
+	options: ListOverridesOptions = {}
+): Promise<OverrideRecord[]> {
 	// Assignments scope to a schedule transitively, through schedule_students.
 	const rows = await db
 		.selectFrom('schedule_assignments as sa')
@@ -372,21 +408,122 @@ export async function listOverrides(db: Kysely<DB>, scheduleId: string): Promise
 		.orderBy('sa.date', 'asc')
 		.execute();
 
-	return rows
-		.map((r) => ({
-			assignmentId: r.id as string,
-			date: r.date,
-			studentId: r.student_id,
-			studentName: r.student_name,
-			clerkshipId: r.clerkship_id,
-			clerkshipName: r.clerkship_name,
-			preceptorId: r.preceptor_id,
-			preceptorName: r.preceptor_name,
-			codes: parseCodes(r.override_codes),
-			note: r.override_note,
-			createdAt: r.created_at
-		}))
+	// Live conditions right now, indexed per assignment (capacity is slot-scoped,
+	// so its finding touches every assignment on the over-subscribed day).
+	const validation = await validateSchedule(db, scheduleId);
+	const liveByAssignment = new Map<string, Set<string>>();
+	for (const v of validation.violations) {
+		for (const id of v.assignment_ids) {
+			const set = liveByAssignment.get(id) ?? new Set<string>();
+			set.add(v.code);
+			liveByAssignment.set(id, set);
+		}
+	}
+
+	const records = rows
+		.map((r) => {
+			const codes = parseCodes(r.override_codes);
+			const live = liveByAssignment.get(r.id as string) ?? new Set<string>();
+			// Active if any code is either still live, or is one we can't re-check.
+			const active = codes.some((c) => !REEVALUABLE_CODES.has(c) || live.has(c));
+			return {
+				assignmentId: r.id as string,
+				date: r.date,
+				studentId: r.student_id,
+				studentName: r.student_name,
+				clerkshipId: r.clerkship_id,
+				clerkshipName: r.clerkship_name,
+				preceptorId: r.preceptor_id,
+				preceptorName: r.preceptor_name,
+				codes,
+				note: r.override_note,
+				createdAt: r.created_at,
+				status: (active ? 'active' : 'resolved') as OverrideStatus
+			};
+		})
 		.filter((r) => r.codes.length > 0);
+
+	return options.includeResolved ? records : records.filter((r) => r.status === 'active');
+}
+
+export interface GroupedOverride {
+	studentId: string;
+	studentName: string;
+	clerkshipId: string;
+	clerkshipName: string;
+	preceptorId: string;
+	preceptorName: string;
+	codes: string[];
+	status: OverrideStatus;
+	startDate: string;
+	endDate: string;
+	days: number;
+	dates: string[];
+	assignmentIds: string[];
+	note: string | null;
+}
+
+/** YYYY-MM-DD one day after `date`. */
+function nextDay(date: string): string {
+	const d = new Date(date + 'T00:00:00.000Z');
+	d.setUTCDate(d.getUTCDate() + 1);
+	return d.toISOString().split('T')[0];
+}
+
+/**
+ * Collapse consecutive days sharing the same (student, clerkship, preceptor,
+ * code-set, status) into a single row with a date range — so a four-day
+ * double-booking reads as one entry, not four. Never merges across different
+ * codes or preceptors.
+ */
+export function groupOverrides(records: OverrideRecord[]): GroupedOverride[] {
+	const keyOf = (r: OverrideRecord) =>
+		[r.studentId, r.clerkshipId, r.preceptorId, r.status, [...r.codes].sort().join('|')].join('::');
+
+	const byKey = new Map<string, OverrideRecord[]>();
+	for (const r of records) {
+		const list = byKey.get(keyOf(r)) ?? [];
+		list.push(r);
+		byKey.set(keyOf(r), list);
+	}
+
+	const groups: GroupedOverride[] = [];
+	for (const list of byKey.values()) {
+		const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+		let run: OverrideRecord[] = [];
+		const flush = () => {
+			if (run.length === 0) return;
+			const first = run[0];
+			groups.push({
+				studentId: first.studentId,
+				studentName: first.studentName,
+				clerkshipId: first.clerkshipId,
+				clerkshipName: first.clerkshipName,
+				preceptorId: first.preceptorId,
+				preceptorName: first.preceptorName,
+				codes: [...first.codes].sort(),
+				status: first.status,
+				startDate: run[0].date,
+				endDate: run[run.length - 1].date,
+				days: run.length,
+				dates: run.map((r) => r.date),
+				assignmentIds: run.map((r) => r.assignmentId),
+				note: run.map((r) => r.note).find((n) => n) ?? null
+			});
+			run = [];
+		};
+		for (const r of sorted) {
+			if (run.length === 0 || r.date === nextDay(run[run.length - 1].date)) {
+				run.push(r);
+			} else {
+				flush();
+				run.push(r);
+			}
+		}
+		flush();
+	}
+
+	return groups.sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
 /** `override_codes` is stored as a JSON array of strings; be defensive. */

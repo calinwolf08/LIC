@@ -12,6 +12,7 @@ import {
 	createManualAssignmentsBulk,
 	applyOverrideSideEffects,
 	listOverrides,
+	groupOverrides,
 	parseCodes,
 	deleteAssignment,
 	getAssignmentById
@@ -471,5 +472,140 @@ describe('past-dated deletion', () => {
 		const id = await pastAssignmentId();
 		await deleteAssignment(db, id, true);
 		expect(await getAssignmentById(db, id)).toBeNull();
+	});
+});
+
+describe('listOverrides — active/resolved re-evaluation', () => {
+	let db: Kysely<DB>;
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	async function insertAssignment(
+		id: string,
+		studentId: string,
+		date: string,
+		codes: string[],
+		preceptorId = PRECEPTOR
+	) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id,
+				student_id: studentId,
+				preceptor_id: preceptorId,
+				clerkship_id: CLERKSHIP,
+				site_id: SITE,
+				date,
+				override_codes: JSON.stringify(codes),
+				status: 'scheduled',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('marks not_onboarded resolved once the student has onboarded', async () => {
+		await db
+			.updateTable('preceptors')
+			.set({ health_system_id: 'hs-1' })
+			.where('id', '=', PRECEPTOR)
+			.execute();
+		await insertAssignment('a1', STUDENT, FUTURE, ['not_onboarded']);
+
+		const active = await listOverrides(db, SCHEDULE);
+		expect(active).toHaveLength(1);
+		expect(active[0].status).toBe('active');
+
+		// Onboard the student → the exception no longer applies.
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('student_health_system_onboarding')
+			.values({
+				id: 'onb1',
+				student_id: STUDENT,
+				health_system_id: 'hs-1',
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		expect(await listOverrides(db, SCHEDULE)).toHaveLength(0);
+		const withResolved = await listOverrides(db, SCHEDULE, { includeResolved: true });
+		expect(withResolved).toHaveLength(1);
+		expect(withResolved[0].status).toBe('resolved');
+	});
+
+	it('flips a capacity override to resolved when max_students is raised', async () => {
+		await insertAssignment('a1', STUDENT, FUTURE, ['preceptor_capacity']);
+		await insertAssignment('a2', STUDENT2, FUTURE, ['preceptor_capacity']);
+
+		expect(await listOverrides(db, SCHEDULE)).toHaveLength(2);
+		expect((await listOverrides(db, SCHEDULE)).every((o) => o.status === 'active')).toBe(true);
+
+		await db
+			.updateTable('preceptors')
+			.set({ max_students: 2 })
+			.where('id', '=', PRECEPTOR)
+			.execute();
+
+		expect(await listOverrides(db, SCHEDULE)).toHaveLength(0);
+		expect(await listOverrides(db, SCHEDULE, { includeResolved: true })).toHaveLength(2);
+	});
+
+	it('keeps a non-re-evaluable code (past_date) active', async () => {
+		await insertAssignment('a1', STUDENT, PAST, ['past_date']);
+		const active = await listOverrides(db, SCHEDULE);
+		expect(active).toHaveLength(1);
+		expect(active[0].status).toBe('active');
+	});
+});
+
+describe('groupOverrides', () => {
+	const rec = (date: string, over: Partial<Parameters<typeof groupOverrides>[0][number]> = {}) => ({
+		assignmentId: `a-${date}`,
+		date,
+		studentId: 's1',
+		studentName: 'Alice',
+		clerkshipId: 'c1',
+		clerkshipName: 'Peds',
+		preceptorId: 'p1',
+		preceptorName: 'Dr P',
+		codes: ['preceptor_capacity'],
+		note: null,
+		createdAt: '',
+		status: 'active' as const,
+		...over
+	});
+
+	it('collapses four consecutive days into one row', () => {
+		const groups = groupOverrides(
+			['2030-03-03', '2030-03-04', '2030-03-05', '2030-03-06'].map((d) => rec(d))
+		);
+		expect(groups).toHaveLength(1);
+		expect(groups[0].days).toBe(4);
+		expect(groups[0].startDate).toBe('2030-03-03');
+		expect(groups[0].endDate).toBe('2030-03-06');
+		expect(groups[0].assignmentIds).toHaveLength(4);
+	});
+
+	it('does not merge across different codes or preceptors', () => {
+		const groups = groupOverrides([
+			rec('2030-03-03'),
+			rec('2030-03-04', { codes: ['blackout_date'] }),
+			rec('2030-03-05', { preceptorId: 'p2' })
+		]);
+		expect(groups).toHaveLength(3);
+	});
+
+	it('splits a non-consecutive gap into separate rows', () => {
+		const groups = groupOverrides([rec('2030-03-03'), rec('2030-03-05')]);
+		expect(groups).toHaveLength(2);
 	});
 });

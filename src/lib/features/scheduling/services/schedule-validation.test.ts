@@ -190,10 +190,55 @@ describe('validateSchedule', () => {
 			.execute();
 
 		const r = await validateSchedule(db, SCHED);
-		// Both assignments on that date are over capacity.
-		expect(r.counts['preceptor_capacity']).toBe(2);
-		expect(r.byPreceptor[PREC]?.filter((v) => v.code === 'preceptor_capacity')).toHaveLength(2);
+		// ONE finding for the over-subscribed preceptor-day, referencing both
+		// assignments — not one finding per assignment.
+		expect(r.counts['preceptor_capacity']).toBe(1);
+		const cap = r.byPreceptor[PREC]?.filter((v) => v.code === 'preceptor_capacity') ?? [];
+		expect(cap).toHaveLength(1);
+		expect(cap[0].assignment_ids.sort()).toEqual(['a1', 'a2']);
 		expect(r.byDate['2025-03-03']?.some((v) => v.code === 'preceptor_capacity')).toBe(true);
+		// The top-level pill (violations.length) equals the sum of the by-code counts.
+		expect(r.violations.length).toBe(
+			Object.values(r.counts).reduce((a, b) => a + b, 0)
+		);
+	});
+
+	it('emits one capacity finding per day (four double-booked days ⇒ 4, not 8)', async () => {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('students')
+			.values({ id: 'stu-2', name: 'Bob', email: 'b@x.com', created_at: ts, updated_at: ts })
+			.execute();
+		await db
+			.insertInto('schedule_students')
+			.values({ id: 'ss2', schedule_id: SCHED, student_id: 'stu-2', created_at: ts })
+			.execute();
+		await db
+			.insertInto('student_health_system_onboarding')
+			.values({ id: 'ob2', student_id: 'stu-2', health_system_id: HS, is_completed: 1, created_at: ts, updated_at: ts })
+			.execute();
+
+		const days = ['2025-03-03', '2025-03-04', '2025-03-05', '2025-03-06'];
+		let n = 0;
+		for (const d of days) {
+			await addAssignment(db, `a${n++}`, d);
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: `b${n++}`,
+					student_id: 'stu-2',
+					preceptor_id: PREC,
+					clerkship_id: CLERK,
+					date: d,
+					status: 'scheduled',
+					created_at: ts,
+					updated_at: ts
+				})
+				.execute();
+		}
+
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['preceptor_capacity']).toBe(4);
 	});
 
 	it('indexes violations by date, student, and preceptor', async () => {

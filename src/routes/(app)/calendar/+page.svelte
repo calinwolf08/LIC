@@ -14,7 +14,6 @@
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
 	import { AssignmentDialog } from '$lib/features/schedules/components';
 	import ScheduleHealthPanel from '$lib/features/schedules/components/schedule-health-panel.svelte';
-	import type { OverrideRow } from '$lib/features/schedules/components/schedule-health-panel.svelte';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -166,18 +165,8 @@
 		}
 	}
 
-	// Accepted overrides, so the user can review the exceptions they made.
-	let overrides = $state<OverrideRow[]>([]);
-
-	async function loadOverrides() {
-		try {
-			const res = await fetch('/api/schedules/overrides');
-			const body = await res.json();
-			if (body.success) overrides = body.data.overrides ?? [];
-		} catch (e) {
-			console.error('Failed to load overrides', e);
-		}
-	}
+	// Bumped after any edit so the health panel refetches its (self-owned) override list.
+	let healthRefreshKey = $state(0);
 
 	function openAssignmentById(assignmentId: string) {
 		editAssignmentId = assignmentId;
@@ -189,11 +178,10 @@
 		loadCalendar();
 	});
 
-	// Validation and overrides are independent of filters — load once on mount
-	// and again after any edit.
+	// Validation is independent of filters — load once on mount and again after
+	// any edit. (The health panel fetches overrides itself, keyed by healthRefreshKey.)
 	$effect(() => {
 		loadValidation();
-		loadOverrides();
 	});
 
 	// Group events by date
@@ -261,7 +249,7 @@
 		selectedAssignment = null;
 		loadCalendar();
 		loadValidation();
-		loadOverrides();
+		healthRefreshKey += 1;
 	}
 
 	// Reassign
@@ -523,7 +511,7 @@
 	<ScheduleHealthPanel
 		countsByCode={violationCounts}
 		{violationCount}
-		{overrides}
+		refreshKey={healthRefreshKey}
 		onOpenAssignment={openAssignmentById}
 	/>
 
