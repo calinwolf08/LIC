@@ -45,6 +45,23 @@ The seed also creates a second account whose data is all named **"Tenant B …"*
 (owned by `basic@example.com`), so tenant-isolation can be checked by hand and
 by the `tenant-isolation` e2e journey. The seed is idempotent.
 
+### Seeded demo scenario
+
+So the calendar, schedule-health panel and override review have content on first
+run, `admin@example.com` starts with a hand-built set of assignments (all dates
+anchored to *today*, so the demo never rots into the past):
+
+| Scenario                      | What it demonstrates                                                   |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| Clean 5-day block             | A normal calendar run and healthy progress bars                        |
+| Partially-complete clerkship  | The requirement strip and the "days left" badge (10 of 28 days)        |
+| Fully-complete clerkship      | The completed state (14 of 14 days)                                    |
+| Preceptor over capacity ×4    | Schedule health counts **4** findings (one per day, not per student) and the override review groups the run into one 4-day row; carries an accepted `preceptor_capacity` override |
+| Resolved `not_onboarded`      | The override review's active/resolved toggle — the student has since onboarded, so the exception reads as resolved |
+
+Tenant B gets the same shape at smaller scale (two students, one accepted
+override) so isolation tests have more than a single row to miss.
+
 Grant/revoke the Stage 2 entitlement manually:
 
 ```bash

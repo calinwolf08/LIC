@@ -19,6 +19,7 @@ import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
 import { TEST_SCHEDULE as SEED_SCHEDULE, fromToday } from './seed-schedule';
+import { seedAdminAssignments } from './seed-demo';
 
 const TEST_USER = {
 	email: 'admin@example.com',
@@ -649,6 +650,18 @@ async function seed(db: Kysely<DB>) {
 	}
 	console.log(`  Created/found ${teamIds.length} teams`);
 
+	// Step 10: Seed a realistic assignment scenario for the admin so the
+	// calendar, schedule-health panel and override review have content on first
+	// run (Round 4, step 36). Idempotent via a marker preceptor.
+	await seedAdminAssignments(db, {
+		scheduleId,
+		studentIds,
+		preceptorIds,
+		clerkshipIds,
+		healthSystemIds,
+		timestamp
+	});
+
 	// Second tenant: gives the basic account clearly-marked data so tenant
 	// isolation can be proven from tenant A's session (Round 3, step 33).
 	await seedSecondTenant(db);
@@ -812,7 +825,33 @@ async function seedSecondTenant(db: Kysely<DB>) {
 		})
 		.execute();
 
-	console.log('  Created Tenant B schedule + entities + 1 assignment');
+	// A second student with an accepted override, so tenant-isolation tests have
+	// more than a single row to miss (and an override to leak).
+	const studentTwoId = nanoid();
+	await db
+		.insertInto('students')
+		.values({ id: studentTwoId, name: 'Tenant B Student Two', email: 'tenant-b-student-two@example.com', created_at: ts, updated_at: ts })
+		.execute();
+	await db.insertInto('schedule_students').values({ id: nanoid(), schedule_id: scheduleId, student_id: studentTwoId, created_at: ts }).execute();
+	await db
+		.insertInto('schedule_assignments')
+		.values({
+			id: nanoid(),
+			student_id: studentTwoId,
+			preceptor_id: preceptorId,
+			clerkship_id: clerkshipId,
+			site_id: siteId,
+			date: fromToday(4),
+			status: 'scheduled',
+			source: 'manual',
+			override_codes: JSON.stringify(['not_onboarded']),
+			override_note: 'Tenant B: approved pending onboarding',
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+
+	console.log('  Created Tenant B schedule + entities + 2 students + 2 assignments (1 override)');
 }
 
 async function main() {
