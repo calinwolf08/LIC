@@ -4,6 +4,11 @@ Round 2 (steps 15–24) fixed the first round of beta findings. Round 3 addresse
 reported after using the app with **two real accounts**. Read `GUIDELINES.md` first — it binds every
 step. `HANDOFF.md` carries the operational notes (build/seed loop, seeded schedule shape).
 
+> **Round 3 is complete — steps 25–33 are all shipped.** The tenant-isolation defect (26/27) is
+> closed and proven by a two-tenant fixture, integration tests, API handler tests, and the
+> `tenant-isolation.spec.ts` e2e journey. See the Round 3 section of `../DESIGN_REVIEW.md` for the
+> issue-by-issue outcome and verification evidence.
+
 ## Read this first: Round 3 is not cosmetic
 
 **Steps 26 and 27 are a data-privacy defect, not a bug list item.** A signed-in user currently sees
@@ -27,17 +32,17 @@ cannot ship late. Do them first, in order, and do not batch them with anything e
                                   33 (integrated regression)
 ```
 
-| Step | Title | Depends on | Priority |
-|---|---|---|---|
-| 25 | Dev data commands (reset one user / reset everything) | — | Do first (unblocks manual QA) |
-| 26 | Tenant isolation — every read scoped to the active schedule | 25 | **Critical** |
-| 27 | Tenant isolation — every mutation ownership-guarded | 26 | **Critical** |
-| 28 | Edit-mode validation correctness + note copy | 26 | High |
-| 29 | Date-picker clarity + required site | 26 | High |
-| 30 | Calendar rendering: student identity, per-student colour, clerkship link | 26 | Medium |
-| 31 | Entity list row navigation + Manage button consistency | — | Low |
-| 32 | Schedule health: accurate counts, stale overrides, pagination + filter | 26 | High |
-| 33 | Integrated regression | all | — |
+| Step | Title | Depends on | Priority | Status |
+|---|---|---|---|---|
+| 25 | Dev data commands (reset one user / reset everything) | — | Do first (unblocks manual QA) | ✅ shipped |
+| 26 | Tenant isolation — every read scoped to the active schedule | 25 | **Critical** | ✅ shipped |
+| 27 | Tenant isolation — every mutation ownership-guarded | 26 | **Critical** | ✅ shipped |
+| 28 | Edit-mode validation correctness + note copy | 26 | High | ✅ shipped |
+| 29 | Date-picker clarity + required site | 26 | High | ✅ shipped |
+| 30 | Calendar rendering: student identity, per-student colour, clerkship link | 26 | Medium | ✅ shipped |
+| 31 | Entity list row navigation + Manage button consistency | — | Low | ✅ shipped |
+| 32 | Schedule health: accurate counts, stale overrides, pagination + filter | 26 | High | ✅ shipped |
+| 33 | Integrated regression | all | — | ✅ shipped |
 
 ## Root causes (verified in code)
 

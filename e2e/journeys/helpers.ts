@@ -17,26 +17,27 @@ export const BASIC = { email: 'basic@example.com', password: 'password123' };
 export async function login(page: Page, user: { email: string; password: string }) {
 	await page.goto('/login');
 	await page.waitForLoadState('networkidle');
-	await page.locator('#email').fill(user.email);
-	await page.locator('#password').fill(user.password);
 
-	// The submit only works once the form has hydrated; retry the click until we
-	// actually leave /login (guards against clicking before hydration).
+	const email = page.locator('#email');
+	const password = page.locator('#password');
 	const signIn = page.getByRole('button', { name: /sign in/i });
-	for (let attempt = 0; attempt < 5; attempt++) {
+	await signIn.waitFor({ state: 'visible' });
+
+	// The submit handler only fires once the form has hydrated; under container
+	// load hydration can take several seconds, so retry the fill+click and give
+	// each attempt a generous window to actually leave /login.
+	for (let attempt = 0; attempt < 6; attempt++) {
+		if (await email.count()) await email.fill(user.email);
+		if (await password.count()) await password.fill(user.password);
 		await signIn.click();
 		try {
-			await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 5000 });
+			await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 6000 });
 			return;
 		} catch {
-			// still on /login — re-fill (in case the value was cleared) and retry
-			if (await page.locator('#email').count()) {
-				await page.locator('#email').fill(user.email);
-				await page.locator('#password').fill(user.password);
-			}
+			// still on /login — the click likely landed before hydration; retry.
 		}
 	}
-	await expect(page).not.toHaveURL(/\/login/, { timeout: 5000 });
+	await expect(page).not.toHaveURL(/\/login/, { timeout: 6000 });
 }
 
 /**

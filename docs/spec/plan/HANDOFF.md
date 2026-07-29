@@ -102,16 +102,30 @@ for 17–21 but worth a fix if you touch site creation.
 
 ---
 
-## Round 3 (steps 25–33) — next up
+## Round 3 (steps 25–33) — shipped
 
-Round 2 is shipped. **Round 3 is planned but not started**: see `ROUND-3-OVERVIEW.md`.
+Round 3 is complete; the privacy defect is closed. See `ROUND-3-OVERVIEW.md` and the Round 3 section
+of `../DESIGN_REVIEW.md`. Operational facts worth keeping:
 
-Two of its steps are a **data-privacy defect, not product polish** — today a signed-in user can see
-and modify another user's students, preceptors, clerkships, sites, health systems and assignments.
-Verified: the dashboard totals, `/locations`, the calendar's filter lists and
-`getEnrichedAssignments` are all unscoped, and **no entity mutation route contains a single
-ownership check**. Do **step 26 (reads) then 27 (mutations) before anything else in the round**, and
-prove the fix by running the new isolation tests against the pre-fix commit and watching them fail.
+- **The tenant boundary lives in `src/lib/api/schedule-context.ts`.** `requireActiveScheduleId(locals)`
+  is the gate; `assertEntityInSchedule(db, scheduleId, kind, id)`, `assertAssignmentInSchedule(...)`
+  and `assertScheduleOwnedByUser(...)` throw `NotFoundError` (→ **404, never 403**). Every scoped
+  read/mutation calls one of these — a new route that skips them is a leak.
+- **The two-tenant test scaffolding** is `src/lib/testing/tenant-fixture.ts` (used by the
+  integration + API isolation tests). The e2e seed now also creates a **second account**
+  (`basic@example.com`) whose entities are all named `Tenant B …`; `tenant-isolation.spec.ts` asserts
+  that marker is absent everywhere for the admin. Fixture ids must satisfy the API id schema
+  (cuid2/nanoid/uuid) or detail handlers reject on format before the tenant check — the fixture pads
+  ids to a valid shape.
+- **Site is required on create.** The create/bulk assignment schema requires `site_id` (400
+  otherwise); the dialog gates Submit on it and the dry-run probe waits for one. Existing rows may
+  have a null site (edit tolerates it, but a save must choose one). Any e2e that creates an
+  assignment must select a site.
+- **Reset commands** (`db:reset-user`, `db:reset`) target `DATABASE_PATH` — do NOT run them against
+  `test-sqlite.db` while a preview/e2e run is using it.
+- **Proving the fix fails pre-fix:** `git worktree add <dir> ec32526`, copy the isolation test files +
+  `tenant-fixture.ts` + `schedule-context.ts` in, symlink `node_modules`, and run vitest — the
+  cross-tenant detail GETs return **200 instead of 404** and the calendar leak surfaces (6 failures).
 
 Step 25 (dev data commands: reset one user / reset everything) is small and comes first, because
 verifying isolation by hand needs a second account whose data must survive resetting the first.

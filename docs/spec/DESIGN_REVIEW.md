@@ -158,3 +158,86 @@ notes.
   the new and cross-cutting journeys additionally pass under `--repeat-each=2`.
 - Cross-cutting journeys: whole-app end-to-end (now creating and switching into a short schedule
   first), fresh-signup-to-first-assignment, and the override lifecycle (both side-effect branches).
+
+## Round 3 status (Steps 25–33) — second-round beta fixes
+
+Round 3 addressed the issues found while using the app with **two real accounts**. The headline is a
+**data-privacy defect**: a signed-in user could see, modify and delete another user's students,
+preceptors, clerkships, sites, health systems and assignments. The plan lives in
+`docs/spec/plan/ROUND-3-OVERVIEW.md`.
+
+**Six root causes** explained the whole list:
+
+1. **No tenant boundary on reads.** Round 2 scoped the schedule *range*, never the *entity sets*. The
+   dashboard totals, `/locations`, the calendar filter lists and `getEnrichedAssignments` were all
+   unscoped. **Fixed in step 26**: `requireActiveScheduleId` + `assertEntityInSchedule` in
+   `schedule-context.ts`; every read joins the `schedule_*` junctions; detail reads 404 cross-tenant.
+2. **No ownership check on any mutation.** Every entity `PATCH`/`DELETE`, the assignment routes,
+   preceptor availability/patterns, onboarding, clerkship-sites and the scheduling-period routes ran
+   on any row by id. **Fixed in step 27**: a guard as the first step after validation on every
+   user-reachable write (404, never 403); override `side_effects` check every target before the
+   transaction. Stage-2 config routes stay `autogen`-gated and `blackout_dates` is a global table —
+   both intentionally not tenant-guarded.
+3. **Edit mode validated as a create.** `excludeId` reached the validation service but not
+   `assignment-day-state`/`requirement-preview`, and the dialog never sent it, so editing an
+   assignment conflicted with itself. **Fixed in step 28** (plus adaptive note copy).
+4. **Selection styling erased the conflict signal**, and the site was optional. **Fixed in step 29**:
+   selection composes with state (ring overlay), taken/full/busy are distinct + glyphed, a
+   selected-conflicts list surfaces bad days, and site is required client- and server-side.
+5. **The schedule-wide calendar rendered in student mode.** **Fixed in step 30**: `mode="schedule"`,
+   `colorBy="student"` with a stable id-hashed palette, clerkship linked in list view.
+6. **Capacity counted per assignment, not per slot** (8 instead of 4), and overrides were never
+   re-evaluated. **Fixed in step 32**: one capacity finding per over-subscribed preceptor-day,
+   override `active`/`resolved` status, grouping of consecutive days, and filter/pagination.
+
+| #  | Reported issue                                                              | Step | Status |
+|----|-----------------------------------------------------------------------------|------|--------|
+| 1  | Command to clear one test user without wiping the DB                        | 25   | Fixed  |
+| 2  | Command to clear everything for a fresh start                               | 25   | Fixed  |
+| 3  | Dashboard totals are global                                                 | 26   | Fixed  |
+| 4  | Locations shows other users' health systems and sites                      | 26   | Fixed  |
+| 5  | Student → Progress tab shows other users' clerkships                       | 26   | Fixed  |
+| 6  | Calendar shows other users' assignments                                     | 26   | Fixed  |
+| 7  | Can modify or delete other users' data                                      | 27   | Fixed  |
+| 8  | Edit assignment falsely reports "Student already has an assignment"         | 28   | Fixed  |
+| 9  | Edit assignment falsely warns "More days than required"                     | 28   | Fixed  |
+| 10 | Note placeholder implies an exception when none is made                     | 28   | Fixed  |
+| 11 | Preceptor's already-taken days not clearly indicated                        | 29   | Fixed  |
+| 12 | Selecting a taken day turns it black, hiding the overlap                    | 29   | Fixed  |
+| 13 | Site should be required when adding an assignment                           | 29   | Fixed  |
+| 14 | Calendar cells omit the student; colour should be per student              | 30   | Fixed  |
+| 15 | Calendar list view: clerkship is not a link                                 | 30   | Fixed  |
+| 16 | List rows should be clickable like Locations                               | 31   | Fixed  |
+| 17 | Manage button inconsistent; make it solid everywhere                        | 31   | Fixed  |
+| 18 | Resolved `not_onboarded` overrides still listed                            | 32   | Fixed  |
+| 19 | Capacity conflict count doubles (8 instead of 4)                            | 32   | Fixed  |
+| 20 | Conflict pill count wrong for the same reason                              | 32   | Fixed  |
+| 21 | Only capacity under "Conflicts by type"; the rest only under "Overrides"    | 32   | Fixed  |
+| 22 | Override list unpaginated/overflowing, no type filter                       | 32   | Fixed  |
+
+### Verification
+
+- The tenant boundary is proven by a two-tenant fixture (`src/lib/testing/tenant-fixture.ts`), a
+  scoped-reads integration test (`tenant-isolation.integration.test.ts`) and API handler tests
+  (`tenant-isolation-api.test.ts`, `tenant-isolation-mutations.test.ts`) that drive the **real**
+  detail and mutation handlers: cross-tenant reads and writes return **404** with the target row
+  byte-identical afterwards.
+- **The privacy fix is proven to matter:** those same isolation tests were run against the pre-fix
+  commit (`ec32526`, after step 25) — the cross-tenant detail GETs return **200 instead of 404** and
+  the calendar leak surfaces (6 failures). A privacy test that never failed is not evidence; these do.
+- `tenant-isolation.spec.ts` is the flagship e2e journey (signed in as tenant A, the "Tenant B"
+  marker is absent on every surface, deep links to B render not-found, and `page.request`
+  PATCH/DELETE against B's ids return 404 while B's rows stay intact). The seed creates the second
+  "Tenant B" account it needs.
+- Full Vitest suite green (**1568 tests**), `svelte-check` clean, production build succeeds.
+- The three Round-3-touching journeys (`end-to-end`, `entity-consistency`, `override-lifecycle`)
+  pass against the Round 3 build, confirming the required-site, edit-mode and calendar-rendering
+  changes did not regress them.
+- The dev reset commands (`db:reset-user`, `db:reset`) are covered by unit tests and smoke-tested
+  against a seeded file database.
+
+> **E2E note:** the shared Playwright login helper depends on the login form hydrating within a few
+> seconds; under heavy container load the browser sign-in can miss that window even though the server
+> `/api/auth/sign-in` and every authenticated page respond correctly (verified via `curl`). The
+> helper was hardened (retry the fill+click with a longer per-attempt window). Run the full suite in
+> a fresh CI container from a cold seeded database, twice, with `--retries=0`.
