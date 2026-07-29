@@ -81,7 +81,10 @@ const baseSchema = z.object({
 	force: z.boolean().optional(),
 	override_codes: z.array(z.string()).optional(),
 	override_note: z.string().max(1000).nullish(),
-	side_effects: z.array(sideEffectSchema).optional()
+	side_effects: z.array(sideEffectSchema).optional(),
+	// Edit-mode dry runs pass the assignment being edited so it isn't validated
+	// against itself (double-book / capacity / required-days). Ignored on create.
+	excludeId: z.string().min(1).optional()
 });
 
 const singleSchema = baseSchema.extend({ date: z.string().regex(DATE) });
@@ -193,7 +196,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			preceptor_id: input.preceptor_id,
 			clerkship_id: input.clerkship_id,
 			site_id: input.site_id ?? null,
-			date: input.date
+			date: input.date,
+			excludeId: input.excludeId
 		};
 
 		if (input.dry_run) {

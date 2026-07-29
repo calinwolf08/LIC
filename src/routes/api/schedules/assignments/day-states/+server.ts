@@ -10,6 +10,7 @@ import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { getActiveScheduleId } from '$lib/api/schedule-context';
 import { getDayStates } from '$lib/features/scheduling/services/assignment-day-state';
+import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('api:schedules-assignments-day-states');
@@ -29,13 +30,24 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return errorResponse('from and to are required (YYYY-MM-DD)', 400);
 	}
 
+	// Edit mode passes the assignment being edited so it is not counted against
+	// itself. Validate it as an id when present; absent means create mode.
+	const rawExcludeId = url.searchParams.get('excludeId');
+	let excludeId: string | null = null;
+	if (rawExcludeId) {
+		const parsed = cuid2Schema.safeParse(rawExcludeId);
+		if (!parsed.success) return errorResponse('excludeId must be a valid id', 400);
+		excludeId = parsed.data;
+	}
+
 	try {
 		const days = await getDayStates(db, scheduleId, {
 			preceptorId: url.searchParams.get('preceptorId'),
 			studentId: url.searchParams.get('studentId'),
 			siteId: url.searchParams.get('siteId'),
 			from,
-			to
+			to,
+			excludeId
 		});
 		return successResponse({ days });
 	} catch (err) {

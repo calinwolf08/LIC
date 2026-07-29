@@ -252,6 +252,49 @@ describe('getDayStates', () => {
 		expect(on(days, '2030-03-02').inRange).toBe(true);
 	});
 
+	it('excludeId drops the edited assignment from studentBusy, bookings and capacity', async () => {
+		// max_students defaults to 1 (see seed). One assignment on 03-11 for STUDENT
+		// with PRECEPTOR fills the slot and marks the student busy.
+		await assign(db, 'edit-me', STUDENT, '2030-03-11');
+
+		// Without excludeId the day reads busy / booked / at capacity.
+		const before = await getDayStates(db, SCHEDULE, query, TODAY);
+		expect(on(before, '2030-03-11').studentBusy).toBe(true);
+		expect(on(before, '2030-03-11').preceptorBookings).toHaveLength(1);
+		expect(on(before, '2030-03-11').preceptorAtCapacity).toBe(true);
+
+		// Excluding that very assignment clears all three (edit mode).
+		const after = await getDayStates(
+			db,
+			SCHEDULE,
+			{ ...query, excludeId: 'edit-me' },
+			TODAY
+		);
+		expect(on(after, '2030-03-11').studentBusy).toBe(false);
+		expect(on(after, '2030-03-11').preceptorBookings).toHaveLength(0);
+		expect(on(after, '2030-03-11').preceptorAtCapacity).toBe(false);
+	});
+
+	it('excludeId only excludes that assignment — a second booking still counts', async () => {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('students')
+			.values({ id: 'stu-3', name: 'Cara', email: 'c@x.com', created_at: ts, updated_at: ts })
+			.execute();
+		await assign(db, 'edit-me', STUDENT, '2030-03-11');
+		await assign(db, 'other', 'stu-3', '2030-03-11');
+
+		const after = await getDayStates(
+			db,
+			SCHEDULE,
+			{ ...query, excludeId: 'edit-me' },
+			TODAY
+		);
+		// The other student's booking remains, so the slot is still occupied.
+		expect(on(after, '2030-03-11').preceptorBookings).toHaveLength(1);
+		expect(on(after, '2030-03-11').preceptorBookings[0].studentId).toBe('stu-3');
+	});
+
 	it('works with no preceptor selected (everything unset, nothing at capacity)', async () => {
 		const days = await getDayStates(
 			db,

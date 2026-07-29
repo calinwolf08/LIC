@@ -280,6 +280,8 @@
 		if (preceptor) params.set('preceptorId', preceptor);
 		if (student) params.set('studentId', student);
 		if (site) params.set('siteId', site);
+		// Edit mode: exclude this assignment so its own day never reads as busy/full.
+		if (mode === 'edit' && assignmentId) params.set('excludeId', assignmentId);
 		const key = `${preceptor}|${student}|${site}`;
 
 		let cancelled = false;
@@ -305,9 +307,11 @@
 			return;
 		}
 		const count = selectedDates.length;
+		const excludeParam =
+			mode === 'edit' && assignmentId ? `&excludeId=${assignmentId}` : '';
 		let cancelled = false;
 		fetch(
-			`/api/schedules/assignments/requirement-preview?studentId=${student}&clerkshipId=${clerkship}&count=${count}`
+			`/api/schedules/assignments/requirement-preview?studentId=${student}&clerkshipId=${clerkship}&count=${count}${excludeParam}`
 		)
 			.then((r) => r.json())
 			.then((body) => {
@@ -344,7 +348,8 @@
 					clerkship_id: clerkship,
 					site_id: site || null,
 					date: probe,
-					dry_run: true
+					dry_run: true,
+					...(mode === 'edit' && assignmentId ? { excludeId: assignmentId } : {})
 				})
 			})
 				.then((r) => r.json())
@@ -780,7 +785,13 @@
 
 					<div class="space-y-1">
 						<Label for="ad-note">Note <span class="text-muted-foreground">(optional)</span></Label>
-						<Input id="ad-note" bind:value={note} placeholder="Why this exception is being made" />
+						<Input
+								id="ad-note"
+								bind:value={note}
+								placeholder={liveAnalysis.categories.length > 0
+									? 'Why this exception is being made'
+									: 'Optional note about this assignment'}
+							/>
 					</div>
 				{/if}
 

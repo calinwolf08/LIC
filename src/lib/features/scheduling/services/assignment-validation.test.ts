@@ -135,6 +135,26 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
 	});
 
+	it('editing an assignment in place does not double-book itself (excludeId)', async () => {
+		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		expect(created.ok).toBe(true);
+		const id = created.ok ? created.assignment.id : undefined;
+		expect(id).toBeTruthy();
+
+		// Re-validating that same day while excluding the edited assignment: no
+		// self-conflict.
+		const edit = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			date: MON,
+			excludeId: id ?? undefined
+		});
+		expect(edit.hard.some((v) => v.code === 'student_double_booked')).toBe(false);
+
+		// A genuine second assignment on the same day (no exclusion) still conflicts.
+		const second = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
+		expect(second.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+	});
+
 	it('flags a blackout date as soft', async () => {
 		await db
 			.insertInto('blackout_dates')

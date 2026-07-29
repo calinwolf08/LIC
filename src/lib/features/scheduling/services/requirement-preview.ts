@@ -43,7 +43,8 @@ export async function previewRequirementImpact(
 	studentId: string,
 	clerkshipId: string,
 	dateCount: number,
-	today: string = todayUTC()
+	today: string = todayUTC(),
+	excludeId?: string | null
 ): Promise<RequirementImpact> {
 	const clerkship = await db
 		.selectFrom('clerkships')
@@ -55,12 +56,15 @@ export async function previewRequirementImpact(
 
 	const required = clerkship?.required_days ?? 0;
 
-	const assignments = await db
+	let assignmentQuery = db
 		.selectFrom('schedule_assignments')
 		.select('date')
 		.where('student_id', '=', studentId)
-		.where('clerkship_id', '=', clerkshipId)
-		.execute();
+		.where('clerkship_id', '=', clerkshipId);
+	// Edit mode: the edited assignment's existing day is re-counted as part of
+	// `selected`, so exclude it here to avoid double-counting against `required`.
+	if (excludeId) assignmentQuery = assignmentQuery.where('id', '!=', excludeId);
+	const assignments = await assignmentQuery.execute();
 
 	const completed = assignments.filter((a) => a.date < today).length;
 	const scheduled = assignments.length - completed;

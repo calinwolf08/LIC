@@ -38,6 +38,11 @@ export interface DayStateQuery {
 	siteId?: string | null;
 	from: string;
 	to: string;
+	/**
+	 * Assignment id to exclude from booking/busy/capacity counts (edit mode) —
+	 * so the assignment being edited never conflicts with itself.
+	 */
+	excludeId?: string | null;
 }
 
 function todayUTC(): string {
@@ -98,7 +103,7 @@ export async function getDayStates(
 			.executeTakeFirst();
 		maxStudents = preceptor?.max_students ?? 0;
 
-		bookingRows = await db
+		let bookingQuery = db
 			.selectFrom('schedule_assignments as sa')
 			.innerJoin('students as s', 's.id', 'sa.student_id')
 			.select([
@@ -109,8 +114,11 @@ export async function getDayStates(
 			])
 			.where('sa.preceptor_id', '=', query.preceptorId)
 			.where('sa.date', '>=', query.from)
-			.where('sa.date', '<=', query.to)
-			.execute();
+			.where('sa.date', '<=', query.to);
+		// Edit mode: the assignment being edited must not count against its own
+		// preceptor's bookings/capacity.
+		if (query.excludeId) bookingQuery = bookingQuery.where('sa.id', '!=', query.excludeId);
+		bookingRows = await bookingQuery.execute();
 	}
 
 	const blackoutRows = await db
@@ -123,13 +131,15 @@ export async function getDayStates(
 
 	let studentBusyDates = new Set<string>();
 	if (query.studentId) {
-		const rows = await db
+		let busyQuery = db
 			.selectFrom('schedule_assignments')
 			.select('date')
 			.where('student_id', '=', query.studentId)
 			.where('date', '>=', query.from)
-			.where('date', '<=', query.to)
-			.execute();
+			.where('date', '<=', query.to);
+		// Edit mode: don't let the edited assignment mark its own day as busy.
+		if (query.excludeId) busyQuery = busyQuery.where('id', '!=', query.excludeId);
+		const rows = await busyQuery.execute();
 		studentBusyDates = new Set(rows.map((r) => r.date));
 	}
 

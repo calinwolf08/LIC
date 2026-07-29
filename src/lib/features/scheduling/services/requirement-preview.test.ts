@@ -112,6 +112,31 @@ describe('previewRequirementImpact', () => {
 		expect(r.exceedsBy).toBe(2);
 	});
 
+	it('excludeId re-counts the edited day once instead of double-counting it', async () => {
+		// required = 3, three existing days on this clerkship.
+		await assign(db, 'a-1', '2030-03-05');
+		await assign(db, 'a-2', TODAY);
+		await assign(db, 'a-3', '2030-03-20');
+
+		// Editing a-2 (selected = 1 for the day being moved): without excludeId the
+		// existing three plus the one selected overshoot by one.
+		const naive = await previewRequirementImpact(db, SCHEDULE, STUDENT, CLERKSHIP, 1, TODAY);
+		expect(naive.exceedsBy).toBe(1);
+
+		// With excludeId the edited day is not counted as existing, so it fits.
+		const edited = await previewRequirementImpact(
+			db,
+			SCHEDULE,
+			STUDENT,
+			CLERKSHIP,
+			1,
+			TODAY,
+			'a-2'
+		);
+		expect(edited.resultingTotal).toBe(3);
+		expect(edited.exceedsBy).toBe(0);
+	});
+
 	it('reports exceedsBy correctly when the student is already over', async () => {
 		await assign(db, 'a-1', '2030-03-05');
 		await assign(db, 'a-2', '2030-03-06');
