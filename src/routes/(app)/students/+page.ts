@@ -11,9 +11,10 @@ import type { StudentStatus } from '$lib/features/scheduling/services/requiremen
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
-		const [studentsResponse, statusResponse] = await Promise.all([
+		const [studentsResponse, statusResponse, activeResponse] = await Promise.all([
 			fetch('/api/students'),
-			fetch('/api/schedules/status')
+			fetch('/api/schedules/status'),
+			fetch('/api/user/active-schedule')
 		]);
 
 		if (!studentsResponse.ok) {
@@ -30,15 +31,21 @@ export const load: PageLoad = async ({ fetch }) => {
 			}
 		}
 
+		const hasActiveSchedule = activeResponse.ok
+			? Boolean((await activeResponse.json()).data?.schedule)
+			: false;
+
 		return {
 			students: studentsResult.data as Students[],
-			statuses
+			statuses,
+			hasActiveSchedule
 		};
 	} catch (error) {
 		console.error('Error loading students:', error);
 		return {
 			students: [] as Students[],
-			statuses: {} as Record<string, StudentStatus>
+			statuses: {} as Record<string, StudentStatus>,
+			hasActiveSchedule: false
 		};
 	}
 };

@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { PageHeader, EntityTabs, ConfirmDialog, toast, type EntityTab } from '$lib/components';
+	import { PageHeader, EntityTabs, ConfirmDialog, NoActiveSchedule, toast, type EntityTab } from '$lib/components';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import HealthSystemTable from '$lib/features/health-systems/components/health-system-table.svelte';
@@ -100,20 +100,26 @@
 		description="Clinical locations where students rotate. Each site is its own location and belongs to a health system."
 	>
 		{#snippet actions()}
-			{#if activeTab === 'health-systems'}
-				<Button onclick={addHealthSystem}>Add health system</Button>
-			{:else}
-				<Button onclick={addSite}>Add site</Button>
+			{#if data.hasActiveSchedule}
+				{#if activeTab === 'health-systems'}
+					<Button onclick={addHealthSystem}>Add health system</Button>
+				{:else}
+					<Button onclick={addSite}>Add site</Button>
+				{/if}
 			{/if}
 		{/snippet}
 	</PageHeader>
 
-	<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
-
-	{#if activeTab === 'health-systems'}
-		<HealthSystemTable healthSystems={data.healthSystems} onDelete={requestHsDelete} />
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="locations" />
 	{:else}
-		<SiteList sites={data.sites} onDelete={deleteSite} />
+		<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
+
+		{#if activeTab === 'health-systems'}
+			<HealthSystemTable healthSystems={data.healthSystems} onDelete={requestHsDelete} />
+		{:else}
+			<SiteList sites={data.sites} onDelete={deleteSite} />
+		{/if}
 	{/if}
 </div>
 

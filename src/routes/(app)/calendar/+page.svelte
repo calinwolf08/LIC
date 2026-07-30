@@ -17,7 +17,7 @@
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { toast } from '$lib/components';
+	import { toast, NoActiveSchedule } from '$lib/components';
 	import { Filter, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import {
 		formatDisplayDate as formatDateDisplay,
@@ -441,6 +441,9 @@
 </script>
 
 <div class="container mx-auto py-8">
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="calendar" />
+	{:else}
 	<!-- Schedule completeness banner (auto-generation diagnostics) -->
 	{#if hasAutogen && data.scheduleSummary && !data.scheduleSummary.isComplete}
 		<Card class="mb-6 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
@@ -757,6 +760,7 @@
 				</Card>
 			{/each}
 		</div>
+	{/if}
 	{/if}
 </div>
 

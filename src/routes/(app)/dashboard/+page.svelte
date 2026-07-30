@@ -3,6 +3,7 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
+	import { NoActiveSchedule } from '$lib/components';
 	import { goto } from '$app/navigation';
 	import { Check, Circle } from '@lucide/svelte';
 
@@ -35,6 +36,10 @@
 			{data.activeSchedule ? data.activeSchedule.name : 'Welcome to LICFlow'}
 		</p>
 	</div>
+
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule />
+	{:else}
 
 	<!-- Setup checklist -->
 	{#if data.checklist && data.checklist.length > 0 && !checklistDone}
@@ -183,4 +188,5 @@
 			>
 		</div>
 	</Card>
+	{/if}
 </div>

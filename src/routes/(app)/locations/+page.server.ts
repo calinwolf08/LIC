@@ -10,7 +10,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// No active schedule → nothing to show (never fall back to a global list,
 	// which would leak every tenant's locations).
 	if (!scheduleId) {
-		return { healthSystems: [], sites: [] };
+		return { healthSystems: [], sites: [], hasActiveSchedule: false };
+	}
+
+	// The active schedule must actually exist (a dangling id after a delete still
+	// reads as "no active schedule"), so the page can tell an unselected schedule
+	// apart from a selected-but-empty one.
+	const activeSchedule = await db
+		.selectFrom('scheduling_periods')
+		.select('id')
+		.where('id', '=', scheduleId)
+		.executeTakeFirst();
+	if (!activeSchedule) {
+		return { healthSystems: [], sites: [], hasActiveSchedule: false };
 	}
 
 	// Health systems and sites, both scoped to the active schedule through their
@@ -33,6 +45,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		healthSystems,
-		sites: sitesWithHealthSystems
+		sites: sitesWithHealthSystems,
+		hasActiveSchedule: true
 	};
 };

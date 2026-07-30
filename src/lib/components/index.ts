@@ -3,6 +3,7 @@ export { default as EntityTabs } from './entity-tabs.svelte';
 export type { Breadcrumb, EntityTab } from './types';
 export { default as ConfirmDialog } from './confirm-dialog.svelte';
 export { default as EmptyState } from './empty-state.svelte';
+export { default as NoActiveSchedule } from './no-active-schedule.svelte';
 export { default as DetailSummary } from './detail-summary.svelte';
 export type { DetailSummaryItem } from './detail-summary.svelte';
 export { default as FormShell } from './form-shell.svelte';

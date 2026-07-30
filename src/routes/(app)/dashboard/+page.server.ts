@@ -100,6 +100,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		activeSchedule,
+		hasActiveSchedule: activeSchedule !== null,
 		stats: {
 			total_students: Number(studentCount?.c ?? 0),
 			total_preceptors: Number(preceptorCount?.c ?? 0),

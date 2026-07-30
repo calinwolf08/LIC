@@ -56,6 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		clerkships,
 		scheduleSummary,
 		blackoutDates,
-		activeSchedule
+		activeSchedule,
+		hasActiveSchedule: activeSchedule !== null
 	};
 };
