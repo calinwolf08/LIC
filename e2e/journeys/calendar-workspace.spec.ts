@@ -110,4 +110,10 @@ test('creating an assignment with an accepted warning lists it under Overrides',
 	const health = page.getByTestId('schedule-health');
 	await health.getByRole('button', { name: /show details/i }).click();
 	await expect(health.getByTestId('override-list')).toContainText(name, { timeout: 15000 });
+
+	// Health-panel IA (step 40, option a): the two sections stay distinct, but the
+	// relationship is explicit — this still-live override is marked as suppressing
+	// a conflict (the reason it is absent from "Conflicts by type").
+	const row = health.getByTestId('override-list').locator('li', { hasText: name }).first();
+	await expect(row.getByTestId('override-status')).toHaveText(/suppressing a conflict/i);
 });

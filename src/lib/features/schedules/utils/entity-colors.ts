@@ -4,17 +4,27 @@
  * A given id always hashes to the same palette entry, so a student (or
  * clerkship) keeps one colour across renders and sessions. Hash the **id**, not
  * the name, so renaming an entity never recolours it.
+ *
+ * Colour is never the only identifier: cells render the entity's name, and the
+ * schedule-wide calendar shows a colour→student legend plus an initials chip, so
+ * a palette repeat past this many distinct entities is disambiguated by text.
  */
 
 const PALETTE = [
-	'#3b82f6', // blue
-	'#10b981', // green
-	'#f59e0b', // amber
-	'#ef4444', // red
-	'#8b5cf6', // purple
-	'#ec4899', // pink
-	'#06b6d4', // cyan
-	'#84cc16' // lime
+	'#2563eb', // blue
+	'#059669', // emerald
+	'#d97706', // amber
+	'#dc2626', // red
+	'#7c3aed', // violet
+	'#db2777', // pink
+	'#0891b2', // cyan
+	'#65a30d', // lime
+	'#ea580c', // orange
+	'#4f46e5', // indigo
+	'#0d9488', // teal
+	'#c026d3', // fuchsia
+	'#a16207', // gold
+	'#475569' // slate
 ];
 
 function hashToColor(value: string): string {
@@ -34,3 +44,18 @@ export function getStudentColor(studentId: string): string {
 export function getClerkshipColor(clerkshipId: string): string {
 	return hashToColor(clerkshipId || 'default');
 }
+
+/**
+ * A short text anchor for a student, so identity never depends on hue alone
+ * (a second dimension when the palette repeats). One letter for a single-word
+ * name, first + last initial otherwise, "?" when there is no name.
+ */
+export function getStudentInitials(name: string): string {
+	const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+	if (parts.length === 0) return '?';
+	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+	return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/** The palette, exposed for tests and the legend. */
+export const ENTITY_PALETTE = PALETTE;

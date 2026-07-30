@@ -119,7 +119,8 @@
 			<div>
 				<h3 class="text-sm font-medium">Overrides</h3>
 				<p class="mb-2 text-xs text-muted-foreground">
-					Exceptions you explicitly accepted — which is why most no longer appear as conflicts.
+					Exceptions you explicitly accepted. An <em>active</em> one is suppressing a conflict that
+					would otherwise show under “Conflicts by type”; a <em>resolved</em> one no longer applies.
 				</p>
 
 				<div class="mb-2 flex flex-wrap items-center gap-2">
@@ -163,7 +164,15 @@
 										<p class="font-medium">
 											{o.studentName} · {fmtRange(o)}
 											{#if o.status === 'resolved'}
-												<Badge variant="outline" class="ml-1 text-xs">resolved</Badge>
+												<Badge variant="outline" class="ml-1 text-xs" data-testid="override-status"
+													>resolved</Badge
+												>
+											{:else}
+												<Badge
+													variant="outline"
+													class="ml-1 border-amber-400 text-xs text-amber-700"
+													data-testid="override-status">suppressing a conflict</Badge
+												>
 											{/if}
 										</p>
 										<p class="text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { CalendarMonth, CalendarDay, CalendarDayAssignment } from '../types/schedule-views';
-	import { getStudentColor } from '../utils/entity-colors';
+	import { getStudentColor, getStudentInitials } from '../utils/entity-colors';
 
 	interface Props {
 		months: CalendarMonth[];
@@ -184,6 +184,14 @@
 												title={assignmentTitle(assignment)}
 												onclick={(e) => handleAssignmentClick(e, day, assignment)}
 											>
+												{#if colorBy === 'student' && assignment.studentName}
+													<span
+														data-testid="student-initials"
+														class="mr-1 inline-flex items-center rounded px-0.5 text-[9px] font-semibold text-white align-middle"
+														style="background-color: {color};"
+														aria-hidden="true">{getStudentInitials(assignment.studentName)}</span
+													>
+												{/if}
 												<span class="block truncate font-medium">{primaryLabel(assignment)}</span>
 												{#if secondaryLabel(assignment)}
 													<span class="block truncate opacity-80">{secondaryLabel(assignment)}</span>

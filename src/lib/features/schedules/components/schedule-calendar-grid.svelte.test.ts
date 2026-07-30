@@ -104,6 +104,27 @@ describe('ScheduleCalendarGrid — colour semantics', () => {
 		expect(byId('a')).toBe(getStudentColor('stuA'));
 	});
 
+	it('colorBy="student" also renders a student-initials chip (identity not hue-only)', () => {
+		const { container } = render(ScheduleCalendarGrid, {
+			months: [month([dayWith([assignment({ studentName: 'Alice Johnson' })])])],
+			mode: 'schedule',
+			colorBy: 'student'
+		});
+		const chip = (container as HTMLElement).querySelector('[data-testid="student-initials"]');
+		expect(chip).not.toBeNull();
+		expect(chip!.textContent?.trim()).toBe('AJ');
+	});
+
+	it('colorBy="clerkship" (default) omits the student-initials chip', () => {
+		const { container } = render(ScheduleCalendarGrid, {
+			months: [month([dayWith([assignment({ studentName: 'Alice Johnson' })])])],
+			mode: 'schedule'
+		});
+		expect(
+			(container as HTMLElement).querySelector('[data-testid="student-initials"]')
+		).toBeNull();
+	});
+
 	it('colorBy="clerkship" (default) keeps the service-provided colour', () => {
 		const { container } = render(ScheduleCalendarGrid, {
 			months: [month([dayWith([assignment({ color: '#abcdef' })])])],

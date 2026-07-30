@@ -12,6 +12,7 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
+	import ScheduleColorLegend from '$lib/features/schedules/components/schedule-color-legend.svelte';
 	import { AssignmentDialog } from '$lib/features/schedules/components';
 	import ScheduleHealthPanel from '$lib/features/schedules/components/schedule-health-panel.svelte';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
@@ -340,6 +341,18 @@
 			isExporting = false;
 		}
 	}
+
+	// Students present in the loaded range, for the colour legend (deduped by id).
+	let legendStudents = $derived.by(() => {
+		const byId = new Map<string, { id: string; name: string }>();
+		for (const event of events) {
+			const id = event.assignment.student_id;
+			if (id && !byId.has(id)) {
+				byId.set(id, { id, name: event.assignment.student_name ?? 'Unknown' });
+			}
+		}
+		return [...byId.values()];
+	});
 
 	// Build calendar months for grid view
 	let calendarMonths = $derived(() => {
@@ -674,6 +687,7 @@
 	{:else if viewMode === 'calendar'}
 		<!-- Calendar Grid View -->
 		{#if calendarMonths().length > 0}
+			<ScheduleColorLegend students={legendStudents} />
 			<ScheduleCalendarGrid
 				months={calendarMonths()}
 				mode="schedule"
