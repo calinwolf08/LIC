@@ -236,12 +236,24 @@
 				if (cancelled || !body?.success) return;
 				options = body.data;
 				dropInvalidSelections();
+				autoSelectLoneSite();
 			})
 			.catch(() => {});
 		return () => {
 			cancelled = true;
 		};
 	});
+
+	/**
+	 * Site is required, but when the current selection leaves exactly one eligible
+	 * site there is nothing to choose — pre-select it so the coordinator is not
+	 * forced to click the only option (create mode only; edit prefills its own).
+	 */
+	function autoSelectLoneSite() {
+		if (mode === 'edit' || site) return;
+		const eligible = options.sites.filter((s) => s.eligible);
+		if (eligible.length === 1) site = eligible[0].id;
+	}
 
 	/**
 	 * A selection made invalid by a later change is cleared, with a notice —

@@ -17,6 +17,13 @@
 
 	let errorMessage = $state<string | null>(null);
 
+	// Explicit hydration signal (see login-form): e2e waits for this before it
+	// clicks so the submit never lands before the handler is attached.
+	let hydrated = $state(false);
+	$effect(() => {
+		hydrated = true;
+	});
+
 	const formManager = useForm({
 		initialValues: {
 			name: '',
@@ -65,7 +72,12 @@
 		</Alert.Root>
 	{/if}
 
-	<form method="POST" onsubmit={formManager.handleSubmit} class="space-y-4">
+	<form
+		method="POST"
+		onsubmit={formManager.handleSubmit}
+		data-hydrated={hydrated}
+		class="space-y-4"
+	>
 		<FormField
 			label="Name"
 			name="name"

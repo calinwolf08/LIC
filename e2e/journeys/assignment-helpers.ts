@@ -56,11 +56,13 @@ export async function pickDay(page: Page, date: string) {
 
 	for (let i = 0; i < 24; i++) {
 		if (await cell.isVisible().catch(() => false)) break;
-		const shown = (await dialog.getByTestId('picker-month').textContent()) ?? '';
+		const monthLabel = dialog.getByTestId('picker-month');
+		const shown = (await monthLabel.textContent()) ?? '';
 		const shownMonth = monthKeyFromLabel(shown);
 		const button = shownMonth < wanted ? 'Next month' : 'Previous month';
 		await dialog.getByRole('button', { name: button, exact: true }).click();
-		await page.waitForTimeout(150);
+		// The grid re-renders when the label changes — wait for that, not a timer.
+		await expect(monthLabel).not.toHaveText(shown.trim(), { timeout: 5000 });
 	}
 
 	await expect(cell).toBeVisible({ timeout: 10000 });
@@ -107,12 +109,14 @@ export async function submitAcceptingOverrides(
 			const button = page.getByRole('button', { name: label }).first();
 			if (await button.isVisible().catch(() => false)) {
 				await button.click();
+				// Wait for this question to close before scanning for the next one,
+				// rather than guessing with a fixed delay.
+				await button.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 				clicked = true;
 				break;
 			}
 		}
 		if (!clicked) break;
-		await page.waitForTimeout(300);
 	}
 }
 
