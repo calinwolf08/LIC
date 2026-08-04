@@ -7,6 +7,7 @@
 import { Kysely, SqliteDialect } from 'kysely';
 import Database from 'better-sqlite3';
 import type { DB } from './types';
+import { getMigrationProvider } from './migrations';
 
 /**
  * Creates an in-memory SQLite database for testing
@@ -96,66 +97,15 @@ export async function runTestMigrations(db: Kysely<DB>): Promise<void> {
 	// Create auth tables first (normally created by better-auth)
 	await createAuthTables(db);
 
-	// Import and run all migrations in order
-	const { up: migration001 } = await import('./migrations/001_initial_schema');
-	const { up: migration002 } = await import('./migrations/002_scheduling_configuration_schema');
-	const { up: migration003 } = await import('./migrations/003_pattern_based_availability');
-	const { up: migration004 } = await import('./migrations/004_clerkship_inpatient_outpatient_days');
-	const { up: migration005 } = await import('./migrations/005_restructure_clerkships');
-	const { up: migration006 } = await import('./migrations/006_require_preceptor_health_system');
-	const { up: migration007 } = await import('./migrations/007_preceptor_associations_teams');
-	const { up: migration008 } = await import('./migrations/008_student_health_system_onboarding');
-	const { up: migration009 } = await import(
-		'./migrations/009_add_allow_cross_system_to_requirements'
-	);
-	const { up: migration010 } = await import('./migrations/010_site_based_architecture');
-	const { up: migration011 } = await import('./migrations/011_add_site_and_team_requirements');
-	const { up: migration012 } = await import('./migrations/012_add_elective_available_preceptors');
-	const { up: migration013 } = await import('./migrations/013_add_contact_fields');
-	const { up: migration014 } = await import(
-		'./migrations/014_make_preceptor_health_system_optional'
-	);
-	const { up: migration015 } = await import('./migrations/015_remove_preceptor_specialty');
-	const { up: migration016 } = await import('./migrations/016_clerkship_settings_overrides');
-	const { up: migration017 } = await import('./migrations/017_preceptor_multi_site');
-	const { up: migration018 } = await import('./migrations/018_drop_preceptor_site_clerkships');
-	const { up: migration019 } = await import('./migrations/019_site_based_availability');
-	const { up: migration020 } = await import('./migrations/020_add_fallback_only_flag');
-	const { up: migration021 } = await import('./migrations/021_elective_enhancements');
-	const { up: migration022 } = await import('./migrations/022_schedule_scoping');
-	const { up: migration023 } = await import('./migrations/023_schedule_user_ownership');
-	const { up: migration024 } = await import('./migrations/024_add_active_schedule_to_user');
-	const { up: migration025 } = await import('./migrations/025_electives_direct_clerkship_link');
-	const { up: migration026 } = await import('./migrations/026_entitlements_and_assignment_flags');
-	const { up: migration027 } = await import('./migrations/027_assignment_overrides');
-
-	await migration001(db);
-	await migration002(db);
-	await migration003(db);
-	await migration004(db);
-	await migration005(db);
-	await migration006(db);
-	await migration007(db);
-	await migration008(db);
-	await migration009(db);
-	await migration010(db);
-	await migration011(db);
-	await migration012(db);
-	await migration013(db);
-	await migration014(db);
-	await migration015(db);
-	await migration016(db);
-	await migration017(db);
-	await migration018(db);
-	await migration019(db);
-	await migration020(db);
-	await migration021(db);
-	await migration022(db);
-	await migration023(db);
-	await migration024(db);
-	await migration025(db);
-	await migration026(db);
-	await migration027(db);
+	// Source the SQLite history (+ any shared migrations) from the composite
+	// provider so this harness never drifts from the real migration set — new
+	// migrations are picked up automatically. Run each `up` directly, in name
+	// order, rather than through the Migrator, so in-memory test setup stays fast
+	// and silent (no tracking table, no per-migration logging).
+	const migrations = await getMigrationProvider('sqlite').getMigrations();
+	for (const name of Object.keys(migrations).sort()) {
+		await migrations[name].up(db as unknown as Kysely<unknown>);
+	}
 }
 
 /**
