@@ -24,7 +24,8 @@
 		"db:reset-user": "tsx src/lib/db/scripts/reset-user.ts",
 		"db:reset": "tsx src/lib/db/scripts/reset-all.ts",
 		"db:types": "kysely-codegen --dialect=sqlite --out-file=src/lib/db/types.ts",
-		"seed:scenario": "tsx scripts/seed/index.ts"
+		"seed:scenario": "tsx scripts/seed/index.ts",
+		"test:pg": "vitest run --project server src/lib/db/postgres-integration.test.ts src/lib/db/migrations/migrations.equivalence.test.ts src/lib/auth.signup.test.ts"
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "^0.5.4",
