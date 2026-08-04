@@ -10,19 +10,24 @@
  *      runtime, which is why a fresh database 500s on the first sign-up), then
  *   2. applies all pending Kysely migrations (guarded/idempotent).
  *
- * Targets DATABASE_PATH (falling back to ./sqlite.db) so it operates on the same
- * file the app uses — point DATABASE_PATH at a persistent volume in production.
+ * It NEVER seeds — production must come up empty.
+ *
+ * The engine and target come from the environment (DATABASE_DIALECT /
+ * DATABASE_URL / DATABASE_PATH — see src/lib/db/config.ts), so this is the same
+ * command whether the deploy is on SQLite or PostgreSQL. Point DATABASE_PATH at
+ * a persistent volume when running on SQLite.
  */
 
+import { describeDbConfig, resolveDbConfig } from '../config';
 import { createDB } from '../connection';
 import { migrateToLatest } from '../migrations';
 import { ensureAuthTables } from './ensure-auth-tables';
 
 async function main() {
-	const dbPath = process.env.DATABASE_PATH || './sqlite.db';
-	console.log(`🔧 Setting up database at ${dbPath}`);
+	const config = resolveDbConfig(process.env);
+	console.log(`🔧 Setting up database — ${describeDbConfig(config)}`);
 
-	const db = createDB(dbPath);
+	const db = createDB(config);
 	try {
 		console.log('  • Ensuring better-auth tables exist…');
 		await ensureAuthTables(db);

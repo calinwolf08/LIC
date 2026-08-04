@@ -6,15 +6,18 @@
  * Run with: npm run db:migrate
  */
 
+import { describeDbConfig, resolveDbConfig } from '../config';
 import { createDB } from '../connection';
 import { migrateToLatest } from './index';
 
 async function main() {
-	console.log('🚀 Running database migrations...\n');
+	// Resolve the engine + target from the environment (DATABASE_DIALECT /
+	// DATABASE_URL / DATABASE_PATH) so migrations always hit the same database
+	// the app uses — a persistent volume or a Postgres server in production.
+	const config = resolveDbConfig(process.env);
+	console.log(`🚀 Running database migrations — ${describeDbConfig(config)}\n`);
 
-	// Honour DATABASE_PATH so migrations target the same file the app uses
-	// (e.g. a persistent volume in production), not just ./sqlite.db.
-	const db = createDB(process.env.DATABASE_PATH || './sqlite.db');
+	const db = createDB(config);
 
 	try {
 		await migrateToLatest(db);
