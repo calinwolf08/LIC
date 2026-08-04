@@ -12,7 +12,9 @@ import { migrateToLatest } from './index';
 async function main() {
 	console.log('🚀 Running database migrations...\n');
 
-	const db = createDB();
+	// Honour DATABASE_PATH so migrations target the same file the app uses
+	// (e.g. a persistent volume in production), not just ./sqlite.db.
+	const db = createDB(process.env.DATABASE_PATH || './sqlite.db');
 
 	try {
 		await migrateToLatest(db);

@@ -89,6 +89,46 @@ to point at another database, e.g. the e2e DB:
 Do **not** run a reset against `./test-sqlite.db` while a preview/e2e run is
 using it.
 
+## Deployment
+
+The app is a SvelteKit `adapter-node` build (selected automatically when the
+`COOLIFY` env var is set) started with `node build`. It uses a single SQLite
+file, so a deploy has two hard requirements.
+
+**1. Set up the database before the server starts.** better-auth does **not**
+create its tables at runtime, and the app's migrations must be applied — on a
+fresh database the first sign-up returns a 500 (`no such table: user`) until
+this runs. One idempotent command does both (creates the better-auth tables,
+then applies all migrations); it is safe to run on every deploy:
+
+```bash
+npm run db:setup
+```
+
+Wire it to run **before** the server boots — e.g. set the start command to:
+
+```bash
+npm run db:setup && node build
+```
+
+`db:setup` needs `tsx` (a devDependency) and the `src/` tree present, so do not
+prune devDependencies or the source in the deploy image. If you prefer
+better-auth's official CLI for the auth tables, `npx @better-auth/cli@latest
+migrate -y` (it auto-detects `src/lib/auth.ts`) followed by `npm run db:migrate`
+is equivalent — `db:setup` just bundles both with no network dependency.
+
+**2. Put the SQLite file on a persistent volume**, or every redeploy starts from
+an empty database. Point `DATABASE_PATH` at a mounted directory and mount the
+*directory* (WAL mode also writes `…-wal` / `…-shm` sidecar files):
+
+```
+DATABASE_PATH=/app/data/sqlite.db        # env var
+/app/data                                 # Coolify persistent volume
+```
+
+Every db command (`db:setup`, `db:migrate`, `db:seed`, resets) honours
+`DATABASE_PATH`, so they all target the same file the app uses.
+
 ## Development commands
 
 ```bash
