@@ -30,11 +30,9 @@ import { reassignToPreceptor, swapAssignments, clearAllAssignments } from './edi
 import { setAvailability } from '$lib/features/preceptors/services/availability-service';
 
 // Mock the scheduling period service for schedule-views tests
-vi.mock('$lib/features/scheduling/services/scheduling-period-service', () => ({
-	getActiveSchedulingPeriod: vi.fn()
-}));
-
-import { getActiveSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
+// The view services resolve the active schedule per-caller by id now; tests
+// insert a real period row and pass its id.
+const PERIOD_ID = 'clperiodintegration01';
 
 /**
  * Generate a CUID2-like test ID (20-30 characters)
@@ -163,6 +161,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
+		.addColumn('override_codes', 'text', (col) => col.notNull().defaultTo('[]'))
+		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -187,6 +187,65 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('scheduling_periods')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('start_date', 'text', (col) => col.notNull())
+		.addColumn('end_date', 'text', (col) => col.notNull())
+		.addColumn('is_active', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('user_id', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	// Schedule membership junctions (tenant scoping for reads)
+	await db.schema
+		.createTable('schedule_students')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('schedule_clerkships')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text', (col) => col.notNull())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+}
+
+/**
+ * Link a student to the active schedule so tenant-scoped reads resolve it.
+ */
+async function linkStudentToSchedule(db: Kysely<DB>, studentId: string, scheduleId = PERIOD_ID) {
+	await db
+		.insertInto('schedule_students')
+		.values({
+			id: `ss-${scheduleId}-${studentId}`,
+			schedule_id: scheduleId,
+			student_id: studentId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
+}
+
+/**
+ * Link a clerkship to the active schedule so tenant-scoped reads resolve it.
+ */
+async function linkClerkshipToSchedule(db: Kysely<DB>, clerkshipId: string, scheduleId = PERIOD_ID) {
+	await db
+		.insertInto('schedule_clerkships')
+		.values({
+			id: `sc-${scheduleId}-${clerkshipId}`,
+			schedule_id: scheduleId,
+			clerkship_id: clerkshipId,
+			created_at: new Date().toISOString()
+		})
 		.execute();
 }
 
@@ -280,16 +339,20 @@ describe('Schedules API Integration Tests', () => {
 		db = createTestDb();
 		await initializeSchema(db);
 
-		// Mock active period
-		vi.mocked(getActiveSchedulingPeriod).mockResolvedValue({
-			id: generateTestId('clperiod'),
-			name: 'Test Period',
-			start_date: '2024-01-01',
-			end_date: '2024-12-31',
-			is_active: 1,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		});
+		// Insert the active period the view services resolve against.
+		await db
+			.insertInto('scheduling_periods')
+			.values({
+				id: PERIOD_ID,
+				name: 'Test Period',
+				start_date: '2024-01-01',
+				end_date: '2024-12-31',
+				is_active: 1,
+				user_id: null,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -495,7 +558,10 @@ describe('Schedules API Integration Tests', () => {
 				date: '2024-06-16'
 			});
 
-			const schedule = await getStudentScheduleData(db, student.id as string);
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
+
+			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
 			expect(schedule).not.toBeNull();
 			expect(schedule!.student.id).toBe(student.id);
@@ -508,7 +574,7 @@ describe('Schedules API Integration Tests', () => {
 		});
 
 		it('returns null for non-existent student', async () => {
-			const schedule = await getStudentScheduleData(db, 'nonexistent00000001');
+			const schedule = await getStudentScheduleData(db, 'nonexistent00000001', PERIOD_ID);
 			expect(schedule).toBeNull();
 		});
 
@@ -540,7 +606,10 @@ describe('Schedules API Integration Tests', () => {
 				});
 			}
 
-			const schedule = await getStudentScheduleData(db, student.id as string);
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
+
+			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
 			expect(schedule!.clerkshipProgress[0].assignedDays).toBe(3);
 			expect(schedule!.clerkshipProgress[0].remainingDays).toBe(2);
@@ -580,7 +649,7 @@ describe('Schedules API Integration Tests', () => {
 				date: '2024-06-15'
 			});
 
-			const schedule = await getPreceptorScheduleData(db, preceptor.id as string);
+			const schedule = await getPreceptorScheduleData(db, preceptor.id as string, PERIOD_ID);
 
 			expect(schedule).not.toBeNull();
 			expect(schedule!.preceptor.id).toBe(preceptor.id);
@@ -590,7 +659,7 @@ describe('Schedules API Integration Tests', () => {
 		});
 
 		it('returns null for non-existent preceptor', async () => {
-			const schedule = await getPreceptorScheduleData(db, 'nonexistent00000001');
+			const schedule = await getPreceptorScheduleData(db, 'nonexistent00000001', PERIOD_ID);
 			expect(schedule).toBeNull();
 		});
 
@@ -610,7 +679,7 @@ describe('Schedules API Integration Tests', () => {
 			await setAvailability(db, preceptor.id as string, site.id as string, '2024-06-17', false);
 			await setAvailability(db, preceptor.id as string, site.id as string, '2024-06-18', true);
 
-			const schedule = await getPreceptorScheduleData(db, preceptor.id as string);
+			const schedule = await getPreceptorScheduleData(db, preceptor.id as string, PERIOD_ID);
 
 			expect(schedule!.overallCapacity.availableDays).toBe(3);
 			expect(schedule!.overallCapacity.assignedDays).toBe(0);
@@ -635,7 +704,7 @@ describe('Schedules API Integration Tests', () => {
 				required_days: 10
 			});
 
-			const summary = await getScheduleSummaryData(db);
+			const summary = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(summary.stats.totalStudents).toBe(1);
 			expect(summary.stats.totalAssignments).toBe(0);
@@ -672,7 +741,7 @@ describe('Schedules API Integration Tests', () => {
 				});
 			}
 
-			const summary = await getScheduleSummaryData(db);
+			const summary = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(summary.stats.studentsFullyScheduled).toBe(1);
 			expect(summary.stats.studentsWithNoAssignments).toBe(0);
@@ -723,7 +792,7 @@ describe('Schedules API Integration Tests', () => {
 				date: '2024-06-17'
 			});
 
-			const summary = await getScheduleSummaryData(db);
+			const summary = await getScheduleSummaryData(db, PERIOD_ID);
 
 			const fmBreakdown = summary.clerkshipBreakdown.find(
 				(c) => c.clerkshipName === 'Family Medicine'
@@ -1167,7 +1236,10 @@ describe('Schedules API Integration Tests', () => {
 				date: '2024-06-17'
 			});
 
-			const schedule = await getStudentScheduleData(db, student.id as string);
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
+
+			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
 			expect(schedule!.clerkshipProgress[0].preceptors).toHaveLength(2);
 
@@ -1191,7 +1263,9 @@ describe('Schedules API Integration Tests', () => {
 				cohort: '2024'
 			});
 
-			const schedule = await getStudentScheduleData(db, student.id as string);
+			await linkStudentToSchedule(db, student.id as string);
+
+			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
 			expect(schedule).not.toBeNull();
 			expect(schedule!.clerkshipProgress).toHaveLength(0);
@@ -1206,14 +1280,14 @@ describe('Schedules API Integration Tests', () => {
 				health_system_id: healthSystem.id as string
 			});
 
-			const schedule = await getPreceptorScheduleData(db, preceptor.id as string);
+			const schedule = await getPreceptorScheduleData(db, preceptor.id as string, PERIOD_ID);
 
 			expect(schedule).not.toBeNull();
 			expect(schedule!.overallCapacity.availableDays).toBe(0);
 		});
 
 		it('handles schedule summary with no students', async () => {
-			const summary = await getScheduleSummaryData(db);
+			const summary = await getScheduleSummaryData(db, PERIOD_ID);
 
 			expect(summary.stats.totalStudents).toBe(0);
 			expect(summary.stats.totalAssignments).toBe(0);

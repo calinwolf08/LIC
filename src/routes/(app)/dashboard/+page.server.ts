@@ -39,23 +39,33 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	}
 
+	// Totals must be scoped to the active schedule through the junction tables —
+	// a bare count leaks every tenant's entity counts. Assignments have no
+	// schedule_id, so they scope through schedule_students.
+	const countScoped = async (junction: 'schedule_students' | 'schedule_preceptors' | 'schedule_clerkships') => {
+		if (!scheduleId) return { c: 0 };
+		return db
+			.selectFrom(junction)
+			.select((eb) => eb.fn.countAll<number>().as('c'))
+			.where('schedule_id', '=', scheduleId)
+			.executeTakeFirst();
+	};
+
 	const [studentCount, preceptorCount, clerkshipCount, assignmentCount] = await Promise.all([
-		db
-			.selectFrom('students')
-			.select((eb) => eb.fn.countAll<number>().as('c'))
-			.executeTakeFirst(),
-		db
-			.selectFrom('preceptors')
-			.select((eb) => eb.fn.countAll<number>().as('c'))
-			.executeTakeFirst(),
-		db
-			.selectFrom('clerkships')
-			.select((eb) => eb.fn.countAll<number>().as('c'))
-			.executeTakeFirst(),
-		db
-			.selectFrom('schedule_assignments')
-			.select((eb) => eb.fn.countAll<number>().as('c'))
-			.executeTakeFirst()
+		countScoped('schedule_students'),
+		countScoped('schedule_preceptors'),
+		countScoped('schedule_clerkships'),
+		scheduleId
+			? db
+					.selectFrom('schedule_assignments as sa')
+					.innerJoin('schedule_students as ss', (join) =>
+						join
+							.onRef('ss.student_id', '=', 'sa.student_id')
+							.on('ss.schedule_id', '=', scheduleId)
+					)
+					.select((eb) => eb.fn.countAll<number>().as('c'))
+					.executeTakeFirst()
+			: Promise.resolve({ c: 0 })
 	]);
 
 	const statusSummary = { full: 0, partial: 0, none: 0 };
@@ -90,6 +100,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		activeSchedule,
+		hasActiveSchedule: activeSchedule !== null,
 		stats: {
 			total_students: Number(studentCount?.c ?? 0),
 			total_preceptors: Number(preceptorCount?.c ?? 0),

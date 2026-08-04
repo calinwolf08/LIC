@@ -4,6 +4,7 @@
 	import StudentList from '$lib/features/students/components/student-list.svelte';
 	import DeleteStudentDialog from '$lib/features/students/components/delete-student-dialog.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { NoActiveSchedule } from '$lib/components';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
@@ -42,10 +43,16 @@
 <div class="container mx-auto py-8">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-3xl font-bold">Students</h1>
-		<Button href="/students/new">Add Student</Button>
+		{#if data.hasActiveSchedule}
+			<Button href="/students/new">Add Student</Button>
+		{/if}
 	</div>
 
-	<StudentList students={data.students} statuses={data.statuses} onDelete={handleDelete} />
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="students" />
+	{:else}
+		<StudentList students={data.students} statuses={data.statuses} onDelete={handleDelete} />
+	{/if}
 
 	<DeleteStudentDialog
 		open={showDeleteDialog}

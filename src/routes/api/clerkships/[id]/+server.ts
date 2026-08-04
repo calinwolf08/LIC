@@ -21,6 +21,7 @@ import {
 	deleteClerkship
 } from '$lib/features/clerkships/services/clerkship-service.js';
 import { updateClerkshipSchema, clerkshipIdSchema } from '$lib/features/clerkships/schemas.js';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -30,12 +31,16 @@ const log = createServerLogger('api:clerkships:id');
  * GET /api/clerkships/[id]
  * Returns a single clerkship
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching clerkship', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = clerkshipIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 when the clerkship is not in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', id);
 
 		const clerkship = await getClerkshipById(db, id);
 
@@ -64,12 +69,16 @@ export const GET: RequestHandler = async ({ params }) => {
  * PATCH /api/clerkships/[id]
  * Updates a clerkship
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating clerkship', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = clerkshipIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the clerkship is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', id);
 
 		// Parse and validate request body
 		const body = await request.json();
@@ -112,12 +121,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/clerkships/[id]
  * Deletes a clerkship
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting clerkship', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = clerkshipIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the clerkship is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', id);
 
 		await deleteClerkship(db, id);
 

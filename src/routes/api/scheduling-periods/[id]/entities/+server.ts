@@ -26,6 +26,7 @@ import {
 	scheduleEntityTypeSchema,
 	scheduleEntitiesSchema
 } from '$lib/features/preceptors/pattern-schemas';
+import { assertScheduleOwnedByUser } from '$lib/api/schedule-context';
 import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -40,7 +41,7 @@ const log = createServerLogger('api:scheduling-periods:entities');
  * - type: Entity type (students, preceptors, sites, health_systems, clerkships, teams, configurations)
  *         If not provided, returns counts for all entity types
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const entityTypeParam = url.searchParams.get('type');
 
 	log.debug('Fetching schedule entities', {
@@ -50,6 +51,11 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
 	try {
 		const scheduleId = cuid2Schema.parse(params.id);
+
+		// Ownership guard: only the owner may read this schedule's entities.
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, scheduleId);
 
 		// Verify schedule exists
 		const schedule = await getSchedulingPeriodById(db, scheduleId);
@@ -113,11 +119,16 @@ export const GET: RequestHandler = async ({ params, url }) => {
  *   entityIds: string[]
  * }
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Adding entities to schedule', { scheduleId: params.id });
 
 	try {
 		const scheduleId = cuid2Schema.parse(params.id);
+
+		// Ownership guard: only the owner may modify this schedule's entities.
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, scheduleId);
 
 		// Verify schedule exists
 		const schedule = await getSchedulingPeriodById(db, scheduleId);
@@ -179,11 +190,16 @@ export const POST: RequestHandler = async ({ params, request }) => {
  *   entityIds: string[]
  * }
  */
-export const DELETE: RequestHandler = async ({ params, request }) => {
+export const DELETE: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Removing entities from schedule', { scheduleId: params.id });
 
 	try {
 		const scheduleId = cuid2Schema.parse(params.id);
+
+		// Ownership guard: only the owner may modify this schedule's entities.
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, scheduleId);
 
 		// Verify schedule exists
 		const schedule = await getSchedulingPeriodById(db, scheduleId);

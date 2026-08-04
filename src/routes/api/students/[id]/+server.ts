@@ -21,6 +21,7 @@ import {
 	deleteStudent
 } from '$lib/features/students/services/student-service.js';
 import { updateStudentSchema, studentIdSchema } from '$lib/features/students/schemas.js';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -30,12 +31,17 @@ const log = createServerLogger('api:students:id');
  * GET /api/students/[id]
  * Returns a single student
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching student', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = studentIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 when the student is not in the caller's schedule
+		// (404, not 403 — a 403 would confirm the row exists to another tenant).
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', id);
 
 		const student = await getStudentById(db, id);
 
@@ -64,12 +70,16 @@ export const GET: RequestHandler = async ({ params }) => {
  * PATCH /api/students/[id]
  * Updates a student
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating student', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = studentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the student is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', id);
 
 		// Parse and validate request body
 		const body = await request.json();
@@ -112,12 +122,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/students/[id]
  * Deletes a student
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting student', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = studentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the student is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', id);
 
 		await deleteStudent(db, id);
 

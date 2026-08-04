@@ -8,23 +8,28 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
-import { getActiveSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
+import { getActiveScheduleForUser } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('api:scheduling-periods:active');
 
 /**
  * GET /api/scheduling-periods/active
- * Returns the currently active scheduling period
+ * Returns the caller's active scheduling period (per-user, not the global flag).
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	log.debug('Fetching active scheduling period');
 
 	try {
-		const period = await getActiveSchedulingPeriod(db);
+		const userId = locals.session?.user?.id;
+		if (!userId) {
+			return errorResponse('Authentication required', 401);
+		}
+
+		const period = await getActiveScheduleForUser(db, userId);
 
 		if (!period) {
-			log.warn('No active scheduling period found');
+			log.warn('No active scheduling period found', { userId });
 			return errorResponse('No active scheduling period found', 404);
 		}
 

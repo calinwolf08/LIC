@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, handleApiError } from '$lib/api';
 import { getScheduleSummaryData } from '$lib/features/schedules/services/schedule-views-service';
+import { getActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('api:schedule-summary');
@@ -16,11 +17,14 @@ const log = createServerLogger('api:schedule-summary');
  * GET /api/schedule/summary
  * Returns overall schedule statistics and students with unmet requirements
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	log.debug('Fetching schedule summary');
 
 	try {
-		const summary = await getScheduleSummaryData(db);
+		const scheduleId = locals.session?.user?.id
+			? await getActiveScheduleId(locals.session.user.id)
+			: null;
+		const summary = await getScheduleSummaryData(db, scheduleId);
 
 		log.info('Schedule summary fetched', {
 			totalAssignments: summary.stats.totalAssignments,

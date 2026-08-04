@@ -20,6 +20,8 @@
 		"test:e2e": "playwright test",
 		"db:migrate": "tsx src/lib/db/migrations/run.ts",
 		"db:seed": "tsx src/lib/db/scripts/seed.ts",
+		"db:reset-user": "tsx src/lib/db/scripts/reset-user.ts",
+		"db:reset": "tsx src/lib/db/scripts/reset-all.ts",
 		"db:types": "kysely-codegen --dialect=sqlite --out-file=src/lib/db/types.ts",
 		"seed:scenario": "tsx scripts/seed/index.ts"
 	},

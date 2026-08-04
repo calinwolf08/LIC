@@ -11,6 +11,7 @@ import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertCapacityRuleInSchedule } from '$lib/api/schedule-context';
 import { CapacityRuleService } from '$lib/features/scheduling-config/services/capacity.service';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -29,6 +30,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching capacity rule', { id });
 
 	try {
+		// Tenant boundary: a capacity rule is owned via its preceptor.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertCapacityRuleInSchedule(db, scheduleId, id);
+
 		const result = await service.getCapacityRule(id);
 
 		if (!result.success) {
@@ -55,6 +60,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating capacity rule', { id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertCapacityRuleInSchedule(db, scheduleId, id);
+
 		const body = await request.json();
 
 		const result = await service.updateCapacityRule(id, body);
@@ -91,6 +99,9 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting capacity rule', { id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertCapacityRuleInSchedule(db, scheduleId, id);
+
 		const result = await service.deleteCapacityRule(id);
 
 		if (!result.success) {

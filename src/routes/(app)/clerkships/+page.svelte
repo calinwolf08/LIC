@@ -5,6 +5,7 @@
 	import DeleteClerkshipDialog from '$lib/features/clerkships/components/delete-clerkship-dialog.svelte';
 	import GlobalDefaultsForm from '$lib/features/scheduling-config/components/global-defaults-form.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { NoActiveSchedule } from '$lib/components';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -58,6 +59,9 @@
 		<h1 class="text-3xl font-bold">Clerkships</h1>
 	</div>
 
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="clerkships" />
+	{:else}
 	<!-- Tabs -->
 	<div class="mb-6 border-b">
 		<nav class="-mb-px flex space-x-8">
@@ -99,6 +103,7 @@
 		/>
 	{:else if activeTab === 'scheduling-defaults'}
 		<GlobalDefaultsForm />
+	{/if}
 	{/if}
 </div>
 

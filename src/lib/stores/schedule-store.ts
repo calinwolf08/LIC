@@ -128,6 +128,15 @@ export async function loadSchedules(): Promise<void> {
 }
 
 /**
+ * Re-fetch schedules into the store. Call after any mutation made outside the
+ * store (e.g. the /schedules page edits/deletes via its own fetch + invalidateAll,
+ * which does not touch this module-level store, leaving the sidebar dropdown stale).
+ */
+export async function refreshSchedules(): Promise<void> {
+	await loadSchedules();
+}
+
+/**
  * Set the active schedule (updates UI immediately and persists to database)
  */
 export function selectSchedule(scheduleId: string): void {

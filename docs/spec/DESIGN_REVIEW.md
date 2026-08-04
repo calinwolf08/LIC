@@ -78,3 +78,166 @@ Deferred items (tracked, low-risk): E4 baseline-migration consolidation; calenda
 ## Verdict
 
 Priorities, in order: (1) establish the interaction grammar and shared primitives so later steps land consistently; (2) reset the schema + seed + entitlements; (3) gate Stage 2; (4) rebuild navigation; (5) standardize entity modules; (6) ship manual scheduling + standalone validation (the actual product core); (7) consolidate Stage 2 into its own hub; (8) production hardening. This ordering is encoded in `docs/spec/plan/00-OVERVIEW.md`.
+
+---
+
+## Round 2 status (Steps 15–24) — post-beta fixes
+
+Round 2 addressed the issues found during the first real use of the shipped app on a fresh
+account. Every reported issue below is fixed and covered by at least one automated test.
+The plan lives in `docs/spec/plan/ROUND-2-OVERVIEW.md`; `HANDOFF.md` carries the operational
+notes.
+
+**Three root causes** explained a disproportionate share of the symptoms:
+
+1. **Two competing definitions of "active schedule."** `getActiveSchedulingPeriod()` resolved the
+   working schedule from the global `scheduling_periods.is_active` flag while the rest of the app
+   used the per-user `user.active_schedule_id`. New users' schedules are created with
+   `is_active = 0`, so the lookup returned nothing and the view service fell back to a whole
+   calendar year — producing both the "full year calendar" and "capacity months outside my range"
+   reports, and risking a cross-tenant range leak. **Fixed in step 15.**
+2. **A camelCase/snake_case mismatch** between `getStudentScheduleData` and the student schedule
+   table — the blank Clerkship/Preceptor columns. **Fixed in step 19.**
+3. **An unguarded `sites` prop** in `pattern-form.svelte`, plus a preceptor API shape that did not
+   guarantee the field — the reported `TypeError`, and the wizard's false "no sites" message.
+   **Fixed in step 16.**
+
+| #  | Reported issue                                                                | Step   | Status  |
+|----|-------------------------------------------------------------------------------|--------|---------|
+| 1  | Schedule rename doesn't update the sidebar dropdown until refresh              | 15     | Fixed   |
+| 2  | Preceptor wizard step 3: no way to actually set availability                   | 16     | Fixed   |
+| 3  | Wizard says "no sites" though a site was chosen on the previous step           | 16     | Fixed   |
+| 4  | Capacity Overview shows months outside the schedule range                      | 15, 16 | Fixed   |
+| 5  | Availability/schedule tabs show a full year, not the schedule range            | 15, 16 | Fixed   |
+| 6  | Must scroll to the bottom to edit availability                                 | 16     | Fixed   |
+| 7  | `TypeError: can't access property "length", $$props.sites is undefined`        | 16     | Fixed   |
+| 8  | Details-tab info not visible (read-only) on Overview                           | 22     | Fixed   |
+| 9  | Add-assignment doesn't filter clerkship/preceptor/site to valid combinations   | 17, 18 | Fixed   |
+| 10 | Dates ignore preceptor availability; don't show already-scheduled days         | 17, 18 | Fixed   |
+| 11 | No range/block/individual day selection when assigning                         | 18     | Fixed   |
+| 12 | No availability override prompt (+ option to update preceptor availability)    | 17, 18 | Fixed   |
+| 13 | No double-book prompt (double-book / move other student; raise limit vs once)  | 17, 18 | Fixed   |
+| 14 | "Lock this assignment" visible without the autogen entitlement                 | 18     | Fixed   |
+| 15 | Can't see student progress + assigned preceptors while assigning               | 18, 19 | Fixed   |
+| 16 | No warning when assigning more days than a clerkship requires                  | 17, 18 | Fixed   |
+| 17 | No onboarding warning (linking to the Onboarding tab) on the student page      | 19     | Fixed   |
+| 18 | Student schedule tab: Clerkship/Preceptor columns empty                        | 19     | Fixed   |
+| 19 | Student schedule should default to calendar, with a list toggle                | 19     | Fixed   |
+| 20 | Assignments can only be removed, not edited                                    | 19–21  | Fixed   |
+| 21 | Past-dated assignments: need an override to remove/replace                     | 17, 19 | Fixed   |
+| 22 | Lists say "View"/"Edit" — should be "Manage"; drop the locations edit dialog   | 22     | Fixed   |
+| 23 | Calendar opens in list view                                                    | 20     | Fixed   |
+| 24 | Calendar day cells show "Int" instead of student·clerkship·preceptor           | 20     | Fixed   |
+| 25 | Calendar edit popup should be the full assignment dialog (single day)          | 20     | Fixed   |
+| 26 | Calendar add-assignment = student-page dialog + a student dropdown             | 20     | Fixed   |
+| 27 | Preceptor page add-assignment needs the same logic and context                 | 21     | Fixed   |
+| 28 | Schedule health not visible from the calendar                                  | 20     | Fixed   |
+| 29 | Overrides aren't tracked or reviewable                                         | 17, 20 | Fixed   |
+| 30 | `/schedules` vs `/calendar` is confusing; move to the switcher                 | 23     | Fixed   |
+| 31 | All of the above need real test coverage                                       | all    | Fixed   |
+
+### Found and fixed while testing (not in the original report)
+
+- **Orphaned schedules.** `createSchedulingPeriod` never persisted `user_id`, so every schedule made
+  through the wizard/API was invisible in its owner's list.
+- **Calendar toolbar "Add assignment" was unusable** — the dialog was opened with `lockDate` always
+  true, so with no pre-filled date the user could not pick one. Now only the day-click path locks.
+- **Creating a site without a health system failed silently.** The field was labelled "(Optional)"
+  and the schema parsed `''` to `undefined`, but `sites.health_system_id` is NOT NULL with a foreign
+  key, so the insert blew up and returned an opaque 500 — the dialog just sat there. A site does
+  belong to a health system (the app's own copy says so, and health-system onboarding is what gates
+  scheduling a student at a site), so the field is now genuinely required: the create schema rejects
+  an empty value with "Select a health system", the API answers 400 instead of 500, the form shows
+  the message inline, and the label no longer claims it is optional. Updates treat an empty value as
+  "leave unchanged", so a site's health system can be switched but never cleared.
+
+### Verification
+
+- **1511 unit tests**, `svelte-check` clean, production build succeeds.
+- **30 e2e journeys**, run from a cold seeded database with **zero retries and no flakes**;
+  the new and cross-cutting journeys additionally pass under `--repeat-each=2`.
+- Cross-cutting journeys: whole-app end-to-end (now creating and switching into a short schedule
+  first), fresh-signup-to-first-assignment, and the override lifecycle (both side-effect branches).
+
+## Round 3 status (Steps 25–33) — second-round beta fixes
+
+Round 3 addressed the issues found while using the app with **two real accounts**. The headline is a
+**data-privacy defect**: a signed-in user could see, modify and delete another user's students,
+preceptors, clerkships, sites, health systems and assignments. The plan lives in
+`docs/spec/plan/ROUND-3-OVERVIEW.md`.
+
+**Six root causes** explained the whole list:
+
+1. **No tenant boundary on reads.** Round 2 scoped the schedule *range*, never the *entity sets*. The
+   dashboard totals, `/locations`, the calendar filter lists and `getEnrichedAssignments` were all
+   unscoped. **Fixed in step 26**: `requireActiveScheduleId` + `assertEntityInSchedule` in
+   `schedule-context.ts`; every read joins the `schedule_*` junctions; detail reads 404 cross-tenant.
+2. **No ownership check on any mutation.** Every entity `PATCH`/`DELETE`, the assignment routes,
+   preceptor availability/patterns, onboarding, clerkship-sites and the scheduling-period routes ran
+   on any row by id. **Fixed in step 27**: a guard as the first step after validation on every
+   user-reachable write (404, never 403); override `side_effects` check every target before the
+   transaction. Stage-2 config routes stay `autogen`-gated and `blackout_dates` is a global table —
+   both intentionally not tenant-guarded.
+3. **Edit mode validated as a create.** `excludeId` reached the validation service but not
+   `assignment-day-state`/`requirement-preview`, and the dialog never sent it, so editing an
+   assignment conflicted with itself. **Fixed in step 28** (plus adaptive note copy).
+4. **Selection styling erased the conflict signal**, and the site was optional. **Fixed in step 29**:
+   selection composes with state (ring overlay), taken/full/busy are distinct + glyphed, a
+   selected-conflicts list surfaces bad days, and site is required client- and server-side.
+5. **The schedule-wide calendar rendered in student mode.** **Fixed in step 30**: `mode="schedule"`,
+   `colorBy="student"` with a stable id-hashed palette, clerkship linked in list view.
+6. **Capacity counted per assignment, not per slot** (8 instead of 4), and overrides were never
+   re-evaluated. **Fixed in step 32**: one capacity finding per over-subscribed preceptor-day,
+   override `active`/`resolved` status, grouping of consecutive days, and filter/pagination.
+
+| #  | Reported issue                                                              | Step | Status |
+|----|-----------------------------------------------------------------------------|------|--------|
+| 1  | Command to clear one test user without wiping the DB                        | 25   | Fixed  |
+| 2  | Command to clear everything for a fresh start                               | 25   | Fixed  |
+| 3  | Dashboard totals are global                                                 | 26   | Fixed  |
+| 4  | Locations shows other users' health systems and sites                      | 26   | Fixed  |
+| 5  | Student → Progress tab shows other users' clerkships                       | 26   | Fixed  |
+| 6  | Calendar shows other users' assignments                                     | 26   | Fixed  |
+| 7  | Can modify or delete other users' data                                      | 27   | Fixed  |
+| 8  | Edit assignment falsely reports "Student already has an assignment"         | 28   | Fixed  |
+| 9  | Edit assignment falsely warns "More days than required"                     | 28   | Fixed  |
+| 10 | Note placeholder implies an exception when none is made                     | 28   | Fixed  |
+| 11 | Preceptor's already-taken days not clearly indicated                        | 29   | Fixed  |
+| 12 | Selecting a taken day turns it black, hiding the overlap                    | 29   | Fixed  |
+| 13 | Site should be required when adding an assignment                           | 29   | Fixed  |
+| 14 | Calendar cells omit the student; colour should be per student              | 30   | Fixed  |
+| 15 | Calendar list view: clerkship is not a link                                 | 30   | Fixed  |
+| 16 | List rows should be clickable like Locations                               | 31   | Fixed  |
+| 17 | Manage button inconsistent; make it solid everywhere                        | 31   | Fixed  |
+| 18 | Resolved `not_onboarded` overrides still listed                            | 32   | Fixed  |
+| 19 | Capacity conflict count doubles (8 instead of 4)                            | 32   | Fixed  |
+| 20 | Conflict pill count wrong for the same reason                              | 32   | Fixed  |
+| 21 | Only capacity under "Conflicts by type"; the rest only under "Overrides"    | 32   | Fixed  |
+| 22 | Override list unpaginated/overflowing, no type filter                       | 32   | Fixed  |
+
+### Verification
+
+- The tenant boundary is proven by a two-tenant fixture (`src/lib/testing/tenant-fixture.ts`), a
+  scoped-reads integration test (`tenant-isolation.integration.test.ts`) and API handler tests
+  (`tenant-isolation-api.test.ts`, `tenant-isolation-mutations.test.ts`) that drive the **real**
+  detail and mutation handlers: cross-tenant reads and writes return **404** with the target row
+  byte-identical afterwards.
+- **The privacy fix is proven to matter:** those same isolation tests were run against the pre-fix
+  commit (`ec32526`, after step 25) — the cross-tenant detail GETs return **200 instead of 404** and
+  the calendar leak surfaces (6 failures). A privacy test that never failed is not evidence; these do.
+- `tenant-isolation.spec.ts` is the flagship e2e journey (signed in as tenant A, the "Tenant B"
+  marker is absent on every surface, deep links to B render not-found, and `page.request`
+  PATCH/DELETE against B's ids return 404 while B's rows stay intact). The seed creates the second
+  "Tenant B" account it needs.
+- Full Vitest suite green (**1568 tests**), `svelte-check` clean, production build succeeds.
+- The three Round-3-touching journeys (`end-to-end`, `entity-consistency`, `override-lifecycle`)
+  pass against the Round 3 build, confirming the required-site, edit-mode and calendar-rendering
+  changes did not regress them.
+- The dev reset commands (`db:reset-user`, `db:reset`) are covered by unit tests and smoke-tested
+  against a seeded file database.
+
+> **E2E note:** the shared Playwright login helper depends on the login form hydrating within a few
+> seconds; under heavy container load the browser sign-in can miss that window even though the server
+> `/api/auth/sign-in` and every authenticated page respond correctly (verified via `curl`). The
+> helper was hardened (retry the fill+click with a longer per-attempt window). Run the full suite in
+> a fresh CI container from a cold seeded database, twice, with `--retries=0`.

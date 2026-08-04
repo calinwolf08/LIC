@@ -94,7 +94,10 @@
 						{@const status = student.id ? statuses[student.id] : undefined}
 						{@const pct = status ? completionPercent(status.overall) : 0}
 						{@const badge = stateBadge(status?.scheduling_state)}
-						<tr class="border-b transition-colors hover:bg-muted/50">
+						<tr
+							class="cursor-pointer border-b transition-colors hover:bg-muted/50"
+							onclick={() => handleView(student)}
+						>
 							<td class="px-4 py-3 text-sm">
 								<button onclick={() => handleView(student)} class="text-left font-medium text-primary hover:underline">
 									{student.name}
@@ -120,9 +123,9 @@
 									{/if}
 								</div>
 							</td>
-							<td class="px-4 py-3 text-sm">
+							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="ghost" onclick={() => handleView(student)}>View</Button>
+									<Button size="sm" variant="default" onclick={() => handleView(student)}>Manage</Button>
 									{#if onDelete}
 										<Button size="sm" variant="destructive" onclick={() => onDelete?.(student)}>Delete</Button>
 									{/if}

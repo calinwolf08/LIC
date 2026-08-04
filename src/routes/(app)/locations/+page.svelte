@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { PageHeader, EntityTabs, ConfirmDialog, toast, type EntityTab } from '$lib/components';
+	import { PageHeader, EntityTabs, ConfirmDialog, NoActiveSchedule, toast, type EntityTab } from '$lib/components';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import HealthSystemTable from '$lib/features/health-systems/components/health-system-table.svelte';
@@ -25,24 +25,17 @@
 	];
 	let activeTab = $state($page.url.searchParams.get('tab') === 'sites' ? 'sites' : 'health-systems');
 
-	// ---- Health system dialogs ----
+	// ---- Health system dialogs (create only; editing lives on the detail page) ----
 	let showHsForm = $state(false);
-	let editingHs = $state<any>(undefined);
 	let showHsDelete = $state(false);
 	let hsDeleteTarget = $state<{ id: string; name: string } | null>(null);
 	let hsDependencyNote = $state<string | null>(null);
 
 	function addHealthSystem() {
-		editingHs = undefined;
-		showHsForm = true;
-	}
-	function editHealthSystem(hs: any) {
-		editingHs = hs;
 		showHsForm = true;
 	}
 	async function hsFormSuccess() {
 		showHsForm = false;
-		editingHs = undefined;
 		await invalidateAll();
 	}
 	async function requestHsDelete(hs: { id: string | null; name: string }) {
@@ -74,21 +67,14 @@
 		await invalidateAll();
 	}
 
-	// ---- Site dialogs ----
+	// ---- Site dialogs (create only; editing lives on the detail page) ----
 	let showSiteForm = $state(false);
-	let editingSite = $state<any>(undefined);
 
 	function addSite() {
-		editingSite = undefined;
-		showSiteForm = true;
-	}
-	function editSite(site: any) {
-		editingSite = site;
 		showSiteForm = true;
 	}
 	async function siteFormSuccess() {
 		showSiteForm = false;
-		editingSite = undefined;
 		await invalidateAll();
 	}
 	async function deleteSite(site: { id: string | null }) {
@@ -114,34 +100,36 @@
 		description="Clinical locations where students rotate. Each site is its own location and belongs to a health system."
 	>
 		{#snippet actions()}
-			{#if activeTab === 'health-systems'}
-				<Button onclick={addHealthSystem}>Add health system</Button>
-			{:else}
-				<Button onclick={addSite}>Add site</Button>
+			{#if data.hasActiveSchedule}
+				{#if activeTab === 'health-systems'}
+					<Button onclick={addHealthSystem}>Add health system</Button>
+				{:else}
+					<Button onclick={addSite}>Add site</Button>
+				{/if}
 			{/if}
 		{/snippet}
 	</PageHeader>
 
-	<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
-
-	{#if activeTab === 'health-systems'}
-		<HealthSystemTable
-			healthSystems={data.healthSystems}
-			onEdit={editHealthSystem}
-			onDelete={requestHsDelete}
-		/>
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="locations" />
 	{:else}
-		<SiteList sites={data.sites} onEdit={editSite} onDelete={deleteSite} />
+		<EntityTabs {tabs} bind:active={activeTab} urlParam="tab" />
+
+		{#if activeTab === 'health-systems'}
+			<HealthSystemTable healthSystems={data.healthSystems} onDelete={requestHsDelete} />
+		{:else}
+			<SiteList sites={data.sites} onDelete={deleteSite} />
+		{/if}
 	{/if}
 </div>
 
-<!-- Health system create/edit dialog -->
+<!-- Health system create dialog -->
 <Dialog.Root bind:open={showHsForm}>
 	<Dialog.Content class="max-w-2xl">
 		<Dialog.Header>
-			<Dialog.Title>{editingHs ? 'Edit health system' : 'Add health system'}</Dialog.Title>
+			<Dialog.Title>Add health system</Dialog.Title>
 		</Dialog.Header>
-		<HealthSystemForm healthSystem={editingHs} onSuccess={hsFormSuccess} onCancel={() => (showHsForm = false)} />
+		<HealthSystemForm onSuccess={hsFormSuccess} onCancel={() => (showHsForm = false)} />
 	</Dialog.Content>
 </Dialog.Root>
 
@@ -161,14 +149,13 @@
 	{/snippet}
 </ConfirmDialog>
 
-<!-- Site create/edit dialog -->
+<!-- Site create dialog -->
 <Dialog.Root bind:open={showSiteForm}>
 	<Dialog.Content class="max-w-2xl">
 		<Dialog.Header>
-			<Dialog.Title>{editingSite ? 'Edit site' : 'Add site'}</Dialog.Title>
+			<Dialog.Title>Add site</Dialog.Title>
 		</Dialog.Header>
 		<SiteForm
-			site={editingSite}
 			healthSystems={healthSystemOptions}
 			onSuccess={siteFormSuccess}
 			onCancel={() => (showSiteForm = false)}

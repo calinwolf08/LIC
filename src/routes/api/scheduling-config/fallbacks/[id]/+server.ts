@@ -10,6 +10,7 @@ import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 import { successResponse, errorResponse, notFoundResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertFallbackInSchedule } from '$lib/api/schedule-context';
 import { FallbackService } from '$lib/features/scheduling-config/services/fallbacks.service';
 import { createServerLogger } from '$lib/utils/logger.server';
 
@@ -24,6 +25,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching fallback', { id: params.id });
 
 	try {
+		// Tenant boundary: a fallback is owned via its primary preceptor.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertFallbackInSchedule(db, scheduleId, params.id);
+
 		const result = await service.getFallback(params.id);
 
 		if (!result.success || !result.data) {
@@ -53,6 +58,9 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting fallback', { id: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertFallbackInSchedule(db, scheduleId, params.id);
+
 		const result = await service.deleteFallback(params.id);
 
 		if (!result.success) {

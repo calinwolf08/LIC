@@ -20,7 +20,6 @@ import type {
 	PreceptorCapacitySummary,
 	StudentWithUnmetRequirements
 } from '../types/schedule-views';
-import { getActiveSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
 import {
 	parseUTCDate,
 	formatUTCDate,
@@ -41,31 +40,58 @@ const log = createServerLogger('service:schedules:views');
  */
 export async function getStudentScheduleData(
 	db: Kysely<DB>,
-	studentId: string
+	studentId: string,
+	scheduleId: string | null
 ): Promise<StudentSchedule | null> {
-	log.debug('Fetching student schedule data', { studentId });
+	log.debug('Fetching student schedule data', { studentId, scheduleId });
 
-	// Get student info
-	const student = await db
-		.selectFrom('students')
-		.select(['id', 'name', 'email'])
-		.where('id', '=', studentId)
-		.executeTakeFirst();
-
-	if (!student) {
-		log.debug('Student not found', { studentId });
+	// No active schedule → nothing to show. Never fall through to an unscoped
+	// student lookup, which would disclose another tenant's name/email.
+	if (!scheduleId) {
+		log.debug('No active schedule', { studentId });
 		return null;
 	}
 
-	// Get active scheduling period
-	const period = await getActiveSchedulingPeriod(db);
-	const startDate = period?.start_date || getDefaultStartDate();
-	const endDate = period?.end_date || getDefaultEndDate();
+	// The student must belong to this schedule. Scoping the lookup here (not just
+	// in the caller) makes the service safe regardless of who calls it — a
+	// caller-only guard has been missed before.
+	const student = await db
+		.selectFrom('students')
+		.innerJoin('schedule_students as ss', (join) =>
+			join.onRef('ss.student_id', '=', 'students.id').on('ss.schedule_id', '=', scheduleId)
+		)
+		.select(['students.id', 'students.name', 'students.email'])
+		.where('students.id', '=', studentId)
+		.executeTakeFirst();
 
-	// Get all clerkship requirements
+	if (!student) {
+		log.debug('Student not found in schedule', { studentId, scheduleId });
+		return null;
+	}
+
+	// Resolve the range from the caller's active schedule — never the global
+	// is_active flag, and never a fabricated calendar-year fallback. When there
+	// is no active schedule, return an empty (but valid) payload the UI renders
+	// as its "no active schedule" state.
+	const period = await resolvePeriod(db, scheduleId);
+	if (!period) {
+		return emptyStudentSchedule(student);
+	}
+	const startDate = period.start_date;
+	const endDate = period.end_date;
+
+	// Clerkship requirements for THIS schedule only — a global list would count
+	// (and disclose) other tenants' clerkships in the progress breakdown.
 	const clerkships = await db
 		.selectFrom('clerkships')
-		.select(['id', 'name', 'specialty', 'required_days'])
+		.innerJoin('schedule_clerkships as sc', 'sc.clerkship_id', 'clerkships.id')
+		.where('sc.schedule_id', '=', scheduleId)
+		.select([
+			'clerkships.id as id',
+			'clerkships.name as name',
+			'clerkships.specialty as specialty',
+			'clerkships.required_days as required_days'
+		])
 		.execute();
 
 	// Get all assignments for this student in the period
@@ -83,7 +109,8 @@ export async function getStudentScheduleData(
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
 			'sa.preceptor_id',
-			'p.name as preceptor_name'
+			'p.name as preceptor_name',
+			'p.health_system_id as health_system_id'
 		])
 		.where('sa.student_id', '=', studentId)
 		.where('sa.date', '>=', startDate)
@@ -93,6 +120,21 @@ export async function getStudentScheduleData(
 
 	// Get unique preceptor IDs to fetch their sites separately
 	const preceptorIds = [...new Set(assignments.map((a) => a.preceptor_id))];
+
+	// Health system names, so the page can name an onboarding gap without a
+	// second round trip.
+	const healthSystemIds = [
+		...new Set(assignments.map((a) => a.health_system_id).filter((id): id is string => !!id))
+	];
+	const healthSystemRows =
+		healthSystemIds.length > 0
+			? await db
+					.selectFrom('health_systems')
+					.select(['id', 'name'])
+					.where('id', 'in', healthSystemIds)
+					.execute()
+			: [];
+	const healthSystemNames = new Map(healthSystemRows.map((h) => [h.id as string, h.name]));
 
 	// Fetch preceptor sites separately (one query, no multiplication)
 	const preceptorSitesData = preceptorIds.length > 0
@@ -180,6 +222,8 @@ export async function getStudentScheduleData(
 			clerkshipName: a.clerkship_name,
 			preceptorId: a.preceptor_id,
 			preceptorName: a.preceptor_name,
+			studentId: student.id as string,
+			studentName: student.name,
 			color: getClerkshipColor(a.clerkship_specialty ?? 'General')
 		}
 	})));
@@ -193,7 +237,12 @@ export async function getStudentScheduleData(
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
 		preceptorId: a.preceptor_id,
 		preceptorName: a.preceptor_name,
+		siteId: a.site_id ?? undefined,
 		siteName: a.site_name || undefined,
+		healthSystemId: a.health_system_id ?? undefined,
+		healthSystemName: a.health_system_id
+			? (healthSystemNames.get(a.health_system_id) ?? undefined)
+			: undefined,
 		status: a.status
 	}));
 
@@ -242,9 +291,10 @@ export async function getStudentScheduleData(
  */
 export async function getPreceptorScheduleData(
 	db: Kysely<DB>,
-	preceptorId: string
+	preceptorId: string,
+	scheduleId: string | null
 ): Promise<PreceptorSchedule | null> {
-	log.debug('Fetching preceptor schedule data', { preceptorId });
+	log.debug('Fetching preceptor schedule data', { preceptorId, scheduleId });
 
 	// Get preceptor info
 	const preceptor = await db
@@ -259,10 +309,13 @@ export async function getPreceptorScheduleData(
 		return null;
 	}
 
-	// Get active scheduling period
-	const period = await getActiveSchedulingPeriod(db);
-	const startDate = period?.start_date || getDefaultStartDate();
-	const endDate = period?.end_date || getDefaultEndDate();
+	// Resolve the range from the caller's active schedule (see student note above).
+	const period = await resolvePeriod(db, scheduleId);
+	if (!period) {
+		return emptyPreceptorSchedule(preceptor);
+	}
+	const startDate = period.start_date;
+	const endDate = period.end_date;
 
 	// Get preceptor availability
 	const availability = await db
@@ -480,13 +533,19 @@ export async function getPreceptorScheduleData(
 /**
  * Get overall schedule results summary
  */
-export async function getScheduleSummaryData(db: Kysely<DB>): Promise<ScheduleResultsSummary> {
-	log.debug('Fetching schedule summary data');
+export async function getScheduleSummaryData(
+	db: Kysely<DB>,
+	scheduleId: string | null
+): Promise<ScheduleResultsSummary> {
+	log.debug('Fetching schedule summary data', { scheduleId });
 
-	// Get active scheduling period
-	const period = await getActiveSchedulingPeriod(db);
-	const startDate = period?.start_date || getDefaultStartDate();
-	const endDate = period?.end_date || getDefaultEndDate();
+	// Resolve the range from the caller's active schedule; no schedule → empty summary.
+	const period = await resolvePeriod(db, scheduleId);
+	if (!period) {
+		return emptyScheduleSummary();
+	}
+	const startDate = period.start_date;
+	const endDate = period.end_date;
 
 	// Get all students
 	const students = await db
@@ -629,14 +688,83 @@ export async function getScheduleSummaryData(db: Kysely<DB>): Promise<ScheduleRe
 // Helper Functions
 // ============================================================================
 
-function getDefaultStartDate(): string {
-	const now = new Date();
-	return `${now.getFullYear()}-01-01`;
+/**
+ * Resolve a schedule id to its period row. Returns null when the id is null or
+ * the row is missing — callers must handle the "no active schedule" case rather
+ * than falling back to a fabricated date range.
+ */
+async function resolvePeriod(
+	db: Kysely<DB>,
+	scheduleId: string | null
+): Promise<{ id: string | null; name: string; start_date: string; end_date: string } | null> {
+	if (!scheduleId) return null;
+	const period = await db
+		.selectFrom('scheduling_periods')
+		.select(['id', 'name', 'start_date', 'end_date'])
+		.where('id', '=', scheduleId)
+		.executeTakeFirst();
+	return period ?? null;
 }
 
-function getDefaultEndDate(): string {
-	const now = new Date();
-	return `${now.getFullYear()}-12-31`;
+function emptyStudentSchedule(student: {
+	id: string | null;
+	name: string;
+	email: string;
+}): StudentSchedule {
+	return {
+		student: { id: student.id as string, name: student.name, email: student.email },
+		period: null,
+		clerkshipProgress: [],
+		summary: {
+			totalAssignedDays: 0,
+			totalRequiredDays: 0,
+			overallPercentComplete: 0,
+			clerkshipsComplete: 0,
+			clerkshipsTotal: 0,
+			clerkshipsWithNoAssignments: 0
+		},
+		calendar: [],
+		assignments: []
+	};
+}
+
+function emptyPreceptorSchedule(preceptor: {
+	id: string | null;
+	name: string;
+	email: string;
+	health_system_name: string | null;
+}): PreceptorSchedule {
+	return {
+		preceptor: {
+			id: preceptor.id as string,
+			name: preceptor.name,
+			email: preceptor.email,
+			healthSystemName: preceptor.health_system_name || undefined
+		},
+		period: null,
+		monthlyCapacity: [],
+		overallCapacity: { availableDays: 0, assignedDays: 0, openSlots: 0, utilizationPercent: 0 },
+		calendar: [],
+		assignedStudents: [],
+		assignments: []
+	};
+}
+
+function emptyScheduleSummary(): ScheduleResultsSummary {
+	return {
+		period: null,
+		stats: {
+			totalAssignments: 0,
+			totalStudents: 0,
+			totalPreceptors: 0,
+			studentsFullyScheduled: 0,
+			studentsPartiallyScheduled: 0,
+			studentsWithNoAssignments: 0
+		},
+		studentsWithUnmetRequirements: [],
+		clerkshipBreakdown: [],
+		isComplete: true
+	};
 }
 
 function getClerkshipColor(specialty: string): string {
@@ -701,6 +829,7 @@ function buildCalendarMonths(
 					dayOfMonth,
 					dayOfWeek,
 					isCurrentMonth,
+					isInRange: dateStr >= startDate && dateStr <= endDate,
 					isToday: dateStr === today,
 					isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
 					assignments: dayAssignments,
@@ -774,6 +903,7 @@ function buildCalendarMonthsWithAvailability(
 					dayOfMonth,
 					dayOfWeek,
 					isCurrentMonth,
+					isInRange: dateStr >= startDate && dateStr <= endDate,
 					isToday: dateStr === today,
 					isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
 					assignments: dayAssignments,

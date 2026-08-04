@@ -91,6 +91,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
+		.addColumn('override_codes', 'text', (col) => col.notNull().defaultTo('[]'))
+		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();

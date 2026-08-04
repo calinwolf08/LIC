@@ -16,6 +16,7 @@ import {
 	validationErrorResponse
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertElectiveInSchedule } from '$lib/api/schedule-context';
 import { ElectiveService } from '$lib/features/scheduling-config/services/electives.service';
 import { clerkshipElectiveUpdateSchema } from '$lib/features/scheduling-config/schemas/requirements.schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -28,10 +29,14 @@ const service = new ElectiveService(db);
  * GET /api/scheduling-config/electives/[id]
  * Optional query param: details=true for full details including sites/preceptors
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, url, locals }) => {
 	log.debug('Fetching elective', { id: params.id });
 
 	try {
+		// Tenant boundary: an elective is owned via its parent clerkship.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const includeDetails = url.searchParams.get('details') === 'true';
 
 		if (includeDetails) {
@@ -74,10 +79,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
  * PATCH /api/scheduling-config/electives/[id]
  * Updates an elective
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating elective', { id: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const body = await request.json();
 		const validatedData = clerkshipElectiveUpdateSchema.parse(body);
 
@@ -115,10 +123,13 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 /**
  * DELETE /api/scheduling-config/electives/[id]
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting elective', { id: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const result = await service.deleteElective(params.id);
 
 		if (!result.success) {

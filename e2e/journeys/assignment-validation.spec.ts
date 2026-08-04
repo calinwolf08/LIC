@@ -1,30 +1,26 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, ADMIN } from './helpers';
+import {
+	openAssignmentDialog,
+	pickDay,
+	selectClerkship,
+	selectPreceptor,
+	submitAcceptingOverrides,
+	fromToday
+} from './assignment-helpers';
 
 /**
- * Assignment + validation journeys (seeded admin). The seeded active schedule
- * ("My Schedule") runs 2026-07-01 → 2027-06-30, so in-range dates live in that
- * window. Freshly-created students are not onboarded to any health system, so a
- * fresh in-range assignment against a seeded preceptor raises exactly one soft
- * warning (not_onboarded) — which lets us verify revalidation once onboarding is
- * done.
+ * Assignment + validation journeys against the unified dialog (step 18).
+ *
+ * Freshly-created students are not onboarded to any health system, so a clean
+ * in-range assignment against a seeded preceptor raises exactly one soft
+ * category (not onboarded) — which lets us verify both the override
+ * conversation and that completing onboarding clears it.
  */
 
-/** A random in-range date, varied so re-runs don't double-book a student. */
-function inRangeDate() {
-	const day = 6 + (Date.now() % 20); // 2026-09-06 .. 2026-09-25
-	return `2026-09-${String(day).padStart(2, '0')}`;
-}
-
-async function openCreateDialog(page: Page, clerkshipIdx = 1, preceptorIdx = 1, date?: string) {
-	await page.getByRole('button', { name: 'Add assignment' }).first().click();
-	await expect(page.getByRole('heading', { name: 'Add assignment' })).toBeVisible();
-	await expect(page.locator('#ca-clerkship option')).not.toHaveCount(1, { timeout: 20000 });
-	await expect(page.locator('#ca-preceptor option')).not.toHaveCount(1, { timeout: 20000 });
-	await page.locator('#ca-clerkship').selectOption({ index: clerkshipIdx });
-	await page.locator('#ca-preceptor').selectOption({ index: preceptorIdx });
-	await page.locator('#ca-date').fill(date ?? inRangeDate());
-	await page.waitForTimeout(700); // debounced dry-run
+/** An in-range future date, varied so re-runs don't double-book a student. */
+function inRangeDate(offset = 0) {
+	return fromToday(20 + (Date.now() % 20) + offset);
 }
 
 async function createStudent(page: Page, name: string, email: string) {
@@ -35,25 +31,36 @@ async function createStudent(page: Page, name: string, email: string) {
 	await expect(page).toHaveURL(/\/students$/);
 }
 
-test('assignment: create with a warning then remove it from the schedule', async ({ page }) => {
+async function openStudent(page: Page, name: string) {
+	await page.goto('/students');
+	await page.getByRole('button', { name }).click();
+	await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible();
+}
+
+test('assignment: create with an override, then remove it from the schedule', async ({ page }) => {
 	await login(page, ADMIN);
 
 	// A dedicated student keeps this test independent of others' assignments.
-	const name = `E2E Assign ${Date.now()}`;
-	await createStudent(page, name, `e2e_assign_${Date.now()}@example.com`);
-	await page.getByRole('button', { name }).click();
-	await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible();
+	const stamp = Date.now();
+	const name = `E2E Assign ${stamp}`;
+	await createStudent(page, name, `e2e_assign_${stamp}@example.com`);
+	await openStudent(page, name);
 
 	const date = inRangeDate();
-	await openCreateDialog(page, 1, 1, date);
+	await openAssignmentDialog(page);
+	await selectClerkship(page, 'Internal Medicine');
+	await selectPreceptor(page, 'Dr. Maria Garcia');
+	await pickDay(page, date);
 
-	// The not-onboarded soft warning is shown; submit anyway.
-	await expect(page.getByText(/has not completed onboarding/i)).toBeVisible();
-	await page.getByRole('button', { name: /create anyway/i }).click();
-	await expect(page.getByText(/assignment created/i)).toBeVisible({ timeout: 15000 });
+	// The not-onboarded category is announced before submitting…
+	await expect(page.getByTestId('override-summary')).toContainText(/not onboarded/i);
+	// …and confirmed explicitly.
+	await submitAcceptingOverrides(page);
+	await expect(page.getByText(/day\(s\) assigned/i)).toBeVisible({ timeout: 15000 });
 
-	// It shows on the Schedule tab; remove it.
+	// It shows on the Schedule tab's list; remove it.
 	await page.getByRole('tab', { name: 'Schedule' }).click();
+	await page.getByRole('button', { name: 'List' }).click();
 	const row = page.locator('table tbody tr', { hasText: date });
 	await expect(row).toBeVisible();
 	await row.getByRole('button', { name: 'Remove' }).click();
@@ -63,20 +70,21 @@ test('assignment: create with a warning then remove it from the schedule', async
 	await expect(page.locator('table tbody tr', { hasText: date })).toHaveCount(0);
 });
 
-test('assignment: completing onboarding clears the not-onboarded warning (revalidation)', async ({
-	page
-}) => {
+test('assignment: completing onboarding clears the not-onboarded override', async ({ page }) => {
 	await login(page, ADMIN);
 
-	const name = `E2E Onboard ${Date.now()}`;
-	await createStudent(page, name, `e2e_onboard_${Date.now()}@example.com`);
-	await page.getByRole('button', { name }).click();
-	await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible();
+	const stamp = Date.now();
+	const name = `E2E Onboard ${stamp}`;
+	await createStudent(page, name, `e2e_onboard_${stamp}@example.com`);
+	await openStudent(page, name);
 
-	// Before onboarding: the warning is present.
-	await openCreateDialog(page, 1, 1, '2026-09-04');
-	await expect(page.getByText(/has not completed onboarding/i)).toBeVisible();
-	await page.getByRole('button', { name: 'Cancel' }).click();
+	// Before onboarding: the category is listed.
+	await openAssignmentDialog(page);
+	await selectClerkship(page, 'Internal Medicine');
+	await selectPreceptor(page, 'Dr. Maria Garcia');
+	await pickDay(page, inRangeDate());
+	await expect(page.getByTestId('override-summary')).toContainText(/not onboarded/i);
+	await page.getByRole('button', { name: 'Cancel' }).first().click();
 
 	// Complete onboarding for every health system.
 	await page.getByRole('tab', { name: 'Onboarding' }).click();
@@ -91,8 +99,11 @@ test('assignment: completing onboarding clears the not-onboarded warning (revali
 		}
 	}
 
-	// Reopen on a fresh in-range date: no onboarding warning, conflicts clear.
-	await openCreateDialog(page, 1, 1, '2026-09-05');
-	await expect(page.getByText(/has not completed onboarding/i)).toHaveCount(0);
-	await expect(page.getByText('No conflicts.')).toBeVisible();
+	// Reopen on a fresh in-range date: nothing left to confirm.
+	await page.getByRole('tab', { name: 'Overview' }).click();
+	await openAssignmentDialog(page);
+	await selectClerkship(page, 'Internal Medicine');
+	await selectPreceptor(page, 'Dr. Maria Garcia');
+	await pickDay(page, inRangeDate(1));
+	await expect(page.getByTestId('override-summary')).toHaveCount(0);
 });

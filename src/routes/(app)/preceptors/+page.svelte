@@ -5,6 +5,7 @@
 	import DeletePreceptorDialog from '$lib/features/preceptors/components/delete-preceptor-dialog.svelte';
 	import TeamList from '$lib/features/teams/components/team-list.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { NoActiveSchedule } from '$lib/components';
 	import { goto } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -139,6 +140,9 @@
 		<h1 class="text-3xl font-bold">{hasAutogen ? 'Preceptors & Teams' : 'Preceptors'}</h1>
 	</div>
 
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="preceptors" />
+	{:else}
 	<!-- Tabs -->
 	<div class="mb-6 border-b">
 		<nav class="-mb-px flex space-x-8">
@@ -197,6 +201,7 @@
 				/>
 			{/if}
 		</div>
+	{/if}
 	{/if}
 </div>
 

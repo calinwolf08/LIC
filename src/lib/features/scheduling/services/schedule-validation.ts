@@ -16,6 +16,12 @@ import {
 
 export interface ScheduleViolation extends Violation {
 	assignment_id: string;
+	/**
+	 * Every assignment this finding covers. For per-assignment codes this is just
+	 * `[assignment_id]`; for slot-scoped codes (preceptor_capacity) it is all the
+	 * assignments sharing the over-subscribed preceptor-day.
+	 */
+	assignment_ids: string[];
 	date: string;
 	student_id: string;
 	preceptor_id: string;
@@ -138,11 +144,12 @@ export async function validateSchedule(
 		existingClerkshipIds: new Set(clerkships.map((c) => c.id!))
 	};
 
-	// Preceptor-date occupancy for capacity checks
-	const occupancy = new Map<string, number>();
+	// Preceptor-date occupancy for capacity checks: keep the actual assignments on
+	// each slot so a single capacity finding can reference them all.
+	const slotAssignments = new Map<string, typeof assignments>();
 	for (const a of assignments) {
 		const k = `${a.preceptor_id}:${a.date}`;
-		occupancy.set(k, (occupancy.get(k) ?? 0) + 1);
+		(slotAssignments.get(k) ?? slotAssignments.set(k, []).get(k)!).push(a);
 	}
 
 	// student:date -> assignment id (double-booking is DB-prevented, but keep for completeness)
@@ -152,6 +159,8 @@ export async function validateSchedule(
 	}
 
 	const violations: ScheduleViolation[] = [];
+
+	// Per-assignment findings (capacity is slot-scoped and handled separately below).
 	for (const a of assignments) {
 		const res = validateCandidateWithContext(
 			{
@@ -166,25 +175,33 @@ export async function validateSchedule(
 			existingByStudentDate
 		);
 
-		const all: Violation[] = [...res.hard, ...res.soft];
-
-		// Capacity (not handled by the pure function): flag when occupancy exceeds max
-		const max = preceptorMaxStudents.get(a.preceptor_id) ?? 1;
-		if ((occupancy.get(`${a.preceptor_id}:${a.date}`) ?? 0) > max) {
-			all.push({
-				code: 'preceptor_capacity',
-				message: 'Preceptor is over capacity for this date',
-				entity_refs: { preceptor_id: a.preceptor_id }
-			});
-		}
-
-		for (const v of all) {
+		for (const v of [...res.hard, ...res.soft]) {
 			violations.push({
 				...v,
 				assignment_id: a.id!,
+				assignment_ids: [a.id!],
 				date: a.date,
 				student_id: a.student_id,
 				preceptor_id: a.preceptor_id
+			});
+		}
+	}
+
+	// Capacity: ONE finding per over-subscribed (preceptor, date), not one per
+	// assignment — so four double-booked days read as 4, not 8.
+	for (const [, slot] of slotAssignments) {
+		const first = slot[0];
+		const max = preceptorMaxStudents.get(first.preceptor_id) ?? 1;
+		if (slot.length > max) {
+			violations.push({
+				code: 'preceptor_capacity',
+				message: 'Preceptor is over capacity for this date',
+				entity_refs: { preceptor_id: first.preceptor_id },
+				assignment_id: first.id!,
+				assignment_ids: slot.map((a) => a.id!),
+				date: first.date,
+				student_id: first.student_id,
+				preceptor_id: first.preceptor_id
 			});
 		}
 	}

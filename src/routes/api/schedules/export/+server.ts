@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
 import { generateScheduleExcel } from '$lib/features/schedules/services/export-service.js';
 import type { CalendarFilters } from '$lib/features/schedules/types';
 import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
@@ -38,7 +39,7 @@ const exportQuerySchema = z.object({
  *   - preceptor_id: UUID (optional)
  *   - clerkship_id: UUID (optional)
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const startDate = url.searchParams.get('start_date');
 	const endDate = url.searchParams.get('end_date');
 	const studentId = url.searchParams.get('student_id');
@@ -69,8 +70,11 @@ export const GET: RequestHandler = async ({ url }) => {
 			clerkship_id: clerkshipId || undefined
 		});
 
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		// Build filters
 		const filters: CalendarFilters = {
+			scheduleId,
 			start_date: validated.start_date,
 			end_date: validated.end_date,
 			student_id: validated.student_id,
@@ -104,7 +108,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Export validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return errorResponse(error.issues[0].message, 400);
 		}

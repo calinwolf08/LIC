@@ -20,9 +20,11 @@ import {
 	updatePreceptor,
 	deletePreceptor,
 	setPreceptorSites,
-	getPreceptorSites
+	getPreceptorSites,
+	getPreceptorSitesWithDetails
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { updatePreceptorSchema, preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -32,12 +34,16 @@ const log = createServerLogger('api:preceptors:id');
  * GET /api/preceptors/[id]
  * Returns a single preceptor with their site IDs
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching preceptor', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 when the preceptor is not in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		const preceptor = await getPreceptorById(db, id);
 
@@ -46,8 +52,13 @@ export const GET: RequestHandler = async ({ params }) => {
 			return notFoundResponse('Preceptor');
 		}
 
-		// Get site IDs for this preceptor
-		const siteIds = await getPreceptorSites(db, id);
+		// Get site IDs and full site records for this preceptor. `sites` is always
+		// an array so consumers (e.g. the availability builder) never dereference
+		// undefined.
+		const [siteIds, sites] = await Promise.all([
+			getPreceptorSites(db, id),
+			getPreceptorSitesWithDetails(db, id)
+		]);
 
 		log.info('Preceptor fetched', {
 			id,
@@ -57,7 +68,8 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		return successResponse({
 			...preceptor,
-			site_ids: siteIds
+			site_ids: siteIds,
+			sites
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
@@ -77,12 +89,16 @@ export const GET: RequestHandler = async ({ params }) => {
  * PATCH /api/preceptors/[id]
  * Updates a preceptor
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating preceptor', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		// Parse and validate request body
 		const body = await request.json();
@@ -141,12 +157,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/preceptors/[id]
  * Deletes a preceptor
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting preceptor', { id: params.id });
 
 	try {
 		// Validate ID format
 		const { id } = preceptorIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the preceptor is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', id);
 
 		await deletePreceptor(db, id);
 

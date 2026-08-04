@@ -34,6 +34,11 @@ export async function getEnrichedAssignments(
 
 	let query = db
 		.selectFrom('schedule_assignments as sa')
+		// Scope to the caller's schedule: assignments have no schedule_id, so
+		// membership flows through the student's schedule_students row.
+		.innerJoin('schedule_students as ss', (join) =>
+			join.onRef('ss.student_id', '=', 'sa.student_id').on('ss.schedule_id', '=', filters.scheduleId)
+		)
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
@@ -138,11 +143,13 @@ export async function getDailyAssignments(
  */
 export async function getAssignmentsByStudent(
 	db: Kysely<DB>,
+	scheduleId: string,
 	studentId: string,
 	startDate?: string,
 	endDate?: string
 ): Promise<EnrichedAssignment[]> {
 	const filters: CalendarFilters = {
+		scheduleId,
 		student_id: studentId,
 		start_date: startDate || '1900-01-01',
 		end_date: endDate || '2100-12-31'
@@ -156,11 +163,13 @@ export async function getAssignmentsByStudent(
  */
 export async function getAssignmentsByPreceptor(
 	db: Kysely<DB>,
+	scheduleId: string,
 	preceptorId: string,
 	startDate?: string,
 	endDate?: string
 ): Promise<EnrichedAssignment[]> {
 	const filters: CalendarFilters = {
+		scheduleId,
 		preceptor_id: preceptorId,
 		start_date: startDate || '1900-01-01',
 		end_date: endDate || '2100-12-31'
@@ -174,10 +183,12 @@ export async function getAssignmentsByPreceptor(
  */
 export async function getScheduleSummary(
 	db: Kysely<DB>,
+	scheduleId: string,
 	startDate: string,
 	endDate: string
 ): Promise<ScheduleSummary> {
 	const filters: CalendarFilters = {
+		scheduleId,
 		start_date: startDate,
 		end_date: endDate
 	};

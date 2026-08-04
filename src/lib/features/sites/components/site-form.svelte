@@ -154,7 +154,7 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="health_system_id">Health System (Optional)</Label>
+				<Label for="health_system_id">Health System</Label>
 				<select
 					id="health_system_id"
 					bind:value={formData.health_system_id}

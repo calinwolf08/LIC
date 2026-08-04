@@ -151,7 +151,7 @@
 								</td>
 								<td class="px-4 py-3 text-sm">
 									<div class="flex gap-2">
-										<Button size="sm" variant="outline" onclick={() => onEdit(team)}>Edit</Button>
+										<Button size="sm" variant="outline" onclick={() => onEdit(team)}>Manage</Button>
 										<Button size="sm" variant="destructive" onclick={() => requestDelete(team)}>
 											Delete
 										</Button>

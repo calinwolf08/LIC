@@ -4,15 +4,12 @@
  * POST /api/schedules/assignments/swap - Swap two assignments
  */
 
-import type { RequestHandler} from './$types';
+import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { swapAssignments } from '$lib/features/schedules/services/editing-service.js';
+import { requireActiveScheduleId, assertAssignmentInSchedule } from '$lib/api/schedule-context';
 import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { z, ZodError } from 'zod';
@@ -32,12 +29,17 @@ const swapSchema = z.object({
  * POST /api/schedules/assignments/swap
  * Swap the preceptors of two assignments
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Swapping assignments');
 
 	try {
 		const body = await request.json();
 		const { assignment_id_1, assignment_id_2, dry_run } = swapSchema.parse(body);
+
+		// Ownership guard: both assignments must belong to the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, assignment_id_1);
+		await assertAssignmentInSchedule(db, scheduleId, assignment_id_2);
 
 		log.debug('Swap request validated', {
 			assignmentId1: assignment_id_1,
@@ -59,7 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Swap validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

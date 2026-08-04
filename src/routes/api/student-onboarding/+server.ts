@@ -9,6 +9,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { successResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { sql } from 'kysely';
 
@@ -16,18 +17,25 @@ const log = createServerLogger('api:student-onboarding');
 
 /**
  * GET /api/student-onboarding
- * Returns all student health system onboarding records
+ * Returns onboarding records for students in the caller's active schedule.
  */
-export const GET: RequestHandler = async () => {
-	log.debug('Fetching all student onboarding records');
+export const GET: RequestHandler = async ({ locals }) => {
+	log.debug('Fetching student onboarding records for active schedule');
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+
+		// Scope to this schedule's students — a bare select leaks every tenant's
+		// onboarding rows.
 		const records = await db
-			.selectFrom('student_health_system_onboarding')
-			.selectAll()
+			.selectFrom('student_health_system_onboarding as o')
+			.innerJoin('schedule_students as ss', (join) =>
+				join.onRef('ss.student_id', '=', 'o.student_id').on('ss.schedule_id', '=', scheduleId)
+			)
+			.selectAll('o')
 			.execute();
 
-		log.info('Student onboarding records fetched', { count: records.length });
+		log.info('Student onboarding records fetched', { count: records.length, scheduleId });
 		return successResponse(records);
 	} catch (error) {
 		log.error('Failed to fetch student onboarding records', { error });
@@ -41,7 +49,7 @@ export const GET: RequestHandler = async () => {
  *
  * Body: { student_id, health_system_id, is_completed, completed_date? }
  */
-export const PUT: RequestHandler = async ({ request }) => {
+export const PUT: RequestHandler = async ({ request, locals }) => {
 	log.debug('Upserting student onboarding record');
 
 	try {
@@ -52,6 +60,12 @@ export const PUT: RequestHandler = async ({ request }) => {
 			log.warn('Missing required fields for onboarding upsert');
 			return errorResponse('student_id and health_system_id are required', 400);
 		}
+
+		// Ownership guard: the student and the health system must both be in the
+		// caller's schedule before we write an onboarding row.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'student', student_id);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', health_system_id);
 
 		log.debug('Processing onboarding upsert', {
 			studentId: student_id,

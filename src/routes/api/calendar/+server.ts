@@ -9,6 +9,7 @@ import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { getCalendarEvents } from '$lib/features/schedules/services/calendar-service.js';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { z, ZodError } from 'zod';
 import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
@@ -36,7 +37,7 @@ const calendarQuerySchema = z.object({
  *   - preceptor_id: UUID (optional)
  *   - clerkship_id: UUID (optional)
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const startDate = url.searchParams.get('start_date');
 	const endDate = url.searchParams.get('end_date');
 	const studentId = url.searchParams.get('student_id');
@@ -52,8 +53,10 @@ export const GET: RequestHandler = async ({ url }) => {
 	});
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		// Validate query parameters
-		const filters = calendarQuerySchema.parse({
+		const parsed = calendarQuerySchema.parse({
 			start_date: startDate,
 			end_date: endDate,
 			student_id: studentId || undefined,
@@ -62,17 +65,17 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 
 		// Validate date range order
-		if (filters.start_date > filters.end_date) {
+		if (parsed.start_date > parsed.end_date) {
 			log.warn('Invalid date range', { startDate, endDate });
 			return errorResponse('end_date must be greater than or equal to start_date', 400);
 		}
 
-		const events = await getCalendarEvents(db, filters);
+		const events = await getCalendarEvents(db, { ...parsed, scheduleId });
 
 		log.info('Calendar events fetched', {
 			count: events.length,
-			startDate: filters.start_date,
-			endDate: filters.end_date,
+			startDate: parsed.start_date,
+			endDate: parsed.end_date,
 			filtered: !!(studentId || preceptorId || clerkshipId)
 		});
 

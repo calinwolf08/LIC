@@ -15,6 +15,7 @@ import {
 	errorResponse
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { ElectiveService } from '$lib/features/scheduling-config/services/electives.service';
 import { clerkshipElectiveInputSchema } from '$lib/features/scheduling-config/schemas/requirements.schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -30,7 +31,7 @@ const service = new ElectiveService(db);
  *   - clerkshipId: filter by clerkship (required)
  *   - required: 'true' | 'false' - filter by required status
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const clerkshipId = url.searchParams.get('clerkshipId');
 	const requiredFilter = url.searchParams.get('required');
 
@@ -41,6 +42,10 @@ export const GET: RequestHandler = async ({ url }) => {
 			log.warn('Missing clerkshipId parameter');
 			return errorResponse('clerkshipId query parameter is required', 400);
 		}
+
+		// Tenant boundary: the clerkship must be in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', clerkshipId);
 
 		let result;
 
@@ -78,7 +83,7 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/scheduling-config/electives
  * Creates a new elective for a clerkship
  */
-export const POST: RequestHandler = async ({ request, url }) => {
+export const POST: RequestHandler = async ({ request, url, locals }) => {
 	const clerkshipId = url.searchParams.get('clerkshipId');
 
 	log.debug('Creating elective', { clerkshipId });
@@ -88,6 +93,9 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			log.warn('Missing clerkshipId parameter');
 			return errorResponse('clerkshipId query parameter is required', 400);
 		}
+
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', clerkshipId);
 
 		const body = await request.json();
 		const validatedData = clerkshipElectiveInputSchema.parse(body);

@@ -17,6 +17,7 @@ import {
 import { handleApiError } from '$lib/api/errors';
 import { HealthSystemService } from '$lib/features/scheduling-config/services/health-systems.service';
 import { healthSystemInputSchema } from '$lib/features/scheduling-config/schemas/health-systems.schemas';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -26,10 +27,14 @@ const service = new HealthSystemService(db);
 /**
  * GET /api/health-systems/[id]
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching health system', { id: params.id });
 
 	try {
+		// Tenant boundary: 404 when the health system is not in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', params.id);
+
 		const result = await service.getHealthSystem(params.id);
 
 		if (!result.success || !result.data) {
@@ -53,10 +58,14 @@ export const GET: RequestHandler = async ({ params }) => {
 /**
  * PUT /api/health-systems/[id]
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Updating health system', { id: params.id });
 
 	try {
+		// Ownership guard: 404 unless the health system is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', params.id);
+
 		const body = await request.json();
 		const validatedData = healthSystemInputSchema.parse(body);
 
@@ -100,10 +109,14 @@ export const PATCH: RequestHandler = PUT;
 /**
  * DELETE /api/health-systems/[id]
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting health system', { id: params.id });
 
 	try {
+		// Ownership guard: 404 unless the health system is in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'health_system', params.id);
+
 		// Check dependencies first
 		const dependenciesResult = await service.getHealthSystemDependencies(params.id);
 

@@ -7,7 +7,7 @@
 	import {
 		ScheduleCalendarGrid,
 		PreceptorCapacitySummary,
-		CreateAssignmentDialog
+		AssignmentDialog
 	} from '$lib/features/schedules/components';
 	import PreceptorForm from '$lib/features/preceptors/components/preceptor-form.svelte';
 	import PatternAvailabilityBuilder from '$lib/features/preceptors/components/pattern-availability-builder.svelte';
@@ -121,6 +121,16 @@
 		</div>
 	{:else if activeTab === 'availability'}
 		<div class="space-y-6">
+			<!-- Primary action first: set availability, then visualise it below. -->
+			<Card class="p-4">
+				<h3 class="mb-3 text-lg font-semibold">Set availability</h3>
+				<PatternAvailabilityBuilder
+					preceptor={data.preceptor}
+					onSuccess={handleAvailabilitySuccess}
+					onCancel={() => {}}
+				/>
+			</Card>
+
 			<Card class="p-4">
 				<div class="mb-3 flex items-center justify-between">
 					<h3 class="text-lg font-semibold">Availability calendar</h3>
@@ -135,15 +145,6 @@
 				{:else}
 					<EmptyState icon="📅" title="No active schedule" description="Availability is shown across the active schedule's dates." />
 				{/if}
-			</Card>
-
-			<Card class="p-4">
-				<h3 class="mb-3 text-lg font-semibold">Edit availability</h3>
-				<PatternAvailabilityBuilder
-					preceptor={data.preceptor}
-					onSuccess={handleAvailabilitySuccess}
-					onCancel={() => {}}
-				/>
 			</Card>
 		</div>
 	{:else if activeTab === 'schedule'}
@@ -174,7 +175,7 @@
 	{/if}
 </div>
 
-<CreateAssignmentDialog
+<AssignmentDialog
 	bind:open={showCreate}
 	preceptorId={data.preceptorId}
 	lockPreceptor={true}

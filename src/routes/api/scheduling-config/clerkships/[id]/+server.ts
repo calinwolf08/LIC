@@ -12,6 +12,7 @@ import {
 	notFoundResponse
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { ConfigurationService } from '$lib/features/scheduling-config/services/configuration.service';
 import { createServerLogger } from '$lib/utils/logger.server';
 
@@ -26,10 +27,14 @@ const service = new ConfigurationService(db);
  * - Teams assigned to each requirement
  * - Electives for elective requirements
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching clerkship configuration', { clerkshipId: params.id });
 
 	try {
+		// Tenant boundary: the clerkship must be in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', params.id);
+
 		const result = await service.getCompleteConfiguration(params.id);
 
 		if (!result.success || !result.data) {

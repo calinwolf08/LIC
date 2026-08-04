@@ -3,6 +3,8 @@ import { clerkshipSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
+import { db } from '$lib/db';
 import { createServerLogger } from '$lib/utils/logger.server';
 import type { RequestHandler } from './$types';
 
@@ -12,20 +14,24 @@ const log = createServerLogger('api:clerkship-sites');
  * GET /api/clerkship-sites
  * Get all clerkship-site associations or filter by clerkship_id or site_id
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const clerkshipId = url.searchParams.get('clerkship_id');
 	const siteId = url.searchParams.get('site_id');
 
 	log.debug('Fetching clerkship-site associations', { clerkshipId, siteId });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		if (clerkshipId) {
+			await assertEntityInSchedule(db, scheduleId, 'clerkship', clerkshipId);
 			const sites = await siteService.getSitesByClerkship(clerkshipId);
 			log.info('Sites fetched for clerkship', { clerkshipId, count: sites.length });
 			return successResponse(sites);
 		}
 
 		if (siteId) {
+			await assertEntityInSchedule(db, scheduleId, 'site', siteId);
 			const clerkships = await siteService.getClerkshipsBySite(siteId);
 			log.info('Clerkships fetched for site', { siteId, count: clerkships.length });
 			return successResponse(clerkships);
@@ -43,12 +49,17 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/clerkship-sites
  * Add a clerkship-site association
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Adding clerkship-site association');
 
 	try {
 		const body = await request.json();
 		const { clerkship_id, site_id } = clerkshipSiteSchema.parse(body);
+
+		// Ownership guard: both the clerkship and the site must be in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', clerkship_id);
+		await assertEntityInSchedule(db, scheduleId, 'site', site_id);
 
 		const association = await siteService.addClerkshipToSite(site_id, clerkship_id);
 
@@ -75,7 +86,7 @@ export const POST: RequestHandler = async ({ request }) => {
  * DELETE /api/clerkship-sites
  * Remove a clerkship-site association
  */
-export const DELETE: RequestHandler = async ({ url }) => {
+export const DELETE: RequestHandler = async ({ url, locals }) => {
 	const clerkshipId = url.searchParams.get('clerkship_id');
 	const siteId = url.searchParams.get('site_id');
 
@@ -91,6 +102,11 @@ export const DELETE: RequestHandler = async ({ url }) => {
 			clerkship_id: clerkshipId,
 			site_id: siteId
 		});
+
+		// Ownership guard: both the clerkship and the site must be in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', clerkship_id);
+		await assertEntityInSchedule(db, scheduleId, 'site', site_id);
 
 		await siteService.removeClerkshipFromSite(site_id, clerkship_id);
 

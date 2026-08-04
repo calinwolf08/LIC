@@ -7,6 +7,7 @@
  */
 
 import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, ValidationError, handleApiError } from '$lib/api/errors';
@@ -14,9 +15,12 @@ import {
 	getAssignmentById,
 	updateAssignment,
 	deleteAssignment,
-	setAssignmentLock
+	setAssignmentLock,
+	isDateInPast
 } from '$lib/features/schedules/services/assignment-service.js';
 import { assignmentIdSchema, updateAssignmentSchema } from '$lib/features/schedules/schemas.js';
+import { requireActiveScheduleId, assertAssignmentInSchedule } from '$lib/api/schedule-context';
+import { hasAutogen } from '$lib/server/entitlements';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -26,11 +30,15 @@ const log = createServerLogger('api:schedules:assignments:id');
  * GET /api/schedules/assignments/[id]
  * Returns a single assignment
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching assignment', { id: params.id });
 
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
+
+		// Tenant boundary: 404 unless the assignment's student is in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, id);
 
 		const assignment = await getAssignmentById(db, id);
 
@@ -65,20 +73,27 @@ export const GET: RequestHandler = async ({ params }) => {
  * PATCH /api/schedules/assignments/[id]
  * Updates an assignment
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
-	log.debug('Updating assignment', { id: params.id });
+export const PATCH: RequestHandler = async ({ params, request, url, locals }) => {
+	const force = url.searchParams.get('force') === 'true';
+	log.debug('Updating assignment', { id: params.id, force });
 
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
+
+		// Ownership guard: 404 unless the assignment's student is in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, id);
+
 		const body = await request.json();
 
 		// Handle the lock toggle separately (not part of updateAssignmentSchema).
-		if (typeof body?.locked === 'boolean') {
+		// Locking is a Stage 2 concept: ignore it from callers without `autogen`.
+		if (typeof body?.locked === 'boolean' && hasAutogen(locals)) {
 			await setAssignmentLock(db, id, body.locked);
 		}
 
 		// If only `locked` was provided, we're done.
-		const { locked: _locked, ...rest } = body ?? {};
+		const { locked: _locked, force: _force, ...rest } = body ?? {};
 		if (Object.keys(rest).length === 0) {
 			const current = await db
 				.selectFrom('schedule_assignments')
@@ -89,7 +104,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		}
 
 		const updates = updateAssignmentSchema.parse(rest);
-		const updated = await updateAssignment(db, id, updates);
+		const updated = await updateAssignment(db, id, updates, force);
 
 		log.info('Assignment updated', {
 			id,
@@ -135,18 +150,45 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 };
 
 /**
- * DELETE /api/schedules/assignments/[id]
- * Deletes an assignment
+ * DELETE /api/schedules/assignments/[id]?force=true
+ *
+ * Deletes an assignment. A past-dated assignment is protected by default: it
+ * returns 409 carrying the `past_date` code so the UI can offer the explicit
+ * "Remove anyway" override (Step 17/19).
  */
-export const DELETE: RequestHandler = async ({ params }) => {
-	log.debug('Deleting assignment', { id: params.id });
+export const DELETE: RequestHandler = async ({ params, url, locals }) => {
+	const force = url.searchParams.get('force') === 'true';
+	log.debug('Deleting assignment', { id: params.id, force });
 
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
 
-		await deleteAssignment(db, id);
+		// Ownership guard: 404 unless the assignment's student is in the schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertAssignmentInSchedule(db, scheduleId, id);
 
-		log.info('Assignment deleted', { id });
+		if (!force) {
+			const existing = await getAssignmentById(db, id);
+			if (!existing) return notFoundResponse('Assignment');
+			if (isDateInPast(existing.date)) {
+				log.info('Past-dated assignment deletion blocked', { id, date: existing.date });
+				return json(
+					{
+						success: false,
+						error: {
+							message: `${existing.date} has already passed. Removing it needs an explicit override.`,
+							code: 'past_date',
+							details: { date: existing.date }
+						}
+					},
+					{ status: 409 }
+				);
+			}
+		}
+
+		await deleteAssignment(db, id, force);
+
+		log.info('Assignment deleted', { id, force });
 		return successResponse(null);
 	} catch (error) {
 		if (error instanceof ZodError) {

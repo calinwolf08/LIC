@@ -9,15 +9,16 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
-	import EditAssignmentModal from '$lib/features/schedules/components/edit-assignment-modal.svelte';
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
-	import { CreateAssignmentDialog } from '$lib/features/schedules/components';
+	import ScheduleColorLegend from '$lib/features/schedules/components/schedule-color-legend.svelte';
+	import { AssignmentDialog } from '$lib/features/schedules/components';
+	import ScheduleHealthPanel from '$lib/features/schedules/components/schedule-health-panel.svelte';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { toast } from '$lib/components';
+	import { toast, NoActiveSchedule } from '$lib/components';
 	import { Filter, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import {
 		formatDisplayDate as formatDateDisplay,
@@ -60,8 +61,18 @@
 		loadCalendar();
 	}
 
-	// View mode toggle
-	let viewMode = $state<'list' | 'calendar'>('list');
+	// View mode toggle — the calendar is the working surface, so it is the
+	// default; the choice is mirrored into the URL so it survives reload/sharing.
+	let viewMode = $state<'list' | 'calendar'>(
+		$page.url.searchParams.get('view') === 'list' ? 'list' : 'calendar'
+	);
+
+	function setViewMode(next: 'list' | 'calendar') {
+		viewMode = next;
+		const url = new URL($page.url);
+		url.searchParams.set('view', next);
+		goto(url, { replaceState: true, noScroll: true, keepFocus: true });
+	}
 
 	// Current date range (default to active schedule dates, or current month if no schedule)
 	function getDefaultDateRange(): { start: string; end: string } {
@@ -97,7 +108,6 @@
 	let error = $state<string | null>(null);
 
 	// Modals
-	let showEditModal = $state(false);
 	let showReassignModal = $state(false);
 	let showRegenerateDialog = $state(false);
 	let selectedAssignment = $state<EnrichedAssignment | null>(null);
@@ -136,6 +146,7 @@
 	let violationDates = $state<Set<string>>(new Set());
 	let violationMessages = $state<Record<string, string[]>>({});
 	let violationCount = $state(0);
+	let violationCounts = $state<Record<string, number>>({});
 
 	async function loadValidation() {
 		try {
@@ -148,10 +159,19 @@
 					Object.entries(byDate).map(([d, vs]) => [d, vs.map((v) => v.message)])
 				);
 				violationCount = body.data.violations.length;
+				violationCounts = body.data.counts ?? {};
 			}
 		} catch (e) {
 			console.error('Failed to load validation', e);
 		}
+	}
+
+	// Bumped after any edit so the health panel refetches its (self-owned) override list.
+	let healthRefreshKey = $state(0);
+
+	function openAssignmentById(assignmentId: string) {
+		editAssignmentId = assignmentId;
+		showEditDialog = true;
 	}
 
 	// Load calendar on mount and when filters change
@@ -159,7 +179,8 @@
 		loadCalendar();
 	});
 
-	// Validation is independent of filters — load once on mount and after edits.
+	// Validation is independent of filters — load once on mount and again after
+	// any edit. (The health panel fetches overrides itself, keyed by healthRefreshKey.)
 	$effect(() => {
 		loadValidation();
 	});
@@ -212,35 +233,30 @@
 		endDate = defaults.end;
 	}
 
-	// Edit assignment
+	// Edit assignment — the unified dialog (step 18) in single-day edit mode, so
+	// the calendar behaves exactly like the student and preceptor entry points.
+	let editAssignmentId = $state<string | null>(null);
+	let showEditDialog = $state(false);
+
 	function handleEditClick(assignment: EnrichedAssignment) {
 		selectedAssignment = assignment;
-		showEditModal = true;
+		editAssignmentId = String(assignment.id);
+		showEditDialog = true;
 	}
 
-	function handleEditSave() {
-		showEditModal = false;
+	function handleAssignmentEdited() {
+		showEditDialog = false;
+		editAssignmentId = null;
 		selectedAssignment = null;
 		loadCalendar();
 		loadValidation();
-	}
-
-	function handleEditCancel() {
-		showEditModal = false;
-		selectedAssignment = null;
-	}
-
-	function handleEditDelete() {
-		showEditModal = false;
-		selectedAssignment = null;
-		loadCalendar();
-		loadValidation();
+		healthRefreshKey += 1;
 	}
 
 	// Reassign
 	function handleReassignClick(assignment: EnrichedAssignment) {
 		selectedAssignment = assignment;
-		showEditModal = false;
+		showEditDialog = false;
 		showReassignModal = true;
 	}
 
@@ -325,6 +341,18 @@
 			isExporting = false;
 		}
 	}
+
+	// Students present in the loaded range, for the colour legend (deduped by id).
+	let legendStudents = $derived.by(() => {
+		const byId = new Map<string, { id: string; name: string }>();
+		for (const event of events) {
+			const id = event.assignment.student_id;
+			if (id && !byId.has(id)) {
+				byId.set(id, { id, name: event.assignment.student_name ?? 'Unknown' });
+			}
+		}
+		return [...byId.values()];
+	});
 
 	// Build calendar months for grid view
 	let calendarMonths = $derived(() => {
@@ -426,6 +454,9 @@
 </script>
 
 <div class="container mx-auto py-8">
+	{#if !data.hasActiveSchedule}
+		<NoActiveSchedule surface="calendar" />
+	{:else}
 	<!-- Schedule completeness banner (auto-generation diagnostics) -->
 	{#if hasAutogen && data.scheduleSummary && !data.scheduleSummary.isComplete}
 		<Card class="mb-6 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
@@ -492,17 +523,13 @@
 		</div>
 	</div>
 
-	<!-- Conflict summary -->
-	{#if violationCount > 0}
-		<div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
-			{violationCount} scheduling conflict{violationCount > 1 ? 's' : ''} in this schedule. Days with
-			conflicts are marked with a red dot in the calendar view.
-		</div>
-	{:else}
-		<div class="mb-6 rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950/20">
-			No scheduling conflicts.
-		</div>
-	{/if}
+	<!-- Schedule health: conflicts by type + the overrides the user accepted -->
+	<ScheduleHealthPanel
+		countsByCode={violationCounts}
+		{violationCount}
+		refreshKey={healthRefreshKey}
+		onOpenAssignment={openAssignmentById}
+	/>
 
 	<!-- Blackout Dates Panel -->
 	{#if showBlackoutPanel}
@@ -629,7 +656,7 @@
 					class="rounded-l-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'list'
 						? 'bg-primary text-primary-foreground'
 						: 'hover:bg-muted'}"
-					onclick={() => (viewMode = 'list')}
+					onclick={() => setViewMode('list')}
 				>
 					List
 				</button>
@@ -639,7 +666,7 @@
 					'calendar'
 						? 'bg-primary text-primary-foreground'
 						: 'hover:bg-muted'}"
-					onclick={() => (viewMode = 'calendar')}
+					onclick={() => setViewMode('calendar')}
 				>
 					Calendar
 				</button>
@@ -660,9 +687,11 @@
 	{:else if viewMode === 'calendar'}
 		<!-- Calendar Grid View -->
 		{#if calendarMonths().length > 0}
+			<ScheduleColorLegend students={legendStudents} />
 			<ScheduleCalendarGrid
 				months={calendarMonths()}
-				mode="student"
+				mode="schedule"
+				colorBy="student"
 				blackoutDates={blackoutDateSet}
 				{violationDates}
 				{violationMessages}
@@ -700,7 +729,12 @@
 												{event.assignment.student_name}
 											</button>
 											<span class="mx-1 text-muted-foreground">-</span>
-											<span>{event.assignment.clerkship_name}</span>
+											<button
+												onclick={() => goto(`/clerkships/${event.assignment.clerkship_id}`)}
+												class="text-left text-primary hover:underline"
+											>
+												{event.assignment.clerkship_name}
+											</button>
 										</p>
 										<p class="mt-1 text-sm text-muted-foreground">
 											Preceptor:
@@ -741,17 +775,18 @@
 			{/each}
 		</div>
 	{/if}
+	{/if}
 </div>
 
 <!-- Modals -->
-<EditAssignmentModal
-	assignment={selectedAssignment}
-	open={showEditModal}
-	onSave={handleEditSave}
-	onCancel={handleEditCancel}
-	onReassign={handleReassignClick}
-	onDelete={handleEditDelete}
-/>
+{#if editAssignmentId}
+	<AssignmentDialog
+		bind:open={showEditDialog}
+		mode="edit"
+		assignmentId={editAssignmentId}
+		onSaved={handleAssignmentEdited}
+	/>
+{/if}
 
 <ReassignModal
 	assignment={selectedAssignment}
@@ -771,8 +806,13 @@
 	/>
 {/if}
 
-<CreateAssignmentDialog
+<!--
+	Clicking a day pre-fills and locks that date; the toolbar button opens the
+	dialog with no date, where locking would leave the user unable to pick one.
+-->
+<AssignmentDialog
 	bind:open={showCreateAssignment}
 	date={createDate}
+	lockDate={!!createDate}
 	onSaved={handleAssignmentCreated}
 />

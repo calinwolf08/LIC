@@ -1,24 +1,12 @@
 import { auth } from '$lib/auth'; // path to your auth file
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
-import type { Handle } from '@sveltejs/kit';
+import { json, type Handle } from '@sveltejs/kit';
 import { parseEntitlements } from '$lib/server/entitlements';
+import { requiresApiAuthChallenge } from '$lib/server/api-auth';
 import { db } from '$lib/db';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Skip auth check for non-auth API routes during E2E testing
-	// But allow /api/auth/* routes to work normally for authentication tests
-	if (
-		process.env.E2E_TESTING === 'true' &&
-		event.url.pathname.startsWith('/api/') &&
-		!event.url.pathname.startsWith('/api/auth')
-	) {
-		console.log('[hooks.server] Bypassing auth for E2E test API request');
-		event.locals.session = null;
-		event.locals.entitlements = parseEntitlements(process.env.E2E_ENTITLEMENTS);
-		return resolve(event);
-	}
-
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	event.locals.session = session;
 
@@ -41,6 +29,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.entitlements = parseEntitlements(raw);
 	} else {
 		event.locals.entitlements = [];
+	}
+
+	// Central API authentication (step 34). The hook is the single enforcement
+	// point: any `/api/` route outside the explicit public allowlist requires a
+	// session, so a new route cannot forget. `/api/auth/*` (owned by better-auth)
+	// is public; page routes are guarded by `(app)/+layout.server.ts`. Default-deny.
+	if (!building && requiresApiAuthChallenge(event.url.pathname, Boolean(session))) {
+		return json(
+			{ success: false, error: { message: 'Authentication required' } },
+			{ status: 401 }
+		);
 	}
 
 	const response = await svelteKitHandler({ event, resolve, auth, building });

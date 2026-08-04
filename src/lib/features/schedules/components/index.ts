@@ -13,4 +13,6 @@ export { default as ScheduleStatsCard } from './schedule-stats-card.svelte';
 export { default as ClerkshipBreakdownTable } from './clerkship-breakdown-table.svelte';
 export { default as ViolationStatsCard } from './violation-stats-card.svelte';
 export { default as SuggestionsPanel } from './suggestions-panel.svelte';
-export { default as CreateAssignmentDialog } from './create-assignment-dialog.svelte';
+export { default as AssignmentDialog } from './assignment-dialog.svelte';
+export { default as AssignmentDatePicker } from './assignment-date-picker.svelte';
+export { default as AssignmentContextPanel } from './assignment-context-panel.svelte';

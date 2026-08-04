@@ -41,11 +41,53 @@ npm run dev             # http://localhost:5173
 | `admin@example.com` | `password123` | `autogen` (sees Stage 2) |
 | `basic@example.com` | `password123` | none (Stage 1 only)      |
 
+The seed also creates a second account whose data is all named **"Tenant B …"**
+(owned by `basic@example.com`), so tenant-isolation can be checked by hand and
+by the `tenant-isolation` e2e journey. The seed is idempotent.
+
+### Seeded demo scenario
+
+So the calendar, schedule-health panel and override review have content on first
+run, `admin@example.com` starts with a hand-built set of assignments (all dates
+anchored to *today*, so the demo never rots into the past):
+
+| Scenario                      | What it demonstrates                                                   |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| Clean 5-day block             | A normal calendar run and healthy progress bars                        |
+| Partially-complete clerkship  | The requirement strip and the "days left" badge (10 of 28 days)        |
+| Fully-complete clerkship      | The completed state (14 of 14 days)                                    |
+| Preceptor over capacity ×4    | Schedule health counts **4** findings (one per day, not per student) and the override review groups the run into one 4-day row; carries an accepted `preceptor_capacity` override |
+| Resolved `not_onboarded`      | The override review's active/resolved toggle — the student has since onboarded, so the exception reads as resolved |
+
+Tenant B gets the same shape at smaller scale (two students, one accepted
+override) so isolation tests have more than a single row to miss.
+
 Grant/revoke the Stage 2 entitlement manually:
 
 ```bash
 npx tsx scripts/set-entitlement.ts <email> autogen on|off
 ```
+
+### Resetting data
+
+```bash
+# Remove ONE account and everything it exclusively owns (entities shared with
+# another user, and other accounts, are left intact). Asks to confirm first.
+npm run db:reset-user -- --email=someone@example.com
+npm run db:reset-user -- --email=someone@example.com --dry-run   # counts only
+npm run db:reset-user -- --email=someone@example.com --yes       # no prompt
+
+# Wipe the whole database back to an empty (migrated) state. Refuses to run with
+# NODE_ENV=production unless --force-production is also passed.
+npm run db:reset -- --yes
+npm run db:reset -- --yes --seed                                 # fresh + reseed
+```
+
+All reset/seed commands target `DATABASE_PATH` (default `./sqlite.db`); prefix it
+to point at another database, e.g. the e2e DB:
+`DATABASE_PATH=./test-sqlite.db npm run db:reset-user -- --email=admin@example.com --yes`.
+Do **not** run a reset against `./test-sqlite.db` while a preview/e2e run is
+using it.
 
 ## Development commands
 

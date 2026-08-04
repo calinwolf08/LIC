@@ -10,6 +10,7 @@ import { requireAutogen } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { CapacityRuleService } from '$lib/features/scheduling-config/services/capacity.service';
 import { preceptorCapacityRuleInputSchema } from '$lib/features/scheduling-config/schemas/capacity.schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -33,6 +34,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			log.warn('Missing preceptorId parameter');
 			return errorResponse('preceptorId query parameter is required', 400);
 		}
+
+		// Tenant boundary: the preceptor must be in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', preceptorId);
 
 		const result = await service.getCapacityRulesByPreceptor(preceptorId);
 
@@ -67,6 +72,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
 		const validatedData = preceptorCapacityRuleInputSchema.parse(body);
+
+		// Tenant boundary: the rule's preceptor must be in the caller's schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', validatedData.preceptorId);
 
 		const result = await service.createCapacityRule(validatedData);
 

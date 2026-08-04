@@ -271,6 +271,8 @@ export interface ScheduleAssignments {
   elective_id: string | null;
   id: string | null;
   locked: Generated<number>;
+  override_codes: Generated<string>;
+  override_note: string | null;
   preceptor_id: string;
   site_id: string | null;
   source: Generated<string>;

@@ -20,6 +20,14 @@
 
 	let errorMessage = $state<string | null>(null);
 
+	// Explicit hydration signal: the submit handler is only live once the
+	// component has mounted on the client, so e2e must wait for this before it
+	// clicks — otherwise the click lands before the handler exists (flake).
+	let hydrated = $state(false);
+	$effect(() => {
+		hydrated = true;
+	});
+
 	const formManager = useForm({
 		initialValues: {
 			email: '',
@@ -67,7 +75,12 @@
 		</Alert.Root>
 	{/if}
 
-	<form method="POST" onsubmit={formManager.handleSubmit} class="space-y-4">
+	<form
+		method="POST"
+		onsubmit={formManager.handleSubmit}
+		data-hydrated={hydrated}
+		class="space-y-4"
+	>
 		<FormField
 			label="Email"
 			name="email"

@@ -18,6 +18,7 @@ import { getPreceptorById } from '$lib/features/preceptors/services/preceptor-se
 import { getClerkshipById } from '$lib/features/clerkships/services/clerkship-service';
 import { isDateBlackedOut } from '$lib/features/blackout-dates/services/blackout-date-service';
 import { getAvailabilityByDate } from '$lib/features/preceptors/services/availability-service';
+import { validateSchedule } from '$lib/features/scheduling/services/schedule-validation';
 import { createServerLogger } from '$lib/utils/logger.server';
 import {
 	validateAssignmentCandidate,
@@ -28,7 +29,7 @@ import {
 const log = createServerLogger('service:schedules:assignment');
 
 // ---------------------------------------------------------------------------
-// Manual assignment creation (Step 09)
+// Manual assignment creation (Step 09, extended in Step 17)
 // ---------------------------------------------------------------------------
 
 export interface ManualAssignmentInput {
@@ -38,23 +39,40 @@ export interface ManualAssignmentInput {
 	site_id?: string | null;
 	date: string;
 	locked?: boolean;
+	/** Soft violation codes the user explicitly accepted. */
+	override_codes?: string[];
+	/** Free text captured alongside the override. */
+	override_note?: string | null;
 }
 
 export type ManualCreateResult =
 	| { ok: true; assignment: Selectable<ScheduleAssignments>; warnings: Violation[] }
 	| { ok: false; hard: Violation[]; soft: Violation[] };
 
+export interface ManualCreateOptions {
+	/** Accept every soft violation (legacy blanket override). */
+	force?: boolean;
+	/** Today's date (YYYY-MM-DD); injectable for tests. */
+	today?: string;
+	/**
+	 * Include the create-time soft codes `past_date` / `over_required_days`.
+	 * Defaults to true — a manual create is exactly when they matter.
+	 */
+	checkCreateTimeCodes?: boolean;
+}
+
 /**
  * Create a single assignment by hand.
  * - Hard violations always reject.
- * - Soft violations reject unless `force`, in which case the assignment is
- *   created and the violations are returned as `warnings`.
+ * - Soft violations reject unless the user accepted their code (via
+ *   `override_codes`) or `force` is set. Accepted codes are persisted on the
+ *   row so they can be reviewed later.
  */
 export async function createManualAssignment(
 	db: Kysely<DB>,
 	scheduleId: string,
 	input: ManualAssignmentInput,
-	opts: { force?: boolean } = {}
+	opts: ManualCreateOptions = {}
 ): Promise<ManualCreateResult> {
 	const candidate: AssignmentCandidate = {
 		student_id: input.student_id,
@@ -63,10 +81,21 @@ export async function createManualAssignment(
 		site_id: input.site_id ?? null,
 		date: input.date
 	};
-	const result = await validateAssignmentCandidate(db, scheduleId, candidate);
-	if (result.hard.length > 0 || (result.soft.length > 0 && !opts.force)) {
+	const result = await validateAssignmentCandidate(db, scheduleId, candidate, {
+		today: opts.today,
+		checkCreateTimeCodes: opts.checkCreateTimeCodes ?? true
+	});
+
+	const accepted = new Set(input.override_codes ?? []);
+	const unaccepted = opts.force ? [] : result.soft.filter((v) => !accepted.has(v.code));
+	if (result.hard.length > 0 || unaccepted.length > 0) {
 		return { ok: false, hard: result.hard, soft: result.soft };
 	}
+
+	// Only persist codes that were actually triggered — an accepted code that
+	// turned out not to apply is not an override.
+	const triggered = result.soft.map((v) => v.code);
+	const persistedCodes = opts.force ? triggered : triggered.filter((code) => accepted.has(code));
 
 	const timestamp = new Date().toISOString();
 	const assignment = await db
@@ -81,13 +110,19 @@ export async function createManualAssignment(
 			status: 'scheduled',
 			locked: input.locked ? 1 : 0,
 			source: 'manual',
+			override_codes: JSON.stringify(persistedCodes),
+			override_note: persistedCodes.length > 0 ? (input.override_note ?? null) : null,
 			created_at: timestamp,
 			updated_at: timestamp
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
-	log.info('Manual assignment created', { id: assignment.id, forced: !!opts.force });
+	log.info('Manual assignment created', {
+		id: assignment.id,
+		forced: !!opts.force,
+		overrides: persistedCodes
+	});
 	return { ok: true, assignment, warnings: result.soft };
 }
 
@@ -96,12 +131,17 @@ export interface BulkManualInput {
 	preceptor_id: string;
 	clerkship_id: string;
 	site_id?: string | null;
-	start_date: string;
-	end_date: string;
+	/** Explicit day list (Step 17). Takes precedence over start/end + weekdays. */
+	dates?: string[];
+	start_date?: string;
+	end_date?: string;
 	/** 0=Sun … 6=Sat; empty means all days. */
 	weekdays?: number[];
 	skip_blackouts?: boolean;
 	locked?: boolean;
+	/** Soft violation codes the user explicitly accepted, applied to every date. */
+	override_codes?: string[];
+	override_note?: string | null;
 }
 
 export interface BulkManualDateResult {
@@ -131,18 +171,33 @@ function expandDates(start: string, end: string, weekdays: number[] | undefined)
 }
 
 /**
- * Create assignments over a date range. Hard-conflict dates are skipped and
- * reported; soft violations are skipped unless `force`.
+ * Resolve the day list for a bulk create: an explicit `dates[]` when given,
+ * otherwise the range + weekday-filter form.
+ */
+function resolveBulkDates(input: BulkManualInput): string[] {
+	if (input.dates && input.dates.length > 0) {
+		return [...new Set(input.dates)].sort();
+	}
+	if (!input.start_date || !input.end_date) return [];
+	return expandDates(input.start_date, input.end_date, input.weekdays);
+}
+
+/**
+ * Create assignments over a date range (or an explicit day list). Hard-conflict
+ * dates are skipped and reported; soft violations are skipped unless their code
+ * was accepted via `override_codes` (or `force` is set).
  */
 export async function createManualAssignmentsBulk(
 	db: Kysely<DB>,
 	scheduleId: string,
 	input: BulkManualInput,
-	opts: { force?: boolean } = {}
+	opts: ManualCreateOptions = {}
 ): Promise<BulkManualResult> {
-	const dates = expandDates(input.start_date, input.end_date, input.weekdays);
+	const dates = resolveBulkDates(input);
 
-	return db.transaction().execute(async (trx) => {
+	// Callers may already have a transaction open (the API bundles override side
+	// effects with the creation); SQLite has no nested transactions, so reuse it.
+	const run = async (trx: Kysely<DB>) => {
 		const results: BulkManualDateResult[] = [];
 		let createdCount = 0;
 
@@ -156,7 +211,9 @@ export async function createManualAssignmentsBulk(
 					clerkship_id: input.clerkship_id,
 					site_id: input.site_id ?? null,
 					date,
-					locked: input.locked
+					locked: input.locked,
+					override_codes: input.override_codes,
+					override_note: input.override_note
 				},
 				opts
 			);
@@ -170,7 +227,314 @@ export async function createManualAssignmentsBulk(
 		}
 
 		return { createdCount, results };
-	});
+	};
+
+	return db.isTransaction ? run(db) : db.transaction().execute(run);
+}
+
+// ---------------------------------------------------------------------------
+// Override side effects and review (Step 17)
+// ---------------------------------------------------------------------------
+
+/**
+ * The follow-up actions the assignment dialog can offer alongside an override.
+ * Each one is an explicit, separately audited call — never an implicit side
+ * effect of creating an assignment.
+ */
+export type OverrideSideEffect =
+	| { kind: 'bump_preceptor_capacity'; preceptor_id: string; by?: number }
+	| { kind: 'mark_preceptor_available'; preceptor_id: string; site_id: string; dates: string[] }
+	| { kind: 'remove_conflicting_assignment'; assignment_id: string };
+
+/**
+ * Apply one override side effect. Pass a transaction to bundle several with the
+ * assignment creation so a failure rolls the whole thing back.
+ */
+export async function applyOverrideSideEffects(
+	db: Kysely<DB>,
+	effects: OverrideSideEffect[]
+): Promise<void> {
+	for (const effect of effects) {
+		switch (effect.kind) {
+			case 'bump_preceptor_capacity': {
+				const preceptor = await db
+					.selectFrom('preceptors')
+					.select('max_students')
+					.where('id', '=', effect.preceptor_id)
+					.executeTakeFirst();
+				if (!preceptor) throw new NotFoundError('Preceptor');
+				await db
+					.updateTable('preceptors')
+					.set({
+						max_students: preceptor.max_students + (effect.by ?? 1),
+						updated_at: new Date().toISOString()
+					})
+					.where('id', '=', effect.preceptor_id)
+					.execute();
+				log.info('Override side effect: preceptor capacity raised', {
+					preceptorId: effect.preceptor_id
+				});
+				break;
+			}
+			case 'mark_preceptor_available': {
+				const timestamp = new Date().toISOString();
+				for (const date of effect.dates) {
+					const existing = await db
+						.selectFrom('preceptor_availability')
+						.select('id')
+						.where('preceptor_id', '=', effect.preceptor_id)
+						.where('site_id', '=', effect.site_id)
+						.where('date', '=', date)
+						.executeTakeFirst();
+					if (existing?.id) {
+						await db
+							.updateTable('preceptor_availability')
+							.set({ is_available: 1, updated_at: timestamp })
+							.where('id', '=', existing.id)
+							.execute();
+					} else {
+						await db
+							.insertInto('preceptor_availability')
+							.values({
+								id: crypto.randomUUID(),
+								preceptor_id: effect.preceptor_id,
+								site_id: effect.site_id,
+								date,
+								is_available: 1,
+								created_at: timestamp,
+								updated_at: timestamp
+							})
+							.execute();
+					}
+				}
+				log.info('Override side effect: preceptor marked available', {
+					preceptorId: effect.preceptor_id,
+					dates: effect.dates.length
+				});
+				break;
+			}
+			case 'remove_conflicting_assignment': {
+				const existing = await getAssignmentById(db, effect.assignment_id);
+				if (!existing) throw new NotFoundError('Assignment');
+				await db
+					.deleteFrom('schedule_assignments')
+					.where('id', '=', effect.assignment_id)
+					.execute();
+				log.info('Override side effect: conflicting assignment removed', {
+					assignmentId: effect.assignment_id
+				});
+				break;
+			}
+		}
+	}
+}
+
+export type OverrideStatus = 'active' | 'resolved';
+
+export interface OverrideRecord {
+	assignmentId: string;
+	date: string;
+	studentId: string;
+	studentName: string;
+	clerkshipId: string;
+	clerkshipName: string;
+	preceptorId: string;
+	preceptorName: string;
+	codes: string[];
+	note: string | null;
+	createdAt: string;
+	/**
+	 * `active` — at least one accepted code still corresponds to a live condition
+	 * (or a code we cannot re-evaluate, kept active to be safe). `resolved` — every
+	 * re-checkable code no longer applies (e.g. the student has since onboarded).
+	 */
+	status: OverrideStatus;
+}
+
+/**
+ * Codes `validateSchedule` re-evaluates. A code outside this set (e.g.
+ * `past_date`, `over_required_days`) cannot be proven resolved, so an override
+ * carrying one stays `active` rather than being silently hidden.
+ */
+const REEVALUABLE_CODES = new Set([
+	'not_onboarded',
+	'preceptor_unavailable',
+	'blackout_date',
+	'preceptor_capacity',
+	'site_not_allowed',
+	'outside_schedule',
+	'student_double_booked'
+]);
+
+export interface ListOverridesOptions {
+	/** Include overrides whose conditions no longer apply. Default false (active only). */
+	includeResolved?: boolean;
+}
+
+/**
+ * Every assignment in the schedule that carries an accepted override, for the
+ * calendar's review list (Step 20/32). Each override is re-evaluated against
+ * current state: an exception that no longer applies is marked `resolved` and,
+ * by default, filtered out — history is not lost, but stale exceptions do not
+ * masquerade as outstanding.
+ */
+export async function listOverrides(
+	db: Kysely<DB>,
+	scheduleId: string,
+	options: ListOverridesOptions = {}
+): Promise<OverrideRecord[]> {
+	// Assignments scope to a schedule transitively, through schedule_students.
+	const rows = await db
+		.selectFrom('schedule_assignments as sa')
+		.innerJoin('schedule_students as ss', 'ss.student_id', 'sa.student_id')
+		.innerJoin('students as st', 'st.id', 'sa.student_id')
+		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
+		.select([
+			'sa.id as id',
+			'sa.date as date',
+			'sa.override_codes as override_codes',
+			'sa.override_note as override_note',
+			'sa.created_at as created_at',
+			'sa.student_id as student_id',
+			'st.name as student_name',
+			'sa.clerkship_id as clerkship_id',
+			'c.name as clerkship_name',
+			'sa.preceptor_id as preceptor_id',
+			'p.name as preceptor_name'
+		])
+		.where('ss.schedule_id', '=', scheduleId)
+		.where('sa.override_codes', '!=', '[]')
+		.orderBy('sa.date', 'asc')
+		.execute();
+
+	// Live conditions right now, indexed per assignment (capacity is slot-scoped,
+	// so its finding touches every assignment on the over-subscribed day).
+	const validation = await validateSchedule(db, scheduleId);
+	const liveByAssignment = new Map<string, Set<string>>();
+	for (const v of validation.violations) {
+		for (const id of v.assignment_ids) {
+			const set = liveByAssignment.get(id) ?? new Set<string>();
+			set.add(v.code);
+			liveByAssignment.set(id, set);
+		}
+	}
+
+	const records = rows
+		.map((r) => {
+			const codes = parseCodes(r.override_codes);
+			const live = liveByAssignment.get(r.id as string) ?? new Set<string>();
+			// Active if any code is either still live, or is one we can't re-check.
+			const active = codes.some((c) => !REEVALUABLE_CODES.has(c) || live.has(c));
+			return {
+				assignmentId: r.id as string,
+				date: r.date,
+				studentId: r.student_id,
+				studentName: r.student_name,
+				clerkshipId: r.clerkship_id,
+				clerkshipName: r.clerkship_name,
+				preceptorId: r.preceptor_id,
+				preceptorName: r.preceptor_name,
+				codes,
+				note: r.override_note,
+				createdAt: r.created_at,
+				status: (active ? 'active' : 'resolved') as OverrideStatus
+			};
+		})
+		.filter((r) => r.codes.length > 0);
+
+	return options.includeResolved ? records : records.filter((r) => r.status === 'active');
+}
+
+export interface GroupedOverride {
+	studentId: string;
+	studentName: string;
+	clerkshipId: string;
+	clerkshipName: string;
+	preceptorId: string;
+	preceptorName: string;
+	codes: string[];
+	status: OverrideStatus;
+	startDate: string;
+	endDate: string;
+	days: number;
+	dates: string[];
+	assignmentIds: string[];
+	note: string | null;
+}
+
+/** YYYY-MM-DD one day after `date`. */
+function nextDay(date: string): string {
+	const d = new Date(date + 'T00:00:00.000Z');
+	d.setUTCDate(d.getUTCDate() + 1);
+	return d.toISOString().split('T')[0];
+}
+
+/**
+ * Collapse consecutive days sharing the same (student, clerkship, preceptor,
+ * code-set, status) into a single row with a date range — so a four-day
+ * double-booking reads as one entry, not four. Never merges across different
+ * codes or preceptors.
+ */
+export function groupOverrides(records: OverrideRecord[]): GroupedOverride[] {
+	const keyOf = (r: OverrideRecord) =>
+		[r.studentId, r.clerkshipId, r.preceptorId, r.status, [...r.codes].sort().join('|')].join('::');
+
+	const byKey = new Map<string, OverrideRecord[]>();
+	for (const r of records) {
+		const list = byKey.get(keyOf(r)) ?? [];
+		list.push(r);
+		byKey.set(keyOf(r), list);
+	}
+
+	const groups: GroupedOverride[] = [];
+	for (const list of byKey.values()) {
+		const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+		let run: OverrideRecord[] = [];
+		const flush = () => {
+			if (run.length === 0) return;
+			const first = run[0];
+			groups.push({
+				studentId: first.studentId,
+				studentName: first.studentName,
+				clerkshipId: first.clerkshipId,
+				clerkshipName: first.clerkshipName,
+				preceptorId: first.preceptorId,
+				preceptorName: first.preceptorName,
+				codes: [...first.codes].sort(),
+				status: first.status,
+				startDate: run[0].date,
+				endDate: run[run.length - 1].date,
+				days: run.length,
+				dates: run.map((r) => r.date),
+				assignmentIds: run.map((r) => r.assignmentId),
+				note: run.map((r) => r.note).find((n) => n) ?? null
+			});
+			run = [];
+		};
+		for (const r of sorted) {
+			if (run.length === 0 || r.date === nextDay(run[run.length - 1].date)) {
+				run.push(r);
+			} else {
+				flush();
+				run.push(r);
+			}
+		}
+		flush();
+	}
+
+	return groups.sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+/** `override_codes` is stored as a JSON array of strings; be defensive. */
+export function parseCodes(raw: string | null | undefined): string[] {
+	if (!raw) return [];
+	try {
+		const parsed = JSON.parse(raw);
+		return Array.isArray(parsed) ? parsed.filter((c): c is string => typeof c === 'string') : [];
+	} catch {
+		return [];
+	}
 }
 
 /** Toggle the lock flag on an assignment (preset assignments survive generation). */

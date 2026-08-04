@@ -13,6 +13,7 @@ import {
 } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { activateSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
+import { assertScheduleOwnedByUser } from '$lib/api/schedule-context';
 import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -23,11 +24,16 @@ const log = createServerLogger('api:scheduling-periods:activate');
  * POST /api/scheduling-periods/[id]/activate
  * Activate a scheduling period (deactivates all others)
  */
-export const POST: RequestHandler = async ({ params }) => {
+export const POST: RequestHandler = async ({ params, locals }) => {
 	log.debug('Activating scheduling period', { periodId: params.id });
 
 	try {
 		const id = cuid2Schema.parse(params.id);
+
+		// Ownership guard: only the owner may activate the schedule.
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, id);
 
 		const period = await activateSchedulingPeriod(db, id);
 

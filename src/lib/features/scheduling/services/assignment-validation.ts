@@ -18,7 +18,11 @@ export type ViolationCode =
 	| 'site_not_allowed'
 	| 'outside_schedule'
 	| 'not_onboarded'
-	| 'entity_missing';
+	| 'entity_missing'
+	/** Assigning this day takes the student past the clerkship's required days. */
+	| 'over_required_days'
+	/** The date has already happened. */
+	| 'past_date';
 
 export interface Violation {
 	code: ViolationCode;
@@ -36,6 +40,41 @@ export interface AssignmentCandidate {
 	/** Existing assignment id to exclude from conflict checks (edits). */
 	excludeId?: string;
 }
+
+/**
+ * Codes a user may knowingly accept. Persisted on the assignment as
+ * `override_codes` so the schedule-health panel can list them for review.
+ */
+export const OVERRIDABLE_CODES = [
+	'preceptor_unavailable',
+	'preceptor_capacity',
+	'blackout_date',
+	'not_onboarded',
+	'over_required_days',
+	'past_date',
+	'site_not_allowed',
+	'outside_schedule'
+] as const satisfies readonly ViolationCode[];
+
+export type OverrideCode = (typeof OVERRIDABLE_CODES)[number];
+
+const OVERRIDABLE_SET: ReadonlySet<string> = new Set(OVERRIDABLE_CODES);
+
+export function isOverrideCode(code: string): code is OverrideCode {
+	return OVERRIDABLE_SET.has(code);
+}
+
+/** Human labels for override codes, for the review list and confirm copy. */
+export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
+	preceptor_unavailable: 'Preceptor not available',
+	preceptor_capacity: 'Preceptor over capacity',
+	blackout_date: 'Blackout date',
+	not_onboarded: 'Student not onboarded',
+	over_required_days: 'More days than required',
+	past_date: 'Date already passed',
+	site_not_allowed: 'Site not approved for clerkship',
+	outside_schedule: 'Outside the schedule range'
+};
 
 export interface CandidateValidation {
 	valid: boolean;
@@ -161,14 +200,31 @@ export function validateCandidateWithContext(
 	return { valid: hard.length === 0, hard, soft };
 }
 
+function todayUTC(): string {
+	return new Date().toISOString().split('T')[0];
+}
+
+export interface CandidateValidationOptions {
+	/** Today's date (YYYY-MM-DD); injectable for tests. */
+	today?: string;
+	/**
+	 * Emit the create-time-only soft codes `past_date` and `over_required_days`.
+	 * Off by default so whole-schedule health checks are not flooded with
+	 * "this day already happened" noise for every historical assignment.
+	 */
+	checkCreateTimeCodes?: boolean;
+}
+
 /**
  * Build a validation context for a schedule and validate a single candidate
- * against the live database. Used by the manual-create path (Step 09).
+ * against the live database. Used by the manual-create path (Step 09) and the
+ * unified assignment dialog (Step 18).
  */
 export async function validateAssignmentCandidate(
 	db: Kysely<DB>,
 	scheduleId: string,
-	candidate: AssignmentCandidate
+	candidate: AssignmentCandidate,
+	options: CandidateValidationOptions = {}
 ): Promise<CandidateValidation> {
 	const period = await db
 		.selectFrom('scheduling_periods')
@@ -189,7 +245,7 @@ export async function validateAssignmentCandidate(
 			.executeTakeFirst(),
 		db
 			.selectFrom('clerkships')
-			.select('id')
+			.select(['id', 'required_days'])
 			.where('id', '=', candidate.clerkship_id)
 			.executeTakeFirst()
 	]);
@@ -299,6 +355,39 @@ export async function validateAssignmentCandidate(
 					health_system_id: preceptor.health_system_id
 				}
 			});
+		}
+	}
+
+	// Create-time-only soft codes. Opt-in so whole-schedule validation is not
+	// flooded with "already happened" noise for historical assignments.
+	if (options.checkCreateTimeCodes) {
+		const today = options.today ?? todayUTC();
+		if (candidate.date < today) {
+			soft.push({
+				code: 'past_date',
+				message: `${candidate.date} has already passed`
+			});
+		}
+
+		const required = clerkship?.required_days ?? 0;
+		if (required > 0) {
+			let countQuery = db
+				.selectFrom('schedule_assignments')
+				.select('id')
+				.where('student_id', '=', candidate.student_id)
+				.where('clerkship_id', '=', candidate.clerkship_id);
+			if (candidate.excludeId) countQuery = countQuery.where('id', '!=', candidate.excludeId);
+			const existingForClerkship = await countQuery.execute();
+			if (existingForClerkship.length + 1 > required) {
+				soft.push({
+					code: 'over_required_days',
+					message: `This is more days than ${required} required for the clerkship`,
+					entity_refs: {
+						student_id: candidate.student_id,
+						clerkship_id: candidate.clerkship_id
+					}
+				});
+			}
 		}
 	}
 

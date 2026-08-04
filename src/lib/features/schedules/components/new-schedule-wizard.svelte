@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { refreshSchedules } from '$lib/stores/schedule-store';
 	import EntitySelectionTable from './entity-selection-table.svelte';
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 	import SiteForm from '$lib/features/sites/components/site-form.svelte';
@@ -363,6 +364,7 @@
 				const result = await response.json();
 
 				if (result.success) {
+					await refreshSchedules();
 					goto('/calendar');
 				} else {
 					error = result.error?.message || 'Failed to create schedule';
@@ -409,6 +411,7 @@
 						}
 					}
 
+					await refreshSchedules();
 					goto('/calendar');
 				} else {
 					error = result.error?.message || 'Failed to create schedule';

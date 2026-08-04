@@ -16,6 +16,11 @@ import {
 	validationErrorResponse
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
+import {
+	requireActiveScheduleId,
+	assertElectiveInSchedule,
+	assertEntityInSchedule
+} from '$lib/api/schedule-context';
 import { ElectiveService } from '$lib/features/scheduling-config/services/electives.service';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { z } from 'zod';
@@ -36,10 +41,13 @@ const setSitesSchema = z.object({
  * GET /api/scheduling-config/electives/[id]/sites
  * Returns sites associated with an elective
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching sites for elective', { electiveId: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const result = await service.getSitesForElective(params.id);
 
 		if (!result.success) {
@@ -70,12 +78,18 @@ export const GET: RequestHandler = async ({ params }) => {
  * POST /api/scheduling-config/electives/[id]/sites
  * Adds a site to an elective
  */
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Adding site to elective', { electiveId: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const body = await request.json();
 		const { siteId } = addSiteSchema.parse(body);
+
+		// The site being linked must also belong to the caller's schedule.
+		await assertEntityInSchedule(db, scheduleId, 'site', siteId);
 
 		const result = await service.addSiteToElective(params.id, siteId);
 
@@ -112,12 +126,20 @@ export const POST: RequestHandler = async ({ params, request }) => {
  * PUT /api/scheduling-config/electives/[id]/sites
  * Sets all sites for an elective (replaces existing)
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Setting sites for elective', { electiveId: params.id });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
+
 		const body = await request.json();
 		const { siteIds } = setSitesSchema.parse(body);
+
+		// Every site being set must belong to the caller's schedule.
+		for (const siteId of siteIds) {
+			await assertEntityInSchedule(db, scheduleId, 'site', siteId);
+		}
 
 		const result = await service.setSitesForElective(params.id, siteIds);
 
@@ -153,7 +175,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
  * DELETE /api/scheduling-config/electives/[id]/sites?siteId=xxx
  * Removes a site from an elective
  */
-export const DELETE: RequestHandler = async ({ params, url }) => {
+export const DELETE: RequestHandler = async ({ params, url, locals }) => {
 	const siteId = url.searchParams.get('siteId');
 
 	log.debug('Removing site from elective', { electiveId: params.id, siteId });
@@ -163,6 +185,9 @@ export const DELETE: RequestHandler = async ({ params, url }) => {
 			log.warn('Missing siteId parameter for site removal', { electiveId: params.id });
 			return errorResponse('siteId query parameter is required', 400);
 		}
+
+		const scheduleId = await requireActiveScheduleId(locals);
+		await assertElectiveInSchedule(db, scheduleId, params.id);
 
 		const result = await service.removeSiteFromElective(params.id, siteId);
 

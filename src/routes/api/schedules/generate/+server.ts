@@ -22,6 +22,7 @@ import {
 	createSchedulingPeriod,
 	activateSchedulingPeriod
 } from '$lib/features/scheduling/services/scheduling-period-service';
+import { getActiveScheduleForUser } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { requireAutogen } from '$lib/server/entitlements';
 import { ZodError } from 'zod';
@@ -417,7 +418,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Auto-create and activate scheduling period if none exists
 		log.debug('Managing scheduling period');
 		let schedulingPeriodId: string | null = null;
-		const activePeriod = await getActiveSchedulingPeriod(db);
+		// Prefer the caller's own active schedule; only fall back to the global
+		// lookup when there is no user context (keeps generation scoped per-user).
+		const generationUserId = locals.session?.user?.id;
+		const activePeriod = generationUserId
+			? await getActiveScheduleForUser(db, generationUserId)
+			: await getActiveSchedulingPeriod(db);
 
 		if (!activePeriod) {
 			log.debug('No active period found, creating or activating one');

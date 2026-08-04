@@ -43,6 +43,12 @@ export interface DailyAssignments {
  * Calendar filters
  */
 export interface CalendarFilters {
+	/**
+	 * Active schedule id. Required — assignments are scoped to a schedule through
+	 * `schedule_students`, so every calendar read must be constrained to one
+	 * tenant's schedule or it leaks other users' assignments.
+	 */
+	scheduleId: string;
 	student_id?: string;
 	preceptor_id?: string;
 	clerkship_id?: string;

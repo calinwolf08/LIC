@@ -39,10 +39,14 @@ const emailSchema = z
  */
 export const createSiteSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
+	// A site always belongs to a health system: the column is NOT NULL with a
+	// foreign key, and health-system onboarding is what gates scheduling a
+	// student at a site. Previously this was typed as optional, so an empty
+	// value reached the insert and failed as an opaque 500.
 	health_system_id: z
-		.string()
-		.transform((val) => (val === '' ? undefined : val))
-		.pipe(cuid2Schema.optional()),
+		.string({ required_error: 'Select a health system' })
+		.min(1, 'Select a health system')
+		.pipe(cuid2Schema),
 	address: z
 		.string()
 		.max(500, 'Address is too long')
@@ -63,6 +67,9 @@ export const createSiteSchema = z.object({
 export const updateSiteSchema = z
 	.object({
 		name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long').optional(),
+		// An empty string means "leave unchanged" (partial updates send every
+		// field). A site can therefore never have its health system cleared —
+		// only switched to another valid one.
 		health_system_id: z
 			.string()
 			.transform((val) => (val === '' ? undefined : val))

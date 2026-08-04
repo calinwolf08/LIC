@@ -20,6 +20,7 @@ import {
 	deleteSchedulingPeriod
 } from '$lib/features/scheduling/services/scheduling-period-service';
 import { updateSchedulingPeriodSchema } from '$lib/features/preceptors/pattern-schemas';
+import { assertScheduleOwnedByUser } from '$lib/api/schedule-context';
 import { cuid2Schema } from '$lib/validation/common-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -30,11 +31,17 @@ const log = createServerLogger('api:scheduling-periods:id');
  * GET /api/scheduling-periods/[id]
  * Returns a single scheduling period
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	log.debug('Fetching scheduling period', { id: params.id });
 
 	try {
 		const id = cuid2Schema.parse(params.id);
+
+		// Ownership guard: schedules are owned directly via user_id. 404 unless
+		// the caller owns this one.
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, id);
 
 		const period = await getSchedulingPeriodById(db, id);
 
@@ -65,10 +72,14 @@ export const GET: RequestHandler = async ({ params }) => {
 /**
  * Helper function for updating scheduling period (shared by PUT and PATCH)
  */
-async function handleUpdate(params: { id: string }, request: Request) {
+async function handleUpdate(params: { id: string }, request: Request, userId: string | undefined) {
 	log.debug('Updating scheduling period', { id: params.id });
 
 	const id = cuid2Schema.parse(params.id);
+
+	// Ownership guard: only the owner may update the schedule.
+	if (!userId) throw new NotFoundError('Scheduling period');
+	await assertScheduleOwnedByUser(db, userId, id);
 
 	// Parse and validate request body
 	const body = await request.json();
@@ -89,9 +100,9 @@ async function handleUpdate(params: { id: string }, request: Request) {
  * PUT /api/scheduling-periods/[id]
  * Update a scheduling period (full update)
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	try {
-		return await handleUpdate(params, request);
+		return await handleUpdate(params, request, locals.session?.user?.id);
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Scheduling period update validation failed', {
@@ -123,9 +134,9 @@ export const PUT: RequestHandler = async ({ params, request }) => {
  * PATCH /api/scheduling-periods/[id]
  * Update a scheduling period (partial update)
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	try {
-		return await handleUpdate(params, request);
+		return await handleUpdate(params, request, locals.session?.user?.id);
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Scheduling period patch validation failed', {
@@ -157,11 +168,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
  * DELETE /api/scheduling-periods/[id]
  * Delete a scheduling period
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting scheduling period', { id: params.id });
 
 	try {
 		const id = cuid2Schema.parse(params.id);
+
+		// Ownership guard: only the owner may delete the schedule.
+		const userId = locals.session?.user?.id;
+		if (!userId) return errorResponse('Authentication required', 401);
+		await assertScheduleOwnedByUser(db, userId, id);
 
 		await deleteSchedulingPeriod(db, id);
 

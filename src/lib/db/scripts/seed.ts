@@ -18,6 +18,8 @@ import { auth } from '../../auth';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
+import { TEST_SCHEDULE as SEED_SCHEDULE, fromToday } from './seed-schedule';
+import { seedAdminAssignments } from './seed-demo';
 
 const TEST_USER = {
 	email: 'admin@example.com',
@@ -31,11 +33,10 @@ const BASIC_USER = {
 	name: 'Basic User'
 };
 
-const TEST_SCHEDULE = {
-	name: 'Demo Schedule 2025',
-	startDate: '2025-01-06',
-	endDate: '2025-06-30'
-};
+// The seed owns its schedule outright — see seed-schedule.ts for why the range
+// is anchored to today. Previously the auth hook's "My Schedule" was silently
+// reused as-is, so the seed's stated intent and its result disagreed.
+const TEST_SCHEDULE = SEED_SCHEDULE;
 
 // Helper to get or create entity
 async function getOrCreate<T extends { id: string }>(
@@ -176,8 +177,21 @@ async function seed(db: Kysely<DB>) {
 		.executeTakeFirst();
 
 	if (existingSchedule) {
-		console.log(`  Schedule already exists for user`);
+		// The auth hook creates a schedule on sign-up. Claim it and make it match
+		// what this seed says it creates, rather than inheriting its name/range.
 		scheduleId = existingSchedule.id!;
+		await db
+			.updateTable('scheduling_periods')
+			.set({
+				name: TEST_SCHEDULE.name,
+				start_date: TEST_SCHEDULE.startDate,
+				end_date: TEST_SCHEDULE.endDate,
+				year: null,
+				updated_at: timestamp
+			})
+			.where('id', '=', scheduleId)
+			.execute();
+		console.log(`  Claimed the sign-up schedule as ${TEST_SCHEDULE.name}`);
 	} else {
 		const orphanSchedule = await db
 			.selectFrom('scheduling_periods')
@@ -194,7 +208,7 @@ async function seed(db: Kysely<DB>) {
 					name: TEST_SCHEDULE.name,
 					start_date: TEST_SCHEDULE.startDate,
 					end_date: TEST_SCHEDULE.endDate,
-					year: 2025,
+					year: null,
 					is_active: 1,
 					updated_at: timestamp
 				})
@@ -210,7 +224,7 @@ async function seed(db: Kysely<DB>) {
 					name: TEST_SCHEDULE.name,
 					start_date: TEST_SCHEDULE.startDate,
 					end_date: TEST_SCHEDULE.endDate,
-					year: 2025,
+					year: null,
 					is_active: 1,
 					user_id: userId,
 					created_at: timestamp,
@@ -220,6 +234,20 @@ async function seed(db: Kysely<DB>) {
 			console.log(`  Created schedule: ${TEST_SCHEDULE.name}`);
 		}
 	}
+
+	// The legacy global is_active flag is uniquely indexed, so clear it elsewhere
+	// before claiming it. Per-user `active_schedule_id` is the real source of
+	// truth (step 15) — this only keeps the old column self-consistent.
+	await db
+		.updateTable('scheduling_periods')
+		.set({ is_active: 0 })
+		.where('id', '!=', scheduleId)
+		.execute();
+	await db
+		.updateTable('scheduling_periods')
+		.set({ is_active: 1 })
+		.where('id', '=', scheduleId)
+		.execute();
 
 	// Set as user's active schedule
 	await db
@@ -622,6 +650,22 @@ async function seed(db: Kysely<DB>) {
 	}
 	console.log(`  Created/found ${teamIds.length} teams`);
 
+	// Step 10: Seed a realistic assignment scenario for the admin so the
+	// calendar, schedule-health panel and override review have content on first
+	// run (Round 4, step 36). Idempotent via a marker preceptor.
+	await seedAdminAssignments(db, {
+		scheduleId,
+		studentIds,
+		preceptorIds,
+		clerkshipIds,
+		healthSystemIds,
+		timestamp
+	});
+
+	// Second tenant: gives the basic account clearly-marked data so tenant
+	// isolation can be proven from tenant A's session (Round 3, step 33).
+	await seedSecondTenant(db);
+
 	// Summary
 	console.log('\n' + '='.repeat(50));
 	console.log('SEED COMPLETED SUCCESSFULLY');
@@ -640,6 +684,174 @@ async function seed(db: Kysely<DB>) {
 	console.log(`  - ${preceptorIds.length} Preceptors`);
 	console.log(`  - ${teamIds.length} Teams`);
 	console.log('\nAll entities are associated with the test schedule.');
+}
+
+/**
+ * Give the basic (non-entitled) account its own schedule and a small set of
+ * entities whose names all carry the "Tenant B" marker, plus one assignment.
+ * The tenant-isolation e2e signs in as the admin (tenant A) and asserts that
+ * "Tenant B" never appears anywhere — so a leak is impossible to miss.
+ * Idempotent: re-running does not duplicate rows.
+ */
+async function seedSecondTenant(db: Kysely<DB>) {
+	console.log('\nSeeding second tenant (Tenant B)...');
+	const ts = new Date().toISOString();
+
+	const basic = await db
+		.selectFrom('user')
+		.select('id')
+		.where('email', '=', BASIC_USER.email)
+		.executeTakeFirst();
+	if (!basic) {
+		console.log('  Basic user not found — skipping second tenant');
+		return;
+	}
+	const userId = basic.id;
+
+	// Claim (or create) a schedule owned by the basic user.
+	let scheduleId: string;
+	const existingSchedule = await db
+		.selectFrom('scheduling_periods')
+		.select('id')
+		.where('user_id', '=', userId)
+		.executeTakeFirst();
+	if (existingSchedule?.id) {
+		scheduleId = existingSchedule.id;
+		await db
+			.updateTable('scheduling_periods')
+			.set({
+				name: 'Tenant B Schedule',
+				start_date: TEST_SCHEDULE.startDate,
+				end_date: TEST_SCHEDULE.endDate,
+				year: null,
+				updated_at: ts
+			})
+			.where('id', '=', scheduleId)
+			.execute();
+	} else {
+		scheduleId = nanoid();
+		await db
+			.insertInto('scheduling_periods')
+			.values({
+				id: scheduleId,
+				name: 'Tenant B Schedule',
+				start_date: TEST_SCHEDULE.startDate,
+				end_date: TEST_SCHEDULE.endDate,
+				year: null,
+				is_active: 0,
+				user_id: userId,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+	await db
+		.updateTable('user')
+		.set({ active_schedule_id: scheduleId })
+		.where('id', '=', userId)
+		.execute();
+
+	// Idempotency: if this schedule already has entities, we're done.
+	const already = await db
+		.selectFrom('schedule_students')
+		.select('id')
+		.where('schedule_id', '=', scheduleId)
+		.executeTakeFirst();
+	if (already) {
+		console.log('  Tenant B already seeded');
+		return;
+	}
+
+	const hsId = nanoid();
+	const siteId = nanoid();
+	const studentId = nanoid();
+	const preceptorId = nanoid();
+	const clerkshipId = nanoid();
+
+	await db
+		.insertInto('health_systems')
+		.values({ id: hsId, name: 'Tenant B Health System', created_at: ts, updated_at: ts })
+		.execute();
+	await db
+		.insertInto('sites')
+		.values({ id: siteId, name: 'Tenant B Site', health_system_id: hsId, created_at: ts, updated_at: ts })
+		.execute();
+	await db
+		.insertInto('students')
+		.values({ id: studentId, name: 'Tenant B Student', email: 'tenant-b-student@example.com', created_at: ts, updated_at: ts })
+		.execute();
+	await db
+		.insertInto('preceptors')
+		.values({
+			id: preceptorId,
+			name: 'Tenant B Preceptor',
+			email: 'tenant-b-preceptor@example.com',
+			max_students: 2,
+			health_system_id: hsId,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('clerkships')
+		.values({
+			id: clerkshipId,
+			name: 'Tenant B Clerkship',
+			clerkship_type: 'outpatient',
+			required_days: 5,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+
+	await db.insertInto('schedule_health_systems').values({ id: nanoid(), schedule_id: scheduleId, health_system_id: hsId, created_at: ts }).execute();
+	await db.insertInto('schedule_sites').values({ id: nanoid(), schedule_id: scheduleId, site_id: siteId, created_at: ts }).execute();
+	await db.insertInto('schedule_students').values({ id: nanoid(), schedule_id: scheduleId, student_id: studentId, created_at: ts }).execute();
+	await db.insertInto('schedule_preceptors').values({ id: nanoid(), schedule_id: scheduleId, preceptor_id: preceptorId, created_at: ts }).execute();
+	await db.insertInto('schedule_clerkships').values({ id: nanoid(), schedule_id: scheduleId, clerkship_id: clerkshipId, created_at: ts }).execute();
+
+	await db
+		.insertInto('schedule_assignments')
+		.values({
+			id: nanoid(),
+			student_id: studentId,
+			preceptor_id: preceptorId,
+			clerkship_id: clerkshipId,
+			site_id: siteId,
+			date: fromToday(3),
+			status: 'scheduled',
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+
+	// A second student with an accepted override, so tenant-isolation tests have
+	// more than a single row to miss (and an override to leak).
+	const studentTwoId = nanoid();
+	await db
+		.insertInto('students')
+		.values({ id: studentTwoId, name: 'Tenant B Student Two', email: 'tenant-b-student-two@example.com', created_at: ts, updated_at: ts })
+		.execute();
+	await db.insertInto('schedule_students').values({ id: nanoid(), schedule_id: scheduleId, student_id: studentTwoId, created_at: ts }).execute();
+	await db
+		.insertInto('schedule_assignments')
+		.values({
+			id: nanoid(),
+			student_id: studentTwoId,
+			preceptor_id: preceptorId,
+			clerkship_id: clerkshipId,
+			site_id: siteId,
+			date: fromToday(4),
+			status: 'scheduled',
+			source: 'manual',
+			override_codes: JSON.stringify(['not_onboarded']),
+			override_note: 'Tenant B: approved pending onboarding',
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+
+	console.log('  Created Tenant B schedule + entities + 2 students + 2 assignments (1 override)');
 }
 
 async function main() {
