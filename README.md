@@ -89,6 +89,81 @@ to point at another database, e.g. the e2e DB:
 Do **not** run a reset against `./test-sqlite.db` while a preview/e2e run is
 using it.
 
+## Deployment
+
+The app is a SvelteKit `adapter-node` build (selected automatically when the
+`COOLIFY` env var is set) started with `node build`.
+
+**The database engine is chosen by environment variables** — SQLite by default
+(local dev and tests), PostgreSQL in production — with no code changes. See
+[Choosing the database engine](#choosing-the-database-engine) below.
+
+**1. Set up the database before the server starts.** better-auth does **not**
+create its tables at runtime, and the app's migrations must be applied — on a
+fresh database the first sign-up returns a 500 (`no such table: user`) until
+this runs. One idempotent command does both, on whichever engine the environment
+selects, and is safe to run on every deploy (it **never** seeds):
+
+```bash
+npm run db:setup
+```
+
+Wire it to run **before** the server boots — e.g. set the start command to:
+
+```bash
+npm run db:setup && node build
+```
+
+`db:setup` needs `tsx` (a devDependency) and the `src/` tree present, so do not
+prune devDependencies or the source in the deploy image.
+
+**2. Keep the data across redeploys.** How depends on the engine — see below.
+
+### Choosing the database engine
+
+Resolution precedence (`src/lib/db/config.ts`):
+
+1. `DATABASE_DIALECT` (`sqlite` | `postgres`) — explicit override.
+2. else `DATABASE_URL` — a `postgres://…` / `postgresql://…` URL selects Postgres.
+3. else SQLite at `DATABASE_PATH` (default `./sqlite.db`).
+
+Every db command (`db:setup`, `db:migrate`, `db:seed`, resets) reads the same
+variables, so they always target the database the app uses.
+
+#### PostgreSQL (recommended for production)
+
+Create a Postgres service in Coolify and point the app at it:
+
+```
+DATABASE_URL=postgres://user:pass@host:5432/dbname
+```
+
+Because the data lives in a **separate** Postgres service (its own volume,
+backed up by Coolify), app redeploys cannot touch it — there is no per-app
+volume to forget. Nothing else changes: `npm run db:setup && node build` builds
+the schema and boots.
+
+#### SQLite
+
+Put the file on a **persistent volume**, or every redeploy starts from an empty
+database. Point `DATABASE_PATH` at a mounted directory and mount the *directory*
+(WAL mode also writes `…-wal` / `…-shm` sidecar files):
+
+```
+DATABASE_PATH=/app/data/sqlite.db        # env var
+/app/data                                 # Coolify persistent volume
+```
+
+### Adding a third engine
+
+Kysely already ships MySQL/MSSQL dialects. To add one: create
+`src/lib/db/dialects/<engine>.ts` exporting a `DialectAdapter`, register it in
+`src/lib/db/dialects/index.ts`, add a Postgres-style baseline under
+`src/lib/db/migrations/<engine>/001_baseline.ts`, and add a better-auth profile
+in `ensure-auth-tables.ts`. No call sites change; every future shared migration
+is inherited. Full instructions live in the headers of those files and in
+`docs/spec/plan/DB-DIALECT-ABSTRACTION.md`.
+
 ## Development commands
 
 ```bash
