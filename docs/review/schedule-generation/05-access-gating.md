@@ -47,6 +47,22 @@ Preview is gated, fine — but the preview path loads the whole database (F-02) 
 - API: parameterised 403 table should include every route in §1 plus the ones fixed in G-1/G-3, and assert the error envelope shape (`{ success: false, error: { message } }`) rather than only the status.
 - Hook test: `entitlements` sourced from the DB when the session user lacks the field (the fallback branch in `hooks.server.ts` is untested).
 
+### G-7 · Gated UI over an ungated API (teams)
+
+`/api/preceptors/teams`, `/teams/[id]`, `/teams/available-preceptors` and `/teams/validate` carry no `requireAutogen`, while the Teams tab and `/generate/teams` are hidden without it. A Stage 1 user can therefore create teams they cannot see, and those teams change what the assignment dialog says about eligibility (P-02/P-12). Decide the tier for teams and make route and UI agree.
+
+### G-8 · Gated concept leaking into Stage 1 copy
+
+The Stage 1 assignment dialog refuses options with "Not on a team for X" (`assignment-eligibility.ts`) — engine vocabulary on a Stage 1 surface, pointing at a screen the user cannot open. GUIDELINES forbids this. Reword for Stage 1 and let the entitled build add the team detail.
+
+### G-9 · Ungated concepts with no Stage 1 capability (electives)
+
+Elective CRUD, `elective_preceptors` and `elective_sites` are ungated and the Electives tab is visible to everyone — correct per the spec (electives are Stage 1, R4.1) — but no Stage 1 route can attach a day to an elective (P-01). The gating is right and the feature is missing; fix the feature rather than gating the tab.
+
+### G-10 · Entitlement loss must not strand data
+
+Nothing tests what happens when `autogen` is revoked while a generated schedule exists. Required behaviour: every generated assignment stays fully editable, locks remain but cannot be toggled, `/generate` 403s, and the health panel is unchanged. Add this to the gating suite.
+
 ## 3. Recommended enforcement pattern (so a new route cannot forget)
 
 Extend the central hook: keep `requiresApiAuthChallenge` for 401, and add a declarative allow-list for Stage 2 prefixes (`/api/schedules/generate`, `/api/scheduling/`, `/api/generate/`, `/api/scheduling-config/global-defaults/`, `/api/scheduling-config/capacity-rules/`, `/api/scheduling-config/fallbacks/`) that returns 403 in the hook when the caller lacks `autogen`. Handlers keep `requireAutogen` as defence in depth. The unit test then asserts the table of prefixes, and `stage2-gating.test.ts` stays as the handler-level check.

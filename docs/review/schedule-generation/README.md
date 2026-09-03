@@ -2,15 +2,16 @@
 
 A full review of the Stage 2 auto-generation feature: how the algorithm works, what is wrong with it, how it should be redesigned, what the current database schema requires of it, whether access gating is sound, and how to test all of it.
 
-| Document                                                     | What it answers                                                                                                                  |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| [01-algorithm-explained.md](01-algorithm-explained.md)       | How generation works today, phase by phase, file by file — including the behaviours that are wrong (cross-referenced as `F-nn`). |
-| [02-findings-and-bugs.md](02-findings-and-bugs.md)           | 30 findings with severity, evidence (the critical ones reproduced by a 14-scenario live probe), root cause and fix.              |
-| [03-design-recommendations.md](03-design-recommendations.md) | Target architecture: scoped snapshot → pure planner → pure generator with a single validator → one transactional apply.          |
-| [04-schema-alignment.md](04-schema-alignment.md)             | Table-by-table changes so the engine respects schedule scoping, ownership, locks, overrides, sites, electives and Postgres.      |
-| [05-access-gating.md](05-access-gating.md)                   | Audit of the two access levels: what is gated, what is not, and a pattern so new routes cannot forget.                           |
-| [06-test-coverage-plan.md](06-test-coverage-plan.md)         | Current coverage, why green tests missed the bugs, and the unit / integration / API / e2e plan with a traceability matrix.       |
-| [07-implementation-roadmap.md](07-implementation-roadmap.md) | Ordered, sized work plan; Phase 0 alone makes the feature safe.                                                                  |
+| Document                                                       | What it answers                                                                                                                  |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [01-algorithm-explained.md](01-algorithm-explained.md)         | How generation works today, phase by phase, file by file — including the behaviours that are wrong (cross-referenced as `F-nn`). |
+| [02-findings-and-bugs.md](02-findings-and-bugs.md)             | 30 findings with severity, evidence (the critical ones reproduced by a 14-scenario live probe), root cause and fix.              |
+| [03-design-recommendations.md](03-design-recommendations.md)   | Target architecture: scoped snapshot → pure planner → pure generator with a single validator → one transactional apply.          |
+| [04-schema-alignment.md](04-schema-alignment.md)               | Table-by-table changes so the engine respects schedule scoping, ownership, locks, overrides, sites, electives and Postgres.      |
+| [05-access-gating.md](05-access-gating.md)                     | Audit of the two access levels: what is gated, what is not, and a pattern so new routes cannot forget.                           |
+| [06-test-coverage-plan.md](06-test-coverage-plan.md)           | Current coverage, why green tests missed the bugs, and the unit / integration / API / e2e plan with a traceability matrix.       |
+| [07-implementation-roadmap.md](07-implementation-roadmap.md)   | Ordered, sized work plan; Phase 0 alone makes the feature safe.                                                                  |
+| [08-tier-parity-and-interop.md](08-tier-parity-and-interop.md) | Whether a generated schedule is editable like any other, and whether both access levels share the same scheduling concepts.      |
 
 ## Executive summary
 
@@ -26,11 +27,21 @@ The five findings that matter most, all reproduced against the real route and en
 
 The existing 764 tests are green because the route test mocks the engine and every service, and the engine suites always add generous capacity rules and start from an empty table. `06-test-coverage-plan.md` replaces that with real-handler tests, a per-finding integration suite, and five end-to-end journeys — including a brand-new-account flow from sign-up to a generated, exported schedule on both access levels.
 
+**The two tiers do not share one vocabulary, and a generated schedule is not fully editable.** Auto-generation is meant to be an accelerator for the same manual workflow, but the two halves disagree:
+
+- **Electives are configurable and unusable (P-01).** The Electives tab is open to every user, yet no manual route accepts an `elective_id` — posting one returns 201 and stores `null`. Requirement tracking counts an elective day as an ordinary clerkship day, so "has this student done their required elective?" is unanswerable in either tier.
+- **Editing uses a different validator than creating (P-03).** Create offers the hard/soft override conversation; PATCH, reassign and swap use an older all-hard validator with no override vocabulary. A day created with an accepted override — or generated with a bypass — cannot be moved at all (verified: 400), while an edit can move a row into a state create would have refused.
+- **Teams mean opposite things (P-02).** The manual dialog treats a preceptor on no team as eligible for everything; the engine treats them as eligible for nothing. A Stage 1 user who upgrades finds their whole roster ignored, and the Stage 1 refusal text already names a Stage 2 concept whose screen they cannot open.
+- **Generated rows are invisible as such (P-07)** — no read model exposes `source`, `locked`, `elective_id` or `override_codes` — and generation silently loses to manual rows without reporting it (P-09).
+
+`08-tier-parity-and-interop.md` states the six rules the fixed system must satisfy (round-trip, editability, one validator, idempotent tandem operation, concept completeness per tier, validator equality across tiers), and `06-test-coverage-plan.md` §2.6 turns each into tests — including a journey that generates a schedule and then moves, reassigns, swaps, deletes and locks its days by hand before regenerating.
+
 Recommended next step: ship Phase 0 of the roadmap (scope + credit + capacity + persistence + seed, with its tests) before any other Stage 2 work, and hide the _Minimal change_ and constraint-bypass controls until Phase 2 makes them real.
 
 ## How the review was done
 
-- Read every file under `src/lib/features/scheduling/`, the generate/execute routes, gating helpers, hook, schema types, migrations 016–027, the Postgres baseline, the spec and plan documents.
+- Read every file under `src/lib/features/scheduling/`, the generate/execute routes, the manual assignment routes and services (create, edit, reassign, swap, day-states, eligibility, requirement tracking), the assignment dialog, calendar/student/export read models, gating helpers, hook, schema types, migrations 016–027, the Postgres baseline, the spec and plan documents.
 - Ran the scheduling test suites with coverage (`npx vitest run --project server … --coverage`).
 - Wrote a temporary Vitest probe (`zz-review-probe.test.ts`, since removed) that mounted the real `POST /api/schedules/generate` and `DELETE /api/schedules` handlers on an in-memory migrated SQLite database with two tenants and drove fourteen scenarios; the observed numbers are quoted in `02-findings-and-bugs.md`.
+- Wrote a second probe against the real assignment routes (`POST`/`PATCH`/`reassign`) covering electives, overrides on edit, generated-row editing and lock semantics; its results are quoted in `08-tier-parity-and-interop.md`. Both probes were deleted after the review.
 - No production code was changed; this branch only adds `docs/review/schedule-generation/`.

@@ -1,6 +1,6 @@
 # Test coverage plan for schedule generation
 
-Goal: every line of generation code is exercised, every edge case named in `02-findings-and-bugs.md` has a regression test, and the full user flow — sign in, set up data, generate, inspect results, adjust, regenerate — is proven end to end on both entitlement levels.
+Goal: every line of generation code is exercised, every edge case named in `02-findings-and-bugs.md` has a regression test, and the full user flow — sign in, set up data, generate, inspect results, **hand-edit the result**, regenerate — is proven end to end on both entitlement levels. Coverage is not complete until the tests prove the six parity rules in `08-tier-parity-and-interop.md` §4: a generated schedule is indistinguishable from a hand-built one to every mutation route, and the validator answers identically for both tiers.
 
 ---
 
@@ -177,6 +177,59 @@ Register → create schedule via wizard → add health system + site → add cle
 
 `regenerate-dialog.svelte.test.ts` (replacing the phantom file cited in old docs): mode defaults by schedule age, cutoff bounds, bypass list only in completion mode, request body per mode, error rendering, success message per mode. `violation-stats-card.svelte.test.ts` and `suggestions-panel.svelte.test.ts`: render from a run record; suggestion links point at the preceptor/settings pages.
 
+### 2.6 Parity and interoperability tests (the new layer)
+
+These prove the six rules in `08-tier-parity-and-interop.md` §4. They are the tests that would have caught every `P-nn` finding, and they run on **both** entitlement levels wherever the tier is relevant.
+
+**`src/routes/api/schedules/assignments/parity.integration.test.ts`** (real handlers, in-memory DB, Proxy-mocked `$lib/db` — the pattern from `tenant-isolation-api.test.ts`)
+
+_Round-trip (rule 1)_
+
+- For each generated row, build the equivalent `POST /api/schedules/assignments` payload from its own columns and assert the created row matches on `student_id, preceptor_id, clerkship_id, site_id, elective_id, date, status` (P-01, F-14).
+- `POST` with an `elective_id` stores it; an `elective_id` belonging to another clerkship → 400; an unknown id → 400. Never a silent drop (P-01).
+- Every generated row carries a `site_id`, so the round-trip payload is constructible at all.
+
+_Editability of generated rows (rule 2)_
+
+- Move (PATCH date), reassign, swap, delete, lock and unlock a generated row: each succeeds and preserves `elective_id`, `override_codes` and `source`.
+- Move a generated row **carrying an accepted override** onto a day that re-triggers the same soft code → 422 with that code; the same request with `override_codes` → 200 and the code persisted (P-03). Today this is a bare 400.
+- Reassign to an at-capacity preceptor → 422 `preceptor_capacity`; with the code accepted → 200 (P-03).
+- Reassign an elective day outside the elective pool → 422 `preceptor_not_eligible`; accepted → 200 with the code recorded (P-04).
+- Edit a generated row into a state create would refuse (site not allowed, outside range, not onboarded) → the same codes create returns (P-03).
+
+_One validator (rule 3)_
+
+- Table-driven: for a matrix of tuples (clean, blackout, unavailable, at-capacity, not onboarded, wrong site, double-booked, past, over-required) assert that `POST` dry-run, `PATCH` dry-run, `reassign` dry-run, `swap` dry-run, `validateSchedule` and the engine's `ProposalValidator` return the **same** code set. One helper, six callers, no exceptions.
+
+_Tandem operation (rule 4)_
+
+- Generate → hand-move one day, hand-add one day, lock one day → regenerate in each mode → the three user rows survive as the mode promises, no duplicate `(student, date)`, and the response reports every candidate skipped because a user row held its slot, with the blocking assignment id (P-09).
+- Regenerate twice with no edits in between → identical row set (idempotence).
+- A manual row that blocks a generated candidate appears in the unmet-requirement reason rather than vanishing (P-09, F-06).
+
+_Concept completeness (rule 5)_
+
+- Per-elective requirement counts: a 3-day required elective with 1 day assigned shows `1/3`, and the clerkship's plain days are unaffected (P-01).
+- Effective capacity is the same number in the Stage 1 warning and in the engine (P-06, F-07).
+- The eligibility predicate gives one answer to the dialog options endpoint, the engine snapshot and the readiness checklist for the same roster — including the "clerkship with no team" case (P-02).
+
+_Validator equality across tiers (rule 6)_
+
+- `GET /api/schedules/validation` returns identical payloads for an entitled and a non-entitled caller over the same data (P-06, G-10).
+- Entitlement revoked mid-life: generated rows still editable, locks preserved but not toggleable, `/generate` 403 (G-10).
+
+**Integration additions** (`src/lib/features/scheduling/integration/`)
+
+- `26-manual-interop.test.ts`: the engine runs over a schedule that already holds manual, overridden and locked rows — occupancy respected, credit applied (F-01), skipped candidates reported, no existing row rewritten in place.
+- `27-elective-parity.test.ts`: manually created elective days count as credit toward `minimum_days`; generated elective days feed the same counter; optional electives behave per the decided rule (F-09).
+
+**E2E journeys** (`e2e/journeys/`), added to those in §2.4
+
+- `autogen-then-edit.spec.ts` (entitled — the headline journey): generate → the calendar shows an "Auto" badge on generated days → open one in the unified dialog → move it (override conversation appears and is accepted) → reassign another → swap two → delete one → lock one → requirement strip and health panel stay consistent at each step → regenerate in completion mode → every hand edit survives and the run reports what it skipped.
+- `electives-manual.spec.ts` (**non-entitled**): create an elective with a 3-day minimum → assign 2 elective days by hand through the dialog's elective picker → the student page shows `2/3` for the elective and the clerkship's plain days separately → the health panel flags nothing → the export names the elective.
+- `parity-no-teams.spec.ts`: a Stage 1 user builds a schedule with preceptors on no team, then the account is granted `autogen` in the fixture → generation uses those preceptors instead of reporting "no preceptors available" (post-P-02 fix).
+- `entitlement-revoked.spec.ts`: generated schedule, entitlement removed → all editing still works, `/generate` 403s, locks visible but frozen.
+
 ## 3. Scenario matrix (traceability)
 
 | Finding                   | Unit               | Integration    | API                        | E2E                            |
@@ -198,11 +251,21 @@ Register → create schedule via wizard → add health system + site → add cle
 | F-24/25 runs              | —                  | 22             | runs endpoint              | results violations             |
 | F-26 CHECK                | config-resolver    | migration test | global-defaults PUT        | settings page save             |
 | F-28/29 readiness/seed    | readiness          | —              | —                          | first-run                      |
+| P-01 electives            | requirement counts | 27             | parity round-trip          | electives-manual               |
+| P-02 teams                | eligibility        | 26             | options endpoint           | parity-no-teams                |
+| P-03/04 one validator     | validator          | 26             | parity validator matrix    | autogen-then-edit              |
+| P-05/06 availability/cap  | capacity-resolver  | 19             | parity rule 5              | —                              |
+| P-07 read models          | —                  | 22             | calendar/export shape      | autogen-then-edit badge        |
+| P-08 locks                | —                  | 26             | lock matrix                | entitlement-revoked            |
+| P-09 skipped candidates   | unmet-requirements | 26             | tandem                     | autogen-then-edit              |
+| P-10 write paths          | —                  | 22             | round-trip                 | —                              |
+| P-12 / G-7..G-10 gating   | —                  | —              | gating table               | entitlement-revoked            |
 | G-1..G-6 gating           | —                  | —              | gating table               | gating spec                    |
 
 ## 4. Coverage targets and enforcement
 
 - Vitest `coverage.thresholds` for `src/lib/features/scheduling/**`, `src/routes/api/schedules/generate/**`, `src/routes/api/scheduling/**`: **lines 95 %, branches 90 %, functions 95 %** once dead code (`03 §8`) is deleted. Fail CI below threshold (`coverage.yml` already runs coverage; make it blocking).
+- The one-validator matrix in §2.6 is a **release gate**: a mutation path that does not answer through the shared validator fails the suite by construction.
 - Every `it()` name states the user-visible expectation ("student with 2 past days gets exactly 3 new days"), not the mechanism.
 - `npm run test:e2e` must include the five autogen journeys; CI already runs Playwright. Move or delete `e2e/api` and `e2e/ui` so no one mistakes them for coverage.
 - Add a lightweight **query-count assertion** plugin (Kysely `log` hook) used by `25-scale.test.ts` so the N+1 regression cannot come back.
@@ -214,3 +277,5 @@ Register → create schedule via wizard → add health system + site → add cle
 2. `integration-helpers.ts`: helpers listed in §2.2; make `createTestPreceptors` **not** create a capacity rule implicitly, and add `createCapacityRule` calls only where a test is about capacity, so F-07 cannot hide again.
 3. `tenant-fixture.ts`: add teams + availability + capacity for both tenants so generation can run for each.
 4. A `withQueryCounter(db)` test utility.
+5. `assignmentFixture(db, scheduleId)` producing the four row flavours the parity suite needs — plain manual, manual with an accepted override, generated, generated + locked — so every mutation test starts from all four without repeating setup.
+6. A shared `expectSameViolationCodes(...paths)` helper backing the one-validator matrix, so a mutation path added later fails the suite until it is wired into the shared validator.

@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-Ordered so that each step is shippable on its own, the S1 defects go first, and every step lands with the tests from `06-test-coverage-plan.md` that prove it. Effort is a rough size for one engineer familiar with the codebase. Follow `docs/spec/plan/GUIDELINES.md` for definition of done.
+Ordered so that each step is shippable on its own, the S1 defects go first, and every step lands with the tests from `06-test-coverage-plan.md` that prove it. Phase 1b delivers the Stage 1 parity work from `08-tier-parity-and-interop.md`; it does not depend on the engine refactor and is worth shipping to non-entitled users on its own. Effort is a rough size for one engineer familiar with the codebase. Follow `docs/spec/plan/GUIDELINES.md` for definition of done.
 
 ## Phase 0 — Stop the bleeding (S1, do first, do alone)
 
@@ -25,6 +25,22 @@ Phase 0 leaves `minimal-change`, bypass and the constraint system still broken b
 | 1.3 | Optional electives do not reduce clerkship days; spec §3 gains the rule for optional electives.                                                                              | F-09       | S    |
 | 1.4 | Eligibility predicate (`03 §6`) implemented once and used by the engine, the gap filler and the readiness checklist; checklist item checks teams/availability per clerkship. | F-19, F-28 | M    |
 | 1.5 | Decide and document the availability default (F-18); if patterns count, expand them in the snapshot and in Stage 1 validation.                                               | F-18       | S–M  |
+
+## Phase 1b — Stage 1 parity and manual/generated interoperability
+
+Independent of the engine work; ships value to both tiers and is what makes a generated schedule genuinely editable afterwards. Full rationale in `08-tier-parity-and-interop.md` §5.
+
+| #    | Work                                                                                                                                                                                                                                                                                                                                      | Fixes                | Size |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ---- |
+| 1b.1 | `elective_id` end to end: create/bulk/update schemas, `createManualAssignment`, an elective picker in the assignment dialog (filtered to the elective's preceptors and sites), 400 on an elective that does not belong to the clerkship.                                                                                                  | P-01                 | M    |
+| 1b.2 | Per-elective requirement tracking: `requirement-status` and `requirement-preview` count elective days against `minimum_days` separately from the clerkship's plain days; render on the student page, clerkship progress and export.                                                                                                       | P-01                 | M    |
+| 1b.3 | **One validator for every mutation**: `updateAssignment`, `reassignToPreceptor`, `swapAssignments` call `validateAssignmentCandidate` with `excludeId`, return the 422 hard/soft envelope, accept and persist `override_codes`/`override_note`; the dialog's edit branch sends what it collected; delete the legacy `validateAssignment`. | P-03, P-04           | L    |
+| 1b.4 | Expose `source`, `locked`, `elective_id`, `override_codes` in the calendar, student and preceptor read models and the export; "Auto" badge, lock icon, override chip; filter by them.                                                                                                                                                     | P-07                 | M    |
+| 1b.5 | Effective capacity from the single resolver shown on the preceptor page and used by the Stage 1 warning.                                                                                                                                                                                                                                  | P-06                 | S    |
+| 1b.6 | Stage 1 vocabulary in eligibility reasons; teams either ungated end to end or invisible end to end (decide with 1.4).                                                                                                                                                                                                                     | P-02, P-12, G-7, G-8 | S    |
+| 1b.7 | Report skipped generation candidates (slot held by a user row) per student, with the blocking assignment id.                                                                                                                                                                                                                              | P-09                 | S    |
+| 1b.8 | Single `insertAssignments()` used by manual create, bulk create and the engine commit.                                                                                                                                                                                                                                                    | P-10, F-14           | S    |
+| 1b.9 | Document lock semantics in the spec (generation never moves a locked row; a human always may, entitled or not) and assert both halves.                                                                                                                                                                                                    | P-08, G-10           | S    |
 
 ## Phase 2 — One validation pipeline and real regeneration modes
 
@@ -59,11 +75,13 @@ Phase 0 leaves `minimal-change`, bypass and the constraint system still broken b
 
 - Land every remaining file from `06 §2`; raise coverage thresholds to 95/90/95 for the generation paths and make the coverage workflow blocking.
 - Five autogen e2e journeys green in CI; tenant-isolation journey extended.
-- Update `docs/spec/PRODUCT_SPEC.md` §5 (G2–G6) with the decided rules: optional electives, availability default, team eligibility, approval flag, bypass vocabulary.
+- Land the parity suite from `06 §2.6` and keep the one-validator matrix as a release gate.
+- Update `docs/spec/PRODUCT_SPEC.md` §4–§5 with the decided rules: elective assignment and tracking (Stage 1), optional electives, availability default, team eligibility and tier, lock semantics, approval flag, bypass vocabulary.
 
 ## Sequencing notes
 
 - 0.1–0.7 can ship as one PR ("generation is tenant-safe and counts correctly") with the dialog controls hidden. Nothing in it changes the UI beyond that.
 - Phase 2.1 is the largest single change; land it behind the existing engine interface (`engine.schedule(...)`) so suites 02–15 keep passing unchanged, then delete the old context builders.
 - Do not start Phase 3 before Phase 2: strategy improvements are unverifiable until the validator exists.
-- If time is short, Phases 0 and 1 plus tests are the minimum for the feature to be sold as "Stage 2".
+- Phase 1b can run in parallel with Phase 1 by a second engineer — it touches the assignment routes and Stage 1 UI, not the engine. Land 1b.3 before Phase 2.2 so the shared validator has one caller shape to satisfy, and 1b.1/1b.8 before 0.6's persistence work is considered done.
+- If time is short, Phases 0, 1 and 1b plus their tests are the minimum: Phase 0 makes generation safe, Phase 1 makes it configurable, Phase 1b makes its output usable and gives Stage 1 the concepts it is already allowed to configure.
