@@ -1,0 +1,69 @@
+# Implementation roadmap
+
+Ordered so that each step is shippable on its own, the S1 defects go first, and every step lands with the tests from `06-test-coverage-plan.md` that prove it. Effort is a rough size for one engineer familiar with the codebase. Follow `docs/spec/plan/GUIDELINES.md` for definition of done.
+
+## Phase 0 — Stop the bleeding (S1, do first, do alone)
+
+| #   | Work                                                                                                                                                                                                                                                                                                                                                                                           | Fixes                  | Tests                                     | Size |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------- | ---- |
+| 0.1 | Scope `POST /api/schedules/generate` and `DELETE /api/schedules` to the caller's active schedule: resolve `requireActiveScheduleId` first; load students/preceptors/clerkships/teams/blackouts/availability through `schedule_*` junctions; delete only rows of the schedule's students; validate range ⊆ schedule; remove period auto-creation. Scope `/api/scheduling/execute` or delete it. | F-02, F-03, F-04, F-23 | 23-tenant-scope, route tests, tenant e2e  | M    |
+| 0.2 | Add `schedule_id` to `schedule_assignments` (+ Postgres baseline, backfill from `schedule_students`, regenerate types). Use it in 0.1's deletes/reads.                                                                                                                                                                                                                                         | F-02                   | migration equivalence, 23                 | S    |
+| 0.3 | Capacity semantics: `max_students` = per day everywhere; yearly only from rules; count pending occupancy in the checker.                                                                                                                                                                                                                                                                       | F-07                   | 19-capacity-model                         | S    |
+| 0.4 | Unmet requirements from accepted days; rejected batch → unmet with reasons.                                                                                                                                                                                                                                                                                                                    | F-06                   | unmet-requirements unit, 19               | S    |
+| 0.5 | Credit existing/past/locked days: engine accepts a `credit` map and subtracts it from `requiredDays` (clerkship and elective). Route computes it from the schedule's assignments.                                                                                                                                                                                                              | F-01                   | 16-regeneration-credit                    | M    |
+| 0.6 | Persist `site_id`, `elective_id`, `source`, `updated_at` from one persistence function; delete the engine's second commit path.                                                                                                                                                                                                                                                                | F-14                   | 22-persistence                            | S    |
+| 0.7 | Seed: materialise availability rows; capacity rule with sane yearly cap; onboarding.                                                                                                                                                                                                                                                                                                           | F-29                   | seed-demo integration test, first-run e2e | S    |
+
+Phase 0 leaves `minimal-change`, bypass and the constraint system still broken but **honestly labelled**: hide the "Minimal change" radio and the bypass checkboxes in `RegenerateDialog` until Phase 2 (one-line change each) rather than ship controls that do nothing.
+
+## Phase 1 — Correct configuration and eligibility
+
+| #   | Work                                                                                                                                                                         | Fixes      | Size |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---- |
+| 1.1 | Single config resolver (`ClerkshipSettingsService` + new elective settings); engine and constraint factory use it; delete the three copies.                                  | F-08, F-10 | M    |
+| 1.2 | Migration: fix `assignment_strategy` CHECK to include `team_continuity`, drop `continuous_team` (UI, enum, CHECK).                                                           | F-26       | S    |
+| 1.3 | Optional electives do not reduce clerkship days; spec §3 gains the rule for optional electives.                                                                              | F-09       | S    |
+| 1.4 | Eligibility predicate (`03 §6`) implemented once and used by the engine, the gap filler and the readiness checklist; checklist item checks teams/availability per clerkship. | F-19, F-28 | M    |
+| 1.5 | Decide and document the availability default (F-18); if patterns count, expand them in the snapshot and in Stage 1 validation.                                               | F-18       | S–M  |
+
+## Phase 2 — One validation pipeline and real regeneration modes
+
+| #   | Work                                                                                                                                                                                                                                                                                                                                                           | Fixes                     | Size |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---- |
+| 2.1 | `GenerationSnapshot` loader (batched, scoped) replacing `StrategyContextBuilder`'s per-call queries and the engine's own context; strategies read from the snapshot.                                                                                                                                                                                           | performance, F-02 residue | L    |
+| 2.2 | `ProposalValidator` wrapping `validateCandidateWithContext` + engine rules; strategies consult it while building; engine checks the batch; `bypassedConstraints` uses Stage 1 codes and writes `override_codes`. Delete the never-run constraint loop and the `ConstraintFactory` wiring (keep constraint classes only if they are folded into the validator). | F-05, F-11, F-17, F-20    | L    |
+| 2.3 | `planRegeneration()` shared by preview and apply; deletion after planning inside the apply transaction; minimal-change actually preserves valid future rows and replaces invalid ones in place.                                                                                                                                                                | F-12                      | M    |
+| 2.4 | Re-enable "Minimal change" and bypass controls in the dialog; consolidate the calendar's regenerate entry point into `/generate`.                                                                                                                                                                                                                              | G-5                       | S    |
+
+## Phase 3 — Strategy quality
+
+| #   | Work                                                                                                                  | Fixes            | Size |
+| --- | --------------------------------------------------------------------------------------------------------------------- | ---------------- | ---- |
+| 3.1 | Block-based: sliding windows over preceptor-available days, daily capacity, partial results with reasons.             | F-15, F-16, F-21 | M    |
+| 3.2 | Daily-rotation: partial results; consistent contract.                                                                 | F-21             | S    |
+| 3.3 | Scarcity ordering + deterministic tie-breaks + seed + budget.                                                         | D-01             | M    |
+| 3.4 | Fallback: carry primary team/health system; `is_global_fallback_only` ordering; approval flag implemented or removed. | F-17 residue     | M    |
+
+## Phase 4 — Diagnostics, audit and cleanup
+
+| #   | Work                                                                                                                                                                            | Fixes            | Size |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---- |
+| 4.1 | `generation_runs` table + write in apply + `GET` for latest run; Results page renders `violationStats`, unmet reasons and suggestions from it; `getScheduleSummaryData` scoped. | F-24, F-25, F-27 | M    |
+| 4.2 | Statistics computed from the snapshot (all students in schedule).                                                                                                               | F-13             | S    |
+| 4.3 | Default cutoff via `todayUTC()`.                                                                                                                                                | F-22             | XS   |
+| 4.4 | Delete dead code (`03 §8`), stale docs and unrun e2e dirs; regenerate DB types; remove `as any` in the engine.                                                                  | hygiene          | M    |
+| 4.5 | Central 403 prefix table in the hook; gate elective-preceptor writes; delete `requirements` routes.                                                                             | G-1, G-3         | S    |
+| 4.6 | Postgres engine test in `test:pg`; dialect-safe boolean comparisons in engine code.                                                                                             | `04 §6`          | S    |
+
+## Phase 5 — Test completion and CI gates
+
+- Land every remaining file from `06 §2`; raise coverage thresholds to 95/90/95 for the generation paths and make the coverage workflow blocking.
+- Five autogen e2e journeys green in CI; tenant-isolation journey extended.
+- Update `docs/spec/PRODUCT_SPEC.md` §5 (G2–G6) with the decided rules: optional electives, availability default, team eligibility, approval flag, bypass vocabulary.
+
+## Sequencing notes
+
+- 0.1–0.7 can ship as one PR ("generation is tenant-safe and counts correctly") with the dialog controls hidden. Nothing in it changes the UI beyond that.
+- Phase 2.1 is the largest single change; land it behind the existing engine interface (`engine.schedule(...)`) so suites 02–15 keep passing unchanged, then delete the old context builders.
+- Do not start Phase 3 before Phase 2: strategy improvements are unverifiable until the validator exists.
+- If time is short, Phases 0 and 1 plus tests are the minimum for the feature to be sold as "Stage 2".
