@@ -14,6 +14,9 @@ import type { DB } from '$lib/db/types';
 export interface RequirementImpact {
 	clerkshipId: string;
 	clerkshipName: string;
+	/** Set when the preview targets a specific elective's minimum_days (P-01). */
+	electiveId?: string;
+	electiveName?: string;
 	required: number;
 	completed: number;
 	scheduled: number;
@@ -44,7 +47,8 @@ export async function previewRequirementImpact(
 	clerkshipId: string,
 	dateCount: number,
 	today: string = todayUTC(),
-	excludeId?: string | null
+	excludeId?: string | null,
+	electiveId?: string | null
 ): Promise<RequirementImpact> {
 	const clerkship = await db
 		.selectFrom('clerkships')
@@ -54,13 +58,25 @@ export async function previewRequirementImpact(
 		.where('schedule_clerkships.schedule_id', '=', scheduleId)
 		.executeTakeFirst();
 
-	const required = clerkship?.required_days ?? 0;
+	// When targeting an elective, the requirement is that elective's minimum_days
+	// and only its own days count (P-01); otherwise the clerkship's required_days.
+	const elective = electiveId
+		? await db
+				.selectFrom('clerkship_electives')
+				.select(['name', 'minimum_days'])
+				.where('id', '=', electiveId)
+				.where('clerkship_id', '=', clerkshipId)
+				.executeTakeFirst()
+		: undefined;
+
+	const required = elective ? elective.minimum_days : (clerkship?.required_days ?? 0);
 
 	let assignmentQuery = db
 		.selectFrom('schedule_assignments')
 		.select('date')
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId);
+	if (electiveId) assignmentQuery = assignmentQuery.where('elective_id', '=', electiveId);
 	// Edit mode: the edited assignment's existing day is re-counted as part of
 	// `selected`, so exclude it here to avoid double-counting against `required`.
 	if (excludeId) assignmentQuery = assignmentQuery.where('id', '!=', excludeId);
@@ -74,6 +90,8 @@ export async function previewRequirementImpact(
 	return {
 		clerkshipId,
 		clerkshipName: clerkship?.name ?? '',
+		electiveId: elective ? (electiveId ?? undefined) : undefined,
+		electiveName: elective?.name,
 		required,
 		completed,
 		scheduled,

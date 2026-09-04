@@ -9,6 +9,7 @@
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
+import { CapacityChecker } from '../capacity/capacity-checker';
 
 export type ViolationCode =
 	| 'student_double_booked'
@@ -306,7 +307,9 @@ export async function validateAssignmentCandidate(
 		});
 	}
 
-	// Preceptor capacity (soft)
+	// Preceptor capacity (soft). Use the single capacity resolver so the Stage 1
+	// warning matches the effective per-day cap the engine enforces — an explicit
+	// preceptor_capacity_rules row wins over preceptors.max_students (P-06/F-07).
 	let capQuery = db
 		.selectFrom('schedule_assignments')
 		.select('id')
@@ -314,7 +317,11 @@ export async function validateAssignmentCandidate(
 		.where('date', '=', candidate.date);
 	if (candidate.excludeId) capQuery = capQuery.where('id', '!=', candidate.excludeId);
 	const sameDay = await capQuery.execute();
-	if (preceptor && sameDay.length >= preceptor.max_students) {
+	const effectiveRule = await new CapacityChecker(db).resolveCapacityRule(
+		candidate.preceptor_id,
+		candidate.clerkship_id
+	);
+	if (sameDay.length >= effectiveRule.maxStudentsPerDay) {
 		soft.push({
 			code: 'preceptor_capacity',
 			message: 'Preceptor is at capacity for this date',

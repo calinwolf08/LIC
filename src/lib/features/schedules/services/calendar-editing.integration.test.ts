@@ -163,6 +163,18 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(0))
 		.execute();
 
+	await db.schema
+		.createTable('preceptor_capacity_rules')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('clerkship_id', 'text')
+		.addColumn('requirement_type', 'text')
+		.addColumn('max_students_per_day', 'integer', (col) => col.notNull())
+		.addColumn('max_students_per_year', 'integer', (col) => col.notNull())
+		.addColumn('max_students_per_block', 'integer')
+		.addColumn('max_blocks_per_year', 'integer')
+		.execute();
+
 await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())

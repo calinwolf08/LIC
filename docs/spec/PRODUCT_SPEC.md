@@ -121,6 +121,9 @@ Key rules:
 - R6.3 Real-time validation while creating/editing: hard-block student double-booking; warn (with override) on availability, blackout, capacity, site-mismatch violations.
 - R6.4 Edit, reassign (change preceptor), swap (between students), move (change date), and delete assignments.
 - R6.5 Assignments can be **locked** ("preset") so future auto-generation (Stage 2) must work around them (F6).
+- R6.6 Lock semantics (review finding P-08), enforced in both directions:
+  - **Auto-generation never moves or deletes a locked row.** A regeneration clears only unlocked rows (`clearAllAssignments` filters `locked = 0`), and the engine's single persistence path skips any `(student, date)` slot already occupied — locked included — so a locked day always survives a run and is reported as a skipped slot, never silently overwritten.
+  - **A human may always edit or move a locked assignment, entitled or not.** Locking is a preset for the generator, not a write-lock against people: editing, reassigning, moving and deleting a locked row go through the normal manual paths for any user. Only the **lock toggle itself** is a Stage 2 control — setting or clearing `locked` requires the `autogen` entitlement (the server ignores a `locked` change from a non-entitled caller).
 
 ### 4.7 Validation & requirement tracking
 - R7.1 A standalone validation engine (independent of generation) computes, for the active schedule: all conflicts/violations with type, entities, and date; per-student requirement status (completed/scheduled/unscheduled per clerkship).

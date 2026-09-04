@@ -21,9 +21,25 @@ export interface RequirementCounts {
 	over_scheduled: number;
 }
 
+/**
+ * Progress toward a single elective's `minimum_days` (Phase 1b.2 / P-01).
+ * Elective days are counted here separately from the clerkship's plain days.
+ */
+export interface ElectiveRequirementStatus extends RequirementCounts {
+	elective_id: string;
+	elective_name: string;
+	is_required: boolean;
+}
+
 export interface ClerkshipRequirementStatus extends RequirementCounts {
 	clerkship_id: string;
 	clerkship_name: string;
+	/**
+	 * Per-elective progress for this clerkship. The clerkship counts above stay
+	 * the total across all days (elective or not) for backward compatibility; this
+	 * breaks out each elective so per-elective progress is visible (P-01).
+	 */
+	electives: ElectiveRequirementStatus[];
 }
 
 export interface StudentStatus {
@@ -72,16 +88,33 @@ export async function getStudentStatuses(
 		.select(['clerkships.id as id', 'clerkships.name as name', 'clerkships.required_days as required_days'])
 		.execute();
 
-	// All assignments for these students
+	// All assignments for these students (elective_id drives per-elective progress)
 	const studentIds = students.map((s) => s.id!).filter(Boolean);
 	const assignments =
 		studentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['student_id', 'clerkship_id', 'date'])
+					.select(['student_id', 'clerkship_id', 'elective_id', 'date'])
 					.where('student_id', 'in', studentIds)
 					.execute()
 			: [];
+
+	// Electives for the schedule's clerkships, for per-elective tracking (P-01).
+	const clerkshipIds = clerkships.map((c) => c.id!).filter(Boolean);
+	const electives =
+		clerkshipIds.length > 0
+			? await db
+					.selectFrom('clerkship_electives')
+					.select(['id', 'clerkship_id', 'name', 'minimum_days', 'is_required'])
+					.where('clerkship_id', 'in', clerkshipIds)
+					.execute()
+			: [];
+	const electivesByClerkship = new Map<string, typeof electives>();
+	for (const e of electives) {
+		const list = electivesByClerkship.get(e.clerkship_id) ?? [];
+		list.push(e);
+		electivesByClerkship.set(e.clerkship_id, list);
+	}
 
 	// Conflicts: a student double-booked on a date (>1 assignment same day)
 	const perStudentDateCount = new Map<string, number>();
@@ -115,7 +148,36 @@ export async function getStudentStatuses(
 			counts.scheduled = scheduled;
 			counts.unscheduled = Math.max(0, c.required_days - completed - scheduled);
 			counts.over_scheduled = Math.max(0, completed + scheduled - c.required_days);
-			return { clerkship_id: c.id!, clerkship_name: c.name, ...counts };
+
+			// Per-elective progress: count only the days tagged with each elective.
+			const electiveStatuses: ElectiveRequirementStatus[] = (
+				electivesByClerkship.get(c.id!) ?? []
+			).map((e) => {
+				const forElective = forClerkship.filter((a) => a.elective_id === e.id);
+				let eCompleted = 0;
+				let eScheduled = 0;
+				for (const a of forElective) {
+					if (a.date < today) eCompleted++;
+					else eScheduled++;
+				}
+				return {
+					elective_id: e.id!,
+					elective_name: e.name,
+					is_required: Boolean(e.is_required),
+					required: e.minimum_days,
+					completed: eCompleted,
+					scheduled: eScheduled,
+					unscheduled: Math.max(0, e.minimum_days - eCompleted - eScheduled),
+					over_scheduled: Math.max(0, eCompleted + eScheduled - e.minimum_days)
+				};
+			});
+
+			return {
+				clerkship_id: c.id!,
+				clerkship_name: c.name,
+				...counts,
+				electives: electiveStatuses
+			};
 		});
 
 		const overall: RequirementCounts = perClerkship.reduce(
