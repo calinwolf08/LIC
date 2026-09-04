@@ -84,9 +84,12 @@ async function generateStudentScheduleWorksheet(
 		{ header: 'Student Name', key: 'student_name', width: 20 },
 		{ header: 'Email', key: 'student_email', width: 25 },
 		{ header: 'Clerkship', key: 'clerkship_name', width: 25 },
+		{ header: 'Elective', key: 'elective_name', width: 20 },
 		{ header: 'Preceptor', key: 'preceptor_name', width: 20 },
 		{ header: 'Date', key: 'date', width: 12 },
-		{ header: 'Status', key: 'status', width: 12 }
+		{ header: 'Status', key: 'status', width: 12 },
+		{ header: 'Source', key: 'source', width: 12 },
+		{ header: 'Locked', key: 'locked', width: 8 }
 	];
 
 	// Style header row
@@ -117,9 +120,12 @@ async function generateStudentScheduleWorksheet(
 				student_name: assignment.student_name,
 				student_email: assignment.student_email,
 				clerkship_name: assignment.clerkship_name,
+				elective_name: assignment.elective_name ?? '',
 				preceptor_name: assignment.preceptor_name,
 				date: assignment.date,
-				status: assignment.status
+				status: assignment.status,
+				source: assignment.source,
+				locked: assignment.locked ? 'Yes' : ''
 			});
 		}
 	}
@@ -152,8 +158,11 @@ async function generatePreceptorScheduleWorksheet(
 		{ header: 'Email', key: 'preceptor_email', width: 25 },
 		{ header: 'Student', key: 'student_name', width: 20 },
 		{ header: 'Clerkship', key: 'clerkship_name', width: 25 },
+		{ header: 'Elective', key: 'elective_name', width: 20 },
 		{ header: 'Date', key: 'date', width: 12 },
-		{ header: 'Status', key: 'status', width: 12 }
+		{ header: 'Status', key: 'status', width: 12 },
+		{ header: 'Source', key: 'source', width: 12 },
+		{ header: 'Locked', key: 'locked', width: 8 }
 	];
 
 	// Style header row
@@ -185,8 +194,11 @@ async function generatePreceptorScheduleWorksheet(
 				preceptor_email: assignment.preceptor_email,
 				student_name: assignment.student_name,
 				clerkship_name: assignment.clerkship_name,
+				elective_name: assignment.elective_name ?? '',
 				date: assignment.date,
-				status: assignment.status
+				status: assignment.status,
+				source: assignment.source,
+				locked: assignment.locked ? 'Yes' : ''
 			});
 		}
 	}

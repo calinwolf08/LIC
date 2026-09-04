@@ -27,6 +27,7 @@ import {
 	getTodayUTC,
 	getDaysBetween
 } from '$lib/features/scheduling/utils/date-utils';
+import { parseCodes } from './assignment-service';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:schedules:views');
@@ -101,6 +102,7 @@ export async function getStudentScheduleData(
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
 			'sa.date',
@@ -110,7 +112,13 @@ export async function getStudentScheduleData(
 			'c.specialty as clerkship_specialty',
 			'sa.preceptor_id',
 			'p.name as preceptor_name',
-			'p.health_system_id as health_system_id'
+			'p.health_system_id as health_system_id',
+			// Provenance / edit-safety (Phase 1b.4 / P-07)
+			'sa.source',
+			'sa.locked',
+			'sa.elective_id',
+			'sa.override_codes',
+			'e.name as elective_name'
 		])
 		.where('sa.student_id', '=', studentId)
 		.where('sa.date', '>=', startDate)
@@ -243,7 +251,12 @@ export async function getStudentScheduleData(
 		healthSystemName: a.health_system_id
 			? (healthSystemNames.get(a.health_system_id) ?? undefined)
 			: undefined,
-		status: a.status
+		status: a.status,
+		source: a.source,
+		locked: Boolean(a.locked),
+		electiveId: a.elective_id ?? undefined,
+		electiveName: a.elective_name ?? undefined,
+		overrideCodes: parseCodes(a.override_codes)
 	}));
 
 	log.info('Student schedule data fetched', {
@@ -336,6 +349,7 @@ export async function getPreceptorScheduleData(
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
 			'sa.date',
@@ -344,7 +358,13 @@ export async function getPreceptorScheduleData(
 			's.name as student_name',
 			'sa.clerkship_id',
 			'c.name as clerkship_name',
-			'c.specialty as clerkship_specialty'
+			'c.specialty as clerkship_specialty',
+			// Provenance / edit-safety (Phase 1b.4 / P-07)
+			'sa.source',
+			'sa.locked',
+			'sa.elective_id',
+			'sa.override_codes',
+			'e.name as elective_name'
 		])
 		.where('sa.preceptor_id', '=', preceptorId)
 		.where('sa.date', '>=', startDate)
@@ -487,7 +507,12 @@ export async function getPreceptorScheduleData(
 		clerkshipId: a.clerkship_id,
 		clerkshipName: a.clerkship_name,
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
-		status: a.status
+		status: a.status,
+		source: a.source,
+		locked: Boolean(a.locked),
+		electiveId: a.elective_id ?? undefined,
+		electiveName: a.elective_name ?? undefined,
+		overrideCodes: parseCodes(a.override_codes)
 	}));
 
 	log.info('Preceptor schedule data fetched', {

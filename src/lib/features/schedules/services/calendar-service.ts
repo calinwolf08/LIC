@@ -42,13 +42,21 @@ export async function getEnrichedAssignments(
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
 			'sa.student_id',
 			'sa.preceptor_id',
 			'sa.clerkship_id',
+			'sa.elective_id',
+			'sa.site_id',
 			'sa.date',
 			'sa.status',
+			// Provenance and edit-safety flags (Phase 1b.4 / P-07): generated vs
+			// manual, whether the row is locked, and the accepted override codes.
+			'sa.source',
+			'sa.locked',
+			'sa.override_codes',
 			'sa.created_at',
 			'sa.updated_at',
 			's.name as student_name',
@@ -57,7 +65,8 @@ export async function getEnrichedAssignments(
 			'p.email as preceptor_email',
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
-			'c.required_days as clerkship_required_days'
+			'c.required_days as clerkship_required_days',
+			'e.name as elective_name'
 		]);
 
 	// Apply date range filters (required)

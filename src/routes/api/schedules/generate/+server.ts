@@ -173,6 +173,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				newAssignmentsGenerated: inserted.length,
 				studentsCompleted,
 				skippedExistingSlots: skipped.length,
+				skippedDetails: toSkippedDetails(skipped),
 				bypassedConstraints,
 				message: `Generated ${inserted.length} new assignments. ${creditBefore.totalExisting} existing assignments preserved${skipped.length > 0 ? `; ${skipped.length} slots left to existing assignments` : ''}.`
 			});
@@ -243,6 +244,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				deletedFutureAssignments: deletedCount,
 				totalPastAssignments: creditAfterClear.totalExisting,
 				skippedExistingSlots: skipped.length,
+				skippedDetails: toSkippedDetails(skipped),
 				schedulingPeriodId: scheduleId
 			},
 			200
@@ -335,6 +337,27 @@ function toGeneratedRows(
 		clerkshipId: a.clerkshipId,
 		date: a.date,
 		electiveId: a.electiveId ?? null
+	}));
+}
+
+/**
+ * Shape the skipped generated candidates for the response (P-09): the user
+ * learns exactly which (student, date) days generation could not fill because a
+ * manual/locked row already holds the slot, and the id of the blocking row.
+ */
+function toSkippedDetails(
+	skipped: Array<{
+		studentId: string;
+		clerkshipId: string;
+		date: string;
+		blockedBy: string | null;
+	}>
+) {
+	return skipped.map((s) => ({
+		studentId: s.studentId,
+		clerkshipId: s.clerkshipId,
+		date: s.date,
+		blockedByAssignmentId: s.blockedBy
 	}));
 }
 

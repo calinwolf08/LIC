@@ -117,7 +117,16 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	// Schedule assignments table
-	await db.schema
+		await db.schema
+		.createTable('clerkship_electives')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('minimum_days', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(0))
+		.execute();
+
+await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('student_id', 'text', (col) => col.notNull())

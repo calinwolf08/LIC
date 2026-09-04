@@ -991,6 +991,15 @@ export interface GeneratedAssignmentInput {
 }
 
 /**
+ * A generated candidate that was not inserted because its (student, date) slot
+ * is already held by an existing assignment. `blockedBy` is that assignment's id
+ * (P-09), or null when the row exists without an id (should not happen).
+ */
+export type SkippedGeneratedAssignment = GeneratedAssignmentInput & {
+	blockedBy: string | null;
+};
+
+/**
  * The single persistence path for engine output (review recommendation
  * `03 §2.4`, `08 §P-10`). Both the API route and the engine's own commit go
  * through here, so every generated row is stamped identically:
@@ -1012,7 +1021,7 @@ export async function insertGeneratedAssignments(
 	assignments: GeneratedAssignmentInput[]
 ): Promise<{
 	inserted: Selectable<ScheduleAssignments>[];
-	skipped: GeneratedAssignmentInput[];
+	skipped: SkippedGeneratedAssignment[];
 }> {
 	if (assignments.length === 0) {
 		return { inserted: [], skipped: [] };
@@ -1026,22 +1035,24 @@ export async function insertGeneratedAssignments(
 	const deduped = [...byKey.values()];
 
 	// Skip slots already occupied (locked / manual / earlier rows). Reported, not
-	// dropped silently.
+	// dropped silently — each skip carries the id of the assignment that holds the
+	// slot so the caller can tell the user exactly what blocked the day (P-09).
 	const studentIds = [...new Set(deduped.map((a) => a.studentId))];
 	const existing =
 		studentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['student_id', 'date'])
+					.select(['id', 'student_id', 'date'])
 					.where('student_id', 'in', studentIds)
 					.execute()
 			: [];
-	const taken = new Set(existing.map((e) => `${e.student_id}:${e.date}`));
+	const blockingId = new Map(existing.map((e) => [`${e.student_id}:${e.date}`, e.id]));
 
 	const toInsert: GeneratedAssignmentInput[] = [];
-	const skipped: GeneratedAssignmentInput[] = [];
+	const skipped: SkippedGeneratedAssignment[] = [];
 	for (const a of deduped) {
-		if (taken.has(`${a.studentId}:${a.date}`)) skipped.push(a);
+		const blockedBy = blockingId.get(`${a.studentId}:${a.date}`);
+		if (blockedBy !== undefined) skipped.push({ ...a, blockedBy });
 		else toInsert.push(a);
 	}
 
