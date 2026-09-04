@@ -29,6 +29,74 @@ import {
 const log = createServerLogger('service:schedules:assignment');
 
 // ---------------------------------------------------------------------------
+// Single persistence path (Phase 1b.8, review finding P-10 / F-14)
+// ---------------------------------------------------------------------------
+
+/**
+ * A normalized assignment row, source-agnostic. Every write path — manual
+ * create, bulk create and the engine commit — builds one of these and hands it
+ * to {@link insertAssignments}, so the full column set is written in exactly one
+ * place. Adding a column to `schedule_assignments` means editing only this
+ * function, not three separate inserts (P-10).
+ */
+export interface NewAssignmentRow {
+	schedule_id: string | null;
+	student_id: string;
+	preceptor_id: string;
+	clerkship_id: string;
+	elective_id?: string | null;
+	site_id?: string | null;
+	date: string;
+	status?: string;
+	source: 'manual' | 'generated';
+	locked?: boolean;
+	/** Accepted soft-violation codes to persist on the row. */
+	override_codes?: string[];
+	override_note?: string | null;
+}
+
+/** Map a normalized row onto the full insertable column set, with defaults. */
+function toInsertable(row: NewAssignmentRow, timestamp: string): Insertable<ScheduleAssignments> {
+	return {
+		id: crypto.randomUUID(),
+		schedule_id: row.schedule_id,
+		student_id: row.student_id,
+		preceptor_id: row.preceptor_id,
+		clerkship_id: row.clerkship_id,
+		elective_id: row.elective_id ?? null,
+		site_id: row.site_id ?? null,
+		date: row.date,
+		status: row.status ?? 'scheduled',
+		source: row.source,
+		locked: row.locked ? 1 : 0,
+		override_codes: JSON.stringify(row.override_codes ?? []),
+		override_note:
+			(row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
+		created_at: timestamp,
+		updated_at: timestamp
+	};
+}
+
+/**
+ * The single INSERT path for `schedule_assignments`. All write paths funnel
+ * here so every row carries the same, complete column set (P-10). Returns the
+ * inserted rows. Callers own their own validation, de-duplication and
+ * occupied-slot skipping before calling.
+ */
+export async function insertAssignments(
+	db: Kysely<DB>,
+	rows: NewAssignmentRow[]
+): Promise<Selectable<ScheduleAssignments>[]> {
+	if (rows.length === 0) return [];
+	const timestamp = new Date().toISOString();
+	return db
+		.insertInto('schedule_assignments')
+		.values(rows.map((r) => toInsertable(r, timestamp)))
+		.returningAll()
+		.execute();
+}
+
+// ---------------------------------------------------------------------------
 // Manual assignment creation (Step 09, extended in Step 17)
 // ---------------------------------------------------------------------------
 
@@ -37,12 +105,39 @@ export interface ManualAssignmentInput {
 	preceptor_id: string;
 	clerkship_id: string;
 	site_id?: string | null;
+	/** Elective this day satisfies, if any. Must belong to the clerkship (P-01). */
+	elective_id?: string | null;
 	date: string;
 	locked?: boolean;
 	/** Soft violation codes the user explicitly accepted. */
 	override_codes?: string[];
 	/** Free text captured alongside the override. */
 	override_note?: string | null;
+}
+
+/**
+ * Verify an elective belongs to a clerkship. Returns a hard `entity_missing`
+ * violation when it does not (or does not exist), so an assignment can never tie
+ * a day to an elective from another clerkship (P-01).
+ */
+export async function checkElectiveBelongsToClerkship(
+	db: Kysely<DB>,
+	electiveId: string,
+	clerkshipId: string
+): Promise<Violation | null> {
+	const elective = await db
+		.selectFrom('clerkship_electives')
+		.select(['id', 'clerkship_id'])
+		.where('id', '=', electiveId)
+		.executeTakeFirst();
+	if (!elective || elective.clerkship_id !== clerkshipId) {
+		return {
+			code: 'entity_missing',
+			message: 'Elective does not belong to this clerkship',
+			entity_refs: { clerkship_id: clerkshipId, elective_id: electiveId }
+		};
+	}
+	return null;
 }
 
 export type ManualCreateResult =
@@ -86,6 +181,17 @@ export async function createManualAssignment(
 		checkCreateTimeCodes: opts.checkCreateTimeCodes ?? true
 	});
 
+	// An elective must belong to the assignment's clerkship (P-01). This is a hard
+	// block, not overridable.
+	if (input.elective_id) {
+		const electiveViolation = await checkElectiveBelongsToClerkship(
+			db,
+			input.elective_id,
+			input.clerkship_id
+		);
+		if (electiveViolation) result.hard.push(electiveViolation);
+	}
+
 	const accepted = new Set(input.override_codes ?? []);
 	const unaccepted = opts.force ? [] : result.soft.filter((v) => !accepted.has(v.code));
 	if (result.hard.length > 0 || unaccepted.length > 0) {
@@ -97,27 +203,21 @@ export async function createManualAssignment(
 	const triggered = result.soft.map((v) => v.code);
 	const persistedCodes = opts.force ? triggered : triggered.filter((code) => accepted.has(code));
 
-	const timestamp = new Date().toISOString();
-	const assignment = await db
-		.insertInto('schedule_assignments')
-		.values({
-			id: crypto.randomUUID(),
+	const [assignment] = await insertAssignments(db, [
+		{
 			schedule_id: scheduleId,
 			student_id: input.student_id,
 			preceptor_id: input.preceptor_id,
 			clerkship_id: input.clerkship_id,
+			elective_id: input.elective_id ?? null,
 			site_id: input.site_id ?? null,
 			date: input.date,
-			status: 'scheduled',
-			locked: input.locked ? 1 : 0,
 			source: 'manual',
-			override_codes: JSON.stringify(persistedCodes),
-			override_note: persistedCodes.length > 0 ? (input.override_note ?? null) : null,
-			created_at: timestamp,
-			updated_at: timestamp
-		})
-		.returningAll()
-		.executeTakeFirstOrThrow();
+			locked: input.locked,
+			override_codes: persistedCodes,
+			override_note: input.override_note
+		}
+	]);
 
 	log.info('Manual assignment created', {
 		id: assignment.id,
@@ -132,6 +232,8 @@ export interface BulkManualInput {
 	preceptor_id: string;
 	clerkship_id: string;
 	site_id?: string | null;
+	/** Elective these days satisfy, if any. Must belong to the clerkship (P-01). */
+	elective_id?: string | null;
 	/** Explicit day list (Step 17). Takes precedence over start/end + weekdays. */
 	dates?: string[];
 	start_date?: string;
@@ -211,6 +313,7 @@ export async function createManualAssignmentsBulk(
 					preceptor_id: input.preceptor_id,
 					clerkship_id: input.clerkship_id,
 					site_id: input.site_id ?? null,
+					elective_id: input.elective_id ?? null,
 					date,
 					locked: input.locked,
 					override_codes: input.override_codes,
@@ -665,33 +768,52 @@ export async function createAssignment(
 		date: data.date
 	});
 
-	// Validate assignment
-	const validation = await validateAssignment(db, data);
-	if (!validation.valid) {
+	// Legacy, schedule-less create path (kept for internal/test setup only). The
+	// production create path is createManualAssignment, which uses the single
+	// validateAssignmentCandidate validator. Hard checks only, inline.
+	const errors: string[] = [];
+	const [student, preceptor, clerkship] = await Promise.all([
+		getStudentById(db, data.student_id),
+		getPreceptorById(db, data.preceptor_id),
+		getClerkshipById(db, data.clerkship_id)
+	]);
+	if (!student) errors.push('Student not found');
+	if (!preceptor) errors.push('Preceptor not found');
+	if (!clerkship) errors.push('Clerkship not found');
+	if (errors.length === 0) {
+		if (await hasStudentConflict(db, data.student_id, data.date)) {
+			errors.push('Student already has an assignment on this date');
+		}
+		if (await hasPreceptorConflict(db, data.preceptor_id, data.date)) {
+			errors.push('Preceptor has reached maximum student capacity for this date');
+		}
+		const availability = await getAvailabilityByDate(db, data.preceptor_id, data.date);
+		if (availability && availability.is_available === 0) {
+			errors.push(`Preceptor is not available on ${data.date}`);
+		}
+		if (await isDateBlackedOut(db, data.date)) {
+			errors.push(`${data.date} is a blackout date`);
+		}
+	}
+	if (errors.length > 0) {
 		log.warn('Assignment creation validation failed', {
 			studentId: data.student_id,
-			errors: validation.errors
+			errors
 		});
-		throw new ValidationError(validation.errors.join('; '));
+		throw new ValidationError(errors.join('; '));
 	}
 
-	const timestamp = new Date().toISOString();
-	const newAssignment: Insertable<ScheduleAssignments> = {
-		id: crypto.randomUUID(),
-		student_id: data.student_id,
-		preceptor_id: data.preceptor_id,
-		clerkship_id: data.clerkship_id,
-		date: data.date,
-		status: data.status || 'scheduled',
-		created_at: timestamp,
-		updated_at: timestamp
-	};
-
-	const inserted = await db
-		.insertInto('schedule_assignments')
-		.values(newAssignment)
-		.returningAll()
-		.executeTakeFirstOrThrow();
+	const [inserted] = await insertAssignments(db, [
+		{
+			schedule_id: null,
+			student_id: data.student_id,
+			preceptor_id: data.preceptor_id,
+			clerkship_id: data.clerkship_id,
+			date: data.date,
+			status: data.status || 'scheduled',
+			source: 'manual'
+		}
+	]);
 
 	log.info('Assignment created', {
 		id: inserted.id,
@@ -727,19 +849,17 @@ export async function updateAssignment(
 		throw new ValidationError(dateCheck.error!);
 	}
 
-	// If updating critical fields, validate the updated assignment
-	if (data.student_id || data.preceptor_id || data.clerkship_id || data.date) {
-		const mergedData: CreateAssignmentInput = {
-			student_id: data.student_id || current.student_id,
-			preceptor_id: data.preceptor_id || current.preceptor_id,
-			clerkship_id: data.clerkship_id || current.clerkship_id,
-			date: data.date || current.date,
-			status: data.status || current.status
-		};
-
-		const validation = await validateAssignment(db, mergedData, id);
-		if (!validation.valid) {
-			throw new ValidationError(validation.errors.join('; '));
+	// Raw writer. The only invariant it enforces itself is the one true hard rule
+	// — a student cannot be in two places on the same day. Every overridable
+	// (soft) rule is checked by the callers that own the mutation contract
+	// (createManualAssignment and the edit paths in editing-service, both via the
+	// single validateAssignmentCandidate validator). Callers that want the
+	// hard/soft override envelope must go through those.
+	const targetStudent = data.student_id || current.student_id;
+	const targetDate = data.date || current.date;
+	if (data.student_id || data.date) {
+		if (await hasStudentConflict(db, targetStudent, targetDate, id)) {
+			throw new ValidationError('Student already has an assignment on this date');
 		}
 	}
 
@@ -833,25 +953,18 @@ export async function bulkCreateAssignments(
 		return [];
 	}
 
-	const timestamp = new Date().toISOString();
-	const assignments = dedupedAssignments.map((assignment) => ({
-		id: crypto.randomUUID(),
-		schedule_id: scheduleId ?? null,
-		student_id: assignment.student_id,
-		preceptor_id: assignment.preceptor_id,
-		clerkship_id: assignment.clerkship_id,
-		date: assignment.date,
-		status: assignment.status || 'scheduled',
-		source: 'generated',
-		created_at: timestamp,
-		updated_at: timestamp
-	}));
-
-	const inserted = await db
-		.insertInto('schedule_assignments')
-		.values(assignments)
-		.returningAll()
-		.execute();
+	const inserted = await insertAssignments(
+		db,
+		dedupedAssignments.map((assignment) => ({
+			schedule_id: scheduleId ?? null,
+			student_id: assignment.student_id,
+			preceptor_id: assignment.preceptor_id,
+			clerkship_id: assignment.clerkship_id,
+			date: assignment.date,
+			status: assignment.status || 'scheduled',
+			source: 'generated' as const
+		}))
+	);
 
 	log.info('Bulk assignments created', {
 		originalCount: data.assignments.length,
@@ -957,29 +1070,19 @@ export async function insertGeneratedAssignments(
 		}
 	}
 
-	const timestamp = new Date().toISOString();
-	const rows = toInsert.map((a) => ({
-		id: crypto.randomUUID(),
-		schedule_id: scheduleId,
-		student_id: a.studentId,
-		preceptor_id: a.preceptorId,
-		clerkship_id: a.clerkshipId,
-		elective_id: a.electiveId ?? null,
-		site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
-		date: a.date,
-		status: 'scheduled',
-		source: 'generated',
-		locked: 0,
-		override_codes: '[]',
-		created_at: timestamp,
-		updated_at: timestamp
-	}));
-
-	const inserted = await db
-		.insertInto('schedule_assignments')
-		.values(rows)
-		.returningAll()
-		.execute();
+	const inserted = await insertAssignments(
+		db,
+		toInsert.map((a) => ({
+			schedule_id: scheduleId,
+			student_id: a.studentId,
+			preceptor_id: a.preceptorId,
+			clerkship_id: a.clerkshipId,
+			elective_id: a.electiveId ?? null,
+			site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
+			date: a.date,
+			source: 'generated' as const
+		}))
+	);
 
 	log.info('Generated assignments inserted', {
 		candidates: assignments.length,
@@ -1041,69 +1144,6 @@ export async function hasPreceptorConflict(
 
 	const conflicts = await query.execute();
 	return conflicts.length >= preceptor.max_students;
-}
-
-/**
- * Validate an assignment against business rules
- * @param excludeId Optional assignment ID to exclude from conflict checks (for updates)
- */
-export async function validateAssignment(
-	db: Kysely<DB>,
-	data: CreateAssignmentInput,
-	excludeId?: string
-): Promise<{ valid: boolean; errors: string[] }> {
-	const errors: string[] = [];
-
-	// Check that entities exist
-	const student = await getStudentById(db, data.student_id);
-	if (!student) {
-		errors.push('Student not found');
-	}
-
-	const preceptor = await getPreceptorById(db, data.preceptor_id);
-	if (!preceptor) {
-		errors.push('Preceptor not found');
-	}
-
-	const clerkship = await getClerkshipById(db, data.clerkship_id);
-	if (!clerkship) {
-		errors.push('Clerkship not found');
-	}
-
-	if (errors.length > 0) {
-		return { valid: false, errors };
-	}
-
-	// Note: Specialty matching removed - preceptors no longer have specialty field
-
-	// Check for student conflicts (no double-booking)
-	const studentConflict = await hasStudentConflict(db, data.student_id, data.date, excludeId);
-	if (studentConflict) {
-		errors.push('Student already has an assignment on this date');
-	}
-
-	// Check for preceptor capacity
-	const preceptorConflict = await hasPreceptorConflict(db, data.preceptor_id, data.date, excludeId);
-	if (preceptorConflict) {
-		errors.push('Preceptor has reached maximum student capacity for this date');
-	}
-
-	// Check preceptor availability
-	const availability = await getAvailabilityByDate(db, data.preceptor_id, data.date);
-	if (availability && availability.is_available === 0) {
-		errors.push(`Preceptor is not available on ${data.date}`);
-	}
-
-	// Check for blackout dates
-	const isBlackedOut = await isDateBlackedOut(db, data.date);
-	if (isBlackedOut) {
-		errors.push(`${data.date} is a blackout date`);
-	}
-
-	return {
-		valid: errors.length === 0,
-		errors
-	};
 }
 
 /**

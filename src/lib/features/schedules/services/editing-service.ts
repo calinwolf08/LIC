@@ -7,23 +7,115 @@
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { UpdateAssignmentInput } from '../schemas.js';
-import { NotFoundError, ValidationError } from '$lib/api/errors';
+import { NotFoundError } from '$lib/api/errors';
 import {
 	getAssignmentById,
 	updateAssignment as updateAssignmentBase,
-	validateAssignment
+	checkElectiveBelongsToClerkship
 } from './assignment-service.js';
+import {
+	validateAssignmentCandidate,
+	type AssignmentCandidate,
+	type Violation
+} from '$lib/features/scheduling/services/assignment-validation';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:schedules:editing');
 
 /**
- * Result type for editing operations
+ * Result type for editing operations.
+ *
+ * Every edit path (reassign, date change, swap) runs the single
+ * `validateAssignmentCandidate` validator (Phase 1b.3), so it returns the same
+ * hard/soft envelope as manual creation. `valid`/`errors` are kept as a
+ * convenience surface: `valid` is false when there are hard violations or
+ * unaccepted soft violations; `errors` carries their messages.
  */
 export interface EditResult {
 	valid: boolean;
 	errors: string[];
+	hard: Violation[];
+	soft: Violation[];
 	assignment?: Selectable<ScheduleAssignments>;
+}
+
+/** Options every edit path accepts for the override envelope. */
+export interface EditOptions {
+	/** Soft-violation codes the user explicitly accepted. */
+	overrideCodes?: string[];
+	overrideNote?: string | null;
+	/** Accept every soft violation (blanket override). */
+	force?: boolean;
+	/** Today's date (YYYY-MM-DD); injectable for tests. */
+	today?: string;
+	/**
+	 * When true, an unaccepted soft violation blocks the edit (the confirm-dialog
+	 * edit path, which collects overrides). When false (the default, used by
+	 * calendar reassign/swap/date-drag), only hard violations block; soft
+	 * violations are surfaced as warnings and accepted codes are still persisted.
+	 */
+	blockOnSoft?: boolean;
+}
+
+/**
+ * Evaluate a proposed change to an assignment through the single validator.
+ * Returns the hard/soft violations, whether the change is blocked, and the soft
+ * codes that should be persisted (the triggered ones the user accepted).
+ */
+async function evaluateEdit(
+	db: Kysely<DB>,
+	current: Selectable<ScheduleAssignments>,
+	changes: Partial<Pick<AssignmentCandidate, 'preceptor_id' | 'clerkship_id' | 'site_id' | 'date'>>,
+	opts: EditOptions
+): Promise<{ hard: Violation[]; soft: Violation[]; blocked: boolean; persistedCodes: string[] }> {
+	const candidate: AssignmentCandidate = {
+		student_id: current.student_id,
+		preceptor_id: changes.preceptor_id ?? current.preceptor_id,
+		clerkship_id: changes.clerkship_id ?? current.clerkship_id,
+		site_id: changes.site_id !== undefined ? changes.site_id : current.site_id,
+		date: changes.date ?? current.date,
+		excludeId: current.id ?? undefined
+	};
+	const v = await validateAssignmentCandidate(db, current.schedule_id ?? '', candidate, {
+		today: opts.today,
+		checkCreateTimeCodes: true
+	});
+	const accepted = new Set(opts.overrideCodes ?? []);
+	const unaccepted = opts.force ? [] : v.soft.filter((s) => !accepted.has(s.code));
+	const blocked = v.hard.length > 0 || (opts.blockOnSoft === true && unaccepted.length > 0);
+	const triggered = v.soft.map((s) => s.code);
+	const persistedCodes = opts.force ? triggered : triggered.filter((c) => accepted.has(c));
+	return { hard: v.hard, soft: v.soft, blocked, persistedCodes };
+}
+
+/** Build the `errors` convenience list from a blocked evaluation. */
+function blockingMessages(
+	hard: Violation[],
+	soft: Violation[],
+	opts: EditOptions
+): string[] {
+	const accepted = new Set(opts.overrideCodes ?? []);
+	const blockingSoft =
+		opts.blockOnSoft === true && !opts.force ? soft.filter((s) => !accepted.has(s.code)) : [];
+	return [...hard, ...blockingSoft].map((v) => v.message);
+}
+
+/** Persist accepted override codes on an assignment after an edit. */
+async function persistOverrideCodes(
+	db: Kysely<DB>,
+	assignmentId: string,
+	codes: string[],
+	note: string | null | undefined
+): Promise<void> {
+	await db
+		.updateTable('schedule_assignments')
+		.set({
+			override_codes: JSON.stringify(codes),
+			override_note: codes.length > 0 ? (note ?? null) : null,
+			updated_at: new Date().toISOString()
+		})
+		.where('id', '=', assignmentId)
+		.execute();
 }
 
 /**
@@ -34,59 +126,35 @@ export async function reassignToPreceptor(
 	db: Kysely<DB>,
 	assignmentId: string,
 	newPreceptorId: string,
-	dryRun: boolean = false
+	dryRun: boolean = false,
+	opts: EditOptions = {}
 ): Promise<EditResult> {
-	log.debug('Reassigning to preceptor', {
-		assignmentId,
-		newPreceptorId,
-		dryRun
-	});
+	log.debug('Reassigning to preceptor', { assignmentId, newPreceptorId, dryRun });
 
-	// Get existing assignment
 	const assignment = await getAssignmentById(db, assignmentId);
 	if (!assignment) {
 		log.warn('Assignment not found for reassignment', { assignmentId });
 		throw new NotFoundError('Assignment');
 	}
 
-	// Validate the reassignment
-	const validation = await validateAssignment(
+	const { hard, soft, blocked, persistedCodes } = await evaluateEdit(
 		db,
-		{
-			student_id: assignment.student_id,
-			preceptor_id: newPreceptorId,
-			clerkship_id: assignment.clerkship_id,
-			date: assignment.date,
-			status: assignment.status
-		},
-		assignmentId
+		assignment,
+		{ preceptor_id: newPreceptorId },
+		opts
 	);
 
-	if (!validation.valid) {
-		log.warn('Reassignment validation failed', {
-			assignmentId,
-			newPreceptorId,
-			errors: validation.errors
-		});
-		return {
-			valid: false,
-			errors: validation.errors
-		};
+	if (blocked) {
+		log.warn('Reassignment blocked', { assignmentId, newPreceptorId, hard, soft });
+		return { valid: false, errors: blockingMessages(hard, soft, opts), hard, soft };
 	}
 
-	// If dry run, return validation result without saving
 	if (dryRun) {
-		log.debug('Reassignment dry run successful', { assignmentId, newPreceptorId });
-		return {
-			valid: true,
-			errors: []
-		};
+		return { valid: true, errors: [], hard: [], soft };
 	}
 
-	// Update the assignment
-	const updated = await updateAssignmentBase(db, assignmentId, {
-		preceptor_id: newPreceptorId
-	});
+	const updated = await updateAssignmentBase(db, assignmentId, { preceptor_id: newPreceptorId });
+	await persistOverrideCodes(db, assignmentId, persistedCodes, opts.overrideNote);
 
 	log.info('Assignment reassigned', {
 		assignmentId,
@@ -94,11 +162,80 @@ export async function reassignToPreceptor(
 		newPreceptorId
 	});
 
-	return {
-		valid: true,
-		errors: [],
-		assignment: updated
-	};
+	return { valid: true, errors: [], hard: [], soft, assignment: updated };
+}
+
+/**
+ * Update an assignment's fields through the single validator (Phase 1b.3).
+ *
+ * This is the checked edit path used by `PATCH /assignments/[id]`. It runs
+ * `validateAssignmentCandidate` over the merged candidate, enforces the
+ * elective-belongs-to-clerkship rule (P-01), applies the override envelope, and
+ * — when accepted — persists the changed fields plus the accepted override codes.
+ */
+export async function updateAssignmentChecked(
+	db: Kysely<DB>,
+	assignmentId: string,
+	changes: {
+		preceptor_id?: string;
+		clerkship_id?: string;
+		site_id?: string | null;
+		elective_id?: string | null;
+		date?: string;
+		status?: string;
+	},
+	opts: EditOptions = {}
+): Promise<EditResult> {
+	const current = await getAssignmentById(db, assignmentId);
+	if (!current) {
+		throw new NotFoundError('Assignment');
+	}
+
+	const { hard, soft, blocked, persistedCodes } = await evaluateEdit(
+		db,
+		current,
+		{
+			preceptor_id: changes.preceptor_id,
+			clerkship_id: changes.clerkship_id,
+			site_id: changes.site_id,
+			date: changes.date
+		},
+		{ ...opts, blockOnSoft: true }
+	);
+
+	// An elective must belong to the (possibly changed) clerkship — hard block.
+	if (changes.elective_id) {
+		const effectiveClerkship = changes.clerkship_id ?? current.clerkship_id;
+		const electiveViolation = await checkElectiveBelongsToClerkship(
+			db,
+			changes.elective_id,
+			effectiveClerkship
+		);
+		if (electiveViolation) hard.push(electiveViolation);
+	}
+
+	if (blocked || hard.length > 0) {
+		return { valid: false, errors: blockingMessages(hard, soft, opts), hard, soft };
+	}
+
+	const updated = await db
+		.updateTable('schedule_assignments')
+		.set({
+			...(changes.preceptor_id !== undefined ? { preceptor_id: changes.preceptor_id } : {}),
+			...(changes.clerkship_id !== undefined ? { clerkship_id: changes.clerkship_id } : {}),
+			...(changes.site_id !== undefined ? { site_id: changes.site_id } : {}),
+			...(changes.elective_id !== undefined ? { elective_id: changes.elective_id } : {}),
+			...(changes.date !== undefined ? { date: changes.date } : {}),
+			...(changes.status !== undefined ? { status: changes.status } : {}),
+			override_codes: JSON.stringify(persistedCodes),
+			override_note: persistedCodes.length > 0 ? (opts.overrideNote ?? null) : null,
+			updated_at: new Date().toISOString()
+		})
+		.where('id', '=', assignmentId)
+		.returningAll()
+		.executeTakeFirstOrThrow();
+
+	return { valid: true, errors: [], hard: [], soft, assignment: updated };
 }
 
 /**
@@ -109,52 +246,33 @@ export async function changeAssignmentDate(
 	db: Kysely<DB>,
 	assignmentId: string,
 	newDate: string,
-	dryRun: boolean = false
+	dryRun: boolean = false,
+	opts: EditOptions = {}
 ): Promise<EditResult> {
-	// Get existing assignment
 	const assignment = await getAssignmentById(db, assignmentId);
 	if (!assignment) {
 		throw new NotFoundError('Assignment');
 	}
 
-	// Validate the date change
-	const validation = await validateAssignment(
+	const { hard, soft, blocked, persistedCodes } = await evaluateEdit(
 		db,
-		{
-			student_id: assignment.student_id,
-			preceptor_id: assignment.preceptor_id,
-			clerkship_id: assignment.clerkship_id,
-			date: newDate,
-			status: assignment.status
-		},
-		assignmentId
+		assignment,
+		{ date: newDate },
+		opts
 	);
 
-	if (!validation.valid) {
-		return {
-			valid: false,
-			errors: validation.errors
-		};
+	if (blocked) {
+		return { valid: false, errors: blockingMessages(hard, soft, opts), hard, soft };
 	}
 
-	// If dry run, return validation result without saving
 	if (dryRun) {
-		return {
-			valid: true,
-			errors: []
-		};
+		return { valid: true, errors: [], hard: [], soft };
 	}
 
-	// Update the assignment
-	const updated = await updateAssignmentBase(db, assignmentId, {
-		date: newDate
-	});
+	const updated = await updateAssignmentBase(db, assignmentId, { date: newDate });
+	await persistOverrideCodes(db, assignmentId, persistedCodes, opts.overrideNote);
 
-	return {
-		valid: true,
-		errors: [],
-		assignment: updated
-	};
+	return { valid: true, errors: [], hard: [], soft, assignment: updated };
 }
 
 /**
@@ -165,13 +283,15 @@ export async function swapAssignments(
 	db: Kysely<DB>,
 	assignmentId1: string,
 	assignmentId2: string,
-	dryRun: boolean = false
+	dryRun: boolean = false,
+	opts: EditOptions = {}
 ): Promise<{
 	valid: boolean;
 	errors: string[];
+	hard: Violation[];
+	soft: Violation[];
 	assignments?: Selectable<ScheduleAssignments>[];
 }> {
-	// Get both assignments
 	const [assignment1, assignment2] = await Promise.all([
 		getAssignmentById(db, assignmentId1),
 		getAssignmentById(db, assignmentId2)
@@ -181,60 +301,42 @@ export async function swapAssignments(
 		throw new NotFoundError('Assignment');
 	}
 
-	// Validate swapped assignments
-	const [validation1, validation2] = await Promise.all([
-		validateAssignment(
-			db,
-			{
-				student_id: assignment1.student_id,
-				preceptor_id: assignment2.preceptor_id,
-				clerkship_id: assignment1.clerkship_id,
-				date: assignment1.date,
-				status: assignment1.status
-			},
-			assignmentId1
-		),
-		validateAssignment(
-			db,
-			{
-				student_id: assignment2.student_id,
-				preceptor_id: assignment1.preceptor_id,
-				clerkship_id: assignment2.clerkship_id,
-				date: assignment2.date,
-				status: assignment2.status
-			},
-			assignmentId2
-		)
+	// Validate both sides of the swap through the single validator.
+	const [eval1, eval2] = await Promise.all([
+		evaluateEdit(db, assignment1, { preceptor_id: assignment2.preceptor_id }, opts),
+		evaluateEdit(db, assignment2, { preceptor_id: assignment1.preceptor_id }, opts)
 	]);
 
-	const errors = [...validation1.errors, ...validation2.errors];
+	const hard = [...eval1.hard, ...eval2.hard];
+	const soft = [...eval1.soft, ...eval2.soft];
 
-	if (errors.length > 0) {
+	if (eval1.blocked || eval2.blocked) {
 		return {
 			valid: false,
-			errors
+			errors: [
+				...blockingMessages(eval1.hard, eval1.soft, opts),
+				...blockingMessages(eval2.hard, eval2.soft, opts)
+			],
+			hard,
+			soft
 		};
 	}
 
-	// If dry run, return validation result without saving
 	if (dryRun) {
-		return {
-			valid: true,
-			errors: []
-		};
+		return { valid: true, errors: [], hard: [], soft };
 	}
 
-	// Swap preceptors
+	// Swap preceptors (both sides validated before either is written).
 	const [updated1, updated2] = await Promise.all([
 		updateAssignmentBase(db, assignmentId1, { preceptor_id: assignment2.preceptor_id }),
 		updateAssignmentBase(db, assignmentId2, { preceptor_id: assignment1.preceptor_id })
 	]);
+	await Promise.all([
+		persistOverrideCodes(db, assignmentId1, eval1.persistedCodes, opts.overrideNote),
+		persistOverrideCodes(db, assignmentId2, eval2.persistedCodes, opts.overrideNote)
+	]);
 
-	return {
-		valid: true,
-		errors: [],
-		assignments: [updated1, updated2]
-	};
+	return { valid: true, errors: [], hard: [], soft, assignments: [updated1, updated2] };
 }
 
 /**
@@ -251,22 +353,22 @@ export async function validateEdit(
 		throw new NotFoundError('Assignment');
 	}
 
-	// Merge updates with current values
-	const merged = {
-		student_id: updates.student_id || assignment.student_id,
-		preceptor_id: updates.preceptor_id || assignment.preceptor_id,
-		clerkship_id: updates.clerkship_id || assignment.clerkship_id,
-		date: updates.date || assignment.date,
-		status: updates.status || assignment.status
-	};
-
-	// Validate merged assignment
-	const validation = await validateAssignment(db, merged, assignmentId);
+	const { hard, soft, blocked } = await evaluateEdit(
+		db,
+		assignment,
+		{
+			preceptor_id: updates.preceptor_id ?? undefined,
+			clerkship_id: updates.clerkship_id ?? undefined,
+			site_id: updates.site_id ?? undefined,
+			date: updates.date ?? undefined
+		},
+		{}
+	);
 
 	return {
-		valid: validation.valid,
-		errors: validation.errors,
-		warnings: [] // Can add warnings logic later
+		valid: !blocked,
+		errors: hard.map((v) => v.message),
+		warnings: soft.map((v) => v.message)
 	};
 }
 

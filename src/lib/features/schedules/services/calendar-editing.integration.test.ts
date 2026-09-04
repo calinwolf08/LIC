@@ -125,13 +125,44 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
+		await db.schema
+		.createTable('scheduling_periods')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('start_date', 'text', (col) => col.notNull())
+		.addColumn('end_date', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
 	await db.schema
+		.createTable('clerkship_sites')
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('student_health_system_onboarding')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text', (col) => col.notNull())
+		.addColumn('is_completed', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('completed_date', 'text')
+		.addColumn('notes', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('schedule_id', 'text')
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('elective_id', 'text')
+		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))

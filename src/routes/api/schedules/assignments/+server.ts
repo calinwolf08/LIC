@@ -78,6 +78,9 @@ const baseSchema = z.object({
 	// Site is required on create (a client-only rule is not a rule): preceptor
 	// availability is site-scoped and the mark-available side effect needs it.
 	site_id: z.string().min(1, 'Select a site'),
+	// Optional elective this day satisfies; validated against the clerkship in the
+	// service (P-01).
+	elective_id: z.string().min(1).nullish(),
 	locked: z.boolean().optional(),
 	dry_run: z.boolean().optional(),
 	force: z.boolean().optional(),
@@ -184,7 +187,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				return createManualAssignmentsBulk(
 					trx,
 					scheduleId,
-					{ ...input, locked: mayLock ? input.locked : false },
+					{ ...input, elective_id: input.elective_id ?? null, locked: mayLock ? input.locked : false },
 					{ force: input.force }
 				);
 			});
@@ -220,6 +223,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				scheduleId,
 				{
 					...candidate,
+					elective_id: input.elective_id ?? null,
 					locked: mayLock ? input.locked : false,
 					override_codes: input.override_codes,
 					override_note: input.override_note

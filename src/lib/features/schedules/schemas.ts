@@ -14,6 +14,7 @@ export const createAssignmentSchema = z.object({
 	student_id: cuid2Schema,
 	preceptor_id: cuid2Schema,
 	clerkship_id: cuid2Schema,
+	elective_id: cuid2Schema.nullish(),
 	date: dateStringSchema,
 	status: z.string().optional().default('scheduled')
 });
@@ -27,6 +28,7 @@ export const updateAssignmentSchema = z
 		preceptor_id: cuid2Schema.optional(),
 		clerkship_id: cuid2Schema.optional(),
 		site_id: cuid2Schema.nullish(),
+		elective_id: cuid2Schema.nullish(),
 		date: dateStringSchema.optional(),
 		status: z.string().optional()
 	})

@@ -20,7 +20,6 @@ import {
 	createAssignment,
 	getAssignmentsByStudent,
 	getStudentProgress,
-	validateAssignment
 } from './assignment-service';
 
 /**
@@ -114,6 +113,9 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('schedule_id', 'text')
+		.addColumn('elective_id', 'text')
+		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
@@ -661,64 +663,6 @@ describe('Scheduling Workflow Integration Tests', () => {
 
 			expect(progress2[0].completed_days).toBe(3);
 			expect(progress2[0].percentage).toBe(30);
-		});
-	});
-
-	describe('Validation Integration', () => {
-		it('validates assignment with all constraints', async () => {
-			const healthSystem = await createHealthSystem(db);
-			const site = await createSite(db, healthSystem.id as string, 'Test Site');
-
-			const student = await createStudent(db, {
-				name: 'Test Student',
-				email: 'test@example.com',
-				cohort: '2024'
-			});
-
-			const preceptor = await createPreceptor(db, {
-				name: 'Dr. Test',
-				email: 'test@hospital.com',
-				health_system_id: healthSystem.id as string,
-				max_students: 2
-			});
-
-			const clerkship = await createClerkship(db, {
-				name: 'Cardiology',
-				clerkship_type: 'inpatient',
-				required_days: 10
-			});
-
-			// Mark preceptor as available
-			await setAvailability(db, preceptor.id as string, site.id as string, '2024-01-15', true);
-
-			const assignmentData = {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-01-15'
-			};
-
-			const validation = await validateAssignment(db, assignmentData);
-
-			expect(validation.valid).toBe(true);
-			expect(validation.errors).toEqual([]);
-		});
-
-		it('returns all validation errors for invalid assignment', async () => {
-			const assignmentData = {
-				student_id: 'nonexistentstudent001',
-				preceptor_id: 'nonexistentpreceptor1',
-				clerkship_id: 'nonexistentclerkship1',
-				date: '2024-01-15'
-			};
-
-			const validation = await validateAssignment(db, assignmentData);
-
-			expect(validation.valid).toBe(false);
-			expect(validation.errors.length).toBeGreaterThan(0);
-			expect(validation.errors).toContain('Student not found');
-			expect(validation.errors).toContain('Preceptor not found');
-			expect(validation.errors).toContain('Clerkship not found');
 		});
 	});
 

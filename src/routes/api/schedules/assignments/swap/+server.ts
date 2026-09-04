@@ -5,6 +5,7 @@
  */
 
 import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
@@ -17,12 +18,16 @@ import { z, ZodError } from 'zod';
 const log = createServerLogger('api:schedules:assignments:swap');
 
 /**
- * Schema for swap request
+ * Schema for swap request. Accepts the same override envelope as manual
+ * creation (Phase 1b.3).
  */
 const swapSchema = z.object({
 	assignment_id_1: cuid2Schema,
 	assignment_id_2: cuid2Schema,
-	dry_run: z.boolean().optional().default(false)
+	dry_run: z.boolean().optional().default(false),
+	force: z.boolean().optional(),
+	override_codes: z.array(z.string()).optional(),
+	override_note: z.string().max(1000).nullish()
 });
 
 /**
@@ -34,7 +39,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		const body = await request.json();
-		const { assignment_id_1, assignment_id_2, dry_run } = swapSchema.parse(body);
+		const { assignment_id_1, assignment_id_2, dry_run, force, override_codes, override_note } =
+			swapSchema.parse(body);
 
 		// Ownership guard: both assignments must belong to the caller's schedule.
 		const scheduleId = await requireActiveScheduleId(locals);
@@ -47,15 +53,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			dryRun: dry_run
 		});
 
-		const result = await swapAssignments(db, assignment_id_1, assignment_id_2, dry_run);
+		const result = await swapAssignments(db, assignment_id_1, assignment_id_2, dry_run, {
+			force,
+			overrideCodes: override_codes,
+			overrideNote: override_note
+		});
 
 		log.info('Assignments swapped', {
 			assignmentId1: assignment_id_1,
 			assignmentId2: assignment_id_2,
 			dryRun: dry_run,
-			valid: result.valid,
-			hasErrors: result.errors.length > 0
+			valid: result.valid
 		});
+
+		if (!dry_run && !result.valid) {
+			return json(
+				{
+					success: false,
+					error: {
+						message:
+							result.hard.length > 0
+								? 'Swap has conflicts that must be resolved'
+								: 'Swap has warnings that must be accepted first',
+						hard: result.hard,
+						soft: result.soft
+					}
+				},
+				{ status: 422 }
+			);
+		}
 
 		return successResponse(result);
 	} catch (error) {

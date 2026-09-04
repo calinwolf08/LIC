@@ -113,6 +113,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('elective_id', 'text')
+		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))

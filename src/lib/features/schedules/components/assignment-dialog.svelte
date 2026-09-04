@@ -603,6 +603,8 @@
 						clerkship_id: clerkship,
 						site_id: site,
 						date: day,
+						override_codes: acceptedCodes,
+						override_note: note || null,
 						...(canLock ? { locked } : {})
 					})
 				}
