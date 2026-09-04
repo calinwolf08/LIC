@@ -1,1038 +1,453 @@
 /**
- * Schedule Generation API Integration Tests
+ * POST /api/schedules/generate — real-handler integration tests.
  *
- * Tests for the /api/schedules/generate endpoint including:
- * - Full regeneration (delete all and start over)
- * - Smart regeneration with minimal-change strategy
- * - Smart regeneration with full-reoptimize strategy
- * - Preview mode (dry-run)
- * - Error handling
+ * Phase 0 of the schedule-generation review. Unlike the previous version (which
+ * mocked the engine and every service and so could not observe behaviour), this
+ * drives the real handler against an in-memory migrated database, following the
+ * Proxy-mock pattern from `tenant-isolation-api.test.ts`. Each test targets a
+ * verified finding:
+ *   F-01 credit · F-02 tenant scope · F-06 unmet from accepted · F-07 capacity ·
+ *   F-14 persisted site/elective/source/schedule_id · F-23 no active schedule.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Kysely } from 'kysely';
+import type { DB } from '$lib/db/types';
+import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
+import { nanoid } from 'nanoid';
+
+const holder = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock('$lib/db', () => ({
+	db: new Proxy(
+		{},
+		{
+			get(_t, prop) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const target = holder.db as any;
+				const value = target?.[prop];
+				return typeof value === 'function' ? value.bind(target) : value;
+			}
+		}
+	)
+}));
+
 import { POST } from './+server';
-import * as contextBuilder from '$lib/features/scheduling/services/context-builder';
-import * as regenerationService from '$lib/features/scheduling/services/regeneration-service';
-import * as assignmentService from '$lib/features/schedules/services/assignment-service';
-import * as periodService from '$lib/features/scheduling/services/scheduling-period-service';
-import * as auditService from '$lib/features/scheduling/services/audit-service';
-import { db } from '$lib/db';
-import type { SchedulingContext } from '$lib/features/scheduling/types/scheduling-context';
-import type { Assignment } from '$lib/features/scheduling/types/assignment';
-import type { Selectable } from 'kysely';
-import type { ScheduleAssignments } from '$lib/db/types';
 
-// Mock dependencies
-vi.mock('$lib/db', () => {
-	const mockStudents = [
-		{
-			id: 'student-1',
-			name: 'Student One',
-			email: 'student1@example.com',
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		},
-		{
-			id: 'student-2',
-			name: 'Student Two',
-			email: 'student2@example.com',
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}
-	];
+let db: Kysely<DB>;
+const ts = '2026-01-01T00:00:00.000Z';
 
-	const mockPreceptors = [
-		{
-			id: 'preceptor-1',
-			name: 'Preceptor One',
-			email: 'preceptor1@example.com',
-			health_system_id: 'hs-1',
-			max_students: 5,
-			is_global_fallback_only: 0,
-			phone: null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		},
-		{
-			id: 'preceptor-2',
-			name: 'Preceptor Two',
-			email: 'preceptor2@example.com',
-			health_system_id: 'hs-1',
-			max_students: 5,
-			is_global_fallback_only: 0,
-			phone: null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}
-	];
+/** Weekday date strings from `start`, `count` of them. */
+function weekdays(start: string, count: number): string[] {
+	const out: string[] = [];
+	const d = new Date(start + 'T00:00:00.000Z');
+	while (out.length < count) {
+		const dow = d.getUTCDay();
+		if (dow !== 0 && dow !== 6) out.push(d.toISOString().slice(0, 10));
+		d.setUTCDate(d.getUTCDate() + 1);
+	}
+	return out;
+}
 
-	const mockClerkships = [
-		{
-			id: 'clerkship-1',
-			name: 'Family Medicine',
+interface Tenant {
+	userId: string;
+	scheduleId: string;
+	hsId: string;
+	siteId: string;
+	studentId: string;
+	preceptorId: string;
+	clerkshipId: string;
+	teamId: string;
+}
+
+async function makeTenant(
+	key: string,
+	opts: {
+		requiredDays?: number;
+		maxStudents?: number;
+		availability?: string[];
+		scheduleStart?: string;
+		scheduleEnd?: string;
+	} = {}
+): Promise<Tenant> {
+	const id = (s: string) => `${key}-${s}-${nanoid(6)}`;
+	const t: Tenant = {
+		userId: id('user'),
+		scheduleId: id('sched'),
+		hsId: id('hs'),
+		siteId: id('site'),
+		studentId: id('student'),
+		preceptorId: id('prec'),
+		clerkshipId: id('clerk'),
+		teamId: id('team')
+	};
+	const start = opts.scheduleStart ?? '2026-03-01';
+	const end = opts.scheduleEnd ?? '2026-06-30';
+	await db
+		.insertInto('user')
+		.values({
+			id: t.userId,
+			name: key,
+			email: `${key}-${nanoid(4)}@x.com`,
+			emailVerified: 0,
+			createdAt: ts,
+			updatedAt: ts,
+			active_schedule_id: t.scheduleId,
+			entitlements: JSON.stringify(['autogen'])
+		})
+		.execute();
+	await db
+		.insertInto('scheduling_periods')
+		.values({
+			id: t.scheduleId,
+			name: `${key} schedule`,
+			start_date: start,
+			end_date: end,
+			user_id: t.userId,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('health_systems')
+		.values({ id: t.hsId, name: `${key} HS`, created_at: ts, updated_at: ts })
+		.execute();
+	await db
+		.insertInto('sites')
+		.values({
+			id: t.siteId,
+			name: `${key} site`,
+			health_system_id: t.hsId,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('students')
+		.values({ id: t.studentId, name: `${key} student`, email: `${t.studentId}@x.com` })
+		.execute();
+	await db
+		.insertInto('preceptors')
+		.values({
+			id: t.preceptorId,
+			name: `${key} preceptor`,
+			email: `${t.preceptorId}@x.com`,
+			health_system_id: t.hsId,
+			max_students: opts.maxStudents ?? 1
+		})
+		.execute();
+	await db
+		.insertInto('preceptor_sites')
+		.values({ preceptor_id: t.preceptorId, site_id: t.siteId })
+		.execute();
+	await db
+		.insertInto('clerkships')
+		.values({
+			id: t.clerkshipId,
+			name: `${key} clerkship`,
 			clerkship_type: 'outpatient',
-			required_days: 20,
-			specialty: 'Family Medicine',
-			description: null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
+			required_days: opts.requiredDays ?? 5
+		})
+		.execute();
+	await db
+		.insertInto('preceptor_teams')
+		.values({
+			id: t.teamId,
+			clerkship_id: t.clerkshipId,
+			name: `${key} team`,
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('preceptor_team_members')
+		.values({
+			id: id('tm'),
+			team_id: t.teamId,
+			preceptor_id: t.preceptorId,
+			priority: 1,
+			created_at: ts
+		})
+		.execute();
+	const avail = opts.availability ?? weekdays('2026-03-02', 30);
+	if (avail.length > 0) {
+		await db
+			.insertInto('preceptor_availability')
+			.values(
+				avail.map((date) => ({
+					id: id('av'),
+					preceptor_id: t.preceptorId,
+					site_id: t.siteId,
+					date,
+					is_available: 1
+				}))
+			)
+			.execute();
+	}
+	for (const [table, col, val] of [
+		['schedule_students', 'student_id', t.studentId],
+		['schedule_preceptors', 'preceptor_id', t.preceptorId],
+		['schedule_clerkships', 'clerkship_id', t.clerkshipId],
+		['schedule_sites', 'site_id', t.siteId],
+		['schedule_health_systems', 'health_system_id', t.hsId],
+		['schedule_teams', 'team_id', t.teamId]
+	] as const) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		await (db as any)
+			.insertInto(table)
+			.values({ id: nanoid(), schedule_id: t.scheduleId, [col]: val, created_at: ts })
+			.execute();
+	}
+	return t;
+}
+
+async function addAssignment(
+	t: Tenant,
+	date: string,
+	opts: { locked?: number; source?: string } = {}
+): Promise<string> {
+	const id = nanoid();
+	await db
+		.insertInto('schedule_assignments')
+		.values({
+			id,
+			schedule_id: t.scheduleId,
+			student_id: t.studentId,
+			preceptor_id: t.preceptorId,
+			clerkship_id: t.clerkshipId,
+			site_id: t.siteId,
+			date,
+			status: 'scheduled',
+			locked: opts.locked ?? 0,
+			source: opts.source ?? 'manual'
+		})
+		.execute();
+	return id;
+}
+
+function post(userId: string | null, body: Record<string, unknown>, entitled = true) {
+	return POST({
+		locals: {
+			session: userId ? { user: { id: userId } } : null,
+			entitlements: entitled ? ['autogen'] : []
 		},
-		{
-			id: 'clerkship-2',
-			name: 'Internal Medicine',
-			clerkship_type: 'inpatient',
-			required_days: 30,
-			specialty: 'Internal Medicine',
-			description: null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}
-	];
+		request: new Request('http://localhost/api/schedules/generate', {
+			method: 'POST',
+			body: JSON.stringify(body),
+			headers: { 'content-type': 'application/json' }
+		}),
+		url: new URL('http://localhost/api/schedules/generate')
+	} as never);
+}
 
-	const mockHealthSystems = [
-		{
-			id: 'hs-1',
-			name: 'Health System One',
-			location: 'Location 1',
-			description: null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}
-	];
+function rows(scheduleId: string) {
+	return db
+		.selectFrom('schedule_assignments')
+		.selectAll()
+		.where('schedule_id', '=', scheduleId)
+		.orderBy('date')
+		.execute();
+}
 
-	const mockTeams = [
-		{
-			id: 'team-1',
-			name: 'Team One',
-			health_system_id: 'hs-1',
-			description: null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}
-	];
-
-	const mockStudentOnboarding = [
-		{
-			student_id: 'student-1',
-			health_system_id: 'hs-1',
-			is_completed: 1
-		},
-		{
-			student_id: 'student-2',
-			health_system_id: 'hs-1',
-			is_completed: 1
-		}
-	];
-
-	const mockSiteElectives: Array<{ site_id: string; elective_requirement_id: string }> = [];
-
-	const mockBlackoutDates: string[] = [];
-
-	const mockAvailabilityRecords = [
-		{
-			id: 'avail-1',
-			preceptor_id: 'preceptor-1',
-			site_id: 'site-1',
-			date: '2025-06-15',
-			is_available: 1,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}
-	];
-
-	const createMockQueryBuilder = (data: any[] = []) => {
-		const builder = {
-			selectFrom: (table: string) => builder,
-			selectAll: () => builder,
-			select: (...args: any[]) => builder,
-			where: (...args: any[]) => builder,
-			orderBy: (...args: any[]) => builder,
-			execute: () => Promise.resolve(data),
-			then: (resolve: any) => Promise.resolve(data).then(resolve)
-		};
-		return builder;
-	};
-
-	return {
-		db: {
-			selectFrom: (table: string) => {
-				const dataMap: Record<string, any[]> = {
-					students: mockStudents,
-					preceptors: mockPreceptors,
-					clerkships: mockClerkships,
-					health_systems: mockHealthSystems,
-					teams: mockTeams,
-					student_health_system_onboarding: mockStudentOnboarding,
-					elective_sites: mockSiteElectives,
-					blackout_dates: mockBlackoutDates.map((date) => ({ date })),
-					preceptor_availability: mockAvailabilityRecords
-				};
-				const data = dataMap[table] || [];
-				return createMockQueryBuilder(data);
-			},
-			transaction: () => Promise.resolve()
-		}
-	};
+beforeEach(async () => {
+	db = await createTestDatabaseWithMigrations();
+	holder.db = db as unknown;
 });
-
-vi.mock('$lib/features/scheduling/engine/configurable-scheduling-engine');
-vi.mock('$lib/features/scheduling/services/context-builder');
-vi.mock('$lib/features/scheduling/services/regeneration-service');
-vi.mock('$lib/features/schedules/services/assignment-service');
-vi.mock('$lib/features/scheduling/services/scheduling-period-service');
-vi.mock('$lib/features/schedules/services/editing-service');
-vi.mock('$lib/features/scheduling/services/audit-service');
+afterEach(async () => cleanupTestDatabase(db));
 
 describe('POST /api/schedules/generate', () => {
-	const mockContext: SchedulingContext = {
-		students: [],
-		preceptors: [],
-		clerkships: [],
-		studentRequirements: new Map(),
-		preceptorAvailability: new Map(),
-		blackoutDates: new Set(),
-		startDate: '2025-01-01',
-		endDate: '2025-12-31',
-		assignments: [],
-		assignmentsByDate: new Map(),
-		assignmentsByStudent: new Map(),
-		assignmentsByPreceptor: new Map()
-	};
-
-	const mockAssignments: Assignment[] = [
-		{
-			studentId: 'student-1',
-			preceptorId: 'preceptor-1',
-			clerkshipId: 'clerkship-1',
-			date: '2025-06-15'
-		}
-	];
-
-	beforeEach(async () => {
-		vi.clearAllMocks();
-
-		// Setup default mocks
-		vi.mocked(contextBuilder.buildSchedulingContext).mockReturnValue(mockContext);
-
-		// Mock regeneration service with default values
-		vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-			creditResult: {
-				totalPastAssignments: 0,
-				creditsByStudent: new Map()
-			},
-			preservedAssignments: 0,
-			affectedAssignments: 0
+	describe('gating & scope', () => {
+		it('rejects a non-entitled user with 403', async () => {
+			const t = await makeTenant('a');
+			await expect(
+				post(t.userId, { startDate: '2026-03-01', endDate: '2026-06-30' }, false)
+			).rejects.toMatchObject({ status: 403 });
 		});
 
-		vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-			pastAssignments: [],
-			pastAssignmentsCount: 0,
-			futureAssignmentsToDelete: [],
-			deletedCount: 0,
-			preservableAssignments: [],
-			preservedCount: 0,
-			affectedAssignments: [],
-			affectedCount: 0,
-			replaceableAssignments: [],
-			studentProgress: [],
-			summary: {
-				strategy: 'full-reoptimize',
-				regenerateFromDate: '2025-01-01',
-				totalAssignmentsImpacted: 0,
-				willPreservePast: true,
-				willPreserveFuture: false
+		it('returns 400 when the caller has no active schedule', async () => {
+			const userId = `nosched-${nanoid(6)}`;
+			await db
+				.insertInto('user')
+				.values({
+					id: userId,
+					name: 'n',
+					email: `${userId}@x.com`,
+					emailVerified: 0,
+					createdAt: ts,
+					updatedAt: ts,
+					entitlements: JSON.stringify(['autogen'])
+				})
+				.execute();
+			await expect(
+				post(userId, { startDate: '2026-03-01', endDate: '2026-06-30' })
+			).rejects.toMatchObject({
+				status: 400
+			});
+		});
+
+		it('rejects a range outside the schedule range (400)', async () => {
+			const t = await makeTenant('a', { scheduleStart: '2026-03-01', scheduleEnd: '2026-03-31' });
+			const res = await post(t.userId, { startDate: '2026-03-01', endDate: '2026-12-31' });
+			expect(res.status).toBe(400);
+		});
+	});
+
+	describe('full-reoptimize', () => {
+		it('generates the required days and persists site_id, source and schedule_id (F-14)', async () => {
+			const t = await makeTenant('a', { requiredDays: 5 });
+			const res = await post(t.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				regenerateFromDate: '2026-03-01'
+			});
+			expect(res.status).toBe(200);
+			const all = await rows(t.scheduleId);
+			expect(all.length).toBe(5);
+			for (const a of all) {
+				expect(a.source).toBe('generated');
+				expect(a.schedule_id).toBe(t.scheduleId);
+				expect(a.site_id).toBe(t.siteId);
 			}
 		});
 
-		// Mock scheduling period service
-		vi.mocked(periodService.getActiveSchedulingPeriod).mockResolvedValue({
-			id: 'period-1',
-			start_date: '2025-01-01',
-			end_date: '2025-12-31',
-			is_active: 1,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-			name: 'Test Period',
-			user_id: null,
-			year: 2025
-		});
-
-		vi.mocked(periodService.getOverlappingPeriods).mockResolvedValue([]);
-		vi.mocked(periodService.createSchedulingPeriod).mockResolvedValue({
-			id: 'period-new',
-			start_date: '2025-01-01',
-			end_date: '2025-12-31',
-			is_active: 1,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-			name: 'New Test Period',
-			user_id: null,
-			year: 2025
-		});
-
-		// Mock audit service
-		vi.mocked(auditService.logRegenerationEvent).mockResolvedValue({
-			id: 'audit-log-1',
-			timestamp: new Date().toISOString(),
-			strategy: 'full-reoptimize',
-			regenerateFromDate: '2025-01-01',
-			endDate: '2025-12-31',
-			pastAssignmentsCount: 0,
-			futureAssignmentsDeleted: 0,
-			futureAssignmentsPreserved: 0,
-			affectedAssignments: 0,
-			newAssignmentsGenerated: 0,
-			success: true,
-			reason: 'api_request',
-			notes: ''
-		});
-		vi.mocked(auditService.createRegenerationAuditLog).mockReturnValue({
-			strategy: 'full-reoptimize',
-			regenerateFromDate: '2025-01-01',
-			endDate: '2025-12-31',
-			pastAssignmentsCount: 0,
-			futureAssignmentsDeleted: 0,
-			futureAssignmentsPreserved: 0,
-			affectedAssignments: 0,
-			newAssignmentsGenerated: 0,
-			success: true,
-			reason: 'api_request',
-			notes: ''
-		});
-
-		// Mock editing service
-		const editingService = await import('$lib/features/schedules/services/editing-service');
-		vi.mocked(editingService.clearAllAssignments).mockResolvedValue(0);
-	});
-
-	describe('Full Regeneration (No regenerateFromDate)', () => {
-		it('should generate a complete schedule from scratch', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31'
-				})
+		it('credits past assignments instead of re-scheduling them (F-01)', async () => {
+			const t = await makeTenant('a', { requiredDays: 5 });
+			// Two past days, before a future cutoff.
+			await addAssignment(t, '2026-03-02');
+			await addAssignment(t, '2026-03-03');
+			const res = await post(t.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				regenerateFromDate: '2026-03-16'
 			});
+			expect(res.status).toBe(200);
+			const all = await rows(t.scheduleId);
+			// 2 credited past + 3 newly generated = exactly the required 5.
+			expect(all.length).toBe(5);
+		});
 
-			// Mock successful generation
-			const mockConfigurableEngine = await import(
-				'$lib/features/scheduling/engine/configurable-scheduling-engine'
-			);
-			vi.mocked(mockConfigurableEngine.ConfigurableSchedulingEngine).mockImplementation(
-				() =>
-					({
-						schedule: vi.fn().mockResolvedValue({
-							assignments: mockAssignments,
-							success: true,
-							unmetRequirements: [],
-							violations: [],
-							summary: {
-								totalAssignments: 1,
-								totalViolations: 0,
-								strategiesUsed: ['continuous_single']
-							}
-						})
-					}) as any
-			);
-
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
-				mockAssignments.map((a, i) => ({
-					id: `assignment-${i}`,
-					student_id: a.studentId,
-					preceptor_id: a.preceptorId,
-					clerkship_id: a.clerkshipId,
-					date: a.date,
-					elective_id: a.electiveId || null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}))
-			);
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data.summary.totalAssignments).toBe(1);
-			// When no regenerateFromDate is provided, it defaults to today
-			// Use today's date for comparison instead of hardcoded value
-			const today = new Date().toISOString().split('T')[0];
-			expect(data.data.regeneratedFrom).toBe(today);
-			expect(data.data.strategy).toBe('full-reoptimize');
+		it('preserves a locked assignment and credits it (F-01)', async () => {
+			const t = await makeTenant('a', { requiredDays: 5 });
+			const lockedId = await addAssignment(t, '2026-03-10', { locked: 1 });
+			const res = await post(t.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				regenerateFromDate: '2026-03-01'
+			});
+			expect(res.status).toBe(200);
+			const all = await rows(t.scheduleId);
+			expect(all.some((a) => a.id === lockedId)).toBe(true);
+			expect(all.length).toBe(5);
 		});
 	});
 
-	describe('Smart Regeneration - Minimal Change Strategy', () => {
-		it('should preserve past assignments and minimize future changes', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31',
-					regenerateFromDate: '2025-06-15',
-					strategy: 'minimal-change'
-				})
+	describe('completion', () => {
+		it('keeps existing assignments and only fills the gap (F-01)', async () => {
+			const t = await makeTenant('a', { requiredDays: 5 });
+			await addAssignment(t, '2026-03-02');
+			await addAssignment(t, '2026-03-03');
+			await addAssignment(t, '2026-03-04');
+			const res = await post(t.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				strategy: 'completion'
 			});
-
-			// Mock past assignments
-			const pastAssignments: Selectable<ScheduleAssignments>[] = [
-				{
-					id: 'past-1',
-					student_id: 'student-1',
-					preceptor_id: 'preceptor-1',
-					clerkship_id: 'clerkship-1',
-					date: '2025-06-01',
-					elective_id: null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}
-			];
-
-			const futureAssignments: Selectable<ScheduleAssignments>[] = [
-				{
-					id: 'future-1',
-					student_id: 'student-1',
-					preceptor_id: 'preceptor-1',
-					clerkship_id: 'clerkship-1',
-					date: '2025-06-20',
-					elective_id: null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}
-			];
-
-			// Mock regeneration service
-			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				creditResult: {
-					totalPastAssignments: 1,
-					creditsByStudent: new Map()
-				},
-				preservedAssignments: 1,
-				affectedAssignments: 0
-			});
-
-			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				pastAssignments: [],
-				pastAssignmentsCount: 0,
-				futureAssignmentsToDelete: [],
-				deletedCount: 0,
-				preservableAssignments: futureAssignments,
-				preservedCount: 1,
-				affectedAssignments: [],
-				affectedCount: 0,
-				replaceableAssignments: [],
-				studentProgress: [],
-				summary: {
-					strategy: 'minimal-change',
-					regenerateFromDate: '2025-06-15',
-					totalAssignmentsImpacted: 0,
-					willPreservePast: true,
-					willPreserveFuture: true
-				}
-			});
-
-			// Mock engine
-			const mockConfigurableEngine = await import(
-				'$lib/features/scheduling/engine/configurable-scheduling-engine'
-			);
-			vi.mocked(mockConfigurableEngine.ConfigurableSchedulingEngine).mockImplementation(
-				() =>
-					({
-						schedule: vi.fn().mockResolvedValue({
-							assignments: [],
-							success: true,
-							unmetRequirements: [],
-							violations: [],
-							summary: {
-								totalAssignments: 0,
-								totalViolations: 0,
-								strategiesUsed: []
-							}
-						})
-					}) as any
-			);
-
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue([]);
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data.regeneratedFrom).toBe('2025-06-15');
-			expect(data.data.strategy).toBe('minimal-change');
-			expect(data.data.totalPastAssignments).toBe(1);
-			expect(data.data.preservedFutureAssignments).toBe(1);
-
-			// Verify regeneration context was prepared
-			expect(regenerationService.prepareRegenerationContext).toHaveBeenCalledWith(
-				expect.anything(), // db
-				expect.anything(), // context
-				'2025-06-15', // regenerateFromDate
-				'2025-12-31', // endDate
-				'minimal-change' // strategy
-			);
-		});
-
-		it('should find replacements for affected assignments', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31',
-					regenerateFromDate: '2025-06-15',
-					strategy: 'minimal-change'
-				})
-			});
-
-			const pastAssignments: Selectable<ScheduleAssignments>[] = [];
-			const preservableAssignments: Selectable<ScheduleAssignments>[] = [];
-			const affectedAssignments: Selectable<ScheduleAssignments>[] = [
-				{
-					id: 'affected-1',
-					student_id: 'student-1',
-					preceptor_id: 'preceptor-1', // Now unavailable
-					clerkship_id: 'clerkship-1',
-					date: '2025-06-20',
-					elective_id: null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}
-			];
-
-			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				creditResult: {
-					totalPastAssignments: 0,
-					creditsByStudent: new Map()
-				},
-				preservedAssignments: 0,
-				affectedAssignments: 1
-			});
-
-			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				pastAssignments: [],
-				pastAssignmentsCount: 0,
-				futureAssignmentsToDelete: affectedAssignments,
-				deletedCount: 1,
-				preservableAssignments: [],
-				preservedCount: 0,
-				affectedAssignments,
-				affectedCount: 1,
-				replaceableAssignments: [],
-				studentProgress: [],
-				summary: {
-					strategy: 'minimal-change',
-					regenerateFromDate: '2025-06-15',
-					totalAssignmentsImpacted: 1,
-					willPreservePast: true,
-					willPreserveFuture: false
-				}
-			});
-
-			// Mock clearAllAssignments to return 1 deleted assignment
-			const editingService = await import('$lib/features/schedules/services/editing-service');
-			vi.mocked(editingService.clearAllAssignments).mockResolvedValue(1);
-
-			const mockConfigurableEngine = await import(
-				'$lib/features/scheduling/engine/configurable-scheduling-engine'
-			);
-			vi.mocked(mockConfigurableEngine.ConfigurableSchedulingEngine).mockImplementation(
-				() =>
-					({
-						schedule: vi.fn().mockResolvedValue({
-							assignments: mockAssignments,
-							success: true,
-							unmetRequirements: [],
-							violations: [],
-							summary: {
-								totalAssignments: 1,
-								totalViolations: 0,
-								strategiesUsed: ['continuous_single']
-							}
-						})
-					}) as any
-			);
-
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
-				mockAssignments.map((a, i) => ({
-					id: `assignment-${i}`,
-					student_id: a.studentId,
-					preceptor_id: a.preceptorId,
-					clerkship_id: a.clerkshipId,
-					date: a.date,
-					elective_id: a.electiveId || null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}))
-			);
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data.deletedFutureAssignments).toBe(1);
-			expect(data.data.strategy).toBe('minimal-change');
+			const body = await res.json();
+			expect(res.status).toBe(200);
+			expect(body.data.newAssignmentsGenerated).toBe(2);
+			expect(body.data.existingAssignmentsPreserved).toBe(3);
+			expect((await rows(t.scheduleId)).length).toBe(5);
 		});
 	});
 
-	describe('Smart Regeneration - Full Reoptimize Strategy', () => {
-		it('should preserve past but fully reoptimize future', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31',
-					regenerateFromDate: '2025-06-15',
-					strategy: 'full-reoptimize'
+	describe('capacity (F-07)', () => {
+		it('still schedules when a preceptor has a prior assignment in the year', async () => {
+			const t = await makeTenant('a', { requiredDays: 5, maxStudents: 1 });
+			// A different student already has one day with this preceptor earlier in the year.
+			const s2 = nanoid();
+			await db
+				.insertInto('students')
+				.values({ id: s2, name: 's2', email: `${s2}@x.com` })
+				.execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: nanoid(),
+					schedule_id: t.scheduleId,
+					student_id: s2,
+					preceptor_id: t.preceptorId,
+					clerkship_id: t.clerkshipId,
+					site_id: t.siteId,
+					date: '2026-02-02',
+					status: 'scheduled'
 				})
+				.execute();
+			const res = await post(t.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				regenerateFromDate: '2026-03-01'
 			});
-
-			const pastAssignments: Selectable<ScheduleAssignments>[] = [
-				{
-					id: 'past-1',
-					student_id: 'student-1',
-					preceptor_id: 'preceptor-1',
-					clerkship_id: 'clerkship-1',
-					date: '2025-06-01',
-					elective_id: null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}
-			];
-
-			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				creditResult: {
-					totalPastAssignments: 1,
-					creditsByStudent: new Map()
-				},
-				preservedAssignments: 0,
-				affectedAssignments: 0
-			});
-
-			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				pastAssignments,
-				pastAssignmentsCount: 1,
-				futureAssignmentsToDelete: [],
-				deletedCount: 5,
-				preservableAssignments: [],
-				preservedCount: 0,
-				affectedAssignments: [],
-				affectedCount: 0,
-				replaceableAssignments: [],
-				studentProgress: [],
-				summary: {
-					strategy: 'full-reoptimize',
-					regenerateFromDate: '2025-06-15',
-					totalAssignmentsImpacted: 5,
-					willPreservePast: true,
-					willPreserveFuture: false
-				}
-			});
-
-			// Mock clearAllAssignments to return 5 deleted assignments
-			const editingService = await import('$lib/features/schedules/services/editing-service');
-			vi.mocked(editingService.clearAllAssignments).mockResolvedValue(5);
-
-			const mockConfigurableEngine = await import(
-				'$lib/features/scheduling/engine/configurable-scheduling-engine'
-			);
-			vi.mocked(mockConfigurableEngine.ConfigurableSchedulingEngine).mockImplementation(
-				() =>
-					({
-						schedule: vi.fn().mockResolvedValue({
-							assignments: mockAssignments,
-							success: true,
-							unmetRequirements: [],
-							violations: [],
-							summary: {
-								totalAssignments: 1,
-								totalViolations: 0,
-								strategiesUsed: ['continuous_single']
-							}
-						})
-					}) as any
-			);
-
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
-				mockAssignments.map((a, i) => ({
-					id: `assignment-${i}`,
-					student_id: a.studentId,
-					preceptor_id: a.preceptorId,
-					clerkship_id: a.clerkshipId,
-					date: a.date,
-					elective_id: a.electiveId || null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}))
-			);
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data.regeneratedFrom).toBe('2025-06-15');
-			expect(data.data.strategy).toBe('full-reoptimize');
-			expect(data.data.totalPastAssignments).toBe(1);
-			expect(data.data.preservedFutureAssignments).toBe(0);
-			expect(data.data.deletedFutureAssignments).toBe(5);
+			const body = await res.json();
+			expect(res.status).toBe(200);
+			// The target student is still fully scheduled — no false yearly cap.
+			expect((await rows(t.scheduleId)).filter((a) => a.student_id === t.studentId).length).toBe(5);
+			expect(body.data.success).toBe(true);
 		});
 	});
 
-	describe('Preview Mode (Dry Run)', () => {
-		it('should return impact analysis without making changes', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31',
-					regenerateFromDate: '2025-06-15',
-					strategy: 'minimal-change',
-					preview: true
-				})
+	describe('tenant isolation (F-02)', () => {
+		it('a run for A does not touch B and never uses B assignments', async () => {
+			const a = await makeTenant('a', { requiredDays: 5 });
+			const b = await makeTenant('b', { requiredDays: 5 });
+			const bFuture = await addAssignment(b, '2026-03-20');
+
+			const res = await post(a.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				regenerateFromDate: '2026-03-01'
 			});
+			expect(res.status).toBe(200);
 
-			const pastAssignments: Selectable<ScheduleAssignments>[] = [
-				{
-					id: 'past-1',
-					student_id: 'student-1',
-					preceptor_id: 'preceptor-1',
-					clerkship_id: 'clerkship-1',
-					date: '2025-06-01',
-					elective_id: null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}
-			];
-
-			const affectedAssignments: Selectable<ScheduleAssignments>[] = [
-				{
-					id: 'affected-1',
-					student_id: 'student-1',
-					preceptor_id: 'preceptor-1',
-					clerkship_id: 'clerkship-1',
-					date: '2025-06-20',
-					elective_id: null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}
-			];
-
-			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				creditResult: {
-					totalPastAssignments: 1,
-					creditsByStudent: new Map()
-				},
-				preservedAssignments: 0,
-				affectedAssignments: 1
-			});
-
-			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				pastAssignments,
-				pastAssignmentsCount: 1,
-				futureAssignmentsToDelete: affectedAssignments,
-				deletedCount: 1,
-				preservableAssignments: [],
-				preservedCount: 0,
-				affectedAssignments,
-				affectedCount: 1,
-				replaceableAssignments: [],
-				studentProgress: [],
-				summary: {
-					strategy: 'minimal-change',
-					regenerateFromDate: '2025-06-15',
-					totalAssignmentsImpacted: 1,
-					willPreservePast: true,
-					willPreserveFuture: false
-				}
-			});
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data.preview).toBe(true);
-			expect(data.data.impact).toBeDefined();
-			expect(data.data.impact.futureAssignments.preservableCount).toBe(0);
-			expect(data.data.impact.futureAssignments.affectedCount).toBe(1);
-			expect(data.data.impact.futureAssignments.toDeleteCount).toBe(1);
-
-			// Verify no assignments were created
-			expect(assignmentService.bulkCreateAssignments).not.toHaveBeenCalled();
+			const bRows = await rows(b.scheduleId);
+			// B's row is untouched and no generated rows were created for B.
+			expect(bRows.length).toBe(1);
+			expect(bRows[0].id).toBe(bFuture);
+			expect(bRows.every((r) => r.source !== 'generated')).toBe(true);
+			// A's rows never reference B's preceptor.
+			const aRows = await rows(a.scheduleId);
+			expect(aRows.length).toBeGreaterThan(0);
+			expect(aRows.every((r) => r.preceptor_id === a.preceptorId)).toBe(true);
 		});
 	});
 
-	describe('Error Handling', () => {
-		it('should return validation error for invalid date format', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: 'invalid-date',
-					endDate: '2025-12-31'
-				})
+	describe('preview', () => {
+		it('writes nothing and reports impact', async () => {
+			const t = await makeTenant('a', { requiredDays: 5 });
+			await addAssignment(t, '2026-03-02');
+			const before = (await rows(t.scheduleId)).length;
+			const res = await post(t.userId, {
+				startDate: '2026-03-01',
+				endDate: '2026-06-30',
+				regenerateFromDate: '2026-03-16',
+				preview: true
 			});
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(400);
-			expect(data.success).toBe(false);
-		});
-
-		it('should return validation error for end date before start date', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-12-31',
-					endDate: '2025-01-01'
-				})
-			});
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(400);
-			expect(data.success).toBe(false);
-		});
-
-		it('should return error when scheduling period creation fails', async () => {
-			vi.mocked(periodService.getActiveSchedulingPeriod).mockResolvedValue(null);
-			vi.mocked(periodService.getOverlappingPeriods).mockResolvedValue([]);
-			vi.mocked(periodService.createSchedulingPeriod).mockRejectedValue(
-				new Error('Database error')
-			);
-
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31'
-				})
-			});
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(500);
-			expect(data.success).toBe(false);
-		});
-
-		it('should handle engine generation failures gracefully', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31'
-				})
-			});
-
-			const mockConfigurableEngine = await import(
-				'$lib/features/scheduling/engine/configurable-scheduling-engine'
-			);
-			vi.mocked(mockConfigurableEngine.ConfigurableSchedulingEngine).mockImplementation(
-				() =>
-					({
-						schedule: vi.fn().mockImplementation(async () => {
-							throw new Error('Engine error');
-						})
-					}) as any
-			);
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			expect(response.status).toBe(500);
-			expect(data.success).toBe(false);
+			const body = await res.json();
+			expect(res.status).toBe(200);
+			expect(body.data.preview).toBe(true);
+			expect((await rows(t.scheduleId)).length).toBe(before);
 		});
 	});
 
-	describe('Audit Logging', () => {
-		it('should create audit log for regeneration', async () => {
-			const request = new Request('http://localhost/api/schedules/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					startDate: '2025-01-01',
-					endDate: '2025-12-31',
-					regenerateFromDate: '2025-06-15',
-					strategy: 'minimal-change'
-				})
-			});
+	describe('validation', () => {
+		it('rejects an invalid date format (400)', async () => {
+			const t = await makeTenant('a');
+			const res = await post(t.userId, { startDate: 'nope', endDate: '2026-06-30' });
+			expect(res.status).toBe(400);
+		});
 
-			vi.mocked(regenerationService.prepareRegenerationContext).mockResolvedValue({
-				creditResult: {
-					totalPastAssignments: 0,
-					creditsByStudent: new Map()
-				},
-				preservedAssignments: 0,
-				affectedAssignments: 0
-			});
-
-			vi.mocked(regenerationService.analyzeRegenerationImpact).mockResolvedValue({
-				pastAssignments: [],
-				pastAssignmentsCount: 0,
-				futureAssignmentsToDelete: [],
-				deletedCount: 0,
-				preservableAssignments: [],
-				preservedCount: 0,
-				affectedAssignments: [],
-				affectedCount: 0,
-				replaceableAssignments: [],
-				studentProgress: [],
-				summary: {
-					strategy: 'minimal-change',
-					regenerateFromDate: '2025-06-15',
-					totalAssignmentsImpacted: 0,
-					willPreservePast: true,
-					willPreserveFuture: true
-				}
-			});
-
-			const mockConfigurableEngine = await import(
-				'$lib/features/scheduling/engine/configurable-scheduling-engine'
-			);
-			vi.mocked(mockConfigurableEngine.ConfigurableSchedulingEngine).mockImplementation(
-				() =>
-					({
-						schedule: vi.fn().mockResolvedValue({
-							assignments: mockAssignments,
-							success: true,
-							unmetRequirements: [],
-							violations: [],
-							summary: {
-								totalAssignments: 1,
-								totalViolations: 0,
-								strategiesUsed: []
-							}
-						})
-					}) as any
-			);
-
-			vi.mocked(assignmentService.bulkCreateAssignments).mockResolvedValue(
-				mockAssignments.map((a, i) => ({
-					id: `assignment-${i}`,
-					student_id: a.studentId,
-					preceptor_id: a.preceptorId,
-					clerkship_id: a.clerkshipId,
-					date: a.date,
-					elective_id: a.electiveId || null,
-					site_id: null,
-					status: 'scheduled' as const,
-					locked: 0,
-					source: 'manual' as const,
-					override_codes: '[]',
-					override_note: null,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString()
-				}))
-			);
-
-			const response = await POST({
-				request,
-				locals: { entitlements: ['autogen'], session: null }
-			} as any);
-			const data = await response.json();
-
-			// Verify the request succeeded
-			expect(response.status).toBe(200);
-			expect(data.success).toBe(true);
-
-			// Verify audit logging functions were called
-			expect(auditService.createRegenerationAuditLog).toHaveBeenCalled();
-			expect(auditService.logRegenerationEvent).toHaveBeenCalled();
+		it('rejects end before start (400)', async () => {
+			const t = await makeTenant('a');
+			const res = await post(t.userId, { startDate: '2026-06-30', endDate: '2026-03-01' });
+			expect(res.status).toBe(400);
 		});
 	});
 });

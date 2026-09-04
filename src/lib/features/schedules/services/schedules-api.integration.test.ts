@@ -154,6 +154,7 @@ async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text')
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
@@ -237,7 +238,11 @@ async function linkStudentToSchedule(db: Kysely<DB>, studentId: string, schedule
 /**
  * Link a clerkship to the active schedule so tenant-scoped reads resolve it.
  */
-async function linkClerkshipToSchedule(db: Kysely<DB>, clerkshipId: string, scheduleId = PERIOD_ID) {
+async function linkClerkshipToSchedule(
+	db: Kysely<DB>,
+	clerkshipId: string,
+	scheduleId = PERIOD_ID
+) {
 	await db
 		.insertInto('schedule_clerkships')
 		.values({
@@ -1059,17 +1064,23 @@ describe('Schedules API Integration Tests', () => {
 				required_days: 10
 			});
 
-			// Create multiple assignments
+			// Create multiple assignments in one schedule
+			const clearSchedule = 'clear-sched-1';
 			for (let i = 0; i < 5; i++) {
-				await createAssignment(db, {
+				const created = await createAssignment(db, {
 					student_id: student.id as string,
 					preceptor_id: preceptor.id as string,
 					clerkship_id: clerkship.id as string,
 					date: `2024-06-${15 + i}`
 				});
+				await db
+					.updateTable('schedule_assignments')
+					.set({ schedule_id: clearSchedule })
+					.where('id', '=', created.id)
+					.execute();
 			}
 
-			const deletedCount = await clearAllAssignments(db);
+			const deletedCount = await clearAllAssignments(db, clearSchedule);
 
 			expect(deletedCount).toBe(5);
 
@@ -1096,27 +1107,23 @@ describe('Schedules API Integration Tests', () => {
 				required_days: 10
 			});
 
-			// Create assignments on different dates
-			await createAssignment(db, {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-06-10' // Before cutoff
-			});
-			await createAssignment(db, {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-06-15' // On cutoff
-			});
-			await createAssignment(db, {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-06-20' // After cutoff
-			});
+			// Create assignments on different dates, all in one schedule
+			const clearSchedule = 'clear-sched-2';
+			for (const date of ['2024-06-10', '2024-06-15', '2024-06-20']) {
+				const created = await createAssignment(db, {
+					student_id: student.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
+					date
+				});
+				await db
+					.updateTable('schedule_assignments')
+					.set({ schedule_id: clearSchedule })
+					.where('id', '=', created.id)
+					.execute();
+			}
 
-			const deletedCount = await clearAllAssignments(db, '2024-06-15');
+			const deletedCount = await clearAllAssignments(db, clearSchedule, '2024-06-15');
 
 			expect(deletedCount).toBe(2); // On and after cutoff
 

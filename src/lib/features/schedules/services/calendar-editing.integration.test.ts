@@ -128,6 +128,7 @@ async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text')
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
@@ -976,24 +977,28 @@ describe('Editing Service Integration Tests', () => {
 				required_days: 10
 			});
 
-			await bulkCreateAssignments(db, {
-				assignments: [
-					{
-						student_id: student.id,
-						preceptor_id: preceptor.id,
-						clerkship_id: clerkship.id,
-						date: '2024-01-15'
-					},
-					{
-						student_id: student.id,
-						preceptor_id: preceptor.id,
-						clerkship_id: clerkship.id,
-						date: '2024-01-16'
-					}
-				]
-			});
+			await bulkCreateAssignments(
+				db,
+				{
+					assignments: [
+						{
+							student_id: student.id,
+							preceptor_id: preceptor.id,
+							clerkship_id: clerkship.id,
+							date: '2024-01-15'
+						},
+						{
+							student_id: student.id,
+							preceptor_id: preceptor.id,
+							clerkship_id: clerkship.id,
+							date: '2024-01-16'
+						}
+					]
+				},
+				TEST_SCHEDULE_ID
+			);
 
-			const count = await clearAllAssignments(db);
+			const count = await clearAllAssignments(db, TEST_SCHEDULE_ID);
 
 			expect(count).toBe(2);
 
@@ -1033,6 +1038,7 @@ describe('Editing Service Integration Tests', () => {
 				.values([
 					{
 						id: 'unlocked-1',
+						schedule_id: TEST_SCHEDULE_ID,
 						student_id: student.id,
 						preceptor_id: preceptor.id,
 						clerkship_id: clerkship.id,
@@ -1045,6 +1051,7 @@ describe('Editing Service Integration Tests', () => {
 					},
 					{
 						id: 'locked-1',
+						schedule_id: TEST_SCHEDULE_ID,
 						student_id: student.id,
 						preceptor_id: preceptor.id,
 						clerkship_id: clerkship.id,
@@ -1058,7 +1065,7 @@ describe('Editing Service Integration Tests', () => {
 				])
 				.execute();
 
-			const count = await clearAllAssignments(db);
+			const count = await clearAllAssignments(db, TEST_SCHEDULE_ID);
 			expect(count).toBe(1); // only the unlocked one
 
 			const remaining = await db.selectFrom('schedule_assignments').select('id').execute();

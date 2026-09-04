@@ -18,7 +18,7 @@ import { FallbackResolver, FallbackGapFiller, type UnmetRequirement as FallbackU
 import { ResultBuilder, type SchedulingResult, type UnmetRequirement } from './result-builder';
 import { ConstraintFactory } from '../services/constraint-factory';
 import { AssignmentStrategy } from '$lib/features/scheduling-config/types';
-import { nanoid } from 'nanoid';
+import { insertGeneratedAssignments } from '$lib/features/schedules/services/assignment-service';
 
 /**
  * Engine Options
@@ -32,6 +32,25 @@ export interface EngineOptions {
   maxRetriesPerStudent?: number;
   dryRun?: boolean;
   bypassedConstraints?: string[];
+  /**
+   * The schedule this run belongs to. When set, preceptor eligibility is
+   * limited to that schedule's `schedule_preceptors` and committed rows carry
+   * the id (review finding F-02). Left undefined by direct engine callers
+   * (tests), which keeps the pre-scoping behaviour.
+   */
+  scheduleId?: string;
+  /**
+   * Days already satisfied per student per clerkship (non-elective portion),
+   * subtracted from each clerkship's required days so past, locked and existing
+   * assignments are credited instead of re-scheduled (review finding F-01).
+   * Map: studentId -> clerkshipId -> days.
+   */
+  credit?: Map<string, Map<string, number>>;
+  /**
+   * Days already satisfied per student per elective, subtracted from each
+   * elective's minimum days. Map: studentId -> electiveId -> days.
+   */
+  electiveCredit?: Map<string, Map<string, number>>;
 }
 
 /**
@@ -99,6 +118,9 @@ export class ConfigurableSchedulingEngine {
       maxRetriesPerStudent = 3,
       dryRun = false,
       bypassedConstraints = [],
+      scheduleId,
+      credit,
+      electiveCredit,
     } = options;
 
     this.resultBuilder.reset();
@@ -125,7 +147,8 @@ export class ConfigurableSchedulingEngine {
       students,
       clerkships,
       startDate,
-      endDate
+      endDate,
+      scheduleId
     );
     this.constraints = await this.constraintFactory.buildConstraints(
       clerkshipIds,
@@ -151,6 +174,9 @@ export class ConfigurableSchedulingEngine {
             enableFallbacks,
             maxRetries: maxRetriesPerStudent,
             bypassedConstraints: new Set(bypassedConstraints),
+            scheduleId,
+            credit,
+            electiveCredit,
           }
         );
       }
@@ -172,7 +198,7 @@ export class ConfigurableSchedulingEngine {
 
     // Commit to database if not dry run
     if (!dryRun && result.assignments.length > 0) {
-      await this.commitAssignments(result.assignments);
+      await this.commitAssignments(result.assignments, scheduleId);
     }
 
     return result;
@@ -371,8 +397,23 @@ export class ConfigurableSchedulingEngine {
     students: Student[],
     clerkships: Clerkship[],
     startDate: string,
-    endDate: string
+    endDate: string,
+    scheduleId?: string
   ): Promise<SchedulingContext> {
+    // Preceptors are scoped to the schedule when one is given (review finding
+    // F-02); direct engine callers (tests) pass none and get every preceptor.
+    const preceptorsQuery = scheduleId
+      ? this.db
+          .selectFrom('preceptors')
+          .innerJoin(
+            'schedule_preceptors',
+            'schedule_preceptors.preceptor_id',
+            'preceptors.id'
+          )
+          .selectAll('preceptors')
+          .where('schedule_preceptors.schedule_id', '=', scheduleId)
+      : this.db.selectFrom('preceptors').selectAll();
+
     // Load all required data for scheduling context
     const [
       preceptors,
@@ -382,7 +423,7 @@ export class ConfigurableSchedulingEngine {
       teams,
       studentOnboardingRecords,
     ] = await Promise.all([
-      this.db.selectFrom('preceptors').selectAll().execute(),
+      preceptorsQuery.execute(),
       this.db.selectFrom('blackout_dates').select('date').execute(),
       this.db.selectFrom('preceptor_availability').selectAll().execute(),
       this.db.selectFrom('health_systems').selectAll().execute(),
@@ -463,6 +504,9 @@ export class ConfigurableSchedulingEngine {
       enableFallbacks: boolean;
       maxRetries: number;
       bypassedConstraints: Set<string>;
+      scheduleId?: string;
+      credit?: Map<string, Map<string, number>>;
+      electiveCredit?: Map<string, Map<string, number>>;
     }
   ): Promise<void> {
     // Validate required IDs
@@ -508,10 +552,19 @@ export class ConfigurableSchedulingEngine {
         }
       }
 
-      // Step 2: Schedule non-elective days (if any remaining)
-      if (config.requiredDays > 0) {
-        console.log(`[Engine] Scheduling ${config.requiredDays} non-elective days for ${student.name} in ${clerkship.name}`);
-        await this.scheduleStudentNonElectiveDays(student, clerkship, config, options);
+      // Step 2: Schedule non-elective days (if any remaining after credit).
+      // Existing/past/locked days already satisfying this clerkship are credited
+      // (review finding F-01) so the engine only schedules what is still needed.
+      const nonElectiveCredit = options.credit?.get(student.id)?.get(clerkship.id) ?? 0;
+      const remainingNonElective = Math.max(0, config.requiredDays - nonElectiveCredit);
+      if (remainingNonElective > 0) {
+        console.log(`[Engine] Scheduling ${remainingNonElective} non-elective days for ${student.name} in ${clerkship.name} (credited ${nonElectiveCredit})`);
+        await this.scheduleStudentNonElectiveDays(
+          student,
+          clerkship,
+          { ...config, requiredDays: remainingNonElective },
+          options
+        );
       }
     } catch (error) {
       console.error(`[Engine] Error scheduling ${student.name} to ${clerkship.name}:`, error);
@@ -534,6 +587,9 @@ export class ConfigurableSchedulingEngine {
       enableFallbacks: boolean;
       maxRetries: number;
       bypassedConstraints: Set<string>;
+      scheduleId?: string;
+      credit?: Map<string, Map<string, number>>;
+      electiveCredit?: Map<string, Map<string, number>>;
     }
   ): Promise<void> {
     try {
@@ -543,6 +599,7 @@ export class ConfigurableSchedulingEngine {
         endDate: options.endDate,
         requirementType: config.requirementType,
         pendingAssignments: this.pendingAssignments,
+        scheduleId: options.scheduleId,
       });
 
       // Get dates already assigned to this student (to avoid conflicts with electives)
@@ -578,6 +635,11 @@ export class ConfigurableSchedulingEngine {
       // Process any assignments (even partial ones when success=false)
       const assignmentsToProcess = result.assignments || [];
 
+      // Only assignments that survive validation count as scheduled — a rejected
+      // batch must be reported as unmet, not silently counted (review finding F-06).
+      let acceptedDays = 0;
+      const rejectionReasons: string[] = [];
+
       if (assignmentsToProcess.length > 0) {
         // Validate assignments against constraints
         const validationResult = await this.validateAssignments(
@@ -597,18 +659,24 @@ export class ConfigurableSchedulingEngine {
               date: assignment.date,
             });
           });
-          console.log(`[Engine] Successfully assigned ${assignmentsToProcess.length} non-elective days for ${student.name} to ${clerkship.name}`);
+          acceptedDays = assignmentsToProcess.length;
+          console.log(`[Engine] Successfully assigned ${acceptedDays} non-elective days for ${student.name} to ${clerkship.name}`);
         } else {
-          // Record violations
+          // Record violations and surface them as the unmet reason
           validationResult.violations.forEach(violation => {
             this.resultBuilder.addViolation(violation);
+            if (violation.message) rejectionReasons.push(violation.message);
           });
         }
       }
 
-      // Record unmet requirement if we didn't meet the full requirement
-      if (!result.success || assignmentsToProcess.length < config.requiredDays) {
-        const assignedDays = assignmentsToProcess.length;
+      // Record unmet requirement from ACCEPTED days, not proposed ones.
+      if (acceptedDays < config.requiredDays) {
+        const uniqueReasons = [...new Set(rejectionReasons)];
+        const reason =
+          uniqueReasons.length > 0
+            ? `Rejected by constraints: ${uniqueReasons.join('; ')}`
+            : result.error || `Only ${acceptedDays} of ${config.requiredDays} days could be assigned`;
         this.resultBuilder.addUnmetRequirement({
           studentId: student.id!,
           studentName: student.name,
@@ -616,9 +684,9 @@ export class ConfigurableSchedulingEngine {
           clerkshipName: clerkship.name,
           requirementType: config.requirementType,
           requiredDays: config.requiredDays,
-          assignedDays,
-          remainingDays: config.requiredDays - assignedDays,
-          reason: result.error || `Only ${assignedDays} of ${config.requiredDays} days could be assigned`,
+          assignedDays: acceptedDays,
+          remainingDays: config.requiredDays - acceptedDays,
+          reason,
         });
       }
     } catch (error) {
@@ -653,6 +721,9 @@ export class ConfigurableSchedulingEngine {
       enableFallbacks: boolean;
       maxRetries: number;
       bypassedConstraints: Set<string>;
+      scheduleId?: string;
+      credit?: Map<string, Map<string, number>>;
+      electiveCredit?: Map<string, Map<string, number>>;
     }
   ): Promise<void> {
     if (!student.id || !clerkship.id || !elective.id) {
@@ -660,13 +731,21 @@ export class ConfigurableSchedulingEngine {
       return;
     }
 
-    try {
-      console.log(`[Engine] Scheduling elective "${elective.name}" (${elective.minimum_days} days) for ${student.name}`);
+    // Credit elective days already satisfied (review finding F-01); schedule only
+    // what remains. Nothing to do when the elective is already complete.
+    const electiveCreditDays = options.electiveCredit?.get(student.id)?.get(elective.id) ?? 0;
+    const remainingMin = Math.max(0, elective.minimum_days - electiveCreditDays);
+    if (remainingMin === 0) {
+      return;
+    }
 
-      // Create modified config with elective's minimum_days
+    try {
+      console.log(`[Engine] Scheduling elective "${elective.name}" (${remainingMin} of ${elective.minimum_days} days remaining) for ${student.name}`);
+
+      // Create modified config with the elective's remaining days
       const electiveConfig = {
         ...config,
-        requiredDays: elective.minimum_days,
+        requiredDays: remainingMin,
       };
 
       // Build strategy context (don't use its preceptor list, we'll build our own)
@@ -675,6 +754,7 @@ export class ConfigurableSchedulingEngine {
         endDate: options.endDate,
         requirementType: 'elective',
         pendingAssignments: this.pendingAssignments,
+        scheduleId: options.scheduleId,
       });
 
       // Get dates already assigned to this student (to avoid conflicts with other electives)
@@ -737,9 +817,9 @@ export class ConfigurableSchedulingEngine {
           clerkshipId: clerkship.id,
           clerkshipName: `${clerkship.name} - ${elective.name}`,
           requirementType: 'elective',
-          requiredDays: elective.minimum_days,
+          requiredDays: remainingMin,
           assignedDays: 0,
-          remainingDays: elective.minimum_days,
+          remainingDays: remainingMin,
           reason: `No available preceptors for elective "${elective.name}"`,
         });
         return;
@@ -754,9 +834,9 @@ export class ConfigurableSchedulingEngine {
           clerkshipId: clerkship.id,
           clerkshipName: `${clerkship.name} - ${elective.name}`,
           requirementType: 'elective',
-          requiredDays: elective.minimum_days,
+          requiredDays: remainingMin,
           assignedDays: 0,
-          remainingDays: elective.minimum_days,
+          remainingDays: remainingMin,
           reason: `No suitable strategy found for ${config.assignmentStrategy}`,
         });
         return;
@@ -766,6 +846,10 @@ export class ConfigurableSchedulingEngine {
 
       // Process any assignments (even partial ones when success=false)
       const assignmentsToProcess = result.assignments || [];
+
+      // Only validated assignments count (review finding F-06).
+      let acceptedDays = 0;
+      const rejectionReasons: string[] = [];
 
       if (assignmentsToProcess.length > 0) {
         // Add elective_id to all assignments
@@ -791,27 +875,33 @@ export class ConfigurableSchedulingEngine {
               date: assignment.date,
             });
           });
-          console.log(`[Engine] Successfully assigned ${electiveAssignments.length} days for "${elective.name}" to ${student.name}`);
+          acceptedDays = electiveAssignments.length;
+          console.log(`[Engine] Successfully assigned ${acceptedDays} days for "${elective.name}" to ${student.name}`);
         } else {
           validationResult.violations.forEach(violation => {
             this.resultBuilder.addViolation(violation);
+            if (violation.message) rejectionReasons.push(violation.message);
           });
         }
       }
 
-      // Record unmet requirement if we didn't meet the full requirement
-      if (!result.success || assignmentsToProcess.length < elective.minimum_days) {
-        const assignedDays = assignmentsToProcess.length;
+      // Record unmet requirement from ACCEPTED days.
+      if (acceptedDays < remainingMin) {
+        const uniqueReasons = [...new Set(rejectionReasons)];
+        const reason =
+          uniqueReasons.length > 0
+            ? `Rejected by constraints: ${uniqueReasons.join('; ')}`
+            : result.error || `Only ${acceptedDays} of ${remainingMin} elective days could be assigned`;
         this.resultBuilder.addUnmetRequirement({
           studentId: student.id,
           studentName: student.name,
           clerkshipId: clerkship.id,
           clerkshipName: `${clerkship.name} - ${elective.name}`,
           requirementType: 'elective',
-          requiredDays: elective.minimum_days,
-          assignedDays,
-          remainingDays: elective.minimum_days - assignedDays,
-          reason: result.error || `Only ${assignedDays} of ${elective.minimum_days} elective days could be assigned`,
+          requiredDays: remainingMin,
+          assignedDays: acceptedDays,
+          remainingDays: remainingMin - acceptedDays,
+          reason,
         });
       }
     } catch (error) {
@@ -924,56 +1014,36 @@ export class ConfigurableSchedulingEngine {
   }
 
   /**
-   * Commit assignments to database
+   * Commit assignments to database.
+   *
+   * Delegates to the single generated-assignment persistence path
+   * (`insertGeneratedAssignments`) so engine-committed rows and route-saved
+   * rows are stamped identically — `schedule_id`, resolved `site_id`,
+   * `elective_id`, `source='generated'` (review findings F-14 / P-10). Occupied
+   * (student, date) slots (locked / manual rows) are skipped.
    */
-  private async commitAssignments(assignments: any[]): Promise<void> {
+  private async commitAssignments(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assignments: any[],
+    scheduleId?: string
+  ): Promise<void> {
     if (assignments.length === 0) return;
 
-    const timestamp = new Date().toISOString();
+    const { inserted, skipped } = await insertGeneratedAssignments(
+      this.db,
+      scheduleId ?? null,
+      assignments.map((a) => ({
+        studentId: a.studentId,
+        preceptorId: a.preceptorId,
+        clerkshipId: a.clerkshipId,
+        date: a.date,
+        electiveId: a.electiveId ?? null,
+      }))
+    );
 
-    // Look up site_id for each assignment based on preceptor availability
-    const preceptorIds = [...new Set(assignments.map(a => a.preceptorId))];
-    const dates = [...new Set(assignments.map(a => a.date))];
-
-    const availabilityRecords = await this.db
-      .selectFrom('preceptor_availability')
-      .select(['preceptor_id', 'date', 'site_id'])
-      .where('preceptor_id', 'in', preceptorIds)
-      .where('date', 'in', dates)
-      .where('is_available', '=', 1)
-      .execute();
-
-    // Create lookup map: preceptorId-date -> site_id
-    const siteIdLookup = new Map<string, string | null>();
-    for (const record of availabilityRecords) {
-      const key = `${record.preceptor_id}-${record.date}`;
-      siteIdLookup.set(key, record.site_id);
-    }
-
-    const values = assignments.map(assignment => {
-      const key = `${assignment.preceptorId}-${assignment.date}`;
-      const siteId = siteIdLookup.get(key) || null;
-
-      return {
-        id: nanoid(),
-        student_id: assignment.studentId,
-        preceptor_id: assignment.preceptorId,
-        clerkship_id: assignment.clerkshipId,
-        elective_id: assignment.electiveId || null,
-        site_id: siteId,
-        date: assignment.date,
-        status: 'scheduled',
-        created_at: timestamp,
-      };
-    });
-
-    // Bulk insert for efficiency
-    await this.db
-      .insertInto('schedule_assignments')
-      .values(values)
-      .execute();
-
-    console.log(`[Engine] Committed ${assignments.length} assignments to database`);
+    console.log(
+      `[Engine] Committed ${inserted.length} assignments to database (${skipped.length} slots already occupied)`
+    );
   }
 
   /**

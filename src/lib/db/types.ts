@@ -274,6 +274,7 @@ export interface ScheduleAssignments {
   override_codes: Generated<string>;
   override_note: string | null;
   preceptor_id: string;
+  schedule_id: string | null;
   site_id: string | null;
   source: Generated<string>;
   status: Generated<string>;

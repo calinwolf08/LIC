@@ -1,7 +1,7 @@
 /**
  * Schedules API - Collection Endpoints
  *
- * DELETE /api/schedules - Clear all assignments (with optional date filter)
+ * DELETE /api/schedules - Clear the active schedule's assignments (regeneration).
  */
 
 import type { RequestHandler } from './$types';
@@ -9,52 +9,49 @@ import { db } from '$lib/db';
 import { successResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { clearAllAssignments } from '$lib/features/schedules/services/editing-service.js';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
+import { requireAutogen } from '$lib/server/entitlements';
+import { getTodayUTC } from '$lib/features/scheduling/utils/date-utils';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('api:schedules');
 
 /**
  * DELETE /api/schedules
- * Clears schedule assignments (for regeneration)
+ * Clears the caller's active-schedule assignments (used by the Stage 2
+ * "Full regeneration" flow). Gated by `requireAutogen` and scoped to the
+ * active schedule — a Stage 1 user could previously wipe every tenant's
+ * unlocked assignments (review finding F-04). Locked rows are always kept.
  *
  * Query parameters:
- * - fromDate (optional): Only clear assignments from this date forward (YYYY-MM-DD)
- *   If not provided, defaults to today (preserves past assignments)
- * - clearAll (optional): Set to 'true' to clear ALL assignments including past ones
- *
- * Examples:
- * - DELETE /api/schedules?fromDate=2025-12-01  (clear from Dec 1 onwards)
- * - DELETE /api/schedules?clearAll=true         (clear everything)
- * - DELETE /api/schedules                       (clear from today onwards)
+ * - fromDate (optional): only clear assignments on or after this date (YYYY-MM-DD).
+ *   Default: today (preserves past assignments).
+ * - clearAll (optional): 'true' to clear all dates including the past.
  */
-export const DELETE: RequestHandler = async ({ url }) => {
+export const DELETE: RequestHandler = async ({ url, locals }) => {
+	requireAutogen(locals);
+	const scheduleId = await requireActiveScheduleId(locals);
+
 	const clearAll = url.searchParams.get('clearAll') === 'true';
 	const fromDate = url.searchParams.get('fromDate');
 
-	log.debug('Clearing assignments', { clearAll, fromDate });
+	log.debug('Clearing assignments', { scheduleId, clearAll, fromDate });
 
 	try {
 		let dateFilter: string | undefined;
 
 		if (clearAll) {
-			// Clear everything - no date filter
 			dateFilter = undefined;
-			log.info('Clearing all assignments (no date filter)');
 		} else if (fromDate) {
-			// Clear from specified date
 			dateFilter = fromDate;
-			log.info('Clearing assignments from specified date', { fromDate });
 		} else {
-			// Default: clear from today onwards (preserve past)
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			dateFilter = today.toISOString().split('T')[0];
-			log.info('Clearing assignments from today onwards', { fromDate: dateFilter });
+			dateFilter = getTodayUTC();
 		}
 
-		const deletedCount = await clearAllAssignments(db, dateFilter);
+		const deletedCount = await clearAllAssignments(db, scheduleId, dateFilter);
 
 		log.info('Assignments cleared', {
+			scheduleId,
 			deletedCount,
 			fromDate: dateFilter || 'all',
 			preservedPast: !clearAll && !!dateFilter
@@ -66,7 +63,7 @@ export const DELETE: RequestHandler = async ({ url }) => {
 			preserved_past: !clearAll && !!dateFilter
 		});
 	} catch (error) {
-		log.error('Failed to clear assignments', { clearAll, fromDate, error });
+		log.error('Failed to clear assignments', { scheduleId, clearAll, fromDate, error });
 		return handleApiError(error);
 	}
 };

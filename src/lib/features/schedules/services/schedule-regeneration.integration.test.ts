@@ -109,6 +109,7 @@ async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text')
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
@@ -384,7 +385,11 @@ describe('Schedule Regeneration Integration Tests', () => {
 			today.setHours(0, 0, 0, 0);
 			const todayString = today.toISOString().split('T')[0];
 
-			const deletedCount = await clearAllAssignments(db, todayString);
+			// Scope the clear to a single schedule (editing-service now requires it).
+			const regenSchedule = 'regen-sched-1';
+			await db.updateTable('schedule_assignments').set({ schedule_id: regenSchedule }).execute();
+
+			const deletedCount = await clearAllAssignments(db, regenSchedule, todayString);
 			expect(deletedCount).toBe(2); // Only future assignments deleted
 
 			// Verify past assignments still exist
@@ -1333,8 +1338,10 @@ describe('Schedule Regeneration Integration Tests', () => {
 			const initialAssignments = await getAssignments(db);
 			expect(initialAssignments).toHaveLength(3);
 
-			// Clear from futureDate1 onwards
-			const deletedCount = await clearAllAssignments(db, futureDate1);
+			// Clear from futureDate1 onwards, scoped to a single schedule.
+			const regenSchedule = 'regen-sched-2';
+			await db.updateTable('schedule_assignments').set({ schedule_id: regenSchedule }).execute();
+			const deletedCount = await clearAllAssignments(db, regenSchedule, futureDate1);
 			expect(deletedCount).toBe(2); // Only futureDate1 and futureDate2
 
 			// Verify past assignment preserved

@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 
 import * as generate from './schedules/generate/+server';
-import * as execute from './scheduling/execute/+server';
+import * as schedulesCollection from './schedules/+server';
 import * as capacityRules from './scheduling-config/capacity-rules/+server';
 import * as fallbacks from './scheduling-config/fallbacks/+server';
 import * as globalInpatient from './scheduling-config/global-defaults/inpatient/+server';
@@ -43,7 +43,7 @@ async function expect403(fn: () => unknown | Promise<unknown>) {
 
 describe('Stage 2 gating (non-entitled user → 403)', () => {
 	it('POST /api/schedules/generate', () => expect403(() => generate.POST(event())));
-	it('POST /api/scheduling/execute', () => expect403(() => execute.POST(event())));
+	it('DELETE /api/schedules', () => expect403(() => schedulesCollection.DELETE(event())));
 	it('POST /api/scheduling-config/capacity-rules', () =>
 		expect403(() => capacityRules.POST(event())));
 	it('POST /api/scheduling-config/fallbacks', () => expect403(() => fallbacks.POST(event())));

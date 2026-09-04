@@ -182,7 +182,13 @@ export class CapacityChecker {
       };
     }
 
-    // Default from preceptors table
+    // Default from the preceptors table. One capacity model (review finding
+    // F-07): `preceptors.max_students` is the PER-DAY limit — the same number
+    // Stage 1 warns against — and there is NO yearly cap unless an explicit
+    // `preceptor_capacity_rules` row sets one. The previous default treated
+    // `max_students` as a yearly cap, so a single existing assignment in the
+    // calendar year (with the Stage 1 default of 1) made the engine reject
+    // every further day for that preceptor.
     const preceptor = await this.db
       .selectFrom('preceptors')
       .select('max_students')
@@ -190,8 +196,8 @@ export class CapacityChecker {
       .executeTakeFirst();
 
     return {
-      maxStudentsPerDay: 2, // Default
-      maxStudentsPerYear: preceptor?.max_students || 20, // Default
+      maxStudentsPerDay: preceptor?.max_students ?? 1,
+      maxStudentsPerYear: Number.MAX_SAFE_INTEGER, // unlimited without a rule
       source: 'default',
     };
   }

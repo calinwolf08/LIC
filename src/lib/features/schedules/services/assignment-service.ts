@@ -102,6 +102,7 @@ export async function createManualAssignment(
 		.insertInto('schedule_assignments')
 		.values({
 			id: crypto.randomUUID(),
+			schedule_id: scheduleId,
 			student_id: input.student_id,
 			preceptor_id: input.preceptor_id,
 			clerkship_id: input.clerkship_id,
@@ -786,7 +787,8 @@ export async function deleteAssignment(
  */
 export async function bulkCreateAssignments(
 	db: Kysely<DB>,
-	data: BulkAssignmentInput
+	data: BulkAssignmentInput,
+	scheduleId?: string
 ): Promise<Selectable<ScheduleAssignments>[]> {
 	log.debug('Bulk creating assignments', {
 		assignmentCount: data.assignments.length
@@ -834,6 +836,7 @@ export async function bulkCreateAssignments(
 	const timestamp = new Date().toISOString();
 	const assignments = dedupedAssignments.map((assignment) => ({
 		id: crypto.randomUUID(),
+		schedule_id: scheduleId ?? null,
 		student_id: assignment.student_id,
 		preceptor_id: assignment.preceptor_id,
 		clerkship_id: assignment.clerkship_id,
@@ -857,6 +860,134 @@ export async function bulkCreateAssignments(
 	});
 
 	return inserted;
+}
+
+/**
+ * A single generated assignment as the engine produces it. `siteId` is optional
+ * — when absent it is resolved from the preceptor's availability for that date,
+ * so generated rows carry a site exactly like manual ones (review finding
+ * F-14). `electiveId` ties the day to the elective it satisfies (P-01).
+ */
+export interface GeneratedAssignmentInput {
+	studentId: string;
+	preceptorId: string;
+	clerkshipId: string;
+	date: string;
+	electiveId?: string | null;
+	siteId?: string | null;
+}
+
+/**
+ * The single persistence path for engine output (review recommendation
+ * `03 §2.4`, `08 §P-10`). Both the API route and the engine's own commit go
+ * through here, so every generated row is stamped identically:
+ * `schedule_id`, resolved `site_id`, `elective_id`, `source='generated'`.
+ *
+ * Behaviour that must hold for manual/generated interop:
+ * - De-duplicates by (student, date).
+ * - Skips any (student, date) slot already occupied in the database — this is
+ *   how locked and manually created rows survive a generation run. Skipped
+ *   candidates are returned separately so the caller can report them (P-09)
+ *   rather than dropping them silently.
+ *
+ * @returns the inserted rows plus the candidates skipped because their slot was
+ *          already taken.
+ */
+export async function insertGeneratedAssignments(
+	db: Kysely<DB>,
+	scheduleId: string | null,
+	assignments: GeneratedAssignmentInput[]
+): Promise<{
+	inserted: Selectable<ScheduleAssignments>[];
+	skipped: GeneratedAssignmentInput[];
+}> {
+	if (assignments.length === 0) {
+		return { inserted: [], skipped: [] };
+	}
+
+	// De-duplicate by (student, date) — a student is one place per day.
+	const byKey = new Map<string, GeneratedAssignmentInput>();
+	for (const a of assignments) {
+		byKey.set(`${a.studentId}:${a.date}`, a);
+	}
+	const deduped = [...byKey.values()];
+
+	// Skip slots already occupied (locked / manual / earlier rows). Reported, not
+	// dropped silently.
+	const studentIds = [...new Set(deduped.map((a) => a.studentId))];
+	const existing =
+		studentIds.length > 0
+			? await db
+					.selectFrom('schedule_assignments')
+					.select(['student_id', 'date'])
+					.where('student_id', 'in', studentIds)
+					.execute()
+			: [];
+	const taken = new Set(existing.map((e) => `${e.student_id}:${e.date}`));
+
+	const toInsert: GeneratedAssignmentInput[] = [];
+	const skipped: GeneratedAssignmentInput[] = [];
+	for (const a of deduped) {
+		if (taken.has(`${a.studentId}:${a.date}`)) skipped.push(a);
+		else toInsert.push(a);
+	}
+
+	if (toInsert.length === 0) {
+		log.info('Generated insert: all candidate slots already occupied', {
+			skipped: skipped.length
+		});
+		return { inserted: [], skipped };
+	}
+
+	// Resolve site_id from availability for any row that did not carry one.
+	const needSite = toInsert.filter((a) => !a.siteId);
+	const siteLookup = new Map<string, string | null>();
+	if (needSite.length > 0) {
+		const preceptorIds = [...new Set(needSite.map((a) => a.preceptorId))];
+		const dates = [...new Set(needSite.map((a) => a.date))];
+		const availability = await db
+			.selectFrom('preceptor_availability')
+			.select(['preceptor_id', 'date', 'site_id'])
+			.where('preceptor_id', 'in', preceptorIds)
+			.where('date', 'in', dates)
+			.where('is_available', '=', 1)
+			.execute();
+		for (const row of availability) {
+			siteLookup.set(`${row.preceptor_id}:${row.date}`, row.site_id);
+		}
+	}
+
+	const timestamp = new Date().toISOString();
+	const rows = toInsert.map((a) => ({
+		id: crypto.randomUUID(),
+		schedule_id: scheduleId,
+		student_id: a.studentId,
+		preceptor_id: a.preceptorId,
+		clerkship_id: a.clerkshipId,
+		elective_id: a.electiveId ?? null,
+		site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
+		date: a.date,
+		status: 'scheduled',
+		source: 'generated',
+		locked: 0,
+		override_codes: '[]',
+		created_at: timestamp,
+		updated_at: timestamp
+	}));
+
+	const inserted = await db
+		.insertInto('schedule_assignments')
+		.values(rows)
+		.returningAll()
+		.execute();
+
+	log.info('Generated assignments inserted', {
+		candidates: assignments.length,
+		inserted: inserted.length,
+		skipped: skipped.length
+	});
+
+	return { inserted, skipped };
 }
 
 /**

@@ -41,6 +41,8 @@ export class StrategyContextBuilder {
       endDate?: string;
       requirementType?: 'outpatient' | 'inpatient' | 'elective';
       pendingAssignments?: PendingAssignment[];
+      /** When set, preceptors are limited to this schedule's members (F-02). */
+      scheduleId?: string;
     } = {}
   ): Promise<StrategyContext> {
     if (!clerkship.id) {
@@ -63,7 +65,8 @@ export class StrategyContextBuilder {
       config,
       availableDates,
       options.requirementType,
-      pendingAssignments
+      pendingAssignments,
+      options.scheduleId
     );
 
     // Build daily assignment counts per preceptor (includes both DB and pending)
@@ -203,7 +206,8 @@ export class StrategyContextBuilder {
     config: ResolvedRequirementConfiguration,
     availableDates: string[],
     requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
-    pendingAssignments: PendingAssignment[]
+    pendingAssignments: PendingAssignment[],
+    scheduleId?: string
   ): Promise<StrategyContext['availablePreceptors']> {
     // Get preceptors who are members of teams for this clerkship
     // Team membership is the authoritative source for clerkship associations
@@ -215,6 +219,21 @@ export class StrategyContextBuilder {
       .execute();
 
     const validPreceptorIds = new Set(teamMemberPreceptorIds.map(r => r.preceptor_id));
+
+    // Tenant scope (review finding F-02): a preceptor must also belong to this
+    // schedule. Without a scheduleId (direct engine callers / tests) the set is
+    // unchanged, preserving the pre-scoping behaviour.
+    if (scheduleId) {
+      const scheduleMembers = await this.db
+        .selectFrom('schedule_preceptors')
+        .select('preceptor_id')
+        .where('schedule_id', '=', scheduleId)
+        .execute();
+      const memberSet = new Set(scheduleMembers.map(r => r.preceptor_id));
+      for (const id of [...validPreceptorIds]) {
+        if (!memberSet.has(id)) validPreceptorIds.delete(id);
+      }
+    }
 
     let preceptors: Selectable<Preceptors>[] = [];
     if (validPreceptorIds.size > 0) {

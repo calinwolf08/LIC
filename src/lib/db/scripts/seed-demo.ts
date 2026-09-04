@@ -105,8 +105,14 @@ async function ensureOnboarded(
  */
 export async function seedAdminAssignments(db: Kysely<DB>, refs: AdminSeedRefs) {
 	console.log('\nSeeding admin assignments (demo scenario)...');
-	const { scheduleId, studentIds, preceptorIds, clerkshipIds, healthSystemIds, timestamp: ts } =
-		refs;
+	const {
+		scheduleId,
+		studentIds,
+		preceptorIds,
+		clerkshipIds,
+		healthSystemIds,
+		timestamp: ts
+	} = refs;
 
 	// Idempotency: the marker preceptor only exists once the scenario is seeded.
 	const marker = await db
@@ -137,6 +143,7 @@ export async function seedAdminAssignments(db: Kysely<DB>, refs: AdminSeedRefs) 
 			.insertInto('schedule_assignments')
 			.values({
 				id: nanoid(),
+				schedule_id: scheduleId,
 				student_id: a.studentId,
 				preceptor_id: a.preceptorId,
 				clerkship_id: a.clerkshipId,

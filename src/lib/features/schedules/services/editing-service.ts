@@ -302,14 +302,29 @@ export async function bulkReassign(
 }
 
 /**
- * Clear all assignments (for regeneration)
- * @param fromDate Optional: Only clear assignments from this date forward (preserves past assignments)
+ * Clear assignments for one schedule (for regeneration).
+ *
+ * Scoped to `scheduleId` (review finding F-02/F-04): a generation or "clear"
+ * action must never touch another schedule's rows — not even another of the
+ * same user's schedules that shares a student. Deletion is by the explicit
+ * `schedule_id` column (migration 100), which every write path now sets.
+ *
+ * @param scheduleId The schedule whose assignments to clear.
+ * @param fromDate Optional: only clear assignments on or after this date
+ *   (preserves past assignments). Locked assignments are always preserved.
  */
-export async function clearAllAssignments(db: Kysely<DB>, fromDate?: string): Promise<number> {
-	log.debug('Clearing assignments', { fromDate: fromDate || 'all' });
+export async function clearAllAssignments(
+	db: Kysely<DB>,
+	scheduleId: string,
+	fromDate?: string
+): Promise<number> {
+	log.debug('Clearing assignments', { scheduleId, fromDate: fromDate || 'all' });
 
 	// Locked (preset) assignments are always preserved by auto-generation.
-	let query = db.deleteFrom('schedule_assignments').where('locked', '=', 0);
+	let query = db
+		.deleteFrom('schedule_assignments')
+		.where('schedule_id', '=', scheduleId)
+		.where('locked', '=', 0);
 
 	if (fromDate) {
 		query = query.where('date', '>=', fromDate);
@@ -319,6 +334,7 @@ export async function clearAllAssignments(db: Kysely<DB>, fromDate?: string): Pr
 	const deletedCount = Number(result.numDeletedRows || 0);
 
 	log.info('Assignments cleared', {
+		scheduleId,
 		fromDate: fromDate || 'all',
 		deletedCount
 	});

@@ -4,174 +4,86 @@ import { successResponse, errorResponse, validationErrorResponse } from '$lib/ap
 import { generateScheduleSchema } from '$lib/features/scheduling/schemas';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
-import type { OptionalContextData } from '$lib/features/scheduling/services/context-builder';
-import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
-import {
-	prepareRegenerationContext,
-	analyzeRegenerationImpact
-} from '$lib/features/scheduling/services/regeneration-service';
+import { analyzeRegenerationImpact } from '$lib/features/scheduling/services/regeneration-service';
 import type { RegenerationStrategy } from '$lib/features/scheduling/services/regeneration-service';
 import {
 	logRegenerationEvent,
 	createRegenerationAuditLog
 } from '$lib/features/scheduling/services/audit-service';
-import { bulkCreateAssignments } from '$lib/features/schedules/services/assignment-service';
+import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
 import {
-	getActiveSchedulingPeriod,
-	getOverlappingPeriods,
-	createSchedulingPeriod,
-	activateSchedulingPeriod
-} from '$lib/features/scheduling/services/scheduling-period-service';
-import { getActiveScheduleForUser } from '$lib/api/schedule-context';
+	insertGeneratedAssignments,
+	type GeneratedAssignmentInput
+} from '$lib/features/schedules/services/assignment-service';
+import { requireActiveScheduleId, getScheduleRange } from '$lib/api/schedule-context';
+import { getTodayUTC } from '$lib/features/scheduling/utils/date-utils';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { requireAutogen } from '$lib/server/entitlements';
+import type { Kysely } from 'kysely';
+import type { DB } from '$lib/db/types';
 import { ZodError } from 'zod';
 
 const log = createServerLogger('api:schedules-generate');
 
 /**
- * POST /api/schedules/generate
+ * POST /api/schedules/generate — auto-generate the active schedule (Stage 2).
  *
- * Generate a complete schedule for all students using the ConfigurableSchedulingEngine.
- * The engine uses configuration-driven scheduling with support for multiple strategies:
- * - continuous_single (default): One preceptor for entire clerkship
- * - team_continuity: Primary preceptor + team fallback
- * - block_based: Fixed-size blocks with same preceptor
- * - daily_rotation: Different preceptor each day
+ * Scope (review Phase 0): the run is confined to the caller's active schedule.
+ * Students, clerkships and preceptors come from the `schedule_*` junctions;
+ * deletion and every generated row are scoped to the schedule id; the requested
+ * date range must lie inside the schedule's own range. Existing/past/locked days
+ * are credited toward requirements instead of being re-scheduled.
  *
- * Request body:
- * {
- *   startDate: string (YYYY-MM-DD)
- *   endDate: string (YYYY-MM-DD)
- *   regenerateFromDate?: string (YYYY-MM-DD) - Optional: Only regenerate from this date forward
- *   strategy?: 'full-reoptimize' | 'minimal-change' - Optional: Regeneration strategy (default: full-reoptimize)
- *   preview?: boolean - Optional: If true, returns impact analysis without making changes
- *   bypassedConstraints?: string[] (optional)
- * }
- *
- * Response:
- * {
- *   success: boolean,
- *   data: {
- *     assignments: Assignment[],
- *     success: boolean,
- *     unmetRequirements: UnmetRequirement[],
- *     violations: Violation[],
- *     summary: {
- *       totalAssignments: number,
- *       totalViolations: number,
- *       strategiesUsed: string[]
- *     },
- *     regeneratedFrom?: string,
- *     strategy: string,
- *     preservedPastAssignments: boolean,
- *     preservedFutureAssignments: number,
- *     deletedFutureAssignments: number,
- *     totalPastAssignments: number
- *   }
- * }
+ * Strategies: `full-reoptimize` (default) and `minimal-change` clear unlocked
+ * future assignments from the cutoff and regenerate; `completion` keeps every
+ * existing assignment and only fills remaining gaps.
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	requireAutogen(locals);
-	log.info('Schedule generation request received');
+	const scheduleId = await requireActiveScheduleId(locals);
+	log.info('Schedule generation request received', { scheduleId });
 
 	try {
-		// Parse and validate request body
 		const body = await request.json();
 		const validatedData = generateScheduleSchema.parse(body);
 
-		log.debug('Request validated', {
-			startDate: validatedData.startDate,
-			endDate: validatedData.endDate,
-			regenerateFromDate: validatedData.regenerateFromDate,
-			strategy: validatedData.strategy,
-			preview: validatedData.preview
-		});
+		// The requested range must fall within the active schedule's own range —
+		// generation never places days outside the schedule it belongs to.
+		const range = await getScheduleRange(db, scheduleId);
+		if (validatedData.startDate < range.start || validatedData.endDate > range.end) {
+			return errorResponse(
+				`Requested range ${validatedData.startDate}–${validatedData.endDate} is outside the schedule range ${range.start}–${range.end}`,
+				400
+			);
+		}
 
-		// Determine regeneration date (defaults to today if not provided)
-		const regenerateFromDate =
-			validatedData.regenerateFromDate ||
-			(() => {
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-				return today.toISOString().split('T')[0];
-			})();
-
-		// Get regeneration strategy
+		const regenerateFromDate = validatedData.regenerateFromDate || getTodayUTC();
 		const strategy: RegenerationStrategy = validatedData.strategy || 'full-reoptimize';
-
-		// Check if this is a preview (dry-run) request
 		const isPreview = validatedData.preview || false;
+		const bypassedConstraints = validatedData.bypassedConstraints || [];
 
-		log.debug('Fetching scheduling data', { isPreview });
-
-		// Fetch required data for preview/context building
-		const [
-			students,
-			preceptors,
-			clerkships,
-			healthSystems,
-			teams,
-			studentOnboarding,
-			electiveSites,
-			clerkshipSites
-		] = await Promise.all([
-			db.selectFrom('students').selectAll().execute(),
-			db.selectFrom('preceptors').selectAll().execute(),
-			db.selectFrom('clerkships').selectAll().execute(),
-			db.selectFrom('health_systems').selectAll().execute(),
-			db.selectFrom('teams').selectAll().execute(),
-			db
-				.selectFrom('student_health_system_onboarding')
-				.select(['student_id', 'health_system_id', 'is_completed'])
-				.execute(),
-			db.selectFrom('elective_sites').select(['elective_id', 'site_id']).execute(),
-			db.selectFrom('clerkship_sites').select(['clerkship_id', 'site_id']).execute()
+		// Entities in this schedule (the only ones the engine may touch).
+		const [studentIds, clerkshipIds] = await Promise.all([
+			scheduleStudentIds(db, scheduleId),
+			scheduleClerkshipIds(db, scheduleId)
 		]);
 
-		// Get blackout dates separately
-		const blackoutDates = await db
-			.selectFrom('blackout_dates')
-			.select('date')
-			.execute()
-			.then((rows) => rows.map((r) => r.date));
-
-		// Get availability records
-		const availabilityRecords = await db.selectFrom('preceptor_availability').selectAll().execute();
-
-		// Build optional context data for legacy context building (used by preview)
-		const optionalData: OptionalContextData = {
-			healthSystems,
-			teams,
-			studentOnboarding,
-			electiveSites,
-			clerkshipSites
-		};
-
-		log.info('Data loaded', {
-			studentCount: students.length,
-			preceptorCount: preceptors.length,
-			clerkshipCount: clerkships.length,
-			blackoutDateCount: blackoutDates.length
+		log.info('Scope resolved', {
+			scheduleId,
+			studentCount: studentIds.length,
+			clerkshipCount: clerkshipIds.length
 		});
 
-		// Build scheduling context for preview mode
-		log.debug('Building scheduling context');
-		const legacyContext = buildSchedulingContext(
-			students,
-			preceptors,
-			clerkships,
-			blackoutDates,
-			availabilityRecords,
-			validatedData.startDate,
-			validatedData.endDate,
-			optionalData
-		);
-
-		// If preview mode, analyze impact and return without making changes
+		// ---- Preview: analyse impact, write nothing --------------------------
 		if (isPreview) {
-			log.info('Running preview analysis', { regenerateFromDate });
-
+			const legacyContext = await buildScopedContext(
+				db,
+				scheduleId,
+				studentIds,
+				clerkshipIds,
+				validatedData.startDate,
+				validatedData.endDate
+			);
 			const impact = await analyzeRegenerationImpact(
 				db,
 				legacyContext,
@@ -179,13 +91,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				validatedData.endDate,
 				strategy
 			);
-
-			log.info('Preview analysis complete', {
-				pastAssignments: impact.pastAssignmentsCount,
-				toDelete: impact.deletedCount,
-				toPreserve: impact.preservedCount
-			});
-
 			return successResponse({
 				preview: true,
 				impact: {
@@ -208,317 +113,147 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						replaceableCount: impact.replaceableAssignments.filter((r) => r.replacementPreceptorId)
 							.length
 					},
-					studentProgress: impact.studentProgress,
-					affectedAssignments: impact.affectedAssignments.map((a) => ({
-						id: a.id,
-						studentId: a.student_id,
-						preceptorId: a.preceptor_id,
-						clerkshipId: a.clerkship_id,
-						date: a.date
-					})),
-					replaceableAssignments: impact.replaceableAssignments
-						.filter((r) => r.replacementPreceptorId)
-						.map((r) => ({
-							originalAssignmentId: r.original.id,
-							originalPreceptorId: r.original.preceptor_id,
-							replacementPreceptorId: r.replacementPreceptorId,
-							studentId: r.original.student_id,
-							date: r.original.date
-						}))
+					studentProgress: impact.studentProgress
 				}
 			});
 		}
 
-		// Handle completion mode separately (no deletion, preserve all existing)
+		const engine = new ConfigurableSchedulingEngine(db);
+
+		// ---- Completion: keep everything, only fill gaps ---------------------
 		if (strategy === 'completion') {
-			log.info('Using completion-only strategy - preserving all existing assignments');
+			const creditBefore = await computeCredit(db, scheduleId);
 
-			// Prepare completion context (loads all existing, identifies gaps)
-			const { prepareCompletionContext } = await import(
-				'$lib/features/scheduling/services/regeneration-service'
-			);
-			const completionResult = await prepareCompletionContext(
-				db,
-				legacyContext,
-				validatedData.startDate,
-				validatedData.endDate
-			);
-
-			if (completionResult.studentsWithUnmetRequirements.length === 0) {
-				log.info('All students have complete schedules - nothing to generate');
-				return successResponse({
-					assignments: [],
-					success: true,
-					unmetRequirements: [],
-					violations: [],
-					summary: {
-						totalAssignments: 0,
-						totalViolations: 0,
-						strategiesUsed: []
-					},
-					strategy: 'completion',
-					existingAssignmentsPreserved: completionResult.totalExistingAssignments,
-					newAssignmentsGenerated: 0,
-					message: 'All students already have complete schedules. No gaps to fill.'
-				});
-			}
-
-			// Get IDs for scheduling
-			const studentIds = students.map((s) => s.id!).filter(Boolean);
-			const clerkshipIds = clerkships.map((c) => c.id!).filter(Boolean);
-
-			log.info('Starting scheduling engine for completion mode', {
-				existingAssignments: completionResult.totalExistingAssignments,
-				studentsWithGaps: completionResult.studentsWithUnmetRequirements.length,
-				bypassedConstraints: validatedData.bypassedConstraints
-			});
-
-			// Run engine with bypassed constraints
-			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, clerkshipIds, {
 				startDate: validatedData.startDate,
 				endDate: validatedData.endDate,
-				dryRun: true, // We handle saving externally
-				bypassedConstraints: validatedData.bypassedConstraints || []
+				scheduleId,
+				credit: creditBefore.credit,
+				electiveCredit: creditBefore.electiveCredit,
+				enableFallbacks: true,
+				dryRun: true,
+				bypassedConstraints
 			});
 
-			// Filter: only keep NEW assignments (not the preserved ones)
-			// Engine returns all assignments including preserved ones
-			const existingSet = new Set(
-				legacyContext.assignments.map((a) => `${a.studentId}-${a.date}-${a.clerkshipId}`)
+			const { inserted, skipped } = await insertGeneratedAssignments(
+				db,
+				scheduleId,
+				toGeneratedRows(result.assignments)
 			);
+			const studentsCompleted = new Set(inserted.map((a) => a.student_id)).size;
 
-			const newAssignmentsOnly = result.assignments.filter(
-				(a: { studentId: string; date: string; clerkshipId: string }) =>
-					!existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
-			);
-
-			log.info('Completion generation complete', {
-				totalAssignmentsFromEngine: result.assignments.length,
-				existingPreserved: completionResult.totalExistingAssignments,
-				newGenerated: newAssignmentsOnly.length
-			});
-
-			// Save ONLY new assignments
-			let savedAssignments: Array<{
-				id: string | null;
-				student_id: string;
-				preceptor_id: string;
-				clerkship_id: string;
-				date: string;
-				status: string;
-				created_at: string;
-				updated_at: string;
-				site_id: string | null;
-				elective_id: string | null;
-			}> = [];
-			if (newAssignmentsOnly.length > 0) {
-				const assignmentsToSave = newAssignmentsOnly.map((assignment) => ({
-					student_id: assignment.studentId,
-					preceptor_id: assignment.preceptorId,
-					clerkship_id: assignment.clerkshipId,
-					date: assignment.date,
-					status: 'scheduled'
-				}));
-				savedAssignments = await bulkCreateAssignments(db, { assignments: assignmentsToSave });
-			}
-
-			// Create audit log
 			await logRegenerationEvent(db, {
 				strategy: 'completion',
 				regenerateFromDate: validatedData.startDate,
 				endDate: validatedData.endDate,
-				pastAssignmentsCount: completionResult.totalExistingAssignments,
+				pastAssignmentsCount: creditBefore.totalExisting,
 				futureAssignmentsDeleted: 0,
-				futureAssignmentsPreserved: completionResult.totalExistingAssignments,
+				futureAssignmentsPreserved: creditBefore.totalExisting,
 				affectedAssignments: 0,
-				newAssignmentsGenerated: newAssignmentsOnly.length,
-				success: true,
+				newAssignmentsGenerated: inserted.length,
+				success: result.success,
 				reason: 'api_request',
-				notes: `Completion mode: preserved ${completionResult.totalExistingAssignments} existing assignments, generated ${newAssignmentsOnly.length} new assignments. Bypassed constraints: ${validatedData.bypassedConstraints?.join(', ') || 'none'}`
+				userId: locals.session?.user?.id,
+				notes: `Completion: preserved ${creditBefore.totalExisting}, generated ${inserted.length}, skipped ${skipped.length}. Bypassed: ${bypassedConstraints.join(', ') || 'none'}`
 			});
 
-			log.info('Completion mode finished successfully');
-
 			return successResponse({
-				assignments: savedAssignments,
+				assignments: inserted,
 				success: result.success,
 				unmetRequirements: result.unmetRequirements,
 				violations: result.violations,
-				statistics: result.statistics,
+				summary: {
+					totalAssignments: inserted.length,
+					totalViolations: result.violations.length,
+					unmetRequirementsCount: result.unmetRequirements.length
+				},
 				strategy: 'completion',
-				existingAssignmentsPreserved: completionResult.totalExistingAssignments,
-				newAssignmentsGenerated: newAssignmentsOnly.length,
-				studentsCompleted: completionResult.studentsWithUnmetRequirements.length,
-				bypassedConstraints: validatedData.bypassedConstraints,
-				message: `Generated ${newAssignmentsOnly.length} new assignments to complete ${completionResult.studentsWithUnmetRequirements.length} students. ${completionResult.totalExistingAssignments} existing assignments preserved.`
+				schedulingPeriodId: scheduleId,
+				existingAssignmentsPreserved: creditBefore.totalExisting,
+				newAssignmentsGenerated: inserted.length,
+				studentsCompleted,
+				skippedExistingSlots: skipped.length,
+				bypassedConstraints,
+				message: `Generated ${inserted.length} new assignments. ${creditBefore.totalExisting} existing assignments preserved${skipped.length > 0 ? `; ${skipped.length} slots left to existing assignments` : ''}.`
 			});
 		}
 
-		// Clear future assignments (preserving past assignments before regenerateFromDate)
-		log.info('Clearing future assignments', { regenerateFromDate });
-		const deletedCount = await clearAllAssignments(db, regenerateFromDate);
-		log.info('Future assignments cleared', { deletedCount });
+		// ---- Full / minimal-change: clear unlocked future, then regenerate ---
+		// (Phase 0 treats both the same at the engine level; the "minimal-change"
+		//  preservation path is disabled in the UI until Phase 2.)
+		const deletedCount = await clearAllAssignments(db, scheduleId, regenerateFromDate);
 
-		// Prepare context for regeneration (credit past assignments, apply strategy)
-		log.debug('Preparing regeneration context', { strategy });
-		const regenerationResult = await prepareRegenerationContext(
-			db,
-			legacyContext,
-			regenerateFromDate,
-			validatedData.endDate,
-			strategy
-		);
+		// Credit whatever survived the clear (past + locked) toward requirements
+		// so the engine schedules only the remainder (review finding F-01).
+		const creditAfterClear = await computeCredit(db, scheduleId);
 
-		// Get IDs for scheduling
-		const studentIds = students.map((s) => s.id!).filter(Boolean);
-		const clerkshipIds = clerkships.map((c) => c.id!).filter(Boolean);
-
-		log.info('Starting scheduling engine', {
-			studentCount: studentIds.length,
-			clerkshipCount: clerkshipIds.length,
+		const result = await engine.schedule(studentIds, clerkshipIds, {
 			startDate: regenerateFromDate,
 			endDate: validatedData.endDate,
-			strategy
-		});
-
-		// Create and run the ConfigurableSchedulingEngine
-		const engine = new ConfigurableSchedulingEngine(db);
-		const result = await engine.schedule(studentIds, clerkshipIds, {
-			startDate: regenerateFromDate, // Start from regeneration date
-			endDate: validatedData.endDate,
+			scheduleId,
+			credit: creditAfterClear.credit,
+			electiveCredit: creditAfterClear.electiveCredit,
 			enableTeamFormation: true,
-			enableFallbacks: true, // Uses per-clerkship allowFallbacks config
-			dryRun: true, // We handle saving externally for audit trail
-			bypassedConstraints: validatedData.bypassedConstraints || []
+			enableFallbacks: true,
+			dryRun: true,
+			bypassedConstraints
 		});
 
-		log.info('Scheduling engine complete', {
-			assignmentsGenerated: result.assignments.length,
-			unmetRequirements: result.unmetRequirements.length,
-			violations: result.violations.length,
-			success: result.success
-		});
+		const { inserted, skipped } = await insertGeneratedAssignments(
+			db,
+			scheduleId,
+			toGeneratedRows(result.assignments)
+		);
 
-		// Save generated assignments to database
-		if (result.assignments.length > 0) {
-			log.debug('Saving assignments to database', { count: result.assignments.length });
-			const assignmentsToSave = result.assignments.map((assignment) => ({
-				student_id: assignment.studentId,
-				preceptor_id: assignment.preceptorId,
-				clerkship_id: assignment.clerkshipId,
-				date: assignment.date,
-				status: 'scheduled'
-			}));
-
-			await bulkCreateAssignments(db, { assignments: assignmentsToSave });
-			log.info('Assignments saved to database');
-		}
-
-		// Auto-create and activate scheduling period if none exists
-		log.debug('Managing scheduling period');
-		let schedulingPeriodId: string | null = null;
-		// Prefer the caller's own active schedule; only fall back to the global
-		// lookup when there is no user context (keeps generation scoped per-user).
-		const generationUserId = locals.session?.user?.id;
-		const activePeriod = generationUserId
-			? await getActiveScheduleForUser(db, generationUserId)
-			: await getActiveSchedulingPeriod(db);
-
-		if (!activePeriod) {
-			log.debug('No active period found, creating or activating one');
-
-			// Check if there's an existing period covering this date range
-			const overlappingPeriods = await getOverlappingPeriods(
-				db,
-				validatedData.startDate,
-				validatedData.endDate
-			);
-
-			if (overlappingPeriods.length > 0) {
-				// Activate the first overlapping period
-				log.info('Activating existing overlapping period', {
-					periodId: overlappingPeriods[0].id
-				});
-				const period = await activateSchedulingPeriod(db, overlappingPeriods[0].id!);
-				schedulingPeriodId = period.id;
-			} else {
-				// Create a new scheduling period
-				const periodName = `Schedule ${validatedData.startDate} to ${validatedData.endDate}`;
-				log.info('Creating new scheduling period', { name: periodName });
-				const newPeriod = await createSchedulingPeriod(db, {
-					name: periodName,
-					start_date: validatedData.startDate,
-					end_date: validatedData.endDate,
-					is_active: true
-				});
-				schedulingPeriodId = newPeriod.id;
-				log.info('New scheduling period created', { periodId: schedulingPeriodId });
-			}
-		} else {
-			schedulingPeriodId = activePeriod.id;
-			log.debug('Using existing active period', { periodId: schedulingPeriodId });
-		}
-
-		// Log successful regeneration to audit trail
-		log.debug('Logging to audit trail');
 		await logRegenerationEvent(
 			db,
 			createRegenerationAuditLog(
 				strategy,
 				regenerateFromDate,
 				validatedData.endDate,
-				regenerationResult.creditResult.totalPastAssignments,
+				creditAfterClear.totalExisting,
 				deletedCount,
-				regenerationResult.preservedAssignments,
-				regenerationResult.affectedAssignments,
-				result.assignments.length,
+				creditAfterClear.totalExisting,
+				0,
+				inserted.length,
 				result.success,
 				{
 					reason: 'api_request',
-					notes: `Generated ${result.assignments.length} assignments using ConfigurableSchedulingEngine`
+					userId: locals.session?.user?.id,
+					notes: `Generated ${inserted.length} assignments (skipped ${skipped.length} occupied slots)`
 				}
 			)
 		);
 
-		log.info('Schedule generation completed successfully', {
-			totalAssignments: result.assignments.length,
-			success: result.success,
-			schedulingPeriodId
-		});
-
-		// Build response
 		return successResponse(
 			{
-				assignments: result.assignments,
+				assignments: inserted,
 				success: result.success,
 				unmetRequirements: result.unmetRequirements,
 				violations: result.violations,
 				summary: {
-					totalAssignments: result.assignments.length,
+					totalAssignments: inserted.length,
 					totalViolations: result.violations.length,
 					unmetRequirementsCount: result.unmetRequirements.length
 				},
 				regeneratedFrom: regenerateFromDate,
 				strategy,
 				preservedPastAssignments: true,
-				preservedFutureAssignments: regenerationResult.preservedAssignments,
+				preservedFutureAssignments: 0,
 				deletedFutureAssignments: deletedCount,
-				totalPastAssignments: regenerationResult.creditResult.totalPastAssignments,
-				schedulingPeriodId
+				totalPastAssignments: creditAfterClear.totalExisting,
+				skippedExistingSlots: skipped.length,
+				schedulingPeriodId: scheduleId
 			},
 			200
 		);
 	} catch (error) {
-		// Handle validation errors
 		if (error instanceof ZodError) {
 			log.warn('Schedule generation validation failed', {
 				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
-
-		// Log unexpected errors
 		log.error('Schedule generation failed', {
 			error: error instanceof Error ? error.message : 'Unknown error',
 			stack: error instanceof Error ? error.stack : undefined
@@ -529,3 +264,126 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 };
+
+/** Student ids linked to the schedule. */
+async function scheduleStudentIds(dbc: Kysely<DB>, scheduleId: string): Promise<string[]> {
+	const rows = await dbc
+		.selectFrom('schedule_students')
+		.select('student_id')
+		.where('schedule_id', '=', scheduleId)
+		.execute();
+	return rows.map((r) => r.student_id).filter(Boolean);
+}
+
+/** Clerkship ids linked to the schedule. */
+async function scheduleClerkshipIds(dbc: Kysely<DB>, scheduleId: string): Promise<string[]> {
+	const rows = await dbc
+		.selectFrom('schedule_clerkships')
+		.select('clerkship_id')
+		.where('schedule_id', '=', scheduleId)
+		.execute();
+	return rows.map((r) => r.clerkship_id).filter(Boolean);
+}
+
+/**
+ * Days already satisfied per student, split into the clerkship's non-elective
+ * portion (rows with no `elective_id`) and each elective (rows carrying one).
+ * Scoped to the schedule via the `schedule_id` column.
+ */
+async function computeCredit(
+	dbc: Kysely<DB>,
+	scheduleId: string
+): Promise<{
+	credit: Map<string, Map<string, number>>;
+	electiveCredit: Map<string, Map<string, number>>;
+	totalExisting: number;
+}> {
+	const rows = await dbc
+		.selectFrom('schedule_assignments')
+		.select(['student_id', 'clerkship_id', 'elective_id'])
+		.where('schedule_id', '=', scheduleId)
+		.execute();
+
+	const credit = new Map<string, Map<string, number>>();
+	const electiveCredit = new Map<string, Map<string, number>>();
+	const bump = (m: Map<string, Map<string, number>>, a: string, b: string) => {
+		if (!m.has(a)) m.set(a, new Map());
+		const inner = m.get(a)!;
+		inner.set(b, (inner.get(b) ?? 0) + 1);
+	};
+
+	for (const r of rows) {
+		if (r.elective_id) bump(electiveCredit, r.student_id, r.elective_id);
+		else bump(credit, r.student_id, r.clerkship_id);
+	}
+	return { credit, electiveCredit, totalExisting: rows.length };
+}
+
+/** Map engine proposals to the persistence input, carrying the elective link. */
+function toGeneratedRows(
+	assignments: Array<{
+		studentId: string;
+		preceptorId: string;
+		clerkshipId: string;
+		date: string;
+		electiveId?: string | null;
+	}>
+): GeneratedAssignmentInput[] {
+	return assignments.map((a) => ({
+		studentId: a.studentId,
+		preceptorId: a.preceptorId,
+		clerkshipId: a.clerkshipId,
+		date: a.date,
+		electiveId: a.electiveId ?? null
+	}));
+}
+
+/** Build a schedule-scoped legacy context for preview impact analysis. */
+async function buildScopedContext(
+	dbc: Kysely<DB>,
+	scheduleId: string,
+	studentIds: string[],
+	clerkshipIds: string[],
+	startDate: string,
+	endDate: string
+) {
+	const [students, clerkships, blackoutRows] = await Promise.all([
+		studentIds.length > 0
+			? dbc.selectFrom('students').selectAll().where('id', 'in', studentIds).execute()
+			: Promise.resolve([]),
+		clerkshipIds.length > 0
+			? dbc.selectFrom('clerkships').selectAll().where('id', 'in', clerkshipIds).execute()
+			: Promise.resolve([]),
+		dbc.selectFrom('blackout_dates').select('date').execute()
+	]);
+
+	const preceptorRows = await dbc
+		.selectFrom('preceptors')
+		.innerJoin('schedule_preceptors', 'schedule_preceptors.preceptor_id', 'preceptors.id')
+		.selectAll('preceptors')
+		.where('schedule_preceptors.schedule_id', '=', scheduleId)
+		.execute();
+
+	const preceptorIds = preceptorRows.map((p) => p.id).filter((id): id is string => !!id);
+	const availability =
+		preceptorIds.length > 0
+			? await dbc
+					.selectFrom('preceptor_availability')
+					.selectAll()
+					.where('preceptor_id', 'in', preceptorIds)
+					.execute()
+			: [];
+
+	return buildSchedulingContext(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		students as any,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		preceptorRows as any,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		clerkships as any,
+		blackoutRows.map((b) => b.date),
+		availability,
+		startDate,
+		endDate
+	);
+}
