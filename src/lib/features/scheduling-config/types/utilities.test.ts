@@ -77,7 +77,7 @@ describe('Type Utilities', () => {
         clerkshipId: 'clerkship-1',
         requirementType: 'outpatient',
         requiredDays: 40,
-        assignmentStrategy: 'continuous_team',
+        assignmentStrategy: 'continuous_single',
         healthSystemRule: 'enforce_same_system',
         maxStudentsPerDay: 2,
         maxStudentsPerYear: 20,
@@ -152,7 +152,6 @@ describe('Type Utilities', () => {
   describe('Display Labels', () => {
     it('AssignmentStrategyLabels should have labels for all strategies', () => {
       expect(AssignmentStrategyLabels.continuous_single).toBe('Continuous Single Preceptor');
-      expect(AssignmentStrategyLabels.continuous_team).toBe('Continuous Team');
       expect(AssignmentStrategyLabels.block_based).toBe('Block-Based Scheduling');
       expect(AssignmentStrategyLabels.daily_rotation).toBe('Daily Rotation');
     });

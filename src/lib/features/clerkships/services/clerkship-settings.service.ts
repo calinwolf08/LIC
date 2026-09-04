@@ -131,6 +131,78 @@ export class ClerkshipSettingsService {
 	}
 
 	/**
+	 * Get resolved settings for an elective, merging the global elective defaults
+	 * with any per-elective overrides stored on `clerkship_electives`.
+	 *
+	 * This is the elective analogue of `getClerkshipSettings` and the single
+	 * source of truth for elective scheduling configuration (review finding
+	 * F-10): the scheduling engine must use this rather than reusing the parent
+	 * clerkship's settings.
+	 */
+	async getElectiveSettings(electiveId: string): Promise<ClerkshipSettings> {
+		log.debug('Fetching elective settings', { electiveId });
+
+		const elective = await this.db
+			.selectFrom('clerkship_electives')
+			.selectAll()
+			.where('id', '=', electiveId)
+			.executeTakeFirst();
+
+		if (!elective) {
+			log.error('Elective not found for settings fetch', { electiveId });
+			throw new Error('Elective not found');
+		}
+
+		const globalDefaults = await this.getElectiveDefaults();
+
+		// Inherit mode (or unset overrides) → return the global elective defaults.
+		if (elective.override_mode !== 'override') {
+			log.info('Elective settings fetched (inherit mode)', {
+				electiveId,
+				overrideMode: 'inherit'
+			});
+			return {
+				overrideMode: 'inherit',
+				...globalDefaults
+			};
+		}
+
+		const settings: ClerkshipSettings = {
+			overrideMode: 'override' as const,
+			assignmentStrategy: elective.override_assignment_strategy || globalDefaults.assignmentStrategy,
+			healthSystemRule: elective.override_health_system_rule || globalDefaults.healthSystemRule,
+			maxStudentsPerDay:
+				elective.override_max_students_per_day ?? globalDefaults.maxStudentsPerDay,
+			maxStudentsPerYear:
+				elective.override_max_students_per_year ?? globalDefaults.maxStudentsPerYear,
+			allowTeams:
+				elective.override_allow_teams !== null
+					? Boolean(elective.override_allow_teams)
+					: globalDefaults.allowTeams,
+			allowFallbacks:
+				elective.override_allow_fallbacks !== null
+					? Boolean(elective.override_allow_fallbacks)
+					: globalDefaults.allowFallbacks,
+			fallbackRequiresApproval:
+				elective.override_fallback_requires_approval !== null
+					? Boolean(elective.override_fallback_requires_approval)
+					: globalDefaults.fallbackRequiresApproval,
+			fallbackAllowCrossSystem:
+				elective.override_fallback_allow_cross_system !== null
+					? Boolean(elective.override_fallback_allow_cross_system)
+					: globalDefaults.fallbackAllowCrossSystem
+		};
+
+		log.info('Elective settings fetched (override mode)', {
+			electiveId,
+			overrideMode: 'override',
+			assignmentStrategy: settings.assignmentStrategy
+		});
+
+		return settings;
+	}
+
+	/**
 	 * Update clerkship settings (creates override)
 	 */
 	async updateClerkshipSettings(
@@ -310,6 +382,29 @@ export class ClerkshipSettingsService {
 			allowTeams: Boolean(defaults.allow_teams),
 			teamSizeMin: defaults.team_size_min ?? undefined,
 			teamSizeMax: defaults.team_size_max ?? undefined,
+			allowFallbacks: Boolean(defaults.allow_fallbacks),
+			fallbackRequiresApproval: Boolean(defaults.fallback_requires_approval),
+			fallbackAllowCrossSystem: Boolean(defaults.fallback_allow_cross_system)
+		};
+	}
+
+	private async getElectiveDefaults(): Promise<GlobalDefaults> {
+		const defaults = await this.db
+			.selectFrom('global_elective_defaults')
+			.selectAll()
+			.where('school_id', '=', 'default')
+			.executeTakeFirst();
+
+		if (!defaults) {
+			return this.getHardcodedDefaults();
+		}
+
+		return {
+			assignmentStrategy: defaults.assignment_strategy,
+			healthSystemRule: defaults.health_system_rule,
+			maxStudentsPerDay: defaults.default_max_students_per_day,
+			maxStudentsPerYear: defaults.default_max_students_per_year,
+			allowTeams: Boolean(defaults.allow_teams),
 			allowFallbacks: Boolean(defaults.allow_fallbacks),
 			fallbackRequiresApproval: Boolean(defaults.fallback_requires_approval),
 			fallbackAllowCrossSystem: Boolean(defaults.fallback_allow_cross_system)

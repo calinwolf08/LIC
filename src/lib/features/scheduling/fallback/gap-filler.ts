@@ -10,6 +10,7 @@ import type { DB } from '$lib/db/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
 import { CapacityChecker } from '../capacity/capacity-checker';
 import { FallbackPreceptorResolver, type FallbackPreceptor } from './preceptor-resolver';
+import { getEligiblePreceptorIds } from '../eligibility/eligibility';
 
 /**
  * Unmet requirement from primary scheduling
@@ -226,13 +227,38 @@ export class FallbackGapFiller {
 
 		// Get ordered fallback preceptors
 		const excludePreceptorIds = new Set<string>();
-		const fallbackPreceptors = await this.preceptorResolver.getOrderedFallbackPreceptors(
+		let fallbackPreceptors = await this.preceptorResolver.getOrderedFallbackPreceptors(
 			requirement.clerkshipId,
 			primaryTeamId ?? null,
 			primaryHealthSystemId ?? null,
 			config.fallbackAllowCrossSystem ?? false,
 			excludePreceptorIds
 		);
+
+		// No-team fallback (03 §6, F-19): when the clerkship has no team the
+		// team-based resolver yields nothing, so fall back to the shared eligibility
+		// predicate — preceptors with availability at an allowed site.
+		if (fallbackPreceptors.length === 0 && !primaryTeamId) {
+			const eligibleIds = await getEligiblePreceptorIds(this.db, requirement.clerkshipId);
+			if (eligibleIds.size > 0) {
+				const preceptorRecords = await this.db
+					.selectFrom('preceptors')
+					.select(['id', 'name', 'health_system_id'])
+					.where('id', 'in', [...eligibleIds])
+					.execute();
+				fallbackPreceptors = preceptorRecords
+					.filter((p): p is typeof p & { id: string } => p.id !== null)
+					.map((p, index) => ({
+						id: p.id,
+						name: p.name,
+						healthSystemId: p.health_system_id,
+						teamId: '',
+						teamName: null,
+						priority: index,
+						tier: 3 as const,
+					}));
+			}
+		}
 
 		if (fallbackPreceptors.length === 0) {
 			return { assignments };

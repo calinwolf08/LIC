@@ -19,6 +19,10 @@ import { ResultBuilder, type SchedulingResult, type UnmetRequirement } from './r
 import { ConstraintFactory } from '../services/constraint-factory';
 import { AssignmentStrategy } from '$lib/features/scheduling-config/types';
 import { insertGeneratedAssignments } from '$lib/features/schedules/services/assignment-service';
+import {
+  ClerkshipSettingsService,
+  type ClerkshipSettings,
+} from '$lib/features/clerkships/services/clerkship-settings.service';
 
 /**
  * Engine Options
@@ -86,8 +90,10 @@ export class ConfigurableSchedulingEngine {
   private fallbackGapFiller: FallbackGapFiller;
   private resultBuilder: ResultBuilder;
   private constraintFactory: ConstraintFactory;
+  private clerkshipSettingsService: ClerkshipSettingsService;
   private constraints: Constraint[] = [];
   private clerkshipConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
+  private electiveConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electivesByClerkship: Map<string, any[]> = new Map();
   private pendingAssignments: PendingAssignment[] = [];
 
@@ -99,6 +105,7 @@ export class ConfigurableSchedulingEngine {
     this.fallbackGapFiller = new FallbackGapFiller(db);
     this.resultBuilder = new ResultBuilder();
     this.constraintFactory = new ConstraintFactory(db);
+    this.clerkshipSettingsService = new ClerkshipSettingsService(db);
   }
 
   /**
@@ -125,6 +132,7 @@ export class ConfigurableSchedulingEngine {
 
     this.resultBuilder.reset();
     this.clerkshipConfigs.clear();
+    this.electiveConfigs.clear();
     this.electivesByClerkship.clear();
     this.pendingAssignments = [];
 
@@ -216,13 +224,6 @@ export class ConfigurableSchedulingEngine {
     clerkshipIds: string[],
     clerkships: Clerkship[]
   ): Promise<void> {
-    // Load global defaults
-    const [outpatientDefaults, inpatientDefaults, electiveDefaults] = await Promise.all([
-      this.loadGlobalDefaults('outpatient'),
-      this.loadGlobalDefaults('inpatient'),
-      this.loadGlobalDefaults('elective'),
-    ]);
-
     // Load all electives for these clerkships
     const electives = await this.db
       .selectFrom('clerkship_electives')
@@ -258,136 +259,96 @@ export class ConfigurableSchedulingEngine {
       this.electivesByClerkship.set(clerkship.id, clerkshipElectives);
     }
 
-    // Build resolved configuration for each clerkship
+    // Build resolved configuration for each clerkship. Configuration is resolved
+    // through the single source of truth — `ClerkshipSettingsService` — so that
+    // per-clerkship overrides (`clerkship_configurations.override_*`) actually
+    // take effect during generation (review finding F-08), matching what the
+    // Stage 2 settings UI shows.
     for (const clerkship of clerkships) {
       if (!clerkship.id) continue;
 
-      // Determine clerkship type - use clerkship_type field directly
-      const clerkshipType = clerkship.clerkship_type || 'outpatient';
+      const requirementType = (clerkship.clerkship_type ||
+        'outpatient') as ResolvedRequirementConfiguration['requirementType'];
 
-      // Get appropriate defaults based on clerkship type
-      const defaults = clerkshipType === 'inpatient' ? inpatientDefaults : outpatientDefaults;
-
-      // Calculate non-elective days
+      // Calculate non-elective days.
+      // Only REQUIRED electives carve days out of the clerkship's required total
+      // (review finding F-09): optional electives (`is_required = 0`) are never
+      // scheduled by the engine, so subtracting their `minimum_days` here would
+      // silently shrink the clerkship and report it complete while under-scheduled.
+      // Optional electives are additive alternatives, not part of the required count.
       const clerkshipElectives = this.electivesByClerkship.get(clerkship.id) || [];
-      const totalElectiveDays = clerkshipElectives.reduce((sum, e) => sum + (e.minimum_days || 0), 0);
+      const totalElectiveDays = clerkshipElectives
+        .filter(e => e.is_required)
+        .reduce((sum, e) => sum + (e.minimum_days || 0), 0);
       const nonElectiveDays = Math.max(0, clerkship.required_days - totalElectiveDays);
 
-      // Build resolved configuration for the non-elective portion
-      const resolvedConfig = this.resolveClerkshipConfiguration(clerkship, defaults, nonElectiveDays);
-      this.clerkshipConfigs.set(clerkship.id, resolvedConfig);
+      const settings = await this.clerkshipSettingsService.getClerkshipSettings(clerkship.id);
+      this.clerkshipConfigs.set(
+        clerkship.id,
+        this.settingsToConfig(clerkship.id, requirementType, nonElectiveDays, settings)
+      );
+
+      // Resolve each elective's own configuration (review finding F-10) so the
+      // elective's strategy, health-system rule, capacity and fallback settings
+      // drive its scheduling rather than the parent clerkship's.
+      for (const elective of clerkshipElectives) {
+        if (!elective.id) continue;
+        const electiveSettings = await this.clerkshipSettingsService.getElectiveSettings(
+          elective.id
+        );
+        this.electiveConfigs.set(
+          elective.id,
+          this.settingsToConfig(
+            clerkship.id,
+            'elective',
+            elective.minimum_days,
+            electiveSettings,
+            elective.id
+          )
+        );
+      }
     }
   }
 
   /**
-   * Load global defaults for a requirement type
+   * Map fully-resolved settings (from `ClerkshipSettingsService`) onto the
+   * `ResolvedRequirementConfiguration` shape the strategies and constraints use.
+   * `requiredDays` and `requirementType` are supplied by the caller because they
+   * are computed by the engine (non-elective remainder / elective minimum), not
+   * stored on the settings row.
    */
-  private async loadGlobalDefaults(
-    requirementType: 'outpatient' | 'inpatient' | 'elective'
-  ): Promise<Record<string, any> | null> {
-    const tableName =
-      requirementType === 'inpatient'
-        ? 'global_inpatient_defaults'
-        : requirementType === 'elective'
-          ? 'global_elective_defaults'
-          : 'global_outpatient_defaults';
-
-    const result = await this.db
-      .selectFrom(tableName as any)
-      .selectAll()
-      .where('school_id', '=', 'default')
-      .executeTakeFirst();
-
-    return result || null;
-  }
-
-  /**
-   * Resolve configuration for a clerkship (for non-elective days)
-   *
-   * With the new model, clerkships don't have separate requirements.
-   * The clerkship itself defines the type and settings.
-   */
-  private resolveClerkshipConfiguration(
-    clerkship: Clerkship,
-    defaults: Record<string, any> | null,
-    nonElectiveDays: number
+  private settingsToConfig(
+    clerkshipId: string,
+    requirementType: ResolvedRequirementConfiguration['requirementType'],
+    requiredDays: number,
+    settings: ClerkshipSettings,
+    requirementId?: string
   ): ResolvedRequirementConfiguration {
-    // Default strategy is continuous_single as specified
-    const defaultStrategy = AssignmentStrategy.CONTINUOUS_SINGLE;
-
-    // Determine requirement type from clerkship type
-    const requirementType = (clerkship.clerkship_type || 'outpatient') as any;
-
-    // Build configuration from global defaults
-    const config: ResolvedRequirementConfiguration = {
-      clerkshipId: clerkship.id!,
+    return {
+      clerkshipId,
+      requirementId,
       requirementType,
-      requiredDays: nonElectiveDays, // Only non-elective days for main scheduling
-      assignmentStrategy: defaults?.assignment_strategy || defaultStrategy,
-      healthSystemRule: defaults?.health_system_rule || 'no_preference',
-      maxStudentsPerDay: defaults?.default_max_students_per_day || 2,
-      maxStudentsPerYear: defaults?.default_max_students_per_year || 50,
-      blockSizeDays: defaults?.block_size_days,
-      allowPartialBlocks: defaults?.allow_partial_blocks === 1,
-      preferContinuousBlocks: defaults?.prefer_continuous_blocks === 1,
-      allowTeams: defaults?.allow_teams === 1,
-      allowFallbacks: defaults?.allow_fallbacks === 1,
-      fallbackRequiresApproval: defaults?.fallback_requires_approval === 1,
-      fallbackAllowCrossSystem: defaults?.fallback_allow_cross_system === 1,
-      source: 'global_defaults',
+      requiredDays,
+      assignmentStrategy:
+        (settings.assignmentStrategy as ResolvedRequirementConfiguration['assignmentStrategy']) ||
+        AssignmentStrategy.CONTINUOUS_SINGLE,
+      healthSystemRule:
+        settings.healthSystemRule as ResolvedRequirementConfiguration['healthSystemRule'],
+      maxStudentsPerDay: settings.maxStudentsPerDay,
+      maxStudentsPerYear: settings.maxStudentsPerYear,
+      blockSizeDays: settings.blockSizeDays,
+      allowPartialBlocks: settings.allowPartialBlocks,
+      preferContinuousBlocks: settings.preferContinuousBlocks,
+      maxStudentsPerBlock: settings.maxStudentsPerBlock,
+      maxBlocksPerYear: settings.maxBlocksPerYear,
+      allowTeams: settings.allowTeams,
+      teamSizeMin: settings.teamSizeMin,
+      teamSizeMax: settings.teamSizeMax,
+      allowFallbacks: settings.allowFallbacks,
+      fallbackRequiresApproval: settings.fallbackRequiresApproval,
+      fallbackAllowCrossSystem: settings.fallbackAllowCrossSystem,
+      source: settings.overrideMode === 'override' ? 'full_override' : 'global_defaults',
     };
-
-    return config;
-  }
-
-  /**
-   * Resolve configuration for an elective
-   *
-   * Electives can inherit from their parent clerkship or override settings.
-   */
-  private resolveElectiveConfiguration(
-    clerkship: Clerkship,
-    elective: any,
-    defaults: Record<string, any> | null
-  ): ResolvedRequirementConfiguration {
-    const defaultStrategy = AssignmentStrategy.CONTINUOUS_SINGLE;
-
-    // Start with elective defaults
-    const config: ResolvedRequirementConfiguration = {
-      clerkshipId: clerkship.id!,
-      requirementType: 'elective' as any,
-      requiredDays: elective.minimum_days,
-      assignmentStrategy: defaults?.assignment_strategy || defaultStrategy,
-      healthSystemRule: defaults?.health_system_rule || 'no_preference',
-      maxStudentsPerDay: defaults?.default_max_students_per_day || 2,
-      maxStudentsPerYear: defaults?.default_max_students_per_year || 50,
-      blockSizeDays: defaults?.block_size_days,
-      allowPartialBlocks: defaults?.allow_partial_blocks === 1,
-      preferContinuousBlocks: defaults?.prefer_continuous_blocks === 1,
-      allowTeams: defaults?.allow_teams === 1,
-      allowFallbacks: defaults?.allow_fallbacks === 1,
-      fallbackRequiresApproval: defaults?.fallback_requires_approval === 1,
-      fallbackAllowCrossSystem: defaults?.fallback_allow_cross_system === 1,
-      source: 'global_defaults',
-    };
-
-    // Apply elective-level overrides if not inheriting
-    if (elective.override_mode === 'override') {
-      if (elective.override_assignment_strategy) {
-        config.assignmentStrategy = elective.override_assignment_strategy;
-        config.source = 'partial_override';
-      }
-      if (elective.override_health_system_rule) {
-        config.healthSystemRule = elective.override_health_system_rule;
-        config.source = 'partial_override';
-      }
-      if (elective.override_block_size_days !== null && elective.override_block_size_days !== undefined) {
-        config.blockSizeDays = elective.override_block_size_days;
-        config.source = 'partial_override';
-      }
-    }
-
-    return config;
   }
 
   /**
@@ -542,11 +503,15 @@ export class ConfigurableSchedulingEngine {
         console.log(`[Engine] Scheduling ${requiredElectives.length} required electives for ${student.name} in ${clerkship.name}`);
 
         for (const elective of requiredElectives) {
+          // Use the elective's own resolved configuration (F-10), falling back
+          // to the clerkship config only if it somehow was not resolved.
+          const electiveConfig =
+            (elective.id && this.electiveConfigs.get(elective.id)) || config;
           await this.scheduleStudentToElective(
             student,
             clerkship,
             elective,
-            config,
+            electiveConfig,
             options
           );
         }
@@ -801,8 +766,8 @@ export class ConfigurableSchedulingEngine {
               availability: availableDates,
               currentAssignmentCount: 0,
               // Use preceptor's max_students setting for daily capacity
-              maxStudentsPerDay: preceptor.max_students ?? 1,
-              maxStudentsPerYear: 50,
+              maxStudentsPerDay: preceptor.max_students ?? config.maxStudentsPerDay ?? 1,
+              maxStudentsPerYear: config.maxStudentsPerYear,
             };
           });
       } else {

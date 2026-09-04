@@ -10,7 +10,7 @@ import { z } from 'zod';
  * Base configuration schema shared across all requirement types (without validation)
  */
 const globalDefaultsBaseObject = z.object({
-  assignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation'], {
+  assignmentStrategy: z.enum(['continuous_single', 'block_based', 'daily_rotation'], {
     errorMap: () => ({ message: 'Invalid assignment strategy' }),
   }),
   healthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference'], {
@@ -119,7 +119,7 @@ export const globalElectiveDefaultsInputSchema = globalDefaultsBaseSchema;
  * Database record schema for outpatient defaults (includes ID and timestamps)
  */
 export const globalOutpatientDefaultsSchema = z.object({
-  assignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation'], {
+  assignmentStrategy: z.enum(['continuous_single', 'block_based', 'daily_rotation'], {
     errorMap: () => ({ message: 'Invalid assignment strategy' }),
   }),
   healthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference'], {
@@ -149,7 +149,7 @@ export const globalOutpatientDefaultsSchema = z.object({
  * Database record schema for inpatient defaults (includes ID and timestamps)
  */
 export const globalInpatientDefaultsSchema = z.object({
-  assignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation'], {
+  assignmentStrategy: z.enum(['continuous_single', 'block_based', 'daily_rotation'], {
     errorMap: () => ({ message: 'Invalid assignment strategy' }),
   }),
   healthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference'], {
@@ -184,7 +184,7 @@ export const globalInpatientDefaultsSchema = z.object({
  * Database record schema for elective defaults (includes ID and timestamps)
  */
 export const globalElectiveDefaultsSchema = z.object({
-  assignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation'], {
+  assignmentStrategy: z.enum(['continuous_single', 'block_based', 'daily_rotation'], {
     errorMap: () => ({ message: 'Invalid assignment strategy' }),
   }),
   healthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference'], {

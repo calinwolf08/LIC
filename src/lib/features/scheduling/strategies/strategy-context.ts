@@ -10,6 +10,7 @@ import type { Student } from '$lib/features/students/types';
 import type { Clerkship } from '$lib/features/clerkships/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
 import type { StrategyContext } from './base-strategy';
+import { getEligiblePreceptorIds } from '../eligibility/eligibility';
 
 /**
  * Pending assignment from current scheduling batch
@@ -209,44 +210,21 @@ export class StrategyContextBuilder {
     pendingAssignments: PendingAssignment[],
     scheduleId?: string
   ): Promise<StrategyContext['availablePreceptors']> {
-    // Get preceptors who are members of teams for this clerkship
-    // Team membership is the authoritative source for clerkship associations
-    const teamMemberPreceptorIds = await this.db
-      .selectFrom('preceptor_team_members')
-      .innerJoin('preceptor_teams', 'preceptor_teams.id', 'preceptor_team_members.team_id')
-      .select('preceptor_team_members.preceptor_id')
-      .where('preceptor_teams.clerkship_id', '=', clerkship.id!)
-      .execute();
-
-    const validPreceptorIds = new Set(teamMemberPreceptorIds.map(r => r.preceptor_id));
-
-    // Tenant scope (review finding F-02): a preceptor must also belong to this
-    // schedule. Without a scheduleId (direct engine callers / tests) the set is
-    // unchanged, preserving the pre-scoping behaviour.
-    if (scheduleId) {
-      const scheduleMembers = await this.db
-        .selectFrom('schedule_preceptors')
-        .select('preceptor_id')
-        .where('schedule_id', '=', scheduleId)
-        .execute();
-      const memberSet = new Set(scheduleMembers.map(r => r.preceptor_id));
-      for (const id of [...validPreceptorIds]) {
-        if (!memberSet.has(id)) validPreceptorIds.delete(id);
-      }
-    }
+    // Resolve who may teach this clerkship through the shared eligibility
+    // predicate (03 §6, findings F-19/F-28): team members when teams exist,
+    // otherwise any preceptor with availability at an allowed site, always
+    // intersected with the schedule's preceptors (F-02) when a schedule is given.
+    const validPreceptorIds = await getEligiblePreceptorIds(this.db, clerkship.id!, {
+      scheduleId,
+    });
 
     let preceptors: Selectable<Preceptors>[] = [];
     if (validPreceptorIds.size > 0) {
-      // Filter to only preceptors associated with this clerkship via team membership
       preceptors = await this.db
         .selectFrom('preceptors')
         .selectAll()
         .where('id', 'in', [...validPreceptorIds])
         .execute();
-    } else {
-      // No team associations for this clerkship - no preceptors available
-      // Teams must be set up for proper clerkship-preceptor associations
-      preceptors = [];
     }
 
     // Count pending assignments per preceptor (for yearly capacity)

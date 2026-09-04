@@ -284,4 +284,38 @@ describe('getSetupChecklist', () => {
 		const items = await getSetupChecklist(db, SCHED, true);
 		expect(items.some((i) => i.id === 'autogen-ready')).toBe(true);
 	});
+
+	it('autogen-ready stays pending until a clerkship has a workable preceptor (F-28)', async () => {
+		// The seed schedule has a clerkship and a preceptor but no availability, so
+		// no clerkship has a workable preceptor yet.
+		let items = await getSetupChecklist(db, SCHED, true);
+		let byId = Object.fromEntries(items.map((i) => [i.id, i]));
+		expect(byId['autogen-ready'].done).toBe(false);
+		expect(byId['autogen-ready'].count).toBe(1); // one clerkship without a preceptor
+
+		// Materialise availability for the schedule's preceptor at a site, in range.
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('sites')
+			.values({ id: 'site-1', name: 'Clinic', health_system_id: HS, created_at: ts, updated_at: ts })
+			.execute();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: 'av-1',
+				preceptor_id: PREC,
+				site_id: 'site-1',
+				date: '2025-03-03',
+				is_available: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		items = await getSetupChecklist(db, SCHED, true);
+		byId = Object.fromEntries(items.map((i) => [i.id, i]));
+		// The clerkship now has an eligible preceptor with availability in range.
+		expect(byId['autogen-ready'].done).toBe(true);
+		expect(byId['autogen-ready'].count).toBeUndefined();
+	});
 });

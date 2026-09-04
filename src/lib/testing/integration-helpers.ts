@@ -252,7 +252,7 @@ export async function createTestRequirement(
 	_options: {
 		requirementType: 'inpatient' | 'outpatient' | 'elective';
 		requiredDays: number;
-		assignmentStrategy?: 'team_continuity' | 'continuous_single' | 'continuous_team' | 'block_based' | 'daily_rotation';
+		assignmentStrategy?: 'team_continuity' | 'continuous_single' | 'block_based' | 'daily_rotation';
 		healthSystemRule?: 'enforce_same_system' | 'prefer_same_system' | 'no_preference';
 		blockSizeDays?: number;
 	}

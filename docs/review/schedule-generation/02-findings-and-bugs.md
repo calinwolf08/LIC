@@ -80,6 +80,8 @@ The dialog sends `preceptor-capacity`, `site-capacity`, `specialty-match`, `heal
 
 Stage 1 validation treats "no availability row" as available and only `is_available = 0` as unavailable (a preceptor is schedulable with just a name, spec R3.5). The engine treats "no row" as unavailable and never schedules such a preceptor. Both are defensible but the difference is undocumented; the readiness checklist mentions it only indirectly ("Set availability for N preceptor(s)").
 
+**Decided (Phase 1.5).** The two-tier difference is intentional and is now documented in the spec (R3.6): Stage 1 is permissive (no row ⇒ available, soft warning), Stage 2 is strict (only explicit `is_available = 1` rows are auto-scheduled; unmaterialised patterns do not count). Readiness now flags both preceptors in the schedule with no availability rows and — for entitled users — clerkships with no workable preceptor in range (F-28). No engine behaviour change: the strict engine semantics stay as the documented default.
+
 ### F-19 · S3 · Team membership is the only eligibility source; `preceptor_sites`/`clerkship_sites` are ignored
 
 A preceptor who is not on a team for the clerkship is never a candidate (the Teams tab copy says "only used as a backup" — in fact they are never used at all, because the fallback resolver is also team-based). Conversely a team member is eligible even if the clerkship is not offered at the site where they are available.

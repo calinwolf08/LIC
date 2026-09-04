@@ -180,7 +180,7 @@ describe('Strategy Pattern Tests', () => {
 			}
 		});
 
-		it('should report unmet requirements when no team is configured', async () => {
+		it('schedules against available preceptors when no team is configured (F-19)', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
 			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 10 });
 			const studentIds = await createTestStudents(db, 1);
@@ -188,7 +188,7 @@ describe('Strategy Pattern Tests', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
-				// Note: NO clerkshipId - preceptors are NOT associated with this clerkship
+				// Note: NO team - the clerkship has no preceptor team configured.
 			});
 
 			// Set capacity rules
@@ -211,10 +211,12 @@ describe('Strategy Pattern Tests', () => {
 				dryRun: false,
 			});
 
-			// Engine requires team membership to associate preceptors with clerkships
-			// Without a team, no preceptors are available, so scheduling fails
-			expect(result.assignments.length).toBe(0);
-			expect(result.unmetRequirements.length).toBeGreaterThan(0);
+			// With no team, the shared eligibility predicate (03 §6) falls back to
+			// preceptors with availability at an allowed site, so the available
+			// preceptor is used and all required days are scheduled.
+			expect(result.assignments.length).toBe(10);
+			expect(result.assignments.every((a) => a.preceptorId === preceptorIds[0])).toBe(true);
+			expect(result.unmetRequirements.length).toBe(0);
 		});
 	});
 

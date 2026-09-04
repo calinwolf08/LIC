@@ -60,7 +60,7 @@
 	let settings = $state(
 		data.settings || {
 			overrideMode: 'inherit',
-			assignmentStrategy: 'team_continuity',
+			assignmentStrategy: 'continuous_single',
 			healthSystemRule: 'no_preference',
 			maxStudentsPerDay: 1,
 			maxStudentsPerYear: 3,
@@ -410,11 +410,11 @@
 							? 'block_based'
 							: settings.assignmentStrategy === 'daily_rotation'
 								? 'daily_rotation'
-								: 'team_continuity'}
+								: 'continuous_single'}
 						onchange={(e) => (settings.assignmentStrategy = e.currentTarget.value)}
 						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 					>
-						<option value="team_continuity">Continuity (recommended)</option>
+						<option value="continuous_single">Continuity (recommended)</option>
 						<option value="block_based">Block-based</option>
 						<option value="daily_rotation">Daily rotation</option>
 					</select>
