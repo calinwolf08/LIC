@@ -50,6 +50,10 @@ export interface CalendarDayAssignment {
 	studentName?: string;
 	studentInitials?: string;
 	color: string;
+	/** Provenance / edit-safety markers (Phase 1b.4 / P-07). */
+	source?: string;
+	locked?: boolean;
+	electiveName?: string;
 }
 
 /**

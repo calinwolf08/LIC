@@ -343,6 +343,23 @@
 										<a href="/clerkships/{a.clerkshipId}" class="text-primary hover:underline"
 											>{a.clerkshipName}</a
 										>
+										{#if a.electiveName}
+											<span
+												class="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-800"
+												title="Elective">{a.electiveName}</span
+											>
+										{/if}
+										{#if a.source === 'generated'}
+											<span
+												class="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800"
+												title="Auto-generated">Auto</span
+											>
+										{/if}
+										{#if a.locked}
+											<span class="ml-1 text-xs text-muted-foreground" title="Locked (preset)"
+												>🔒</span
+											>
+										{/if}
 									</td>
 									<td class="px-3 py-2">
 										<a href="/preceptors/{a.preceptorId}" class="text-primary hover:underline"

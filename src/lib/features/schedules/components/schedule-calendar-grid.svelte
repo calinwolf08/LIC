@@ -192,7 +192,13 @@
 														aria-hidden="true">{getStudentInitials(assignment.studentName)}</span
 													>
 												{/if}
-												<span class="block truncate font-medium">{primaryLabel(assignment)}</span>
+												<span class="block truncate font-medium">
+													{primaryLabel(assignment)}{#if assignment.source === 'generated'}<span
+															class="ml-0.5"
+															title="Auto-generated">•</span
+														>{/if}{#if assignment.locked}<span class="ml-0.5" title="Locked">🔒</span
+														>{/if}
+												</span>
 												{#if secondaryLabel(assignment)}
 													<span class="block truncate opacity-80">{secondaryLabel(assignment)}</span>
 												{/if}

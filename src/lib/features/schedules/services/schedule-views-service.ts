@@ -232,7 +232,10 @@ export async function getStudentScheduleData(
 			preceptorName: a.preceptor_name,
 			studentId: student.id as string,
 			studentName: student.name,
-			color: getClerkshipColor(a.clerkship_specialty ?? 'General')
+			color: getClerkshipColor(a.clerkship_specialty ?? 'General'),
+			source: a.source,
+			locked: Boolean(a.locked),
+			electiveName: a.elective_name ?? undefined
 		}
 	})));
 

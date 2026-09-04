@@ -120,6 +120,8 @@ export interface AssignmentSelectionInput {
 	preceptorId: string;
 	clerkshipId: string;
 	siteId?: string | null;
+	/** Elective this day satisfies, if any (P-01). */
+	electiveId?: string | null;
 	locked?: boolean;
 	note?: string;
 }
@@ -129,6 +131,7 @@ export interface SubmitPayload {
 	preceptor_id: string;
 	clerkship_id: string;
 	site_id: string | null;
+	elective_id?: string | null;
 	dates: string[];
 	locked: boolean;
 	override_codes: OverrideCategory[];
@@ -154,6 +157,7 @@ export function buildSubmitPayload(
 		preceptor_id: selection.preceptorId,
 		clerkship_id: selection.clerkshipId,
 		site_id: selection.siteId || null,
+		...(selection.electiveId ? { elective_id: selection.electiveId } : {}),
 		dates: analysis.submittableDates,
 		locked: !!selection.locked,
 		override_codes: codes,

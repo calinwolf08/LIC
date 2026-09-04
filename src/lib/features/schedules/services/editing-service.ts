@@ -153,7 +153,7 @@ export async function reassignToPreceptor(
 		return { valid: true, errors: [], hard: [], soft };
 	}
 
-	const updated = await updateAssignmentBase(db, assignmentId, { preceptor_id: newPreceptorId });
+	const updated = await updateAssignmentBase(db, assignmentId, { preceptor_id: newPreceptorId }, true);
 	await persistOverrideCodes(db, assignmentId, persistedCodes, opts.overrideNote);
 
 	log.info('Assignment reassigned', {
@@ -269,7 +269,7 @@ export async function changeAssignmentDate(
 		return { valid: true, errors: [], hard: [], soft };
 	}
 
-	const updated = await updateAssignmentBase(db, assignmentId, { date: newDate });
+	const updated = await updateAssignmentBase(db, assignmentId, { date: newDate }, true);
 	await persistOverrideCodes(db, assignmentId, persistedCodes, opts.overrideNote);
 
 	return { valid: true, errors: [], hard: [], soft, assignment: updated };
@@ -328,8 +328,8 @@ export async function swapAssignments(
 
 	// Swap preceptors (both sides validated before either is written).
 	const [updated1, updated2] = await Promise.all([
-		updateAssignmentBase(db, assignmentId1, { preceptor_id: assignment2.preceptor_id }),
-		updateAssignmentBase(db, assignmentId2, { preceptor_id: assignment1.preceptor_id })
+		updateAssignmentBase(db, assignmentId1, { preceptor_id: assignment2.preceptor_id }, true),
+		updateAssignmentBase(db, assignmentId2, { preceptor_id: assignment1.preceptor_id }, true)
 	]);
 	await Promise.all([
 		persistOverrideCodes(db, assignmentId1, eval1.persistedCodes, opts.overrideNote),

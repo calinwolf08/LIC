@@ -79,6 +79,7 @@
 	let clerkship = $state('');
 	let preceptor = $state('');
 	let site = $state('');
+	let electiveId = $state('');
 	let selectedDates = $state<string[]>([]);
 	let pickerMode = $state<'single' | 'range' | 'individual'>('single');
 	let locked = $state(false);
@@ -91,7 +92,8 @@
 		clerkships: EligibilityOption[];
 		preceptors: EligibilityOption[];
 		sites: EligibilityOption[];
-	}>({ clerkships: [], preceptors: [], sites: [] });
+		electives: { id: string; name: string; isRequired: boolean; minimumDays: number }[];
+	}>({ clerkships: [], preceptors: [], sites: [], electives: [] });
 	// Cached across visited months, keyed by the selection the states were fetched
 	// for — days picked in January must keep their flags after paging to March.
 	let dayCache = $state<{ key: string; map: Map<string, DayState> }>({
@@ -202,6 +204,7 @@
 			clerkship = body.data.clerkship_id;
 			preceptor = body.data.preceptor_id;
 			site = body.data.site_id ?? '';
+			electiveId = body.data.elective_id ?? '';
 			selectedDates = [body.data.date];
 			originalDate = body.data.date;
 			locked = body.data.locked === 1;
@@ -276,6 +279,10 @@
 			messages.push('clerkship');
 			clerkship = '';
 		}
+		// An elective belongs to one clerkship; drop it if it is no longer offered.
+		if (electiveId && !options.electives.some((e) => e.id === electiveId)) {
+			electiveId = '';
+		}
 		clearedNotice =
 			messages.length > 0
 				? `Cleared the ${messages.join(' and ')} — no longer valid with this selection.`
@@ -321,9 +328,10 @@
 		const count = selectedDates.length;
 		const excludeParam =
 			mode === 'edit' && assignmentId ? `&excludeId=${assignmentId}` : '';
+		const electiveParam = electiveId ? `&electiveId=${electiveId}` : '';
 		let cancelled = false;
 		fetch(
-			`/api/schedules/assignments/requirement-preview?studentId=${student}&clerkshipId=${clerkship}&count=${count}${excludeParam}`
+			`/api/schedules/assignments/requirement-preview?studentId=${student}&clerkshipId=${clerkship}&count=${count}${excludeParam}${electiveParam}`
 		)
 			.then((r) => r.json())
 			.then((body) => {
@@ -533,6 +541,7 @@
 				preceptorId: preceptor,
 				clerkshipId: clerkship,
 				siteId: site,
+				electiveId: electiveId || null,
 				locked: canLock && locked,
 				note
 			},
@@ -602,6 +611,7 @@
 						preceptor_id: preceptor,
 						clerkship_id: clerkship,
 						site_id: site,
+						elective_id: electiveId || null,
 						date: day,
 						override_codes: acceptedCodes,
 						override_note: note || null,
@@ -725,6 +735,26 @@
 					</select>
 				</div>
 
+				{#if options.electives.length > 0}
+					<div class="space-y-1">
+						<Label for="ad-elective">Elective <span class="text-muted-foreground">(optional)</span></Label>
+						<select
+							id="ad-elective"
+							bind:value={electiveId}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">No elective (counts as clerkship day)</option>
+							{#each options.electives as e (e.id)}
+								<option value={e.id}>
+									{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays === 1
+										? ''
+										: 's'})
+								</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
+
 				{#if clearedNotice}
 					<p class="text-sm text-amber-700" data-testid="cleared-notice">{clearedNotice}</p>
 				{/if}
@@ -733,7 +763,7 @@
 					<p class="text-sm" data-testid="requirement-strip">
 						<span class="text-muted-foreground">
 							Assigning {selectedDates.length} day(s) · {impact.unscheduled} of {impact.required} still
-							needed for {impact.clerkshipName || 'this clerkship'}
+							needed for {impact.electiveName || impact.clerkshipName || 'this clerkship'}
 						</span>
 						{#if impact.exceedsBy > 0}
 							<span class="ml-1 font-medium text-amber-700" data-testid="over-required-warning">
