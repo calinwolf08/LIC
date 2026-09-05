@@ -3,14 +3,15 @@ import { db } from '$lib/db';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
 import { generateScheduleSchema } from '$lib/features/scheduling/schemas';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
-import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
-import { analyzeRegenerationImpact } from '$lib/features/scheduling/services/regeneration-service';
+import {
+	planRegeneration,
+	applyRegenerationDeletions
+} from '$lib/features/scheduling/services/regeneration-service';
 import type { RegenerationStrategy } from '$lib/features/scheduling/services/regeneration-service';
 import {
 	logRegenerationEvent,
 	createRegenerationAuditLog
 } from '$lib/features/scheduling/services/audit-service';
-import { clearAllAssignments } from '$lib/features/schedules/services/editing-service';
 import {
 	insertGeneratedAssignments,
 	type GeneratedAssignmentInput
@@ -74,46 +75,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			clerkshipCount: clerkshipIds.length
 		});
 
-		// ---- Preview: analyse impact, write nothing --------------------------
+		// ---- Preview: plan impact, write nothing -----------------------------
+		// Preview and apply share the SAME planRegeneration classification, so the
+		// numbers a user sees are exactly what apply will do (review finding F-12).
 		if (isPreview) {
-			const legacyContext = await buildScopedContext(
-				db,
-				scheduleId,
-				studentIds,
-				clerkshipIds,
-				validatedData.startDate,
-				validatedData.endDate
-			);
-			const impact = await analyzeRegenerationImpact(
-				db,
-				legacyContext,
-				regenerateFromDate,
-				validatedData.endDate,
+			const plan = await planRegeneration(db, scheduleId, {
+				cutoff: regenerateFromDate,
 				strategy
-			);
+			});
 			return successResponse({
 				preview: true,
+				strategy,
 				impact: {
-					summary: impact.summary,
-					pastAssignments: {
-						count: impact.pastAssignmentsCount,
-						assignments: impact.pastAssignments.map((a) => ({
-							id: a.id,
-							studentId: a.student_id,
-							preceptorId: a.preceptor_id,
-							clerkshipId: a.clerkship_id,
-							date: a.date,
-							status: a.status
-						}))
-					},
+					summary: plan.summary,
+					pastAssignments: { count: plan.summary.preservedPast },
 					futureAssignments: {
-						toDeleteCount: impact.deletedCount,
-						preservableCount: impact.preservedCount,
-						affectedCount: impact.affectedCount,
-						replaceableCount: impact.replaceableAssignments.filter((r) => r.replacementPreceptorId)
-							.length
+						toDeleteCount: plan.summary.deletedFuture,
+						preservableCount: plan.summary.preservedFuture
 					},
-					studentProgress: impact.studentProgress
+					lockedPreserved: plan.summary.preservedLocked
 				}
 			});
 		}
@@ -179,13 +159,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			});
 		}
 
-		// ---- Full / minimal-change: clear unlocked future, then regenerate ---
-		// (Phase 0 treats both the same at the engine level; the "minimal-change"
-		//  preservation path is disabled in the UI until Phase 2.)
-		const deletedCount = await clearAllAssignments(db, scheduleId, regenerateFromDate);
+		// ---- Full / minimal-change: plan, delete the plan's delete-set by id, ---
+		// then regenerate. full-reoptimize deletes all unlocked future rows;
+		// minimal-change keeps the future rows that are still valid today and
+		// deletes only the invalid ones (review finding F-12). Deletion is by id
+		// after planning, never a date-range delete (F-02/F-04).
+		const plan = await planRegeneration(db, scheduleId, {
+			cutoff: regenerateFromDate,
+			strategy
+		});
+		const deletedCount = await applyRegenerationDeletions(db, plan.deleteIds);
 
-		// Credit whatever survived the clear (past + locked) toward requirements
-		// so the engine schedules only the remainder (review finding F-01).
+		// Credit everything that survived (past + locked + kept-valid future) toward
+		// requirements so the engine schedules only the remainder (review finding F-01).
 		const creditAfterClear = await computeCredit(db, scheduleId);
 
 		const result = await engine.schedule(studentIds, clerkshipIds, {
@@ -239,8 +225,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				},
 				regeneratedFrom: regenerateFromDate,
 				strategy,
-				preservedPastAssignments: true,
-				preservedFutureAssignments: 0,
+				preservedPastAssignments: plan.summary.preservedPast,
+				preservedLockedAssignments: plan.summary.preservedLocked,
+				preservedFutureAssignments: plan.summary.preservedFuture,
 				deletedFutureAssignments: deletedCount,
 				totalPastAssignments: creditAfterClear.totalExisting,
 				skippedExistingSlots: skipped.length,
@@ -361,52 +348,3 @@ function toSkippedDetails(
 	}));
 }
 
-/** Build a schedule-scoped legacy context for preview impact analysis. */
-async function buildScopedContext(
-	dbc: Kysely<DB>,
-	scheduleId: string,
-	studentIds: string[],
-	clerkshipIds: string[],
-	startDate: string,
-	endDate: string
-) {
-	const [students, clerkships, blackoutRows] = await Promise.all([
-		studentIds.length > 0
-			? dbc.selectFrom('students').selectAll().where('id', 'in', studentIds).execute()
-			: Promise.resolve([]),
-		clerkshipIds.length > 0
-			? dbc.selectFrom('clerkships').selectAll().where('id', 'in', clerkshipIds).execute()
-			: Promise.resolve([]),
-		dbc.selectFrom('blackout_dates').select('date').execute()
-	]);
-
-	const preceptorRows = await dbc
-		.selectFrom('preceptors')
-		.innerJoin('schedule_preceptors', 'schedule_preceptors.preceptor_id', 'preceptors.id')
-		.selectAll('preceptors')
-		.where('schedule_preceptors.schedule_id', '=', scheduleId)
-		.execute();
-
-	const preceptorIds = preceptorRows.map((p) => p.id).filter((id): id is string => !!id);
-	const availability =
-		preceptorIds.length > 0
-			? await dbc
-					.selectFrom('preceptor_availability')
-					.selectAll()
-					.where('preceptor_id', 'in', preceptorIds)
-					.execute()
-			: [];
-
-	return buildSchedulingContext(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		students as any,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		preceptorRows as any,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		clerkships as any,
-		blackoutRows.map((b) => b.date),
-		availability,
-		startDate,
-		endDate
-	);
-}

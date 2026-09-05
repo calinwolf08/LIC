@@ -24,10 +24,7 @@
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
-import {
-	validateAssignmentCandidate,
-	type Violation
-} from '../services/assignment-validation';
+import { validateAssignmentCandidate, type Violation } from '../services/assignment-validation';
 
 export interface ProposalInput {
 	studentId: string;

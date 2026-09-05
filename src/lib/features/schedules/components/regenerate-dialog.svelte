@@ -17,10 +17,21 @@
 	let endDate = $state('');
 	let regenerationMode = $state<'full' | 'smart' | 'completion'>('smart');
 	let regenerateFromDate = $state('');
-	// The minimal-change strategy and per-constraint bypass are not implemented
-	// yet (review Phase 2), so their controls are hidden and generation always
-	// runs full-reoptimize with no bypassed constraints.
-	const strategy = 'full-reoptimize' as const;
+	// Smart mode uses the minimal-change strategy (Phase 2.3): future assignments
+	// that are still valid are preserved; only invalid ones are replaced.
+	// Per-constraint bypass (Phase 2.2) relaxes chosen soft rules for the new
+	// assignments, using the same codes the manual dialog uses.
+	const BYPASSABLE = [
+		{ code: 'preceptor_unavailable', label: 'Preceptor availability' },
+		{ code: 'preceptor_capacity', label: 'Preceptor capacity' },
+		{ code: 'not_onboarded', label: 'Student onboarding' },
+		{ code: 'site_not_allowed', label: 'Allowed site' },
+		{ code: 'blackout_date', label: 'Blackout dates' }
+	] as const;
+	let bypassed = $state<string[]>([]);
+	function toggleBypass(code: string, on: boolean) {
+		bypassed = on ? [...new Set([...bypassed, code])] : bypassed.filter((c) => c !== code);
+	}
 	let isRegenerating = $state(false);
 	let errors = $state<string[]>([]);
 	let successMessage = $state('');
@@ -94,9 +105,14 @@
 
 			if (regenerationMode === 'smart') {
 				requestBody.regenerateFromDate = regenerateFromDate;
-				requestBody.strategy = strategy;
+				requestBody.strategy = 'minimal-change';
 			} else if (regenerationMode === 'completion') {
 				requestBody.strategy = 'completion';
+			} else {
+				requestBody.strategy = 'full-reoptimize';
+			}
+			if (bypassed.length > 0) {
+				requestBody.bypassedConstraints = bypassed;
 			}
 
 			const generateResponse = await fetch('/api/schedules/generate', {
@@ -248,13 +264,36 @@
 							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 						/>
 						<p class="text-xs text-muted-foreground">
-							Assignments before this date will be preserved
+							Assignments before this date, and any locked assignments, are always
+							preserved. Future assignments that are still valid are kept; only invalid
+							ones are replaced.
 						</p>
 					</div>
+				</div>
+			{/if}
 
-					<!-- Strategy selection is hidden until the minimal-change
-					     preservation path is implemented (review Phase 2); smart mode
-					     always regenerates future dates from the cutoff. -->
+			<!-- Constraint bypass (Phase 2.2): relax chosen soft rules for the newly
+			     generated assignments. Bypassed days are stamped as overrides. -->
+			{#if regenerationMode !== 'completion'}
+				<div class="mb-4 space-y-2 rounded-lg border border-input p-4">
+					<Label>Relax rules for new assignments (optional)</Label>
+					<p class="text-xs text-muted-foreground">
+						Allow the generator to place days that would otherwise be flagged. Each
+						bypassed day is recorded as an override, exactly like a manual one.
+					</p>
+					<div class="grid grid-cols-2 gap-2">
+						{#each BYPASSABLE as b (b.code)}
+							<label class="flex items-center gap-2 text-sm">
+								<input
+									type="checkbox"
+									checked={bypassed.includes(b.code)}
+									disabled={isRegenerating}
+									onchange={(e) => toggleBypass(b.code, e.currentTarget.checked)}
+								/>
+								{b.label}
+							</label>
+						{/each}
+					</div>
 				</div>
 			{/if}
 
