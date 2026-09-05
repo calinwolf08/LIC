@@ -20,6 +20,12 @@ export interface ProposedAssignment {
   electiveId?: string | null; // For elective assignments
   blockNumber?: number; // For block-based strategies
   teamId?: string; // For team strategies
+  /**
+   * Soft-violation codes the ProposalValidator accepted for this day (Phase 2.2 /
+   * F-11). Persisted on the committed row as `override_codes` so the schedule
+   * health panel shows a bypassed auto-generated day exactly like a manual override.
+   */
+  overrideCodes?: string[];
   metadata?: {
     isFallback?: boolean;
     fallbackTier?: number;

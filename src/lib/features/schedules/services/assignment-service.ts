@@ -988,6 +988,12 @@ export interface GeneratedAssignmentInput {
 	date: string;
 	electiveId?: string | null;
 	siteId?: string | null;
+	/**
+	 * Soft-violation codes the engine's ProposalValidator accepted (bypassed) for
+	 * this day; persisted on the row so a bypassed auto day reads like a manual
+	 * override in the health panel (F-11).
+	 */
+	overrideCodes?: string[];
 }
 
 /**
@@ -1091,7 +1097,9 @@ export async function insertGeneratedAssignments(
 			elective_id: a.electiveId ?? null,
 			site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
 			date: a.date,
-			source: 'generated' as const
+			source: 'generated' as const,
+			override_codes: a.overrideCodes ?? [],
+			override_note: (a.overrideCodes?.length ?? 0) > 0 ? 'auto-generation bypass' : null
 		}))
 	);
 

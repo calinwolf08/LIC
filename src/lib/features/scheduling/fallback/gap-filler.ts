@@ -201,15 +201,12 @@ export class FallbackGapFiller {
 		const assignments: FallbackAssignment[] = [];
 		let remainingDays = requirement.remainingDays;
 
-		// Get student's existing assignment dates for this clerkship
+		// Dates the student is already busy on — across ALL clerkships, not just
+		// this one (review finding F-17). Filling a gap on a date the student holds
+		// for another clerkship would double-book them; the single insert path would
+		// then silently drop one of the two rows.
 		const studentExistingDates = new Set(
-			allAssignments
-				.filter(
-					(a) =>
-						a.studentId === requirement.studentId &&
-						a.clerkshipId === requirement.clerkshipId
-				)
-				.map((a) => a.date)
+			allAssignments.filter((a) => a.studentId === requirement.studentId).map((a) => a.date)
 		);
 
 		// Determine primary team and health system

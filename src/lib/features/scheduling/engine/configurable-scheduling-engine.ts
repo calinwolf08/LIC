@@ -10,13 +10,10 @@ import type { DB } from '$lib/db/types';
 import type { Student } from '$lib/features/students/types';
 import type { Clerkship } from '$lib/features/clerkships/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
-import type { Constraint } from '../types/constraint';
-import type { SchedulingContext } from '../types/scheduling-context';
 import { StrategySelector, StrategyContextBuilder } from '../strategies';
-import { CapacityChecker } from '../capacity';
 import { FallbackResolver, FallbackGapFiller, type UnmetRequirement as FallbackUnmetRequirement } from '../fallback';
 import { ResultBuilder, type SchedulingResult, type UnmetRequirement } from './result-builder';
-import { ConstraintFactory } from '../services/constraint-factory';
+import { ProposalValidator } from './proposal-validator';
 import { AssignmentStrategy } from '$lib/features/scheduling-config/types';
 import { insertGeneratedAssignments } from '$lib/features/schedules/services/assignment-service';
 import {
@@ -85,13 +82,11 @@ export interface PendingAssignment {
 export class ConfigurableSchedulingEngine {
   private strategySelector: StrategySelector;
   private contextBuilder: StrategyContextBuilder;
-  private capacityChecker: CapacityChecker;
   private fallbackResolver: FallbackResolver;
   private fallbackGapFiller: FallbackGapFiller;
   private resultBuilder: ResultBuilder;
-  private constraintFactory: ConstraintFactory;
   private clerkshipSettingsService: ClerkshipSettingsService;
-  private constraints: Constraint[] = [];
+  private proposalValidator: ProposalValidator | null = null;
   private clerkshipConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electiveConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electivesByClerkship: Map<string, any[]> = new Map();
@@ -100,11 +95,9 @@ export class ConfigurableSchedulingEngine {
   constructor(private db: Kysely<DB>) {
     this.strategySelector = new StrategySelector();
     this.contextBuilder = new StrategyContextBuilder(db);
-    this.capacityChecker = new CapacityChecker(db);
     this.fallbackResolver = new FallbackResolver(db);
     this.fallbackGapFiller = new FallbackGapFiller(db);
     this.resultBuilder = new ResultBuilder();
-    this.constraintFactory = new ConstraintFactory(db);
     this.clerkshipSettingsService = new ClerkshipSettingsService(db);
   }
 
@@ -149,18 +142,14 @@ export class ConfigurableSchedulingEngine {
     console.log('[Engine] Loading clerkship configurations...');
     await this.loadClerkshipConfigurations(clerkshipIds, clerkships);
 
-    // Phase 3: Build scheduling context and constraints
-    console.log('[Engine] Building scheduling context and constraints...');
-    const schedulingContext = await this.buildSchedulingContext(
-      students,
-      clerkships,
-      startDate,
-      endDate,
-      scheduleId
-    );
-    this.constraints = await this.constraintFactory.buildConstraints(
-      clerkshipIds,
-      schedulingContext
+    // Phase 3: Prepare the proposal validator. Every proposed day is checked
+    // through the single validateAssignmentCandidate validator (F-05), using the
+    // run's bypassedConstraints (Stage 1 codes) to decide which soft violations
+    // are accepted-with-override vs surfaced (F-11).
+    this.proposalValidator = new ProposalValidator(
+      this.db,
+      scheduleId ?? null,
+      new Set(bypassedConstraints)
     );
 
     // Phase 4: Prioritize students
@@ -352,103 +341,6 @@ export class ConfigurableSchedulingEngine {
   }
 
   /**
-   * Build scheduling context for constraint validation
-   */
-  private async buildSchedulingContext(
-    students: Student[],
-    clerkships: Clerkship[],
-    startDate: string,
-    endDate: string,
-    scheduleId?: string
-  ): Promise<SchedulingContext> {
-    // Preceptors are scoped to the schedule when one is given (review finding
-    // F-02); direct engine callers (tests) pass none and get every preceptor.
-    const preceptorsQuery = scheduleId
-      ? this.db
-          .selectFrom('preceptors')
-          .innerJoin(
-            'schedule_preceptors',
-            'schedule_preceptors.preceptor_id',
-            'preceptors.id'
-          )
-          .selectAll('preceptors')
-          .where('schedule_preceptors.schedule_id', '=', scheduleId)
-      : this.db.selectFrom('preceptors').selectAll();
-
-    // Load all required data for scheduling context
-    const [
-      preceptors,
-      blackoutDates,
-      availabilityRecords,
-      healthSystems,
-      teams,
-      studentOnboardingRecords,
-    ] = await Promise.all([
-      preceptorsQuery.execute(),
-      this.db.selectFrom('blackout_dates').select('date').execute(),
-      this.db.selectFrom('preceptor_availability').selectAll().execute(),
-      this.db.selectFrom('health_systems').selectAll().execute(),
-      this.db.selectFrom('teams').selectAll().execute(),
-      this.db.selectFrom('student_health_system_onboarding').selectAll().execute(),
-    ]);
-
-    const blackoutSet = new Set(blackoutDates.map(b => b.date));
-
-    // Build preceptor availability map: preceptorId -> Map(date -> siteId)
-    const preceptorAvailability = new Map<string, Map<string, string>>();
-    for (const record of availabilityRecords) {
-      if (record.is_available) {
-        if (!preceptorAvailability.has(record.preceptor_id)) {
-          preceptorAvailability.set(record.preceptor_id, new Map());
-        }
-        preceptorAvailability.get(record.preceptor_id)!.set(record.date, record.site_id);
-      }
-    }
-
-    // Build student requirements map
-    const studentRequirements = new Map<string, Map<string, number>>();
-    for (const student of students) {
-      if (!student.id) continue;
-      const requirements = new Map<string, number>();
-      for (const clerkship of clerkships) {
-        if (!clerkship.id) continue;
-        requirements.set(clerkship.id, clerkship.required_days);
-      }
-      studentRequirements.set(student.id, requirements);
-    }
-
-    // Build student onboarding map: studentId -> Set of completed health system IDs
-    const studentOnboarding = new Map<string, Set<string>>();
-    for (const record of studentOnboardingRecords) {
-      if (record.is_completed) {
-        if (!studentOnboarding.has(record.student_id)) {
-          studentOnboarding.set(record.student_id, new Set());
-        }
-        studentOnboarding.get(record.student_id)!.add(record.health_system_id);
-      }
-    }
-
-    return {
-      students: students as any,
-      preceptors: preceptors as any,
-      clerkships: clerkships as any,
-      blackoutDates: blackoutSet,
-      preceptorAvailability,
-      studentRequirements,
-      startDate,
-      endDate,
-      healthSystems,
-      teams,
-      studentOnboarding,
-      // Initialize empty tracking structures
-      assignments: [],
-      assignmentsByDate: new Map(),
-      assignmentsByStudent: new Map(),
-      assignmentsByPreceptor: new Map(),
-    };
-  }
-
-  /**
    * Schedule single student to single clerkship
    *
    * With the new model:
@@ -606,11 +498,21 @@ export class ConfigurableSchedulingEngine {
       const rejectionReasons: string[] = [];
 
       if (assignmentsToProcess.length > 0) {
-        // Validate assignments against constraints
+        // Validate assignments against the single validator (F-05).
         const validationResult = await this.validateAssignments(
           assignmentsToProcess,
           options.bypassedConstraints
         );
+
+        // Always record violations on the run — soft (warning) violations are
+        // surfaced even when the day is placed, so a problematic auto schedule no
+        // longer reports zero issues (F-05).
+        validationResult.violations.forEach(violation => {
+          this.resultBuilder.addViolation(violation);
+          if (violation.severity === 'error' && violation.message) {
+            rejectionReasons.push(violation.message);
+          }
+        });
 
         if (validationResult.isValid) {
           // Add assignments to result and track as pending for future students
@@ -626,12 +528,6 @@ export class ConfigurableSchedulingEngine {
           });
           acceptedDays = assignmentsToProcess.length;
           console.log(`[Engine] Successfully assigned ${acceptedDays} non-elective days for ${student.name} to ${clerkship.name}`);
-        } else {
-          // Record violations and surface them as the unmet reason
-          validationResult.violations.forEach(violation => {
-            this.resultBuilder.addViolation(violation);
-            if (violation.message) rejectionReasons.push(violation.message);
-          });
         }
       }
 
@@ -830,6 +726,13 @@ export class ConfigurableSchedulingEngine {
           options.bypassedConstraints
         );
 
+        validationResult.violations.forEach(violation => {
+          this.resultBuilder.addViolation(violation);
+          if (violation.severity === 'error' && violation.message) {
+            rejectionReasons.push(violation.message);
+          }
+        });
+
         if (validationResult.isValid) {
           electiveAssignments.forEach(assignment => {
             this.resultBuilder.addAssignment(assignment);
@@ -842,11 +745,6 @@ export class ConfigurableSchedulingEngine {
           });
           acceptedDays = electiveAssignments.length;
           console.log(`[Engine] Successfully assigned ${acceptedDays} days for "${elective.name}" to ${student.name}`);
-        } else {
-          validationResult.violations.forEach(violation => {
-            this.resultBuilder.addViolation(violation);
-            if (violation.message) rejectionReasons.push(violation.message);
-          });
         }
       }
 
@@ -890,61 +788,58 @@ export class ConfigurableSchedulingEngine {
    */
   private async validateAssignments(
     assignments: any[],
-    bypassedConstraints: Set<string>
+    _bypassedConstraints: Set<string>
   ): Promise<{
     isValid: boolean;
     violations: any[];
   }> {
     const violations: any[] = [];
+    const validator = this.proposalValidator;
 
-    // Validate each assignment against constraints
     for (const assignment of assignments) {
-      // Check capacity using capacity checker
-      const capacityCheck = await this.capacityChecker.checkCapacity(
-        assignment.preceptorId,
-        assignment.date,
-        {
-          clerkshipId: assignment.clerkshipId,
-          requirementType: assignment.requirementType,
-        }
-      );
+      if (!validator) break;
+      const decision = await validator.validate({
+        studentId: assignment.studentId,
+        preceptorId: assignment.preceptorId,
+        clerkshipId: assignment.clerkshipId,
+        date: assignment.date,
+      });
 
-      if (!capacityCheck.hasCapacity) {
+      // Hard violations block the day (should be rare — strategies avoid
+      // double-booking by construction).
+      for (const v of decision.hard) {
         violations.push({
           studentId: assignment.studentId,
           preceptorId: assignment.preceptorId,
           date: assignment.date,
-          constraintType: 'PreceptorCapacity',
+          constraintType: v.code,
           severity: 'error',
-          message: capacityCheck.reason || 'Preceptor capacity exceeded',
+          message: v.message,
         });
       }
 
-      // Run through all loaded constraints
-      for (const constraint of this.constraints) {
-        // Skip bypassed constraints
-        if (bypassedConstraints.has(constraint.name)) {
-          continue;
-        }
-
-        // Build a minimal assignment object for constraint validation
-        const assignmentForValidation = {
+      // Soft violations not covered by bypassedConstraints are surfaced on the
+      // run (no longer silently zero — F-05); the day is still placed. Bypassed
+      // soft codes are stamped on the row as override_codes (F-11), so the
+      // health panel shows a bypassed auto day exactly like a manual override.
+      for (const v of decision.surfaced) {
+        violations.push({
           studentId: assignment.studentId,
           preceptorId: assignment.preceptorId,
-          clerkshipId: assignment.clerkshipId,
           date: assignment.date,
-        };
-
-        // Note: Full constraint validation requires a SchedulingContext
-        // For now, we rely on the capacity checker above
-        // Full constraint integration would require passing the context
+          constraintType: v.code,
+          severity: 'warning',
+          message: v.message,
+        });
       }
+
+      assignment.overrideCodes = decision.overrideCodes;
     }
 
-    return {
-      isValid: violations.length === 0,
-      violations,
-    };
+    // A batch is invalid only when a HARD violation was found; soft violations
+    // are recorded but do not reject the batch.
+    const hasHard = violations.some((v) => v.severity === 'error');
+    return { isValid: !hasHard, violations };
   }
 
   /**
@@ -1003,6 +898,7 @@ export class ConfigurableSchedulingEngine {
         clerkshipId: a.clerkshipId,
         date: a.date,
         electiveId: a.electiveId ?? null,
+        overrideCodes: a.overrideCodes ?? [],
       }))
     );
 
