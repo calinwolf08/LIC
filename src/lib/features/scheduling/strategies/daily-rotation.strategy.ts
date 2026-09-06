@@ -64,17 +64,11 @@ export class DailyRotationStrategy extends BaseStrategy {
       }
     }
 
-    // Check if we have enough dates with preceptor availability
-    if (datesWithAvailability.length < totalDays) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Insufficient dates with preceptor availability: ${datesWithAvailability.length} < ${totalDays}`,
-      };
-    }
-
+    // Take as many days as we can, up to the requirement. A short supply is a
+    // partial result (review finding F-21), not a discarded one.
     const assignments: import('./base-strategy').ProposedAssignment[] = [];
     const requiredDates = datesWithAvailability.slice(0, totalDays);
+    const insufficientDates = datesWithAvailability.length < totalDays;
 
     // Track rotation index for round-robin
     let rotationIndex = 0;
@@ -100,16 +94,9 @@ export class DailyRotationStrategy extends BaseStrategy {
       });
 
       if (availableToday.length === 0) {
-        return {
-          success: false,
-          assignments: [],
-          error: `No preceptor with available capacity on date ${date}`,
-          metadata: {
-            strategyUsed: this.getName(),
-            preceptorsConsidered: candidates.length,
-            assignmentCount: assignments.length,
-          },
-        };
+        // Skip this day rather than discarding the whole result — keep the days
+        // already placed and let the engine report the gap (F-21).
+        continue;
       }
 
       // Try to select a DIFFERENT preceptor than the previous assignment (rotation behavior)
@@ -149,9 +136,15 @@ export class DailyRotationStrategy extends BaseStrategy {
       previousPreceptorId = selectedPreceptor.id;
     }
 
+    const complete = assignments.length >= totalDays;
     return {
-      success: true,
+      success: complete,
       assignments,
+      error: complete
+        ? undefined
+        : insufficientDates
+          ? `Insufficient dates with preceptor availability: ${datesWithAvailability.length} < ${totalDays}`
+          : `Only ${assignments.length} of ${totalDays} days could be assigned`,
       metadata: {
         strategyUsed: this.getName(),
         preceptorsConsidered: candidates.length,

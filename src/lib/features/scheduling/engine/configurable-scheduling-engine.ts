@@ -14,6 +14,7 @@ import { StrategySelector, StrategyContextBuilder } from '../strategies';
 import { FallbackResolver, FallbackGapFiller, type UnmetRequirement as FallbackUnmetRequirement } from '../fallback';
 import { ResultBuilder, type SchedulingResult, type UnmetRequirement } from './result-builder';
 import { ProposalValidator } from './proposal-validator';
+import { getEligiblePreceptorIds } from '../eligibility/eligibility';
 import { AssignmentStrategy } from '$lib/features/scheduling-config/types';
 import { insertGeneratedAssignments } from '$lib/features/schedules/services/assignment-service';
 import {
@@ -87,6 +88,8 @@ export class ConfigurableSchedulingEngine {
   private resultBuilder: ResultBuilder;
   private clerkshipSettingsService: ClerkshipSettingsService;
   private proposalValidator: ProposalValidator | null = null;
+  private proposalBudget = Number.MAX_SAFE_INTEGER;
+  private proposalsUsed = 0;
   private clerkshipConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electiveConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electivesByClerkship: Map<string, any[]> = new Map();
@@ -156,27 +159,56 @@ export class ConfigurableSchedulingEngine {
     console.log('[Engine] Prioritizing students...');
     const prioritizedStudents = this.prioritizeStudents(students);
 
-    // Phase 5: Schedule each student (primary scheduling)
-    for (const student of prioritizedStudents) {
-      console.log(`[Engine] Scheduling student ${student.name} (${student.id})...`);
+    // Phase 5: Schedule (student, clerkship) pairs in scarcity order (D-01) —
+    // tightest requirements first — with a deterministic tie-break so a run is
+    // reproducible. A proposal budget guards against a mis-configured range
+    // hanging the request.
+    const candidateDays = await this.computeCandidateDays(
+      clerkshipIds,
+      startDate,
+      endDate,
+      scheduleId
+    );
+    const orderedPairs = this.orderPairsByScarcity(
+      prioritizedStudents,
+      clerkships,
+      candidateDays,
+      credit
+    );
 
-      for (const clerkship of clerkships) {
-        await this.scheduleStudentToClerkship(
-          student,
-          clerkship,
-          {
-            startDate,
-            endDate,
-            enableTeamFormation,
-            enableFallbacks,
-            maxRetries: maxRetriesPerStudent,
-            bypassedConstraints: new Set(bypassedConstraints),
-            scheduleId,
-            credit,
-            electiveCredit,
-          }
-        );
+    const rangeDays = Math.max(1, this.countDays(startDate, endDate));
+    this.proposalBudget = Math.max(
+      10000,
+      prioritizedStudents.length * clerkships.length * rangeDays
+    );
+    this.proposalsUsed = 0;
+
+    for (const { student, clerkship } of orderedPairs) {
+      if (this.proposalsUsed > this.proposalBudget) {
+        this.resultBuilder.addUnmetRequirement({
+          studentId: student.id!,
+          studentName: student.name,
+          clerkshipId: clerkship.id!,
+          clerkshipName: clerkship.name,
+          requirementType: (clerkship.clerkship_type || 'outpatient') as any,
+          requiredDays: clerkship.required_days,
+          assignedDays: 0,
+          remainingDays: clerkship.required_days,
+          reason: 'Generation budget exhausted before this requirement could be scheduled',
+        });
+        continue;
       }
+      await this.scheduleStudentToClerkship(student, clerkship, {
+        startDate,
+        endDate,
+        enableTeamFormation,
+        enableFallbacks,
+        maxRetries: maxRetriesPerStudent,
+        bypassedConstraints: new Set(bypassedConstraints),
+        scheduleId,
+        credit,
+        electiveCredit,
+      });
     }
 
     // Phase 6: Fallback gap filling (if enabled and there are unmet requirements)
@@ -795,6 +827,8 @@ export class ConfigurableSchedulingEngine {
   }> {
     const violations: any[] = [];
     const validator = this.proposalValidator;
+    // Every proposal evaluated counts against the run's budget (D-01).
+    this.proposalsUsed += assignments.length;
 
     for (const assignment of assignments) {
       if (!validator) break;
@@ -873,6 +907,80 @@ export class ConfigurableSchedulingEngine {
     return [...students];
   }
 
+  /** Inclusive count of calendar days in a date range. */
+  private countDays(startDate: string, endDate: string): number {
+    const start = new Date(startDate + 'T00:00:00.000Z').getTime();
+    const end = new Date(endDate + 'T00:00:00.000Z').getTime();
+    if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 0;
+    return Math.floor((end - start) / 86400000) + 1;
+  }
+
+  /**
+   * Candidate supply per clerkship: how many preceptor-available slots exist for
+   * the clerkship's eligible preceptors within the range (design §4). Used as the
+   * denominator of the scarcity score, so a clerkship with few open days is
+   * scheduled before one with plenty.
+   */
+  private async computeCandidateDays(
+    clerkshipIds: string[],
+    startDate: string,
+    endDate: string,
+    scheduleId?: string
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    for (const clerkshipId of clerkshipIds) {
+      const eligible = await getEligiblePreceptorIds(this.db, clerkshipId, { scheduleId });
+      if (eligible.size === 0) {
+        result.set(clerkshipId, 0);
+        continue;
+      }
+      const row = await this.db
+        .selectFrom('preceptor_availability')
+        .select(({ fn }) => [fn.count<number>('id').as('c')])
+        .where('preceptor_id', 'in', [...eligible])
+        .where('is_available', '=', 1)
+        .where('date', '>=', startDate)
+        .where('date', '<=', endDate)
+        .executeTakeFirst();
+      result.set(clerkshipId, Number(row?.c ?? 0));
+    }
+    return result;
+  }
+
+  /**
+   * Order (student, clerkship) pairs by scarcity — `remainingDays / candidateDays`
+   * descending, so the tightest requirements are placed first — with a
+   * deterministic id tie-break for reproducibility (design §4 / D-01).
+   */
+  private orderPairsByScarcity(
+    students: Student[],
+    clerkships: Clerkship[],
+    candidateDays: Map<string, number>,
+    credit?: Map<string, Map<string, number>>
+  ): Array<{ student: Student; clerkship: Clerkship; score: number }> {
+    const pairs: Array<{ student: Student; clerkship: Clerkship; score: number }> = [];
+    for (const student of students) {
+      for (const clerkship of clerkships) {
+        if (!student.id || !clerkship.id) continue;
+        const config = this.clerkshipConfigs.get(clerkship.id);
+        const required = config?.requiredDays ?? clerkship.required_days;
+        const credited = credit?.get(student.id)?.get(clerkship.id) ?? 0;
+        const remaining = Math.max(0, required - credited);
+        const supply = candidateDays.get(clerkship.id) ?? 0;
+        // Scarcer (higher remaining per available slot) sorts first. A clerkship
+        // with zero supply is maximally scarce.
+        const score = supply === 0 ? Number.POSITIVE_INFINITY : remaining / supply;
+        pairs.push({ student, clerkship, score });
+      }
+    }
+    return pairs.sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.student.id!.localeCompare(b.student.id!) ||
+        a.clerkship.id!.localeCompare(b.clerkship.id!)
+    );
+  }
+
   /**
    * Commit assignments to database.
    *
@@ -899,6 +1007,7 @@ export class ConfigurableSchedulingEngine {
         date: a.date,
         electiveId: a.electiveId ?? null,
         overrideCodes: a.overrideCodes ?? [],
+        status: a.status,
       }))
     );
 
@@ -953,11 +1062,17 @@ export class ConfigurableSchedulingEngine {
 
     // Add fallback assignments to result builder and pending assignments
     for (const assignment of result.assignments) {
+      // Honour fallbackRequiresApproval (F-17 residue): a fallback day for a
+      // clerkship that requires sign-off is written `pending_approval` rather
+      // than `scheduled`, so a coordinator can review it.
+      const requiresApproval =
+        this.clerkshipConfigs.get(assignment.clerkshipId)?.fallbackRequiresApproval ?? false;
       this.resultBuilder.addAssignment({
         studentId: assignment.studentId,
         preceptorId: assignment.preceptorId,
         clerkshipId: assignment.clerkshipId,
         date: assignment.date,
+        status: requiresApproval ? 'pending_approval' : undefined,
         // Add metadata about fallback
         metadata: {
           isFallback: true,

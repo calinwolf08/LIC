@@ -994,6 +994,8 @@ export interface GeneratedAssignmentInput {
 	 * override in the health panel (F-11).
 	 */
 	overrideCodes?: string[];
+	/** Row status; defaults to 'scheduled'. Fallback rows may be 'pending_approval'. */
+	status?: string;
 }
 
 /**
@@ -1097,6 +1099,7 @@ export async function insertGeneratedAssignments(
 			elective_id: a.electiveId ?? null,
 			site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
 			date: a.date,
+			status: a.status ?? 'scheduled',
 			source: 'generated' as const,
 			override_codes: a.overrideCodes ?? [],
 			override_note: (a.overrideCodes?.length ?? 0) > 0 ? 'auto-generation bypass' : null
