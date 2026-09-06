@@ -176,6 +176,12 @@ export class ConfigurableSchedulingEngine {
       credit
     );
 
+    // Statistics are computed over the full roster, not just students that got an
+    // assignment (review finding F-13).
+    this.resultBuilder.setRoster(
+      prioritizedStudents.map((s) => s.id).filter((id): id is string => !!id)
+    );
+
     const rangeDays = Math.max(1, this.countDays(startDate, endDate));
     this.proposalBudget = Math.max(
       10000,
@@ -190,7 +196,10 @@ export class ConfigurableSchedulingEngine {
           studentName: student.name,
           clerkshipId: clerkship.id!,
           clerkshipName: clerkship.name,
-          requirementType: (clerkship.clerkship_type || 'outpatient') as any,
+          requirementType: (clerkship.clerkship_type || 'outpatient') as
+            | 'outpatient'
+            | 'inpatient'
+            | 'elective',
           requiredDays: clerkship.required_days,
           assignedDays: 0,
           remainingDays: clerkship.required_days,

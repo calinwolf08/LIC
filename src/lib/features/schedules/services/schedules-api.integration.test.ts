@@ -750,6 +750,8 @@ describe('Schedules API Integration Tests', () => {
 				clerkship_type: 'outpatient',
 				required_days: 10
 			});
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
 
 			const summary = await getScheduleSummaryData(db, PERIOD_ID);
 
@@ -777,6 +779,8 @@ describe('Schedules API Integration Tests', () => {
 				clerkship_type: 'outpatient',
 				required_days: 3
 			});
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
 
 			// Create all required assignments
 			for (let i = 0; i < 3; i++) {
@@ -818,6 +822,9 @@ describe('Schedules API Integration Tests', () => {
 				clerkship_type: 'outpatient',
 				required_days: 5
 			});
+			await linkStudentToSchedule(db, student1.id as string);
+			await linkStudentToSchedule(db, student2.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
 
 			// Alice: 2 days, Bob: 1 day
 			await createAssignment(db, {

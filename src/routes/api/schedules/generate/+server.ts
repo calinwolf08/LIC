@@ -10,7 +10,8 @@ import {
 import type { RegenerationStrategy } from '$lib/features/scheduling/services/regeneration-service';
 import {
 	logRegenerationEvent,
-	createRegenerationAuditLog
+	createRegenerationAuditLog,
+	recordGenerationRun
 } from '$lib/features/scheduling/services/audit-service';
 import {
 	insertGeneratedAssignments,
@@ -44,6 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const scheduleId = await requireActiveScheduleId(locals);
 	log.info('Schedule generation request received', { scheduleId });
 
+	const startedAt = Date.now();
 	try {
 		const body = await request.json();
 		const validatedData = generateScheduleSchema.parse(body);
@@ -137,7 +139,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				notes: `Completion: preserved ${creditBefore.totalExisting}, generated ${inserted.length}, skipped ${skipped.length}. Bypassed: ${bypassedConstraints.join(', ') || 'none'}`
 			});
 
+			const completionRunId = await recordGenerationRun(db, {
+				scheduleId,
+				userId: locals.session?.user?.id,
+				mode: 'completion',
+				preview: false,
+				success: result.success,
+				durationMs: Date.now() - startedAt,
+				options: {
+					startDate: validatedData.startDate,
+					endDate: validatedData.endDate,
+					bypassedConstraints
+				},
+				plan: { preservedExisting: creditBefore.totalExisting, generated: inserted.length },
+				result: {
+					statistics: result.statistics,
+					unmetRequirements: result.unmetRequirements,
+					violations: result.violations
+				}
+			});
+
 			return successResponse({
+				runId: completionRunId,
 				assignments: inserted,
 				success: result.success,
 				unmetRequirements: result.unmetRequirements,
@@ -212,8 +235,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			)
 		);
 
+		const runId = await recordGenerationRun(db, {
+			scheduleId,
+			userId: locals.session?.user?.id,
+			mode: strategy,
+			preview: false,
+			success: result.success,
+			durationMs: Date.now() - startedAt,
+			options: {
+				startDate: validatedData.startDate,
+				endDate: validatedData.endDate,
+				cutoff: regenerateFromDate,
+				bypassedConstraints
+			},
+			plan: plan.summary,
+			result: {
+				statistics: result.statistics,
+				unmetRequirements: result.unmetRequirements,
+				violations: result.violations
+			}
+		});
+
 		return successResponse(
 			{
+				runId,
 				assignments: inserted,
 				success: result.success,
 				unmetRequirements: result.unmetRequirements,

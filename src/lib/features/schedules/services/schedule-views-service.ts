@@ -575,25 +575,42 @@ export async function getScheduleSummaryData(
 	const startDate = period.start_date;
 	const endDate = period.end_date;
 
-	// Get all students
+	// Students in THIS schedule only (review finding F-27): the summary must not
+	// count other tenants' students as unscheduled.
 	const students = await db
 		.selectFrom('students')
-		.select(['id', 'name'])
+		.innerJoin('schedule_students', 'schedule_students.student_id', 'students.id')
+		.select(['students.id as id', 'students.name as name'])
+		.where('schedule_students.schedule_id', '=', scheduleId!)
 		.execute();
 
-	// Get all clerkships with requirements
+	// Clerkships in THIS schedule only.
 	const clerkships = await db
 		.selectFrom('clerkships')
-		.select(['id', 'name', 'specialty', 'required_days'])
+		.innerJoin('schedule_clerkships', 'schedule_clerkships.clerkship_id', 'clerkships.id')
+		.select([
+			'clerkships.id as id',
+			'clerkships.name as name',
+			'clerkships.specialty as specialty',
+			'clerkships.required_days as required_days'
+		])
+		.where('schedule_clerkships.schedule_id', '=', scheduleId!)
 		.execute();
 
-	// Get all assignments in period
-	const assignments = await db
-		.selectFrom('schedule_assignments')
-		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date'])
-		.where('date', '>=', startDate)
-		.where('date', '<=', endDate)
-		.execute();
+	// Assignments in THIS schedule and period. Scope through the schedule's own
+	// students (the tenant boundary, F-27) rather than the assignment's
+	// schedule_id column, so rows created before that column existed still count.
+	const scopedStudentIds = students.map((s) => s.id).filter((id): id is string => !!id);
+	const assignments =
+		scopedStudentIds.length > 0
+			? await db
+					.selectFrom('schedule_assignments')
+					.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date'])
+					.where('student_id', 'in', scopedStudentIds)
+					.where('date', '>=', startDate)
+					.where('date', '<=', endDate)
+					.execute()
+			: [];
 
 	// Count assignments by student and clerkship
 	const studentClerkshipCounts = new Map<string, Map<string, number>>();

@@ -91,3 +91,16 @@ Independent of the engine work; ships value to both tiers and is what makes a ge
 - Do not start Phase 3 before Phase 2: strategy improvements are unverifiable until the validator exists.
 - Phase 1b can run in parallel with Phase 1 by a second engineer — it touches the assignment routes and Stage 1 UI, not the engine. Land 1b.3 before Phase 2.2 so the shared validator has one caller shape to satisfy, and 1b.1/1b.8 before 0.6's persistence work is considered done.
 - If time is short, Phases 0, 1 and 1b plus their tests are the minimum: Phase 0 makes generation safe, Phase 1 makes it configurable, Phase 1b makes its output usable and gives Stage 1 the concepts it is already allowed to configure.
+
+## Delivery status
+
+- **Phases 0, 0.x, 1, 1b, 2, 3 — done.** Landed with their tests and gates green.
+- **Phase 4 — done, with scoped follow-ups.** Delivered:
+  - 4.1 `generation_runs` table (shared migration `101`), `recordGenerationRun`/`getLatestGenerationRun` in the audit service, written on every apply path in `/api/schedules/generate`, and returned as `lastRun` from `/api/schedule/summary`; `getScheduleSummaryData` now scopes students, clerkships and assignments to the active schedule.
+  - 4.2 engine statistics partition the whole roster into fully/partially/unscheduled (no negatives) via `ResultBuilder.setRoster`.
+  - 4.3 default cutoff is `getTodayUTC()` (already UTC; verified).
+  - 4.6 a Postgres engine-generation test in `test:pg` runs the full `ConfigurableSchedulingEngine` against PGlite and asserts committed rows.
+  - 4.4 (partial) deleted the deprecated `requirements` routes, service and two orphaned Svelte components; deleted the stale `e2e/api/**` and `e2e/ui/**` dirs (unrun — Playwright only runs `e2e/journeys`) and `docs/scheduling/test-coverage-summary.md`; removed one `as any` in the engine's unmet-requirement path.
+  - 4.5 (partial) added a central Stage 2 (`autogen`) 403 prefix table in the hook (`requiresAutogenEntitlement`) so a new engine-only sub-route cannot forget the check; gated the elective-preceptor write handlers (`POST`/`PUT`/`DELETE`) with `requireAutogen` (G-3).
+  - **Deferred (documented, not blocking):** the remaining `as any`/`any[]` structural typing in the engine (elective payloads, validation arrays); deleting the legacy `services/scheduling-engine.ts` and `services/regeneration-service.ts`, which are still referenced by the integration suites and the generate route and should be retired alongside a planner-only cutover (design `03 §8`).
+- **Phase 5 — not started.**

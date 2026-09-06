@@ -333,6 +333,7 @@ async function insertTestData(
 				.insertInto('schedule_assignments')
 				.values({
 					...a,
+					schedule_id: PERIOD_ID,
 					created_at: timestamp,
 					updated_at: timestamp
 				})

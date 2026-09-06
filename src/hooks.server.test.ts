@@ -39,8 +39,6 @@ const PROTECTED_PATHS = [
 	'/api/scheduling-periods',
 	'/api/scheduling-config/electives',
 	'/api/scheduling-config/electives/some-id',
-	'/api/scheduling-config/requirements',
-	'/api/scheduling-config/requirements/some-id',
 	'/api/preceptors/some-id/patterns/generate',
 	'/api/preceptors/teams/some-id',
 	'/api/schedules/assignments'
@@ -79,6 +77,50 @@ describe('hooks: central API authentication', () => {
 	it('does not challenge page routes (guarded by their layout)', async () => {
 		getSession.mockResolvedValue(null);
 		const res = await handle({ event: event('/dashboard'), resolve } as never);
+		expect(res.status).toBe(200);
+		expect(svelteKitHandler).toHaveBeenCalledOnce();
+	});
+});
+
+// Stage 2 (autogen) prefixes are rejected centrally with 403 when the caller
+// lacks the entitlement, so a new sub-route under them cannot forget the check
+// (05 §3). These are all authenticated — the 401 gate above ran first.
+const AUTOGEN_PATHS = [
+	'/api/schedules/generate',
+	'/api/scheduling/execute',
+	'/api/scheduling-config/global-defaults/inpatient',
+	'/api/scheduling-config/capacity-rules',
+	'/api/scheduling-config/capacity-rules/some-id',
+	'/api/scheduling-config/fallbacks'
+];
+
+describe('hooks: central Stage 2 (autogen) gating', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it.each(AUTOGEN_PATHS)('returns 403 for %s without the autogen entitlement', async (path) => {
+		getSession.mockResolvedValue({ user: { id: 'u1', entitlements: '[]' } });
+		const res = await handle({ event: event(path), resolve } as never);
+		expect(res.status).toBe(403);
+		const body = await res.json();
+		expect(body).toEqual({
+			success: false,
+			error: { message: 'Auto-generation requires an upgraded plan' }
+		});
+		expect(svelteKitHandler).not.toHaveBeenCalled();
+	});
+
+	it.each(AUTOGEN_PATHS)('lets an autogen user through to %s', async (path) => {
+		getSession.mockResolvedValue({ user: { id: 'u1', entitlements: '["autogen"]' } });
+		const res = await handle({ event: event(path), resolve } as never);
+		expect(res.status).toBe(200);
+		expect(svelteKitHandler).toHaveBeenCalledOnce();
+	});
+
+	it('does not gate an open Stage 1 route for a non-autogen user', async () => {
+		getSession.mockResolvedValue({ user: { id: 'u1', entitlements: '[]' } });
+		const res = await handle({ event: event('/api/scheduling-config/electives'), resolve } as never);
 		expect(res.status).toBe(200);
 		expect(svelteKitHandler).toHaveBeenCalledOnce();
 	});

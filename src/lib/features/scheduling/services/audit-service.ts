@@ -104,6 +104,101 @@ export async function logRegenerationEvent(
 }
 
 /**
+ * A persisted generation run (review findings F-24 audit, F-25 diagnostics).
+ * `options`, `plan` and `result` are stored as JSON so the Results page can
+ * render the last run's violations / unmet requirements / statistics without
+ * recomputing them.
+ */
+export interface GenerationRunInput {
+	scheduleId: string;
+	userId?: string | null;
+	mode: RegenerationStrategy;
+	preview: boolean;
+	success: boolean;
+	durationMs: number;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	options: Record<string, any>;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	plan: Record<string, any>;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	result: Record<string, any>;
+}
+
+/** Persist one generation run and return its id (F-24). */
+export async function recordGenerationRun(
+	db: Kysely<DB>,
+	run: GenerationRunInput
+): Promise<string> {
+	const id = crypto.randomUUID();
+	await db
+		.insertInto('generation_runs')
+		.values({
+			id,
+			schedule_id: run.scheduleId,
+			user_id: run.userId ?? null,
+			created_at: new Date().toISOString(),
+			mode: run.mode,
+			preview: run.preview ? 1 : 0,
+			options_json: JSON.stringify(run.options),
+			plan_json: JSON.stringify(run.plan),
+			result_json: JSON.stringify(run.result),
+			success: run.success ? 1 : 0,
+			duration_ms: Math.max(0, Math.round(run.durationMs))
+		})
+		.execute();
+	return id;
+}
+
+/**
+ * The latest non-preview generation run for a schedule, with its JSON columns
+ * parsed. Powers the Results page (F-25). Returns null when none exists.
+ */
+export async function getLatestGenerationRun(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<{
+	id: string;
+	createdAt: string;
+	mode: string;
+	success: boolean;
+	durationMs: number;
+	userId: string | null;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	options: any;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	plan: any;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	result: any;
+} | null> {
+	const row = await db
+		.selectFrom('generation_runs')
+		.selectAll()
+		.where('schedule_id', '=', scheduleId)
+		.where('preview', '=', 0)
+		.orderBy('created_at', 'desc')
+		.executeTakeFirst();
+	if (!row) return null;
+	const safeParse = (s: string) => {
+		try {
+			return JSON.parse(s);
+		} catch {
+			return null;
+		}
+	};
+	return {
+		id: row.id,
+		createdAt: row.created_at,
+		mode: row.mode,
+		success: row.success === 1,
+		durationMs: row.duration_ms,
+		userId: row.user_id,
+		options: safeParse(row.options_json),
+		plan: safeParse(row.plan_json),
+		result: safeParse(row.result_json)
+	};
+}
+
+/**
  * Helper to create audit log from regeneration results
  */
 export function createRegenerationAuditLog(

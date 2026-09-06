@@ -106,6 +106,20 @@ export interface ElectiveSites {
   site_id: string;
 }
 
+export interface GenerationRuns {
+  created_at: string;
+  duration_ms: Generated<number>;
+  id: string;
+  mode: string;
+  options_json: string;
+  plan_json: string;
+  preview: Generated<number>;
+  result_json: string;
+  schedule_id: string;
+  success: number;
+  user_id: string | null;
+}
+
 export interface GlobalElectiveDefaults {
   allow_fallbacks: Generated<number>;
   allow_teams: Generated<number>;
@@ -467,6 +481,7 @@ export interface DB {
   clerkships: Clerkships;
   elective_preceptors: ElectivePreceptors;
   elective_sites: ElectiveSites;
+  generation_runs: GenerationRuns;
   global_elective_defaults: GlobalElectiveDefaults;
   global_inpatient_defaults: GlobalInpatientDefaults;
   global_outpatient_defaults: GlobalOutpatientDefaults;

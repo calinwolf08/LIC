@@ -22,6 +22,7 @@ import {
 	assertEntityInSchedule
 } from '$lib/api/schedule-context';
 import { ElectiveService } from '$lib/features/scheduling-config/services/electives.service';
+import { requireAutogen } from '$lib/server/entitlements';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { z } from 'zod';
 import { ZodError } from 'zod';
@@ -82,6 +83,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Adding preceptor to elective', { electiveId: params.id });
 
 	try {
+		// Elective preceptor pools only feed the engine, so building them is a
+		// Stage 2 capability even though elective CRUD is open to Stage 1 (G-3).
+		requireAutogen(locals);
 		const scheduleId = await requireActiveScheduleId(locals);
 		await assertElectiveInSchedule(db, scheduleId, params.id);
 
@@ -130,6 +134,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	log.debug('Setting preceptors for elective', { electiveId: params.id });
 
 	try {
+		requireAutogen(locals);
 		const scheduleId = await requireActiveScheduleId(locals);
 		await assertElectiveInSchedule(db, scheduleId, params.id);
 
@@ -181,6 +186,7 @@ export const DELETE: RequestHandler = async ({ params, url, locals }) => {
 	log.debug('Removing preceptor from elective', { electiveId: params.id, preceptorId });
 
 	try {
+		requireAutogen(locals);
 		if (!preceptorId) {
 			log.warn('Missing preceptorId parameter for preceptor removal', { electiveId: params.id });
 			return errorResponse('preceptorId query parameter is required', 400);
