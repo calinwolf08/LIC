@@ -125,10 +125,16 @@ Key rules:
   - **Auto-generation never moves or deletes a locked row.** A regeneration clears only unlocked rows (`clearAllAssignments` filters `locked = 0`), and the engine's single persistence path skips any `(student, date)` slot already occupied — locked included — so a locked day always survives a run and is reported as a skipped slot, never silently overwritten.
   - **A human may always edit or move a locked assignment, entitled or not.** Locking is a preset for the generator, not a write-lock against people: editing, reassigning, moving and deleting a locked row go through the normal manual paths for any user. Only the **lock toggle itself** is a Stage 2 control — setting or clearing `locked` requires the `autogen` entitlement (the server ignores a `locked` change from a non-entitled caller).
 
+- R6.7 Elective assignment (Stage 1). A manual assignment may be tied to one of its clerkship's electives (`elective_id`); the assignment dialog offers that clerkship's electives, and the day counts toward that elective's `minimum_days` as well as (for a required elective) the clerkship total per R4.4. An `elective_id` that does not belong to the assignment's clerkship is a hard rejection, never silently dropped (review finding P-01).
+
 ### 4.7 Validation & requirement tracking
 - R7.1 A standalone validation engine (independent of generation) computes, for the active schedule: all conflicts/violations with type, entities, and date; per-student requirement status (completed/scheduled/unscheduled per clerkship).
 - R7.2 Validation results surface: on the dashboard (summary), on the calendar (per-day markers), on student list/detail, on preceptor detail.
 - R7.3 A **setup/readiness checklist** (U12, F8) tells the user what's missing before scheduling is meaningful (no students, clerkship without required days, preceptor without availability, etc.) — phrased for Stage 1 (manual) semantics, with Stage 2 readiness items appearing only for entitled users.
+- R7.4 Override vocabulary (review findings F-05/F-11, parity rule 3). Violations are one fixed, shared vocabulary used by every mutation path and by the generator:
+  - **Hard** codes — `student_double_booked`, `entity_missing` — always reject and are **never** overridable.
+  - **Soft** codes — `preceptor_unavailable`, `preceptor_capacity`, `blackout_date`, `not_onboarded`, `site_not_allowed`, `outside_schedule`, `over_required_days`, `past_date` — surface as warnings and may be knowingly accepted. Accepted codes are stored on the row (`override_codes`) and listed for review in the schedule-health panel. The create-time-only codes `over_required_days` and `past_date` apply when a day is added or moved, not to whole-schedule health checks.
+  - Every mutation route (create, reassign, change-date, swap) and the generator's proposal check answer through the **same** validator, so a code means the same thing and is accepted the same way everywhere.
 
 ### 4.8 Calendar
 - R8.1 Schedule-wide calendar with month grid and list views, defaulting to the schedule's full date range.
@@ -160,6 +166,11 @@ Key rules:
 - G5 Teams & fallback preceptors management.
 - G6 Generation respects locked assignments (F6) and never modifies past (completed) assignments unless explicitly told to.
 - G7 Non-entitled users see, at most, a single upgrade hint — no strategy dropdowns, no "Generate" buttons, no team requirements.
+- G8 **One validator, tier parity** (parity rules 1–6, findings P-01/P-03/P-04/P-10). A generated day is indistinguishable from a hand-built one to every mutation route: it carries `schedule_id`, `site_id`, `elective_id`, `source='generated'` and any `override_codes`, so its own columns reconstruct a valid manual create, and it can be moved, reassigned, swapped, locked and deleted by the same Stage 1 routes. Generation validates each proposed day through the same validator and vocabulary as manual creation (R7.4). `GET /api/schedules/validation` returns the identical payload to entitled and non-entitled callers over the same data.
+- G9 **Bypass parity** (F-11). Stage 2 "constraint bypass" reuses the Stage 1 soft-code vocabulary (R7.4). A bypassed generated day is written with those codes in `override_codes` and appears in the health panel exactly like a manually accepted override; a soft code that is not bypassed is surfaced on the run result rather than silently placed. Unknown bypass codes are rejected at the route.
+- G10 **Approval flag** (F-17 residue). When a clerkship's fallback settings require approval (`fallbackRequiresApproval`), fallback-filled days are written with status `pending_approval` for coordinator review instead of `scheduled`; all other generated days are `scheduled`.
+- G11 **Eligibility & tier** (findings F-19/F-28/P-02). A preceptor may teach a clerkship when they are in the schedule's preceptors **and** either belong to a team for the clerkship, or — when the clerkship has no team — have availability at an allowed site. One shared predicate answers this for the assignment dialog's options, the engine snapshot, and the readiness checklist, so all three agree, including the "clerkship with no team" case.
+- G12 **Entitlement loss does not strand data** (G-10). If `autogen` is revoked while a generated schedule exists, every generated assignment stays fully editable and its locks remain visible but not toggleable; `/generate` and the Stage 2 APIs 403; the health panel is unchanged.
 - Deferred (backlog, not in current plan): half-day AM/PM scheduling (F1/F2), exam scheduling, notifications, student/preceptor portals.
 
 ---
