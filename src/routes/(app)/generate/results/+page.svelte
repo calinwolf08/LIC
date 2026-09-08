@@ -64,21 +64,27 @@
 			<Button class="mt-4" onclick={() => goto('/calendar')}>Go to Calendar</Button>
 		</div>
 	{:else}
-		<div class="space-y-6">
+		<div class="space-y-6" data-testid="results" data-complete={data.summary.isComplete ? 'true' : 'false'}>
 			<!-- Stats Overview -->
-			<ScheduleStatsCard stats={data.summary.stats} isComplete={data.summary.isComplete} />
+			<div data-testid="results-stats">
+				<ScheduleStatsCard stats={data.summary.stats} isComplete={data.summary.isComplete} />
+			</div>
 
 			<!-- Violations and Suggestions (only show if schedule incomplete) -->
 			{#if !data.summary.isComplete}
 				<div class="grid gap-6 lg:grid-cols-2">
 					<!-- Violation Stats -->
 					{#if data.summary.violationStats && data.summary.violationStats.length > 0}
-						<ViolationStatsCard violations={data.summary.violationStats} />
+						<div data-testid="results-violations">
+							<ViolationStatsCard violations={data.summary.violationStats} />
+						</div>
 					{/if}
 
 					<!-- Suggestions -->
 					{#if suggestions.length > 0}
-						<SuggestionsPanel {suggestions} />
+						<div data-testid="results-suggestions">
+							<SuggestionsPanel {suggestions} />
+						</div>
 					{/if}
 				</div>
 			{/if}
@@ -86,7 +92,7 @@
 			<!-- Unmet Requirements and Clerkship Breakdown -->
 			<div class="grid gap-6 lg:grid-cols-2">
 				<!-- Unmet Requirements -->
-				<div class="lg:col-span-1">
+				<div class="lg:col-span-1" data-testid="results-unmet">
 					<UnmetRequirementsTable
 						students={data.summary.studentsWithUnmetRequirements}
 						onStudentClick={handleStudentClick}
@@ -94,7 +100,7 @@
 				</div>
 
 				<!-- Clerkship Breakdown -->
-				<div class="lg:col-span-1">
+				<div class="lg:col-span-1" data-testid="results-breakdown">
 					<ClerkshipBreakdownTable breakdown={data.summary.clerkshipBreakdown} />
 				</div>
 			</div>

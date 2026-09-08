@@ -48,7 +48,7 @@
 			<p class="mb-4 text-sm text-gray-600">Complete these steps to build a schedule.</p>
 			<ul class="space-y-2">
 				{#each data.checklist as item (item.id)}
-					<li>
+					<li data-testid="checklist-{item.id}" data-done={item.done ? 'true' : 'false'}>
 						<a
 							href={item.href}
 							class="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-white/60"
@@ -80,32 +80,32 @@
 			<button onclick={() => goto('/students')} class="text-left">
 				<Card class="p-6 transition-shadow hover:shadow-md">
 					<p class="text-sm font-medium text-gray-600">Total Students</p>
-					<p class="mt-2 text-3xl font-bold">{stats.total_students}</p>
+					<p class="mt-2 text-3xl font-bold" data-testid="dash-total-students">{stats.total_students}</p>
 				</Card>
 			</button>
 			<button onclick={() => goto('/preceptors')} class="text-left">
 				<Card class="p-6 transition-shadow hover:shadow-md">
 					<p class="text-sm font-medium text-gray-600">Total Preceptors</p>
-					<p class="mt-2 text-3xl font-bold">{stats.total_preceptors}</p>
+					<p class="mt-2 text-3xl font-bold" data-testid="dash-total-preceptors">{stats.total_preceptors}</p>
 				</Card>
 			</button>
 			<button onclick={() => goto('/clerkships')} class="text-left">
 				<Card class="p-6 transition-shadow hover:shadow-md">
 					<p class="text-sm font-medium text-gray-600">Clerkships</p>
-					<p class="mt-2 text-3xl font-bold">{stats.total_clerkships}</p>
+					<p class="mt-2 text-3xl font-bold" data-testid="dash-total-clerkships">{stats.total_clerkships}</p>
 				</Card>
 			</button>
 			<button onclick={() => goto('/calendar')} class="text-left">
 				<Card class="p-6 transition-shadow hover:shadow-md">
 					<p class="text-sm font-medium text-gray-600">Assignments</p>
-					<p class="mt-2 text-3xl font-bold">{stats.total_assignments}</p>
+					<p class="mt-2 text-3xl font-bold" data-testid="dash-total-assignments">{stats.total_assignments}</p>
 				</Card>
 			</button>
 		</div>
 
 		<div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Schedule health -->
-			<Card class="p-6">
+			<Card class="p-6" data-testid="dash-health" data-violation-count={data.violationCount}>
 				<h2 class="mb-4 text-lg font-bold text-gray-900">Schedule health</h2>
 				{#if data.violationCount === 0}
 					<div class="flex items-center gap-2 text-green-700">
@@ -117,7 +117,7 @@
 					</p>
 					<ul class="space-y-1 text-sm">
 						{#each Object.entries(data.violationsByCode) as [code, count] (code)}
-							<li class="flex items-center justify-between">
+							<li class="flex items-center justify-between" data-testid="dash-health-row" data-code={code}>
 								<span class="text-gray-700">{violationLabels[code] ?? code}</span>
 								<Badge variant="destructive">{count}</Badge>
 							</li>
@@ -137,15 +137,15 @@
 				</div>
 				<div class="mb-4 grid grid-cols-3 gap-2 text-center">
 					<div>
-						<p class="text-2xl font-bold text-green-600">{stats.fully_scheduled_students}</p>
+						<p class="text-2xl font-bold text-green-600" data-testid="dash-fully">{stats.fully_scheduled_students}</p>
 						<p class="text-xs text-gray-500">Fully</p>
 					</div>
 					<div>
-						<p class="text-2xl font-bold text-amber-600">{stats.partially_scheduled_students}</p>
+						<p class="text-2xl font-bold text-amber-600" data-testid="dash-partially">{stats.partially_scheduled_students}</p>
 						<p class="text-xs text-gray-500">Partially</p>
 					</div>
 					<div>
-						<p class="text-2xl font-bold text-red-600">{stats.unscheduled_students}</p>
+						<p class="text-2xl font-bold text-red-600" data-testid="dash-unscheduled">{stats.unscheduled_students}</p>
 						<p class="text-xs text-gray-500">Unscheduled</p>
 					</div>
 				</div>

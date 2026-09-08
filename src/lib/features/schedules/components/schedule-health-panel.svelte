@@ -106,7 +106,11 @@
 				{:else}
 					<ul class="space-y-1 text-sm">
 						{#each codeRows as [code, n] (code)}
-							<li class="flex items-center justify-between rounded border px-3 py-2">
+							<li
+								class="flex items-center justify-between rounded border px-3 py-2"
+								data-testid="health-type-row"
+								data-code={code}
+							>
 								<span>{label(code)}</span>
 								<Badge variant="outline">{n}</Badge>
 							</li>
@@ -135,6 +139,8 @@
 						<Button
 							size="sm"
 							variant={codeFilter === code ? 'default' : 'outline'}
+							data-testid="override-count"
+							data-code={code}
 							onclick={() => setCodeFilter(code)}
 						>
 							{label(code)} ({n})

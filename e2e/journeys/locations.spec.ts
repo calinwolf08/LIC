@@ -41,7 +41,9 @@ test('locations: create, edit, and delete a health system', async ({ page }) => 
 	await expect(page).toHaveURL(/\/health-systems\/[^/]+$/);
 	await page.locator('#name').fill(renamed);
 	await page.getByRole('button', { name: 'Update' }).click();
-	await expect(page.getByText(/updated/i)).toBeVisible({ timeout: 10000 });
+	// Match the success banner specifically — the detail page also shows a
+	// "Last Updated" label, which /updated/i would ambiguously hit.
+	await expect(page.getByText(/updated successfully/i)).toBeVisible({ timeout: 10000 });
 
 	// Back on the list, the rename is reflected.
 	await openHealthSystemsTab(page);

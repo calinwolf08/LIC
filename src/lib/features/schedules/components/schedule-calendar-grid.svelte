@@ -152,8 +152,11 @@
 							<div
 								role="button"
 								tabindex={day.isCurrentMonth ? 0 : -1}
+								data-testid="cal-day-{day.date}"
 								data-date={day.date}
 								data-in-range={day.isInRange !== false}
+								data-blackout={isBlackoutDate(day.date)}
+								data-conflict={violationDates.has(day.date)}
 								class="{getDayClasses(day)} min-h-[76px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative cursor-pointer {!isInteractive(day) ? 'pointer-events-none' : ''}"
 								onclick={() => handleDayClick(day)}
 								onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleDayClick(day)}
@@ -178,6 +181,9 @@
 												type="button"
 												data-testid="calendar-assignment"
 												data-assignment-id={assignment.id}
+												data-source={assignment.source ?? 'manual'}
+												data-locked={assignment.locked ? 'true' : 'false'}
+												data-elective={assignment.electiveName ?? ''}
 												data-color={color}
 												class="w-full rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-opacity hover:opacity-80"
 												style="background-color: {color}20; color: {color}; border-left: 2px solid {color};"

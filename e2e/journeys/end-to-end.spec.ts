@@ -101,9 +101,10 @@ async function addAssignment(
 	}
 }
 
-test('end-to-end: build entities, assign, validate, edit, reassign, revalidate', async ({
-	page
-}) => {
+test(
+	'end-to-end: build entities, assign, validate, edit, reassign, revalidate',
+	{ tag: ['@smoke', '@stage1', '@long'] },
+	async ({ page }) => {
 	test.setTimeout(180000);
 	await login(page, ADMIN);
 
@@ -248,4 +249,5 @@ test('end-to-end: build entities, assign, validate, edit, reassign, revalidate',
 	await page.getByRole('tab', { name: 'Overview' }).click();
 	// The clerkship's progress row: 0 done · 2 scheduled · 0 left / 2 required.
 	await expect(page.getByText(/2 scheduled · 0 left \/ 2/i)).toBeVisible();
-});
+	}
+);

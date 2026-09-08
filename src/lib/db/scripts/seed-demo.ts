@@ -253,7 +253,30 @@ export async function seedAdminAssignments(db: Kysely<DB>, refs: AdminSeedRefs) 
 		overrideNote: 'Approved before onboarding completed'
 	});
 
+	// --- Scenario 6: a locked (preset) day ----------------------------------
+	// One more Internal Medicine day for the partially-complete student, locked
+	// so regeneration journeys have a row that must survive every mode (R6.6).
+	// 11 of 28 keeps the student partial.
+	await db
+		.insertInto('schedule_assignments')
+		.values({
+			id: nanoid(),
+			schedule_id: scheduleId,
+			student_id: studentIds[1],
+			preceptor_id: partialPreceptor,
+			clerkship_id: internalMedicine,
+			site_id: partialSite,
+			date: fromToday(11),
+			status: 'scheduled',
+			source: 'manual',
+			locked: 1,
+			override_codes: JSON.stringify([]),
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+
 	console.log(
-		'  Seeded demo assignments: clean block, partial, complete, capacity run, resolved override'
+		'  Seeded demo assignments: clean block, partial (+1 locked), complete, capacity run, resolved override'
 	);
 }

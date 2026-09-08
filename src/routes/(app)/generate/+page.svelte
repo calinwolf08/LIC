@@ -23,7 +23,11 @@
 			<h2 class="mb-2 text-lg font-semibold">Before you generate</h2>
 			<ul class="space-y-1 text-sm">
 				{#each data.checklist as item (item.id)}
-					<li class="flex items-center gap-2">
+					<li
+						class="flex items-center gap-2"
+						data-testid="readiness-{item.id}"
+						data-done={item.done ? 'true' : 'false'}
+					>
 						{#if item.done}
 							<Check class="h-4 w-4 text-green-600" /><span class="text-gray-500 line-through">{item.label}</span>
 						{:else}

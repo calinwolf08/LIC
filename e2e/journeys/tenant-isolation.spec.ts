@@ -57,7 +57,7 @@ async function rowExists(table: 'students' | 'preceptors' | 'clerkships' | 'site
 	}
 }
 
-test.describe('tenant isolation (signed in as tenant A)', () => {
+test.describe('tenant isolation (signed in as tenant A)', { tag: ['@smoke', '@tenant'] }, () => {
 	test.beforeEach(async ({ page }) => {
 		await login(page, ADMIN);
 	});

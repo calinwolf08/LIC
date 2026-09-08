@@ -15,7 +15,7 @@ const PROTECTED = [
 	{ method: 'POST', path: '/api/scheduling-periods' }
 ] as const;
 
-test.describe('API authentication', () => {
+test.describe('API authentication', { tag: ['@smoke', '@stage1'] }, () => {
 	test('unauthenticated requests to protected endpoints return 401', async ({ page }) => {
 		for (const { method, path } of PROTECTED) {
 			const res =

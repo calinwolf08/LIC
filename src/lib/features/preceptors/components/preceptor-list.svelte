@@ -154,11 +154,11 @@
 							</td>
 							<td class="px-4 py-3 text-sm">
 								{#if preceptor.has_availability}
-									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+									<span data-testid="availability-indicator" data-configured="true" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
 										Configured
 									</span>
 								{:else}
-									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="Availability must be configured for this preceptor to be included in schedule generation">
+									<span data-testid="availability-indicator" data-configured="false" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="Availability must be configured for this preceptor to be included in schedule generation">
 										Not Set
 									</span>
 								{/if}

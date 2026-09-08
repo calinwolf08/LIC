@@ -116,7 +116,13 @@
 								</div>
 							</td>
 							<td class="px-4 py-3 text-sm">
-								<div class="flex items-center gap-2">
+								<div
+									class="flex items-center gap-2"
+									data-testid="student-status"
+									data-state={status?.scheduling_state ?? 'unscheduled'}
+									data-percent={pct}
+									data-conflicts={status?.conflict_count ?? 0}
+								>
 									<Badge variant={badge.variant}>{badge.label}</Badge>
 									{#if status && status.conflict_count > 0}
 										<Badge variant="destructive">{status.conflict_count} conflict{status.conflict_count > 1 ? 's' : ''}</Badge>
