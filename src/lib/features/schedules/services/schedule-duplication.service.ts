@@ -11,7 +11,7 @@ import {
 	createSchedulingPeriod,
 	getScheduleEntities,
 	addEntitiesToSchedule,
-	type ScheduleEntityType,
+	type ScheduleEntityType
 } from '$lib/features/scheduling/services/scheduling-period-service';
 import { createServerLogger } from '$lib/utils/logger.server';
 
@@ -71,7 +71,7 @@ export async function duplicateToNewSchedule(
 	name: string,
 	startDate: string,
 	endDate: string,
-	year: number,
+	year: number | null | undefined,
 	options: DuplicationOptions,
 	userId?: string | null
 ): Promise<DuplicationResult> {
@@ -91,13 +91,13 @@ export async function duplicateToNewSchedule(
 		start_date: startDate,
 		end_date: endDate,
 		is_active: false,
-		user_id: userId ?? null,
+		user_id: userId ?? null
 	});
 
 	// Update the year field separately since createSchedulingPeriod doesn't support it
 	await db
 		.updateTable('scheduling_periods')
-		.set({ year })
+		.set({ year: year ?? null })
 		.where('id', '=', newSchedule.id!)
 		.execute();
 
@@ -108,7 +108,7 @@ export async function duplicateToNewSchedule(
 		healthSystems: 0,
 		clerkships: 0,
 		teams: 0,
-		configurations: 0,
+		configurations: 0
 	};
 
 	// Helper to resolve entity IDs
@@ -195,17 +195,14 @@ export async function duplicateToNewSchedule(
 
 	return {
 		schedule: updatedSchedule,
-		entityCounts,
+		entityCounts
 	};
 }
 
 /**
  * Get all entity IDs from the base entity table
  */
-async function getAllEntityIds(
-	db: Kysely<DB>,
-	entityType: ScheduleEntityType
-): Promise<string[]> {
+async function getAllEntityIds(db: Kysely<DB>, entityType: ScheduleEntityType): Promise<string[]> {
 	const tableMap: Record<ScheduleEntityType, keyof DB> = {
 		students: 'students',
 		preceptors: 'preceptors',
@@ -213,11 +210,14 @@ async function getAllEntityIds(
 		health_systems: 'health_systems',
 		clerkships: 'clerkships',
 		teams: 'preceptor_teams',
-		configurations: 'clerkship_configurations',
+		configurations: 'clerkship_configurations'
 	};
 
 	const table = tableMap[entityType];
-	const results = await db.selectFrom(table as any).select('id').execute();
+	const results = await db
+		.selectFrom(table as any)
+		.select('id')
+		.execute();
 	return results.map((r: any) => r.id).filter((id: string | null) => id !== null);
 }
 
@@ -254,7 +254,7 @@ export async function quickCopySchedule(
 			healthSystems: 'all',
 			clerkships: 'all',
 			teams: 'all',
-			configurations: 'all',
+			configurations: 'all'
 		}
 	);
 

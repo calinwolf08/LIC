@@ -86,6 +86,8 @@ Spec: R1.1–R1.3, R10.1–R10.6, §6 navigation rules, `05-access-gating.md` G-
 
 **Bugs to expect** (from survey): `redirectTo` round-trip after register (not just login); remember-me cookie lifetime; delete-active-schedule fallback; wizard step count differs by tier (Step 0–7 rendering).
 
+**Status — done (2026-09-08).** Five journeys under `e2e/journeys/phase-1/` (23 tests), green on both tiers where applicable. Product bugs found and fixed with regression coverage: **P1-a** duplicate-schedule always failed validation (required `year` the wizard never sends) — schema + service fix + unit test; **P1-d** a malformed entity id rendered a 500 instead of the not-found page on four detail routes — loads now treat 400 as not-found; **P1-f** `redirectTo` dropped the query string — layout now preserves `pathname + search`. Deferred with recommendations (see `e2e-phase-1-findings.md`): **P1-b** the wizard shows the Teams step to non-entitled users (fix in Phase 6/J6.2 where step indices and gating are handled together), **P1-c** deleting the active schedule drops to the empty state rather than auto-selecting another (UX decision), **P1-e** the unsaved-changes guard (R10.3) is unimplemented app-wide — `FormShell` is orphaned (cross-cutting feature, its own task). R10.6 (no `alert()`) holds.
+
 ---
 
 ## 4. Phase 2 — Entity management as coordinators actually do it

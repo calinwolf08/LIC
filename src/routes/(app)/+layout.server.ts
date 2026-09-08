@@ -3,15 +3,19 @@ import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/db';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
-	// Require authentication for all app routes
+	// Require authentication for all app routes. Preserve the full target
+	// (path + query) so a deep link like /students?x=1 round-trips through login
+	// intact rather than losing its query string (e2e plan J1.1).
 	if (!locals.session?.user) {
-		throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
+		throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname + url.search)}`);
 	}
 
 	// Schedule-first architecture: Check if user has an active schedule
 	// If not, redirect to create schedule (unless already on schedule pages)
 	const scheduleExemptRoutes = ['/schedules'];
-	const isScheduleExemptRoute = scheduleExemptRoutes.some(route => url.pathname.startsWith(route));
+	const isScheduleExemptRoute = scheduleExemptRoutes.some((route) =>
+		url.pathname.startsWith(route)
+	);
 
 	if (!isScheduleExemptRoute) {
 		try {

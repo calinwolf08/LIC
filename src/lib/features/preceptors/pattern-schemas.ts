@@ -364,7 +364,10 @@ export const duplicateScheduleSchema = z.object({
 	name: z.string().min(1).max(200),
 	startDate: dateStringSchema,
 	endDate: dateStringSchema,
-	year: z.number().int().min(2000).max(2100),
+	// A schedule is defined by its date range; `year` is a legacy nullable field
+	// the wizard does not collect, so it is optional here. Required-year rejected
+	// every duplicate the wizard submitted (e2e finding P1-a).
+	year: z.number().int().min(2000).max(2100).nullish(),
 	options: duplicationOptionsSchema.default({})
 }).refine(
 	(data) => data.startDate <= data.endDate,

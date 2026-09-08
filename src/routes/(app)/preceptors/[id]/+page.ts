@@ -17,7 +17,9 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	]);
 
 	if (!preceptorRes.ok) {
-		if (preceptorRes.status === 404) throw error(404, 'Preceptor not found');
+		// 400 (malformed id) reads as not-found for the user (e2e finding P1-d).
+		if (preceptorRes.status === 404 || preceptorRes.status === 400)
+			throw error(404, 'Preceptor not found');
 		throw error(preceptorRes.status, 'Failed to load preceptor');
 	}
 
