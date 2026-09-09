@@ -74,6 +74,11 @@ export async function previewRequirementImpact(
 	let assignmentQuery = db
 		.selectFrom('schedule_assignments')
 		.select('date')
+		// Scope to THIS schedule — like the clerkship lookup above. A student can
+		// belong to more than one schedule with overlapping dates, and counting
+		// their other schedules' days here would misreport the requirement
+		// (e2e finding P3-c, sibling of P3-a).
+		.where('schedule_id', '=', scheduleId)
 		.where('student_id', '=', studentId)
 		.where('clerkship_id', '=', clerkshipId);
 	if (electiveId) assignmentQuery = assignmentQuery.where('elective_id', '=', electiveId);

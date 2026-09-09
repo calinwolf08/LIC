@@ -468,6 +468,78 @@ describe('Schedule Views Service', () => {
 			expect(fmProgress.isComplete).toBe(false);
 		});
 
+		it('does not count assignments from the same student on another schedule (P3-a)', async () => {
+			// The same student may belong to more than one schedule with overlapping
+			// dates. getStudentScheduleData must scope assignments to the requested
+			// schedule; without the schedule_id filter it would leak the other
+			// schedule's rows into progress and the assignment list.
+			const studentId = generateTestId('clstudent');
+			const preceptorId = generateTestId('clpreceptor');
+			const clerkshipId = generateTestId('clclerkship');
+			const otherScheduleId = 'clperiodother0000001';
+
+			await insertTestData(db, {
+				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
+				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
+				// One row on the schedule we will query (PERIOD_ID).
+				assignments: [
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					}
+				]
+			});
+
+			// A second schedule for the same student, with rows on overlapping dates.
+			const ts = new Date().toISOString();
+			await db
+				.insertInto('scheduling_periods')
+				.values({
+					id: otherScheduleId,
+					name: 'Other Schedule',
+					start_date: '2024-01-01',
+					end_date: '2024-03-31',
+					is_active: 0,
+					user_id: null,
+					created_at: ts,
+					updated_at: ts
+				})
+				.execute();
+			for (const date of ['2024-01-16', '2024-01-17', '2024-01-18']) {
+				await db
+					.insertInto('schedule_assignments')
+					.values({
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						schedule_id: otherScheduleId,
+						date,
+						status: 'confirmed',
+						created_at: ts,
+						updated_at: ts
+					})
+					.execute();
+			}
+
+			const result = await getStudentScheduleData(db, studentId, PERIOD_ID);
+
+			// Only the single row on PERIOD_ID is seen — the three on the other
+			// schedule are excluded.
+			expect(result!.assignments).toHaveLength(1);
+			expect(result!.assignments[0].date).toBe('2024-01-15');
+			expect(result!.summary.totalAssignedDays).toBe(1);
+			expect(result!.clerkshipProgress[0].assignedDays).toBe(1);
+			expect(result!.clerkshipProgress[0].remainingDays).toBe(9);
+		});
+
 		it('does not duplicate assignments when preceptor has multiple sites', async () => {
 			// BUG: LEFT JOIN on preceptor_sites causes row multiplication
 			// If a preceptor works at 2 sites, each assignment appears twice

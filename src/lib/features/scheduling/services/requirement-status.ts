@@ -95,6 +95,12 @@ export async function getStudentStatuses(
 			? await db
 					.selectFrom('schedule_assignments')
 					.select(['student_id', 'clerkship_id', 'elective_id', 'date'])
+					// Scope to THIS schedule — the students and clerkships above are
+					// already schedule-scoped, and a student may belong to more than one
+					// schedule with overlapping dates; counting the other schedules' days
+					// here would misreport progress and conflicts (e2e finding P3-d,
+					// sibling of P3-a/P3-c).
+					.where('schedule_id', '=', scheduleId)
 					.where('student_id', 'in', studentIds)
 					.execute()
 			: [];

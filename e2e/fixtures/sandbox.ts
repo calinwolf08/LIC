@@ -87,6 +87,13 @@ export class SandboxFactory {
 		return s;
 	}
 
+	/** Track a sandbox created elsewhere (e.g. a populated-roster helper) so it is
+	 * restored and deleted at the end of the test. */
+	register(sandbox: Sandbox): Sandbox {
+		this.created.push(sandbox);
+		return sandbox;
+	}
+
 	async restoreAll(): Promise<void> {
 		for (const s of [...this.created].reverse()) {
 			await s.restore().catch(() => {});

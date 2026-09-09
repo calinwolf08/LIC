@@ -297,6 +297,20 @@ async function linkClerkshipToSchedule(
 }
 
 /**
+ * Stamp schedule-less rows onto the schedule. The legacy `createAssignment`
+ * service used for test setup inserts with `schedule_id = null`; the
+ * schedule-scoped views (getStudentScheduleData) only count rows on the queried
+ * schedule, so setup rows must be stamped to be visible.
+ */
+async function stampAssignmentsToSchedule(db: Kysely<DB>, scheduleId = PERIOD_ID) {
+	await db
+		.updateTable('schedule_assignments')
+		.set({ schedule_id: scheduleId })
+		.where('schedule_id', 'is', null)
+		.execute();
+}
+
+/**
  * Helper to create a health system
  */
 async function createHealthSystem(db: Kysely<DB>, name: string = 'Test Health System') {
@@ -607,6 +621,7 @@ describe('Schedules API Integration Tests', () => {
 
 			await linkStudentToSchedule(db, student.id as string);
 			await linkClerkshipToSchedule(db, clerkship.id as string);
+			await stampAssignmentsToSchedule(db);
 
 			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
@@ -655,6 +670,7 @@ describe('Schedules API Integration Tests', () => {
 
 			await linkStudentToSchedule(db, student.id as string);
 			await linkClerkshipToSchedule(db, clerkship.id as string);
+			await stampAssignmentsToSchedule(db);
 
 			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
@@ -1294,6 +1310,7 @@ describe('Schedules API Integration Tests', () => {
 
 			await linkStudentToSchedule(db, student.id as string);
 			await linkClerkshipToSchedule(db, clerkship.id as string);
+			await stampAssignmentsToSchedule(db);
 
 			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 

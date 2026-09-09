@@ -259,7 +259,11 @@ export async function validateAssignmentCandidate(
 
 	const soft: Violation[] = [];
 
-	// Student double-booking (hard)
+	// Student double-booking (hard). NOT scoped to the schedule on purpose: the DB
+	// enforces a global UNIQUE(student_id, date) (idx_assignments_student_date), so
+	// a student is one place per calendar day across every schedule. The validator
+	// mirrors that constraint so the conflict surfaces as a clean hard violation
+	// rather than a raw DB error.
 	let dbQuery = db
 		.selectFrom('schedule_assignments')
 		.select('id')

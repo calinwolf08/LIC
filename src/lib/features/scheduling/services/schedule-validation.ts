@@ -58,7 +58,10 @@ export async function validateSchedule(
 		return { violations: [], byDate: {}, byStudent: {}, byPreceptor: {}, counts: {} };
 	}
 
-	// All assignments for those students
+	// All assignments for those students. Not schedule-scoped: a student is one
+	// place per calendar day across every schedule (the DB enforces a global
+	// UNIQUE(student_id, date)), so the whole-schedule health view considers all
+	// of a student's days when flagging double-books and capacity.
 	const assignments = await db
 		.selectFrom('schedule_assignments')
 		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date'])

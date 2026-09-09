@@ -48,7 +48,7 @@ async function seed(db: Kysely<DB>) {
 		.execute();
 }
 
-async function assign(db: Kysely<DB>, id: string, date: string) {
+async function assign(db: Kysely<DB>, id: string, date: string, scheduleId: string = SCHEDULE) {
 	const ts = new Date().toISOString();
 	await db
 		.insertInto('schedule_assignments')
@@ -57,6 +57,7 @@ async function assign(db: Kysely<DB>, id: string, date: string) {
 			student_id: STUDENT,
 			preceptor_id: PRECEPTOR,
 			clerkship_id: CLERKSHIP,
+			schedule_id: scheduleId,
 			date,
 			status: 'scheduled',
 			created_at: ts,
@@ -158,5 +159,37 @@ describe('previewRequirementImpact', () => {
 		const r = await previewRequirementImpact(db, 'other-schedule', STUDENT, CLERKSHIP, 2, TODAY);
 		expect(r.required).toBe(0);
 		expect(r.clerkshipName).toBe('');
+	});
+
+	it('does not count the student’s days on another schedule (P3-c)', async () => {
+		const ts = new Date().toISOString();
+		// A second schedule the same student belongs to, with the same clerkship
+		// and overlapping dates.
+		await db
+			.insertInto('scheduling_periods')
+			.values({
+				id: 'sched-2',
+				name: 'Other',
+				start_date: '2030-01-01',
+				end_date: '2030-12-31',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		await db
+			.insertInto('schedule_clerkships')
+			.values({ id: 'sc-2', schedule_id: 'sched-2', clerkship_id: CLERKSHIP, created_at: ts })
+			.execute();
+
+		// One day on our schedule, two on the other.
+		await assign(db, 'own-1', TODAY, SCHEDULE);
+		await assign(db, 'other-1', '2030-03-05', 'sched-2');
+		await assign(db, 'other-2', '2030-03-06', 'sched-2');
+
+		const r = await previewRequirementImpact(db, SCHEDULE, STUDENT, CLERKSHIP, 0, TODAY);
+		// Only the single day on SCHEDULE is counted; the two on sched-2 are not.
+		expect(r.completed).toBe(0);
+		expect(r.scheduled).toBe(1);
+		expect(r.unscheduled).toBe(2);
 	});
 });

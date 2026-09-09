@@ -11,7 +11,6 @@
 
 import { expect, type Locator, type Page } from '@playwright/test';
 import {
-	openAssignmentDialog,
 	pickDay as pickDayHelper,
 	waitForOption,
 	dayState as dayStateHelper
@@ -37,9 +36,18 @@ export class AssignmentDialog {
 			.filter({ has: this.page.getByTestId('assignment-day-grid') });
 	}
 
-	/** Click "Add assignment" (first on the page) and wait for the grid. */
+	/** Click "Add assignment" (first on the page) and wait for the grid, retrying
+	 * the click to ride out the hydration race on freshly navigated pages. */
 	async open(): Promise<this> {
-		await openAssignmentDialog(this.page);
+		const button = this.page.getByRole('button', { name: 'Add assignment' }).first();
+		const grid = this.page.getByTestId('assignment-day-grid');
+		await expect(button).toBeVisible({ timeout: 15000 });
+		for (let attempt = 0; attempt < 5; attempt++) {
+			await button.click({ timeout: 2500 }).catch(() => {});
+			if (await grid.isVisible().catch(() => false)) return this;
+			await this.page.waitForTimeout(400);
+		}
+		await expect(grid).toBeVisible({ timeout: 10000 });
 		return this;
 	}
 
@@ -226,10 +234,12 @@ export class AssignmentDialog {
 		}
 	}
 
-	/** Submit and expect the "N day(s) assigned" confirmation. */
+	/** Submit and expect the "N day(s) assigned" confirmation. Uses the most
+	 * recent toast so a still-visible toast from an earlier create in the same
+	 * test does not trip strict mode. */
 	async submitAndExpectCreated(options: { prefer?: RegExp[] } = {}) {
 		await this.submit(options);
-		await expect(this.page.getByText(/day\(s\) assigned/i)).toBeVisible({ timeout: 15000 });
+		await expect(this.page.getByText(/day\(s\) assigned/i).last()).toBeVisible({ timeout: 15000 });
 	}
 
 	async cancel() {

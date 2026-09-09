@@ -120,6 +120,11 @@ export async function getStudentScheduleData(
 			'sa.override_codes',
 			'e.name as elective_name'
 		])
+		// Scope to THIS schedule — a student can belong to more than one schedule
+		// (of the same or another user) with overlapping date ranges, and without
+		// this filter their schedule/progress view would count assignments from
+		// those other schedules (e2e finding P3-a).
+		.where('sa.schedule_id', '=', scheduleId)
 		.where('sa.student_id', '=', studentId)
 		.where('sa.date', '>=', startDate)
 		.where('sa.date', '<=', endDate)
