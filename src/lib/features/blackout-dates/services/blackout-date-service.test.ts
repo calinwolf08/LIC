@@ -18,7 +18,7 @@ import {
 	isDateBlackedOut,
 	blackoutDateExists
 } from './blackout-date-service';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, ConflictError } from '$lib/api/errors';
 
 function createTestDb(): Kysely<DB> {
 	const sqlite = new Database(':memory:');
@@ -229,14 +229,16 @@ describe('Blackout Date Service', () => {
 			expect(created.reason).toBeNull();
 		});
 
-		it('rejects duplicate dates', async () => {
-			// Blackout dates must be unique - can't have two entries for same date
+		it('rejects duplicate dates with a friendly ConflictError (P4-e)', async () => {
+			// Blackout dates must be unique. The service pre-checks and raises a 409
+			// ConflictError (message contains "duplicate") instead of letting a raw
+			// SQLITE_CONSTRAINT_UNIQUE surface as a 500.
 			const data = createMockBlackoutDateData({ date: '2024-12-25' });
 
 			await createBlackoutDate(db, data);
 
-			// Second insert should fail due to unique constraint
-			await expect(createBlackoutDate(db, data)).rejects.toThrow();
+			await expect(createBlackoutDate(db, data)).rejects.toThrow(ConflictError);
+			await expect(createBlackoutDate(db, data)).rejects.toThrow(/duplicate/i);
 		});
 
 		it('sets created_at timestamp', async () => {

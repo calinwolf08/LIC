@@ -48,6 +48,28 @@ export async function freeWeekdayForStudents(
 	}
 }
 
+/**
+ * The first weekday `atLeast` days out on which NO assignment exists on ANY
+ * schedule. Blackout conflict checks and blackouts themselves are global (not
+ * schedule-scoped — a known defect), so a conflict-day test must use a date the
+ * whole DB is clear of, or it would surface (and delete) other schedules' rows.
+ */
+export async function freeWeekdayNoAssignments(
+	db: Kysely<DB>,
+	atLeast: number,
+	exclude: string[] = []
+): Promise<string> {
+	const rows = await db.selectFrom('schedule_assignments').select('date').execute();
+	const used = new Set([...rows.map((r) => r.date), ...exclude]);
+	let n = atLeast;
+	for (;;) {
+		const d = fromToday(n);
+		const dow = new Date(`${d}T00:00:00Z`).getUTCDay();
+		if (dow !== 0 && dow !== 6 && !used.has(d)) return d;
+		n++;
+	}
+}
+
 /** Create one manual assignment through the API; returns its id. */
 export async function createAssignment(
 	page: Page,

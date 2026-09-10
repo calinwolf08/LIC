@@ -7,7 +7,7 @@
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, BlackoutDates } from '$lib/db/types';
 import type { CreateBlackoutDateInput } from '../schemas.js';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:blackout-dates');
@@ -75,6 +75,19 @@ export async function createBlackoutDate(
 		date: data.date,
 		reason: data.reason
 	});
+
+	// Friendly duplicate handling: the date column is UNIQUE, so a repeat insert
+	// throws a raw SQLITE_CONSTRAINT_UNIQUE (surfaced to the user as a 500).
+	// Pre-check and raise a 409 the UI can show as "already a blackout date"
+	// (finding P4-e).
+	const existing = await db
+		.selectFrom('blackout_dates')
+		.select('id')
+		.where('date', '=', data.date)
+		.executeTakeFirst();
+	if (existing) {
+		throw new ConflictError('A blackout date already exists for this date (duplicate)');
+	}
 
 	const timestamp = new Date().toISOString();
 	const newBlackoutDate = {

@@ -101,8 +101,11 @@ export class CalendarPage {
 		return this.page.locator('.calendar-grid');
 	}
 
+	/** The day cell for a date. A date at a month boundary is rendered in two
+	 * month grids (its own month, plus the adjacent month's spillover week); take
+	 * the first (its own month's, in-DOM-order) occurrence. */
 	dayCell(date: string): Locator {
-		return this.grid.locator(`[data-date="${date}"]`);
+		return this.grid.locator(`[data-date="${date}"]`).first();
 	}
 
 	/** Chips on a day (or all visible chips). */
