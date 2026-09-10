@@ -360,6 +360,12 @@
 		const months = getMonthsBetween(startDate, endDate);
 		const result: CalendarMonth[] = [];
 
+		// Schedule bounds, so out-of-range days (leading/trailing padding, or days
+		// past the schedule end) are flagged for the grid's out-of-range styling
+		// (finding P4-b). Falls back to the loaded range when no active schedule.
+		const rangeStart = data.activeSchedule?.startDate ?? startDate;
+		const rangeEnd = data.activeSchedule?.endDate ?? endDate;
+
 		// Build assignment map - collect all events per date
 		const assignmentMap = new Map<string, CalendarEvent[]>();
 		for (const event of events) {
@@ -410,6 +416,7 @@
 						isCurrentMonth,
 						isToday: dateStr === todayStr,
 						isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+						isInRange: dateStr >= rangeStart && dateStr <= rangeEnd,
 						assignments,
 						// Keep assignment for backward compatibility
 						assignment: assignments[0]

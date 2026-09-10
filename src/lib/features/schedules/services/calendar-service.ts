@@ -34,11 +34,12 @@ export async function getEnrichedAssignments(
 
 	let query = db
 		.selectFrom('schedule_assignments as sa')
-		// Scope to the caller's schedule: assignments have no schedule_id, so
-		// membership flows through the student's schedule_students row.
-		.innerJoin('schedule_students as ss', (join) =>
-			join.onRef('ss.student_id', '=', 'sa.student_id').on('ss.schedule_id', '=', filters.scheduleId)
-		)
+		// Scope to the caller's schedule by the assignment's own schedule_id. A
+		// student can belong to more than one schedule with overlapping dates, so
+		// scoping only by schedule membership (schedule_students) would leak that
+		// student's rows from their other schedules into this calendar
+		// (e2e finding P4-a, sibling of P3-a/c/d).
+		.where('sa.schedule_id', '=', filters.scheduleId)
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')

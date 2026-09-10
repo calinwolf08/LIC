@@ -12,13 +12,38 @@ import type { DB } from '$lib/db/types';
 
 // Import services
 import { createStudent as createStudentService } from '$lib/features/students/services/student-service';
-import { createAssignment, bulkCreateAssignments } from './assignment-service';
+import {
+	createAssignment as createAssignmentService,
+	bulkCreateAssignments as bulkCreateAssignmentsService
+} from './assignment-service';
 import { nanoid } from 'nanoid';
 
-// Every calendar read is now scoped to a schedule through schedule_students, so
-// this test operates within a single fixed schedule and links each student to
-// it as they are created.
+// Every calendar read is now scoped to a schedule by the assignment's own
+// schedule_id (finding P4-a), so this test operates within a single fixed
+// schedule: it links each student to it, and stamps that schedule_id onto the
+// rows the legacy create helpers insert (which leave schedule_id null).
 const TEST_SCHEDULE_ID = 'test-schedule';
+
+/** Stamp the fixed schedule id onto any rows the legacy creators left null. */
+async function stampSchedule(db: Kysely<DB>) {
+	await db
+		.updateTable('schedule_assignments')
+		.set({ schedule_id: TEST_SCHEDULE_ID })
+		.where('schedule_id', 'is', null)
+		.execute();
+}
+
+async function createAssignment(...args: Parameters<typeof createAssignmentService>) {
+	const a = await createAssignmentService(...args);
+	await stampSchedule(args[0]);
+	return a;
+}
+
+async function bulkCreateAssignments(...args: Parameters<typeof bulkCreateAssignmentsService>) {
+	const rows = await bulkCreateAssignmentsService(...args);
+	await stampSchedule(args[0]);
+	return rows;
+}
 
 async function createStudent(db: Kysely<DB>, data: any) {
 	const student = await createStudentService(db, data);
@@ -366,6 +391,61 @@ describe('Calendar Service Integration Tests', () => {
 			expect(enriched[0].preceptor_name).toBe('Dr. Smith');
 			expect(enriched[0].clerkship_name).toBe('Cardiology Rotation');
 			// preceptor_specialty may not exist anymore, update test expectation
+		});
+
+		it('does not leak the same student’s rows from another schedule (P4-a)', async () => {
+			const healthSystem = await createHealthSystem(db);
+			const student = await createStudent(db, {
+				name: 'Alice Johnson',
+				email: 'alice@example.com',
+				cohort: '2024'
+			});
+			const preceptor = await createPreceptorDirect(db, {
+				name: 'Dr. Smith',
+				email: 'smith@hospital.com',
+				health_system_id: healthSystem.id,
+				max_students: 2
+			});
+			const clerkship = await createClerkshipDirect(db, {
+				name: 'Cardiology Rotation',
+				clerkship_type: 'outpatient',
+				required_days: 10
+			});
+
+			// One row on our schedule (stamped to TEST_SCHEDULE_ID by the wrapper).
+			await createAssignment(db, {
+				student_id: student.id,
+				preceptor_id: preceptor.id,
+				clerkship_id: clerkship.id,
+				date: '2024-01-15'
+			});
+			// A row for the SAME student on another schedule, different date (the DB
+			// enforces a global UNIQUE(student_id, date)).
+			const ts = new Date().toISOString();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: nanoid(),
+					schedule_id: 'other-schedule',
+					student_id: student.id,
+					preceptor_id: preceptor.id,
+					clerkship_id: clerkship.id,
+					date: '2024-01-16',
+					status: 'scheduled',
+					created_at: ts,
+					updated_at: ts
+				})
+				.execute();
+
+			const enriched = await getEnrichedAssignments(db, {
+				scheduleId: TEST_SCHEDULE_ID,
+				start_date: '2024-01-01',
+				end_date: '2024-12-31'
+			});
+
+			// Only our schedule's single row — the other schedule's day is excluded.
+			expect(enriched).toHaveLength(1);
+			expect(enriched[0].date).toBe('2024-01-15');
 		});
 
 		it('filters by student_id', async () => {

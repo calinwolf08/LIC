@@ -135,6 +135,7 @@ export async function createTenant(db: Kysely<DB>, key: string): Promise<TenantI
 		.insertInto('schedule_assignments')
 		.values({
 			id: id('asg'),
+			schedule_id: id('sched'),
 			student_id: id('student'),
 			preceptor_id: id('prec'),
 			clerkship_id: id('clerk'),
