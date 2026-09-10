@@ -15,6 +15,18 @@
 
 	let tablist: HTMLDivElement | undefined = $state();
 
+	// Restore the active tab from the URL param — on first load and on
+	// back/forward — so a deep-linked or reloaded `?tab=…` opens that tab rather
+	// than the default (finding P3-b). `select()` writes the param, so once active
+	// matches the URL this is a no-op and cannot loop.
+	$effect(() => {
+		if (!urlParam) return;
+		const fromUrl = $page.url.searchParams.get(urlParam);
+		if (fromUrl && fromUrl !== active && tabs.some((t) => t.id === fromUrl)) {
+			active = fromUrl;
+		}
+	});
+
 	function select(id: string) {
 		active = id;
 		if (urlParam) {

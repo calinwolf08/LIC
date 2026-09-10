@@ -90,28 +90,30 @@ are intentionally not schedule-scoped (unlike the counting paths above).
 J3.6 (swap) picks each student a date free of any existing assignment to respect
 this constraint.
 
-## Gaps recorded (no fix this phase)
+## Gaps and their resolutions
 
-### P3-b — `EntityTabs` does not restore the active tab from the URL _(minor)_
+### P3-b — `EntityTabs` did not restore the active tab from the URL _(fixed)_
 
-`EntityTabs` writes the chosen tab to a URL query param (`?tab=…`) on click but
-never reads it back to initialise `active`, so deep-linking or reloading
-`…/students/[id]?tab=schedule` lands on the default Overview tab. The sibling
-view toggle (`?view=list`) _is_ restored, by the student page's own `$effect` —
-so the inconsistency is visible. Low severity (navigation still works by click).
-J3.5/J3.8 reach the Schedule tab by clicking it rather than by URL.
-**Recommendation:** initialise `active` from the `urlParam` on mount (and keep
-it in sync), matching the `view` behaviour.
+`EntityTabs` wrote the chosen tab to a URL query param (`?tab=…`) on click but
+never read it back to initialise `active`, so deep-linking or reloading
+`…/students/[id]?tab=schedule` landed on the default Overview tab — even though
+the sibling view toggle (`?view=list`) _was_ restored by the student page's own
+`$effect`.
+**Fix:** an `$effect` in `EntityTabs` restores `active` from `urlParam` on mount
+and on back/forward, mirroring the `?view=` behaviour; `select()` writes the
+param, so once they agree it is a no-op and cannot loop.
+**Regression:** `e2e/journeys/phase-3/entity-tab-deeplink.spec.ts` — a `?tab=`
+URL opens that tab, survives reload, and a click updates the URL so the reloaded
+URL restores it.
 
-### P3-e — Swap has an API and service but no UI surface
+### P3-e — Swap has an API and service but no UI surface _(decision: keep, no UI now)_
 
 `POST /api/schedules/assignments/swap` and `swapAssignments` (editing-service)
-are implemented and correct, but nothing in the app reaches them — no calendar,
-list, or dialog affordance offers a swap. J3.6 therefore drives the route
-directly to prove the round-trip is sound. **Recommendation:** either add a swap
-affordance (e.g. drag-one-onto-another on the calendar, or a "swap with…" action
-in the edit dialog) or, if swap is not a product goal, retire the endpoint and
-service. Recorded, not asserted against a UI.
+are implemented and correct (they exchange two assignments' preceptors, both
+sides validated before either is written), but nothing in the app reaches them.
+**Decision:** keep the route and service — do **not** wire a UI for now; revisit
+only if coordinators ask to trade two assignments' preceptors. J3.6 drives the
+route directly so it stays covered and cannot rot. Recorded in the plan §1.2/§1.3.
 
 ## Pre-existing failure observed (out of Phase-3 scope)
 

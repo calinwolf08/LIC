@@ -41,7 +41,7 @@ Lower layers, for reference: API route tests exist only for assignments (`assign
 
 ### 1.2 Gaps and inconsistencies found while surveying (fix or decide in the phase that owns them)
 
-- **Swap has no UI.** `POST /api/schedules/assignments/swap` exists and is parity-tested, but no Svelte file references swap. Either add it to `edit-assignment-modal` (spec R6.4 lists swap) or drop the route — Phase 3 decides.
+- **Swap has no UI.** `POST /api/schedules/assignments/swap` exists and is parity-tested, but no Svelte file references swap. **Decision (Phase 3):** keep the route and service — they are correct and atomically validated — but do **not** wire a UI for now; revisit only if coordinators ask to trade two assignments' preceptors. J3.6 covers the route at the API level so it cannot rot. (finding P3-e)
 - **Capacity rules and fallbacks have no UI of their own**; they are reachable only through the clerkship "Auto-scheduling" settings. Phase 5 tests them there and records the decision.
 - **`/students/[id]/edit` route exists** though spec §6 says editing is inline on the detail page. Phase 2 asserts the inline path and decides whether the route is a redirect or dead.
 - **Two helper layers**: `e2e/helpers.ts` + `e2e/utils/*` (older, mostly unused) vs `e2e/journeys/helpers.ts` + `assignment-helpers.ts` (current). Phase 0 consolidates.
@@ -49,6 +49,18 @@ Lower layers, for reference: API route tests exist only for assignments (`assign
 - **Seed is rich but static**: no electives on any clerkship, every student onboarded everywhere, no blackout dates, no locked or generated rows, no team-less clerkship. Phase 0 extends it (06 §5) so journeys do not have to build these from scratch every time.
 - **Blackout dates are global, not per tenant.** `blackout_dates` has only `id`, `date`, `reason` — no schedule or owner column — so a blackout added by tenant B flags tenant A's assignments and shows on A's calendar. This is a tenant-isolation defect (F-02 family) to fix in Phase 4 (J4.2) with a `schedule_id` (or `user_id`) column and scoped queries; until then the seed adds blackout dates only once, and `snapshotTenant` deliberately excludes them.
 - **`e2e/global-setup.ts`** only opens the DB; nothing verifies seeded invariants before the run. Add an assertion pass (user exists, entitlement set, availability materialised) so a broken seed fails fast rather than as 40 red journeys.
+
+### 1.3 Carried-over decisions from Phases 1–3 (resolved; build/verify where noted)
+
+These are the deferred findings from the phase findings docs, with the product
+decision now made. Each names the phase that will implement and re-assert it.
+
+- **P1-b — wizard shows the Teams step to non-entitled users** _(gating gap)_. **Decision:** fix it. **Owner: Phase 6 / J6.2** (which already asserts "wizard has no Teams step" for basic). Skip until then.
+- **P1-c — deleting the active schedule drops into an editable no-schedule state** _(UX/scoping)_. **Decision:** a user must have a schedule **selected** to make any changes; on deleting the active schedule they are required to **select another or create one**, and entity/assignment mutations are blocked until they do (no silent editing without an active schedule). **Owner: Phase 4** — build the guard + the "select or create a schedule" gate; re-assert the delete-active flow (extends J1.2/J1.3) and that mutation entry points are inert without an active schedule. `NoActiveSchedule` already exists for the read side; extend it to gate writes.
+- **P1-e — no unsaved-changes navigation guard** (spec R10.3) _(spec vs. impl gap)_. **Decision:** build it. A cross-cutting guard that warns before navigating away from a dirty form (schedule wizard, entity forms, availability builder). **Owner: Phase 4** — wire the guard once (shared), then J1.5's guard assertions (currently soft) become hard.
+- **P2-a — list pages have no search box** (students/preceptors/clerkships) _(spec/plan gap)_. **Decision: out of scope.** Lists stay sort-only; the calendar carries its own filters. J2.6's "search by partial name" assertion is dropped, not deferred. No further work.
+- **P3-b — `EntityTabs` did not restore the active tab from `?tab=`** _(minor)_. **Decision: fixed now** (standalone, not tied to a phase). The component reads the param on mount/back-forward, mirroring the `?view=` toggle. Regression: `e2e/journeys/phase-3/entity-tab-deeplink.spec.ts`.
+- **P3-e — swap has an API/service but no UI.** **Decision: keep the route, do not wire UI now** (see §1.2). No work beyond the existing J3.6 API coverage.
 
 ---
 
@@ -130,6 +142,11 @@ Spec: R6.1–R6.7, R7.1–R7.4, R3.6 (Stage 1 permissive availability), 08 §4 r
 ## 6. Phase 4 — Calendar, validation surfaces, blackout dates, export, dashboard
 
 Spec: R7.1–R7.3, R8.1–R8.5, R9.1–R9.2.
+
+**Carried-over fixes to build in this phase (see §1.3):**
+
+- **P1-c — active-schedule write gate.** A user must have a schedule selected to make any change; deleting the active schedule forces "select another or create one," and every entity/assignment mutation entry point is inert until one is active. Build the gate (extend `NoActiveSchedule` to the write side), then re-assert the delete-active flow (extends J1.2/J1.3) and that mutations are blocked with no active schedule.
+- **P1-e — unsaved-changes navigation guard** (R10.3). Wire one shared guard for dirty forms (wizard, entity forms, availability builder); J1.5's currently-soft guard assertions become hard.
 
 | ID   | Journey (actor)                                          | Arc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Edge cases folded in                                                                                                                                                                    |
 | ---- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
