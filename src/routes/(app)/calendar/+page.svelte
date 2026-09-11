@@ -406,7 +406,13 @@
 						preceptorName: event.assignment.preceptor_name,
 						studentId: event.assignment.student_id,
 						studentName: event.assignment.student_name,
-						color: event.color
+						color: event.color,
+						// Provenance / edit-safety markers (finding P5-a): without these the
+						// grid rendered every chip as manual, so the Auto (generated), lock,
+						// and elective markers never showed.
+						source: event.assignment.source,
+						locked: !!event.assignment.locked,
+						electiveName: event.assignment.elective_name ?? undefined
 					}));
 
 					days.push({
