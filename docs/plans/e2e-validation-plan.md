@@ -143,6 +143,18 @@ Spec: R6.1–R6.7, R7.1–R7.4, R3.6 (Stage 1 permissive availability), 08 §4 r
 
 Spec: R7.1–R7.3, R8.1–R8.5, R9.1–R9.2.
 
+**Status — done.** Five journeys under `e2e/journeys/phase-4/` (J4.1–J4.5),
+green, plus the two carried-over fixes (P1-c write gate, P1-e unsaved-changes
+guard) built and re-asserted in J1.2/J1.5. Product bugs found and fixed with
+regression coverage (see `e2e-phase-4-findings.md`): **P4-a** calendar counted
+other schedules' assignments; **P4-b** out-of-range days were never flagged;
+**P4-d** blackout dates were global not schedule-scoped (migration + backfill);
+**P4-e** duplicate blackout surfaced a raw 500; **P4-f** export omitted site and
+override codes. Decision recorded: **P4-c** blackout conflict resolution deletes
+the conflicting assignments (not "keep"). Observations: the blackout finding
+delta can be >1 (J4.4 asserts cross-surface equality, not an exact delta); a
+pre-existing `phase-2/preceptor-wizard` flake is unrelated to this phase.
+
 **Carried-over fixes to build in this phase (see §1.3):**
 
 - **P1-c — active-schedule write gate.** A user must have a schedule selected to make any change; deleting the active schedule forces "select another or create one," and every entity/assignment mutation entry point is inert until one is active. Build the gate (extend `NoActiveSchedule` to the write side), then re-assert the delete-active flow (extends J1.2/J1.3) and that mutations are blocked with no active schedule.

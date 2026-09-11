@@ -167,6 +167,16 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.execute();
 
+	// getEnrichedAssignments left-joins sites for the export's site_name (P4-f).
+	await db.schema
+		.createTable('sites')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
 	await db.schema
 		.createTable('student_health_system_onboarding')
 		.addColumn('id', 'text', (col) => col.primaryKey())
