@@ -18,7 +18,11 @@ import {
 	createClerkship
 } from '$lib/features/clerkships/services/clerkship-service.js';
 import { createClerkshipSchema } from '$lib/features/clerkships/schemas.js';
-import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	associateEntityWithSchedule,
+	getActiveScheduleId,
+	requireActiveScheduleId
+} from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -62,14 +66,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Creating clerkship');
 
 	try {
+		// A schedule must be selected to create anything (finding P1-c).
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		const body = await request.json();
 		const validatedData = createClerkshipSchema.parse(body);
 
 		const clerkship = await createClerkship(db, validatedData);
 
-		// Auto-associate with user's active schedule
+		// Associate with the active schedule.
 		if (clerkship.id) {
-			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'clerkship', clerkship.id);
+			await associateEntityWithSchedule(db, scheduleId, 'clerkship', clerkship.id);
 		}
 
 		log.info('Clerkship created', {

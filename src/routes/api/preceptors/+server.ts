@@ -19,7 +19,11 @@ import {
 	setPreceptorSites
 } from '$lib/features/preceptors/services/preceptor-service.js';
 import { createPreceptorSchema } from '$lib/features/preceptors/schemas.js';
-import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	associateEntityWithSchedule,
+	getActiveScheduleId,
+	requireActiveScheduleId
+} from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -63,6 +67,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Creating preceptor');
 
 	try {
+		// A schedule must be selected to create anything (finding P1-c).
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		const body = await request.json();
 		const validatedData = createPreceptorSchema.parse(body);
 
@@ -77,9 +84,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await setPreceptorSites(db, preceptor.id, validatedData.site_ids);
 		}
 
-		// Auto-associate with user's active schedule
+		// Associate with the active schedule.
 		if (preceptor.id) {
-			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'preceptor', preceptor.id);
+			await associateEntityWithSchedule(db, scheduleId, 'preceptor', preceptor.id);
 		}
 
 		log.info('Preceptor created', {

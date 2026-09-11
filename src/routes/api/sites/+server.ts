@@ -3,7 +3,11 @@ import { createSiteSchema } from '$lib/features/sites/schemas';
 import { ZodError } from 'zod';
 import { ConflictError, NotFoundError, handleApiError } from '$lib/api/errors';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/api/responses';
-import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	associateEntityWithSchedule,
+	getActiveScheduleId,
+	requireActiveScheduleId
+} from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { db } from '$lib/db';
 import type { RequestHandler } from './$types';
@@ -62,14 +66,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Creating site');
 
 	try {
+		// A schedule must be selected to create anything (finding P1-c).
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		const body = await request.json();
 		const input = createSiteSchema.parse(body);
 
 		const site = await siteService.createSite(input);
 
-		// Auto-associate with user's active schedule
+		// Associate with the active schedule.
 		if (site.id) {
-			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'site', site.id);
+			await associateEntityWithSchedule(db, scheduleId, 'site', site.id);
 		}
 
 		log.info('Site created', {

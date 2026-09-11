@@ -112,7 +112,8 @@ async function runLifecycle(page: import('@playwright/test').Page, label: string
 
 		// --- Delete the active schedule → drops to the "no active schedule" state ---
 		// (Deleting the active schedule clears active_schedule_id; the app does not
-		// auto-select a remaining schedule — recorded as finding P1-c.)
+		// auto-select a remaining schedule. Per finding P1-c the user must then
+		// select or create a schedule, and every mutation is inert until they do.)
 		await page
 			.locator('[data-slot="card"]', { hasText: renamed })
 			.getByRole('button', { name: 'Delete' })
@@ -124,6 +125,20 @@ async function runLifecycle(page: import('@playwright/test').Page, label: string
 		});
 		await page.goto('/dashboard');
 		await expect(page.getByText('No active schedule')).toBeVisible({ timeout: 15000 });
+
+		// --- P1-c write gate: entity pages offer no mutation entry point... ---
+		await page.goto('/students');
+		await expect(page.getByText('No active schedule')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByRole('link', { name: 'Add Student' })).toHaveCount(0);
+
+		// ...and the API refuses the write itself — the gate is server-side too, so
+		// a hand-crafted request without an active schedule is rejected (400), never
+		// silently creating a schedule-less orphan.
+		const orphan = await apiOf(page).post('/api/students', {
+			name: 'Orphan Student',
+			email: `orphan-${Date.now()}@example.com`
+		});
+		expect(orphan.status).toBe(400);
 	}
 }
 

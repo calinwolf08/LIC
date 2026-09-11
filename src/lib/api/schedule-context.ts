@@ -329,20 +329,3 @@ export async function associateEntityWithSchedule(
 			.execute();
 	}
 }
-
-/**
- * Helper to auto-associate a newly created entity with the user's active schedule
- */
-export async function autoAssociateWithActiveSchedule(
-	dbConnection: Kysely<DB>,
-	userId: string | undefined,
-	entityType: 'student' | 'preceptor' | 'clerkship' | 'site' | 'health_system' | 'team',
-	entityId: string
-): Promise<void> {
-	if (!userId) return;
-
-	const scheduleId = await getActiveScheduleId(userId);
-	if (!scheduleId) return;
-
-	await associateEntityWithSchedule(dbConnection, scheduleId, entityType, entityId);
-}
