@@ -170,7 +170,7 @@ describe('override persistence on create', () => {
 		const ts = new Date().toISOString();
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-1', date: PAST, created_at: ts })
+			.values({ id: 'bo-1', schedule_id: SCHEDULE, date: PAST, created_at: ts })
 			.execute();
 		const r = await createManualAssignment(
 			db,

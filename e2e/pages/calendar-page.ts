@@ -114,8 +114,11 @@ export class CalendarPage {
 		return scope.getByTestId('calendar-assignment');
 	}
 
+	/** A chip whose date falls on a month boundary is rendered in two month grids
+	 * (its own month, plus the adjacent month's spillover week); take the first
+	 * (its own month's, in-DOM-order) occurrence — same rationale as dayCell. */
 	chipById(id: string): Locator {
-		return this.grid.locator(`[data-assignment-id="${id}"]`);
+		return this.grid.locator(`[data-assignment-id="${id}"]`).first();
 	}
 
 	/** Click an empty day → create dialog with the date locked. */

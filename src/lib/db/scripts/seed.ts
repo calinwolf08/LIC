@@ -765,19 +765,26 @@ async function seed(db: Kysely<DB>) {
 
 	// Step 9c: Two blackout dates inside the schedule range, on weekdays that
 	// carry no seeded assignment (the demo scenario uses days 1–14, 20–23 and
-	// 30 from today). NOTE: `blackout_dates` has no owner column — it is global
-	// across tenants (e2e plan §1.2). Idempotent by date.
+	// 30 from today). Blackouts are scoped to this schedule (finding P4-d).
+	// Idempotent by (schedule_id, date).
 	const blackoutDates = [nextWeekday(fromToday(16)), nextWeekday(fromToday(37))];
 	for (const date of blackoutDates) {
 		const existing = await db
 			.selectFrom('blackout_dates')
 			.select('id')
+			.where('schedule_id', '=', scheduleId)
 			.where('date', '=', date)
 			.executeTakeFirst();
 		if (existing) continue;
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: nanoid(), date, reason: 'Seeded holiday (e2e)', created_at: timestamp })
+			.values({
+				id: nanoid(),
+				schedule_id: scheduleId,
+				date,
+				reason: 'Seeded holiday (e2e)',
+				created_at: timestamp
+			})
 			.execute();
 	}
 	console.log(`  Blackout dates: ${blackoutDates.join(', ')}`);

@@ -89,7 +89,11 @@ export async function validateSchedule(
 				.select(['preceptor_id', 'date', 'is_available'])
 				.where('preceptor_id', 'in', preceptorIds)
 				.execute(),
-			db.selectFrom('blackout_dates').select('date').execute(),
+			db
+				.selectFrom('blackout_dates')
+				.select('date')
+				.where('schedule_id', '=', scheduleId)
+				.execute(),
 			db
 				.selectFrom('clerkship_sites')
 				.select(['clerkship_id', 'site_id'])

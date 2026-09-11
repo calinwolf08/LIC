@@ -113,7 +113,7 @@ describe('validateSchedule', () => {
 	it('flags blackout and outside-schedule violations', async () => {
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo', date: '2025-03-04', created_at: new Date().toISOString() })
+			.values({ id: 'bo', schedule_id: SCHED, date: '2025-03-04', created_at: new Date().toISOString() })
 			.execute();
 		await addAssignment(db, 'a1', '2025-03-04'); // blackout
 		await addAssignment(db, 'a2', '2030-01-01'); // outside range

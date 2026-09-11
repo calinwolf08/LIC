@@ -158,7 +158,12 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 	it('flags a blackout date as soft', async () => {
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-1', date: TUE, created_at: new Date().toISOString() })
+			.values({
+				id: 'bo-1',
+				schedule_id: SCHEDULE,
+				date: TUE,
+				created_at: new Date().toISOString()
+			})
 			.execute();
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: TUE });
 		expect(r.valid).toBe(true);
@@ -503,7 +508,7 @@ describe('validateAssignmentCandidate — edge cases (DB-backed)', () => {
 		const ts = new Date().toISOString();
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo', date: '2030-06-06', created_at: ts })
+			.values({ id: 'bo', schedule_id: SCHEDULE, date: '2030-06-06', created_at: ts })
 			.execute();
 		// Out of range + blackout together.
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2030-06-06' });

@@ -287,10 +287,11 @@ export async function validateAssignmentCandidate(
 		});
 	}
 
-	// Blackout (soft)
+	// Blackout (soft) — scoped to this schedule (blackouts are per-schedule, P4-d)
 	const blackout = await db
 		.selectFrom('blackout_dates')
 		.select('id')
+		.where('schedule_id', '=', scheduleId)
 		.where('date', '=', candidate.date)
 		.executeTakeFirst();
 	if (blackout)

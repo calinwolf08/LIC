@@ -243,7 +243,7 @@ describe('one-validator parity across every mutation path', () => {
 
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-1', date: '2026-10-06', created_at: TS })
+			.values({ id: 'bo-1', schedule_id: SCHED, date: '2026-10-06', created_at: TS })
 			.execute();
 		scenarios.push({
 			name: 'blackout',
@@ -428,7 +428,7 @@ describe('one-validator parity across every mutation path', () => {
 		});
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-d', date: '2026-10-22', created_at: TS })
+			.values({ id: 'bo-d', schedule_id: SCHED, date: '2026-10-22', created_at: TS })
 			.execute();
 
 		const edit = await changeAssignmentDate(db, 'base-d', '2026-10-22', true, {
@@ -510,7 +510,7 @@ describe('one-validator parity across every mutation path', () => {
 	it('whole-schedule validation reports the same environmental codes as create', async () => {
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-w', date: '2026-11-03', created_at: TS })
+			.values({ id: 'bo-w', schedule_id: SCHED, date: '2026-11-03', created_at: TS })
 			.execute();
 		await db
 			.insertInto('preceptor_availability')

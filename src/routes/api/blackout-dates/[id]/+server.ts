@@ -16,6 +16,7 @@ import {
 	getBlackoutDateById,
 	deleteBlackoutDate
 } from '$lib/features/blackout-dates/services/blackout-date-service';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('api:blackout-dates:id');
@@ -50,11 +51,13 @@ export const GET: RequestHandler = async ({ params }) => {
 /**
  * DELETE /api/blackout-dates/[id]
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	log.debug('Deleting blackout date', { id: params.id });
 
 	try {
-		await deleteBlackoutDate(db, params.id);
+		// Ownership: only delete a blackout that belongs to the active schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+		await deleteBlackoutDate(db, params.id, scheduleId);
 
 		log.info('Blackout date deleted', { id: params.id });
 		return successResponse({ deleted: true });

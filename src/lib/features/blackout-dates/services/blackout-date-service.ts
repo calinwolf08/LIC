@@ -13,12 +13,18 @@ import { createServerLogger } from '$lib/utils/logger.server';
 const log = createServerLogger('service:blackout-dates');
 
 /**
- * Get all blackout dates, ordered by date
+ * Get a schedule's blackout dates, ordered by date. Blackouts are scoped to a
+ * schedule (finding P4-d); `null` (no active schedule) yields none.
  */
-export async function getBlackoutDates(db: Kysely<DB>): Promise<Selectable<BlackoutDates>[]> {
+export async function getBlackoutDates(
+	db: Kysely<DB>,
+	scheduleId: string | null
+): Promise<Selectable<BlackoutDates>[]> {
+	if (!scheduleId) return [];
 	return await db
 		.selectFrom('blackout_dates')
 		.selectAll()
+		.where('schedule_id', '=', scheduleId)
 		.orderBy('date', 'asc')
 		.execute();
 }
@@ -48,10 +54,12 @@ export async function getBlackoutDateById(
  */
 export async function getBlackoutDatesByRange(
 	db: Kysely<DB>,
+	scheduleId: string | null,
 	startDate?: string,
 	endDate?: string
 ): Promise<Selectable<BlackoutDates>[]> {
-	let query = db.selectFrom('blackout_dates').selectAll();
+	if (!scheduleId) return [];
+	let query = db.selectFrom('blackout_dates').selectAll().where('schedule_id', '=', scheduleId);
 
 	if (startDate) {
 		query = query.where('date', '>=', startDate);
@@ -69,20 +77,23 @@ export async function getBlackoutDatesByRange(
  */
 export async function createBlackoutDate(
 	db: Kysely<DB>,
-	data: CreateBlackoutDateInput
+	data: CreateBlackoutDateInput,
+	scheduleId: string
 ): Promise<Selectable<BlackoutDates>> {
 	log.debug('Creating blackout date', {
 		date: data.date,
-		reason: data.reason
+		reason: data.reason,
+		scheduleId
 	});
 
-	// Friendly duplicate handling: the date column is UNIQUE, so a repeat insert
-	// throws a raw SQLITE_CONSTRAINT_UNIQUE (surfaced to the user as a 500).
-	// Pre-check and raise a 409 the UI can show as "already a blackout date"
-	// (finding P4-e).
+	// Friendly duplicate handling, scoped to this schedule (blackouts are
+	// per-schedule, finding P4-d): a repeat insert would hit UNIQUE(schedule_id,
+	// date) and surface as a raw 500, so pre-check and raise a 409 the UI shows as
+	// "already a blackout date" (finding P4-e).
 	const existing = await db
 		.selectFrom('blackout_dates')
 		.select('id')
+		.where('schedule_id', '=', scheduleId)
 		.where('date', '=', data.date)
 		.executeTakeFirst();
 	if (existing) {
@@ -92,6 +103,7 @@ export async function createBlackoutDate(
 	const timestamp = new Date().toISOString();
 	const newBlackoutDate = {
 		id: crypto.randomUUID(),
+		schedule_id: scheduleId,
 		date: data.date,
 		reason: data.reason || null,
 		created_at: timestamp
@@ -115,13 +127,18 @@ export async function createBlackoutDate(
  * Delete a blackout date
  * @throws {NotFoundError} If blackout date not found
  */
-export async function deleteBlackoutDate(db: Kysely<DB>, id: string): Promise<void> {
-	log.debug('Deleting blackout date', { id });
+export async function deleteBlackoutDate(
+	db: Kysely<DB>,
+	id: string,
+	scheduleId?: string | null
+): Promise<void> {
+	log.debug('Deleting blackout date', { id, scheduleId });
 
-	// Check if blackout date exists
-	const exists = await blackoutDateExists(db, id);
-	if (!exists) {
-		log.warn('Blackout date not found for deletion', { id });
+	// Ownership: the row must exist and, when a schedule is given, belong to it —
+	// otherwise a caller could delete another schedule's blackout (finding P4-d).
+	const row = await getBlackoutDateById(db, id);
+	if (!row || (scheduleId != null && row.schedule_id !== scheduleId)) {
+		log.warn('Blackout date not found for deletion', { id, scheduleId });
 		throw new NotFoundError('Blackout date');
 	}
 
@@ -135,12 +152,14 @@ export async function deleteBlackoutDate(db: Kysely<DB>, id: string): Promise<vo
  * @param date Date string in YYYY-MM-DD format
  * @returns True if the date is a blackout date
  */
-export async function isDateBlackedOut(db: Kysely<DB>, date: string): Promise<boolean> {
-	const blackoutDate = await db
-		.selectFrom('blackout_dates')
-		.select('id')
-		.where('date', '=', date)
-		.executeTakeFirst();
+export async function isDateBlackedOut(
+	db: Kysely<DB>,
+	date: string,
+	scheduleId?: string | null
+): Promise<boolean> {
+	let query = db.selectFrom('blackout_dates').select('id').where('date', '=', date);
+	if (scheduleId != null) query = query.where('schedule_id', '=', scheduleId);
+	const blackoutDate = await query.executeTakeFirst();
 
 	return !!blackoutDate;
 }

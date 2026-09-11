@@ -30,6 +30,7 @@ export interface BlackoutDates {
   date: string;
   id: string | null;
   reason: string | null;
+  schedule_id: string | null;
 }
 
 export interface ClerkshipConfigurations {

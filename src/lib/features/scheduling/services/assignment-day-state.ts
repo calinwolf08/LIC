@@ -124,6 +124,7 @@ export async function getDayStates(
 	const blackoutRows = await db
 		.selectFrom('blackout_dates')
 		.select('date')
+		.where('schedule_id', '=', scheduleId)
 		.where('date', '>=', query.from)
 		.where('date', '<=', query.to)
 		.execute();

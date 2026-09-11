@@ -175,7 +175,7 @@ describe('getDayStates', () => {
 		await setAvailability(db, '2030-03-06', 1);
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-1', date: '2030-03-06', created_at: ts })
+			.values({ id: 'bo-1', schedule_id: SCHEDULE, date: '2030-03-06', created_at: ts })
 			.execute();
 		const days = await getDayStates(db, SCHEDULE, query, TODAY);
 		expect(on(days, '2030-03-06').state).toBe('blackout');

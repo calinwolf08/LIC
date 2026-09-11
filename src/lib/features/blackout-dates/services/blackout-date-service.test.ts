@@ -29,13 +29,19 @@ function createTestDb(): Kysely<DB> {
 	return db;
 }
 
+// Blackouts are scoped to a schedule (finding P4-d); these unit tests all
+// operate within one schedule.
+const SCHEDULE_ID = 'sched-test';
+
 async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('blackout_dates')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('date', 'text', (col) => col.notNull().unique())
+		.addColumn('schedule_id', 'text')
+		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('reason', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addUniqueConstraint('uq_blackout_schedule_date', ['schedule_id', 'date'])
 		.execute();
 }
 
@@ -56,6 +62,7 @@ async function createBlackoutDateDirect(
 	const timestamp = new Date().toISOString();
 	const blackoutDate = {
 		id: crypto.randomUUID(),
+		schedule_id: SCHEDULE_ID,
 		date: '2024-12-25',
 		reason: null,
 		created_at: timestamp,
@@ -83,7 +90,7 @@ describe('Blackout Date Service', () => {
 
 	describe('getBlackoutDates()', () => {
 		it('returns empty array when no blackout dates exist', async () => {
-			const dates = await getBlackoutDates(db);
+			const dates = await getBlackoutDates(db, SCHEDULE_ID);
 			expect(dates).toEqual([]);
 		});
 
@@ -91,7 +98,7 @@ describe('Blackout Date Service', () => {
 			await createBlackoutDateDirect(db, { date: '2024-12-25' });
 			await createBlackoutDateDirect(db, { date: '2024-01-01' });
 
-			const dates = await getBlackoutDates(db);
+			const dates = await getBlackoutDates(db, SCHEDULE_ID);
 			expect(dates).toHaveLength(2);
 		});
 
@@ -100,7 +107,7 @@ describe('Blackout Date Service', () => {
 			await createBlackoutDateDirect(db, { date: '2024-01-01' });
 			await createBlackoutDateDirect(db, { date: '2024-07-04' });
 
-			const dates = await getBlackoutDates(db);
+			const dates = await getBlackoutDates(db, SCHEDULE_ID);
 			expect(dates[0].date).toBe('2024-01-01');
 			expect(dates[1].date).toBe('2024-07-04');
 			expect(dates[2].date).toBe('2024-12-25');
@@ -112,7 +119,7 @@ describe('Blackout Date Service', () => {
 				reason: 'Christmas'
 			});
 
-			const dates = await getBlackoutDates(db);
+			const dates = await getBlackoutDates(db, SCHEDULE_ID);
 			expect(dates[0].reason).toBe('Christmas');
 		});
 	});
@@ -153,35 +160,35 @@ describe('Blackout Date Service', () => {
 		});
 
 		it('returns all dates when no range specified', async () => {
-			const dates = await getBlackoutDatesByRange(db);
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID);
 			expect(dates).toHaveLength(3);
 		});
 
 		it('filters by start_date only', async () => {
-			const dates = await getBlackoutDatesByRange(db, '2024-06-01');
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID, '2024-06-01');
 			expect(dates).toHaveLength(2);
 			expect(dates.map((d) => d.date)).toEqual(['2024-06-15', '2024-12-25']);
 		});
 
 		it('filters by end_date only', async () => {
-			const dates = await getBlackoutDatesByRange(db, undefined, '2024-06-30');
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID, undefined, '2024-06-30');
 			expect(dates).toHaveLength(2);
 			expect(dates.map((d) => d.date)).toEqual(['2024-01-01', '2024-06-15']);
 		});
 
 		it('filters by both start_date and end_date', async () => {
-			const dates = await getBlackoutDatesByRange(db, '2024-01-01', '2024-06-30');
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID, '2024-01-01', '2024-06-30');
 			expect(dates).toHaveLength(2);
 			expect(dates.map((d) => d.date)).toEqual(['2024-01-01', '2024-06-15']);
 		});
 
 		it('includes boundary dates', async () => {
-			const dates = await getBlackoutDatesByRange(db, '2024-01-01', '2024-12-25');
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID, '2024-01-01', '2024-12-25');
 			expect(dates).toHaveLength(3);
 		});
 
 		it('returns empty array when no dates in range', async () => {
-			const dates = await getBlackoutDatesByRange(db, '2024-02-01', '2024-05-31');
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID, '2024-02-01', '2024-05-31');
 			expect(dates).toEqual([]);
 		});
 
@@ -189,7 +196,7 @@ describe('Blackout Date Service', () => {
 			await createBlackoutDateDirect(db, { date: '2024-03-15' });
 			await createBlackoutDateDirect(db, { date: '2024-02-14' });
 
-			const dates = await getBlackoutDatesByRange(db, '2024-02-01', '2024-03-31');
+			const dates = await getBlackoutDatesByRange(db, SCHEDULE_ID, '2024-02-01', '2024-03-31');
 			expect(dates[0].date).toBe('2024-02-14');
 			expect(dates[1].date).toBe('2024-03-15');
 		});
@@ -201,7 +208,7 @@ describe('Blackout Date Service', () => {
 				date: '2024-12-25'
 			});
 
-			const created = await createBlackoutDate(db, data);
+			const created = await createBlackoutDate(db, data, SCHEDULE_ID);
 
 			expect(created.id).toBeDefined();
 			expect(created.date).toBe('2024-12-25');
@@ -214,7 +221,7 @@ describe('Blackout Date Service', () => {
 				reason: 'Christmas'
 			});
 
-			const created = await createBlackoutDate(db, data);
+			const created = await createBlackoutDate(db, data, SCHEDULE_ID);
 
 			expect(created.reason).toBe('Christmas');
 		});
@@ -224,7 +231,7 @@ describe('Blackout Date Service', () => {
 				date: '2024-12-25'
 			});
 
-			const created = await createBlackoutDate(db, data);
+			const created = await createBlackoutDate(db, data, SCHEDULE_ID);
 
 			expect(created.reason).toBeNull();
 		});
@@ -235,17 +242,17 @@ describe('Blackout Date Service', () => {
 			// SQLITE_CONSTRAINT_UNIQUE surface as a 500.
 			const data = createMockBlackoutDateData({ date: '2024-12-25' });
 
-			await createBlackoutDate(db, data);
+			await createBlackoutDate(db, data, SCHEDULE_ID);
 
-			await expect(createBlackoutDate(db, data)).rejects.toThrow(ConflictError);
-			await expect(createBlackoutDate(db, data)).rejects.toThrow(/duplicate/i);
+			await expect(createBlackoutDate(db, data, SCHEDULE_ID)).rejects.toThrow(ConflictError);
+			await expect(createBlackoutDate(db, data, SCHEDULE_ID)).rejects.toThrow(/duplicate/i);
 		});
 
 		it('sets created_at timestamp', async () => {
 			const before = new Date();
 			const data = createMockBlackoutDateData();
 
-			const created = await createBlackoutDate(db, data);
+			const created = await createBlackoutDate(db, data, SCHEDULE_ID);
 			const after = new Date();
 
 			const createdAt = new Date(created.created_at);
@@ -313,6 +320,48 @@ describe('Blackout Date Service', () => {
 
 			expect(christmasResult).toBe(true);
 			expect(newYearResult).toBe(false);
+		});
+	});
+
+	// Blackouts are per-schedule (finding P4-d): reads and deletes must never
+	// cross the schedule boundary, and the same date may exist in two schedules.
+	describe('schedule scoping (P4-d)', () => {
+		const OTHER = 'sched-other';
+
+		it('getBlackoutDates only returns the given schedule', async () => {
+			await createBlackoutDateDirect(db, { schedule_id: SCHEDULE_ID, date: '2024-12-25' });
+			await createBlackoutDateDirect(db, { schedule_id: OTHER, date: '2024-01-01' });
+
+			const mine = await getBlackoutDates(db, SCHEDULE_ID);
+			expect(mine).toHaveLength(1);
+			expect(mine[0].date).toBe('2024-12-25');
+
+			const theirs = await getBlackoutDates(db, OTHER);
+			expect(theirs).toHaveLength(1);
+			expect(theirs[0].date).toBe('2024-01-01');
+		});
+
+		it('allows the same date in two different schedules', async () => {
+			await createBlackoutDate(db, createMockBlackoutDateData({ date: '2024-07-04' }), SCHEDULE_ID);
+			// Same date, different schedule — must not collide.
+			await expect(
+				createBlackoutDate(db, createMockBlackoutDateData({ date: '2024-07-04' }), OTHER)
+			).resolves.toBeDefined();
+
+			expect(await getBlackoutDates(db, SCHEDULE_ID)).toHaveLength(1);
+			expect(await getBlackoutDates(db, OTHER)).toHaveLength(1);
+		});
+
+		it('will not delete a blackout owned by another schedule', async () => {
+			const mine = await createBlackoutDateDirect(db, { schedule_id: SCHEDULE_ID });
+
+			await expect(deleteBlackoutDate(db, mine.id, OTHER)).rejects.toThrow(NotFoundError);
+			// Still there.
+			expect(await getBlackoutDateById(db, mine.id)).not.toBeNull();
+
+			// Correct owner can delete it.
+			await deleteBlackoutDate(db, mine.id, SCHEDULE_ID);
+			expect(await getBlackoutDateById(db, mine.id)).toBeNull();
 		});
 	});
 
