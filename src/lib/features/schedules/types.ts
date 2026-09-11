@@ -18,6 +18,8 @@ export interface EnrichedAssignment extends Selectable<ScheduleAssignments> {
 	clerkship_required_days: number;
 	/** Name of the elective this day satisfies, when `elective_id` is set (P-01/P-07). */
 	elective_name: string | null;
+	/** Name of the site, when `site_id` is set. Null for a site-less day. */
+	site_name: string | null;
 }
 
 /**

@@ -225,13 +225,21 @@ async function generateMasterScheduleWorksheet(
 ): Promise<void> {
 	const worksheet = workbook.addWorksheet('Master Schedule');
 
-	// Set column headers
+	// One row per assignment carrying the full truth (finding P4-f): site, the
+	// elective it satisfies, provenance (source / locked) and the accepted
+	// override codes all belong here so the export is a faithful record, not just
+	// a wall calendar.
 	worksheet.columns = [
 		{ header: 'Date', key: 'date', width: 12 },
 		{ header: 'Student', key: 'student_name', width: 20 },
 		{ header: 'Preceptor', key: 'preceptor_name', width: 20 },
 		{ header: 'Clerkship', key: 'clerkship_name', width: 25 },
 		{ header: 'Specialty', key: 'specialty', width: 20 },
+		{ header: 'Site', key: 'site_name', width: 20 },
+		{ header: 'Elective', key: 'elective_name', width: 20 },
+		{ header: 'Source', key: 'source', width: 12 },
+		{ header: 'Locked', key: 'locked', width: 8 },
+		{ header: 'Override Codes', key: 'override_codes', width: 30 },
 		{ header: 'Status', key: 'status', width: 12 }
 	];
 
@@ -256,6 +264,11 @@ async function generateMasterScheduleWorksheet(
 			preceptor_name: assignment.preceptor_name,
 			clerkship_name: assignment.clerkship_name,
 			specialty: assignment.clerkship_specialty,
+			site_name: assignment.site_name ?? '',
+			elective_name: assignment.elective_name ?? '',
+			source: assignment.source,
+			locked: assignment.locked ? 'Yes' : '',
+			override_codes: formatOverrideCodes(assignment.override_codes),
 			status: assignment.status
 		});
 
@@ -335,6 +348,20 @@ async function generateSummaryWorksheet(
 
 	// Make labels bold
 	worksheet.getColumn(1).font = { bold: true };
+}
+
+/**
+ * Render the persisted override codes (a JSON-string array) as a readable,
+ * comma-separated list for the export. Tolerant of nulls and malformed values.
+ */
+function formatOverrideCodes(raw: string | null | undefined): string {
+	if (!raw) return '';
+	try {
+		const parsed = JSON.parse(raw);
+		return Array.isArray(parsed) ? parsed.join(', ') : '';
+	} catch {
+		return '';
+	}
 }
 
 /**

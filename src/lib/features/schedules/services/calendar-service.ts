@@ -44,6 +44,8 @@ export async function getEnrichedAssignments(
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
+		// Site is optional on a day, so a left join — a site-less row still appears.
+		.leftJoin('sites as st', 'st.id', 'sa.site_id')
 		.select([
 			'sa.id',
 			'sa.student_id',
@@ -67,7 +69,8 @@ export async function getEnrichedAssignments(
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
 			'c.required_days as clerkship_required_days',
-			'e.name as elective_name'
+			'e.name as elective_name',
+			'st.name as site_name'
 		]);
 
 	// Apply date range filters (required)
