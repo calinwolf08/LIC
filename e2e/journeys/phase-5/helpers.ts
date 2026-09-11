@@ -47,6 +47,11 @@ export interface GenerationSandboxOptions {
 	maxStudents?: number;
 	/** Onboard the students at the health system (default true). */
 	onboard?: boolean;
+	/**
+	 * Cap the preceptor's materialised availability to the first N weekdays in
+	 * range (default: every weekday). Use a small N to force scarcity.
+	 */
+	availabilityDays?: number;
 }
 
 /**
@@ -114,8 +119,16 @@ export async function generationSandbox(
 		.values({ clerkship_id: clerkshipId, site_id: siteId, created_at: ts })
 		.execute();
 
-	// Materialise the preceptor's availability on every weekday in range.
-	const availRows = weekdaysBetween(sandbox.start, sandbox.end).map((date) => ({
+	// Materialise the preceptor's availability across the range's weekdays,
+	// optionally capped to force scarcity. When capping, keep only future weekdays
+	// (>= today) — a Full run schedules from today forward, so past availability
+	// would place nothing.
+	let availDates = weekdaysBetween(sandbox.start, sandbox.end);
+	if (opts.availabilityDays !== undefined) {
+		const today = new Date().toISOString().slice(0, 10);
+		availDates = availDates.filter((d) => d >= today).slice(0, opts.availabilityDays);
+	}
+	const availRows = availDates.map((date) => ({
 		id: crypto.randomUUID(),
 		preceptor_id: preceptorId,
 		site_id: siteId,
