@@ -353,7 +353,14 @@ async function computeCredit(
 	return { credit, electiveCredit, totalExisting: rows.length };
 }
 
-/** Map engine proposals to the persistence input, carrying the elective link. */
+/**
+ * Map engine proposals to the persistence input, carrying the elective link and
+ * the accepted override codes. The engine stamps soft violations it accepted
+ * (surfaced-by-default or bypassed) onto each proposal as `overrideCodes`
+ * (F-11); persisting them keeps a generated override visible in the health panel
+ * and auditable, exactly like a manual one — dropping them here left every
+ * generated day stored as `override_codes=[]` (finding P5-c).
+ */
 function toGeneratedRows(
 	assignments: Array<{
 		studentId: string;
@@ -361,6 +368,7 @@ function toGeneratedRows(
 		clerkshipId: string;
 		date: string;
 		electiveId?: string | null;
+		overrideCodes?: string[];
 	}>
 ): GeneratedAssignmentInput[] {
 	return assignments.map((a) => ({
@@ -368,7 +376,8 @@ function toGeneratedRows(
 		preceptorId: a.preceptorId,
 		clerkshipId: a.clerkshipId,
 		date: a.date,
-		electiveId: a.electiveId ?? null
+		electiveId: a.electiveId ?? null,
+		overrideCodes: a.overrideCodes ?? []
 	}));
 }
 

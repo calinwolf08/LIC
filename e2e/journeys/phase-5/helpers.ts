@@ -88,6 +88,9 @@ export async function generationSandbox(
 			name: `Dr. Gen ${stamp}`,
 			email: `gen_${stamp}@example.com`,
 			max_students: maxStudents,
+			// Onboarding is checked against the preceptor's health system, so bind the
+			// preceptor to it — otherwise not_onboarded can never fire.
+			health_system_id: hsId,
 			site_ids: [siteId]
 		})
 	).data!.id;
