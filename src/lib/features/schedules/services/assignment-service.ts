@@ -174,6 +174,7 @@ export async function createManualAssignment(
 		preceptor_id: input.preceptor_id,
 		clerkship_id: input.clerkship_id,
 		site_id: input.site_id ?? null,
+		elective_id: input.elective_id ?? null,
 		date: input.date
 	};
 	const result = await validateAssignmentCandidate(db, scheduleId, candidate, {

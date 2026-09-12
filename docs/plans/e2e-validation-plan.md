@@ -222,6 +222,22 @@ inside its try/catch.
 
 These are the journeys that catch "works in isolation" bugs. Each is `@long` (3–6 minutes) and runs nightly + on release branches; a trimmed variant of J7.1 is in `@smoke`.
 
+**Status — done (J7.1 + J7.6).** The two flagship long arcs are written and green
+under `e2e/journeys/phase-7/` on a hand-built semester world
+(`helpers.semesterWorld`): **J7.1** the two-tier register → build → hand-schedule
+→ export → grant → generate → bypass → complete → hand-edit → revoke → export arc
+(`semester.spec.ts`), its `@smoke` slice (`smoke.spec.ts`), and **J7.6** the
+60×6×12 volume tripwire (`volume.spec.ts`). Product bug found and fixed with
+regression coverage (see `e2e-phase-7-findings.md`): **P7-a** create/edit-time
+`over_required_days` counted elective days toward the clerkship's core
+required-days budget, so a legitimate optional-elective day on a fully-scheduled
+clerkship spuriously tripped the warning — the validator now measures core days
+(excluding elective rows) against the clerkship and leaves elective days alone,
+consistent with the generation credit split. One recorded reconciliation (**D7-1**):
+the plan framed the un-onboarded student as "unmet"; the engine places-but-flags
+(J5.3), so the journey asserts that and the bypass→stamp conversion. J7.2–J7.5
+remain for a later pass.
+
 | ID   | Journey (actor)                                       | Arc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ---- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | J7.1 | **A semester, two tiers** (fresh basic, then granted) | Register → schedule for 3 months → 2 HS / 3 sites → 3 clerkships (one with electives) → 4 preceptors with patterns (one deliberately un-materialised) → 5 students (one un-onboarded at HS-B) → hand-schedule student 1 fully incl. an override and a lock-free day → export → grant `autogen` → readiness names the un-materialised preceptor → materialise → Full → student 1's hand rows untouched (ids), students 2–5 generated, un-onboarded student unmet → bypass → complete → hand-edit two generated days → Completion → nothing lost → revoke entitlement → everything still editable → export contains all sources correctly. |

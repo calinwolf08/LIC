@@ -65,7 +65,9 @@ export interface EditOptions {
 async function evaluateEdit(
 	db: Kysely<DB>,
 	current: Selectable<ScheduleAssignments>,
-	changes: Partial<Pick<AssignmentCandidate, 'preceptor_id' | 'clerkship_id' | 'site_id' | 'date'>>,
+	changes: Partial<
+		Pick<AssignmentCandidate, 'preceptor_id' | 'clerkship_id' | 'site_id' | 'date' | 'elective_id'>
+	>,
 	opts: EditOptions
 ): Promise<{ hard: Violation[]; soft: Violation[]; blocked: boolean; persistedCodes: string[] }> {
 	const candidate: AssignmentCandidate = {
@@ -73,6 +75,9 @@ async function evaluateEdit(
 		preceptor_id: changes.preceptor_id ?? current.preceptor_id,
 		clerkship_id: changes.clerkship_id ?? current.clerkship_id,
 		site_id: changes.site_id !== undefined ? changes.site_id : current.site_id,
+		// The effective elective of the merged day, so over_required_days measures a
+		// core clerkship day against the clerkship and leaves elective days alone (P7-a).
+		elective_id: changes.elective_id !== undefined ? changes.elective_id : current.elective_id,
 		date: changes.date ?? current.date,
 		excludeId: current.id ?? undefined
 	};
@@ -198,6 +203,7 @@ export async function updateAssignmentChecked(
 			preceptor_id: changes.preceptor_id,
 			clerkship_id: changes.clerkship_id,
 			site_id: changes.site_id,
+			elective_id: changes.elective_id,
 			date: changes.date
 		},
 		{ ...opts, blockOnSoft: true }

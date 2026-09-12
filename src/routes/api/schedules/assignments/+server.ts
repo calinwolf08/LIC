@@ -173,6 +173,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						preceptor_id: input.preceptor_id,
 						clerkship_id: input.clerkship_id,
 						site_id: input.site_id ?? null,
+						elective_id: input.elective_id ?? null,
 						date: previewDate
 					},
 					{ checkCreateTimeCodes: true }
@@ -201,6 +202,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			preceptor_id: input.preceptor_id,
 			clerkship_id: input.clerkship_id,
 			site_id: input.site_id ?? null,
+			elective_id: input.elective_id ?? null,
 			date: input.date,
 			excludeId: input.excludeId
 		};
