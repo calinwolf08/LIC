@@ -4,6 +4,7 @@
  * Provides typed error classes for different error scenarios
  */
 
+import { isHttpError } from '@sveltejs/kit';
 import { errorResponse } from './responses';
 
 /**
@@ -81,6 +82,16 @@ export function handleApiError(error: unknown): Response {
 	// Handle known API errors
 	if (isApiError(error)) {
 		return errorResponse(error.message, error.status, error.details);
+	}
+
+	// SvelteKit `error(status, ...)` (e.g. requireAutogen's 403) thrown inside a
+	// handler's try/catch must keep its status, not collapse to 500 (finding P6-a):
+	// a non-entitled write to an endpoint that gates inside its try was leaking as
+	// a 500 instead of a clean 403.
+	if (isHttpError(error)) {
+		const body = error.body as { message?: string } | string;
+		const message = typeof body === 'string' ? body : (body?.message ?? 'Request failed');
+		return errorResponse(message, error.status);
 	}
 
 	// Handle unknown errors
