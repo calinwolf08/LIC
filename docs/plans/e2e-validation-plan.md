@@ -174,17 +174,16 @@ pre-existing `phase-2/preceptor-wizard` flake is unrelated to this phase.
 
 Spec: G1–G6, G9–G11, `06 §2.4`. All journeys run as `admin` or a fresh entitled user; they build on Phase 0 seed extensions.
 
-**Status — in progress.** J5.1 (first full run), J5.2 (regenerate modes vs human
-edits), J5.3 (bypass/override parity) and J5.7 (results & diagnostics) are
-written and green under `e2e/journeys/phase-5/`, driven against a
-generation-ready sandbox (`helpers.generationSandbox`). Product bugs found and
-fixed with coverage (see `e2e-phase-5-findings.md`): **P5-a** calendar chips lost
-source/locked/elective provenance; **P5-b** bypass codes were unvalidated (unknown/
-hard now 400); **P5-c** generated override codes were dropped before persistence.
-Decision **D5-1**: generation surfaces soft violations by default and a bypass
-converts them to accepted overrides (the plan's "unmet → bypass" is really
-"placed-but-flagged → bypass"). Still to do: **J5.4** fallbacks & approval,
-**J5.5** configuration → behaviour, **J5.6** teams management.
+**Status — done.** All seven journeys (J5.1–J5.7) are written and green under
+`e2e/journeys/phase-5/`, driven against a generation-ready sandbox
+(`helpers.generationSandbox`). Product bugs found and fixed with coverage (see
+`e2e-phase-5-findings.md`): **P5-a** calendar chips lost source/locked/elective
+provenance; **P5-b** bypass codes were unvalidated (unknown/hard now 400);
+**P5-c** generated override codes were dropped before persistence; **P5-d**
+generated assignment status (e.g. `pending_approval`) was dropped before
+persistence. Decision **D5-1**: generation surfaces soft violations by default
+and a bypass converts them to accepted overrides (the plan's "unmet → bypass" is
+really "placed-but-flagged → bypass").
 
 | ID   | Journey (actor)                                          | Arc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Edge cases folded in                                                                                                                                                                                                                                                           |
 | ---- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

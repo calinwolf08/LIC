@@ -30,6 +30,16 @@ to "bypass" a hard block. **Fix:** constrain each entry with `isOverrideCode`,
 the canonical overridable (soft) vocabulary, so an unknown or hard code is a
 400. Asserted in J5.3.
 
+### P5-d — Generated assignment status was dropped before persistence _(fixed)_
+
+Symmetric with P5-c: the engine writes a backup day as `pending_approval` when a
+clerkship requires sign-off (F-17) and `insertGeneratedAssignments` persists a
+row `status`, but the generate endpoint's `toGeneratedRows` dropped `status`,
+forcing every generated day to the default `scheduled`. **Fix:** carry `status`
+through `toGeneratedRows`. J5.4 asserts fallback coverage and the approval PATCH
+end to end; the engine's own trigger for emitting `pending_approval` is covered
+by the fallback integration tests.
+
 ### P5-c — Generated override codes were dropped before persistence _(fixed)_
 
 The engine's `ProposalValidator` stamps each accepted proposal with the soft
@@ -63,17 +73,22 @@ the journey exists to prove.
   calendar and DB assertions cover the outcome. Worth revisiting the dialog's
   overlay/stability if the modal is exercised directly later.
 
-## Not yet covered (carried forward)
+## Observations (not blocking)
 
-J5.4 (fallbacks & approval), J5.5 (configuration → behaviour: rotation/block
-sizes, global vs per-clerkship), and J5.6 (teams management) are not yet
-written. The generation-sandbox helper and the fixes above (provenance markers,
-override persistence, bypass validation) are the foundation they build on;
-these three are the remaining Phase 5 work.
+- **Harness flake.** A `journeys`-project run occasionally aborts a single spec
+  with `Internal error: step id not found: fixture@N` and an empty error context
+  (no assertion failed). It has appeared across phases in this environment and is
+  independent of the assertions; the affected spec passes on isolated re-run.
+  J5.3 tripped it once in a full-suite run and passed alone.
+
+## Coverage
+
+All seven Phase 5 journeys are written and green: J5.1 first full run, J5.2
+regenerate modes, J5.3 bypass parity, J5.4 fallbacks & approval, J5.5
+configuration → behaviour, J5.6 teams management, J5.7 results & diagnostics.
 
 ## Gates
 
 - `npm run check` — 0 errors.
 - `npx vitest run` — full unit/integration suite green (1722 tests).
-- Phase-5 journeys (`e2e/journeys/phase-5/`) green: J5.1 first full run, J5.2
-  regenerate modes, J5.3 bypass parity, J5.7 results & diagnostics.
+- Phase-5 journeys (`e2e/journeys/phase-5/`) green.
