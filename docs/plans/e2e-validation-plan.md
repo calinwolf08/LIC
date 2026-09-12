@@ -201,6 +201,13 @@ really "placed-but-flagged → bypass").
 
 Spec: G7, G8, G12, `05-access-gating.md`, `08-tier-parity-and-interop.md` rules 1–2, 6.
 
+**Status — done.** All five journeys (J6.1–J6.5) are written and green under
+`e2e/journeys/phase-6/`. Product bug found and fixed with coverage (see
+`e2e-phase-6-findings.md`): **P6-a** a gated write thrown inside a handler's
+try/catch leaked as a 500 instead of a 403 — `handleApiError` now preserves a
+SvelteKit `HttpError`'s status, a central fix across every endpoint that gates
+inside its try/catch.
+
 | ID   | Journey (actor)                                                        | Arc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Edge cases folded in                                                                                    |
 | ---- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | J6.1 | **Generated rows are ordinary rows** (admin → then basic on same data) | After J5.1: open a generated chip in the unified dialog → move it (override conversation appears and is accepted) → reassign another → delete one → lock one → requirement strip and health panel consistent at each step → `source` stays `generated`, `elective_id` preserved (DB). Then **revoke** `autogen` for the same user (fixture) and repeat move/reassign/delete: all succeed; the lock is visible but the toggle is gone; `/generate` → 403; health panel unchanged (G12).                                                              | Re-grant → lock toggle returns; nothing else changed.                                                   |
