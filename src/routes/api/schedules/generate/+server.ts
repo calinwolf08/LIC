@@ -369,6 +369,7 @@ function toGeneratedRows(
 		date: string;
 		electiveId?: string | null;
 		overrideCodes?: string[];
+		status?: string;
 	}>
 ): GeneratedAssignmentInput[] {
 	return assignments.map((a) => ({
@@ -377,7 +378,11 @@ function toGeneratedRows(
 		clerkshipId: a.clerkshipId,
 		date: a.date,
 		electiveId: a.electiveId ?? null,
-		overrideCodes: a.overrideCodes ?? []
+		overrideCodes: a.overrideCodes ?? [],
+		// A fallback day for a clerkship that requires sign-off is 'pending_approval'
+		// (F-17); persist it so the coordinator can review, rather than dropping it
+		// to the default 'scheduled' (finding P5-d, symmetric with P5-c).
+		status: a.status
 	}));
 }
 
