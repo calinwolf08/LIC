@@ -1,3 +1,5 @@
+// @coverage @req(G9)
+// @coverage @finding(P5-b) @finding(P5-c) @finding(D5-1)
 /**
  * J5.3 — Bypass / generated-override parity (e2e plan Phase 5).
  *

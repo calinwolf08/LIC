@@ -1,3 +1,4 @@
+// @coverage @req(G4)
 /**
  * J5.7 — Results & diagnostics tell the truth (e2e plan Phase 5).
  *

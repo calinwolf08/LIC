@@ -1,3 +1,4 @@
+// @coverage @req(R7.1) @req(G8)
 /**
  * J6.4 — Validation payload equality (e2e plan Phase 6).
  *

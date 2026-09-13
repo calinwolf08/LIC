@@ -1,3 +1,4 @@
+// @coverage @req(R1.1) @req(R1.2)
 /**
  * J1.1 — Account lifecycle (e2e plan Phase 1).
  *

@@ -1,3 +1,4 @@
+// @coverage @req(R6.1) @req(R6.2) @req(R6.3) @req(R6.4) @req(R6.5) @req(R6.6) @req(R6.7) @req(R3.1)
 /**
  * J3.1 — Three entry points, one dialog (e2e plan Phase 3).
  *

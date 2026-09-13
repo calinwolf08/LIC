@@ -1,3 +1,4 @@
+// @coverage @req(R10.x)
 /**
  * P3-b regression — EntityTabs restores the active tab from the URL.
  *

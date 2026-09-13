@@ -1,3 +1,5 @@
+// @coverage @req(R1.3) @req(R4.2)
+// @coverage @finding(P7-a) @finding(D7-1)
 /**
  * J7.1 — A semester, two tiers (e2e plan Phase 7).
  *

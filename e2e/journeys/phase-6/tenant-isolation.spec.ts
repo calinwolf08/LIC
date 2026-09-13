@@ -1,3 +1,4 @@
+// @coverage @finding(F-02) @finding(F-03) @finding(F-04) @finding(F-27)
 /**
  * J6.5 — Tenant isolation under every write path (e2e plan Phase 6).
  *

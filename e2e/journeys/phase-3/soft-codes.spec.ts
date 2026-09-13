@@ -1,3 +1,4 @@
+// @coverage @req(R7.1) @req(R7.2) @req(R7.3) @req(R7.4)
 /**
  * J3.3 — Every soft code and the override conversation (e2e plan Phase 3).
  *

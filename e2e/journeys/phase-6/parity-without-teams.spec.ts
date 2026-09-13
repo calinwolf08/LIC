@@ -1,3 +1,4 @@
+// @coverage @req(G11)
 /**
  * J6.3 — Parity without teams (e2e plan Phase 6).
  *

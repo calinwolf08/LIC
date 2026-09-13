@@ -1,3 +1,4 @@
+// @coverage @finding(F-22)
 /**
  * J7.3 — Time boundaries (e2e plan Phase 7).
  *

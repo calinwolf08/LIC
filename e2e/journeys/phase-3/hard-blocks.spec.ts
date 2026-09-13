@@ -1,3 +1,4 @@
+// @coverage @req(R7.1) @req(R7.2)
 /**
  * J3.4 — Hard blocks never pass (e2e plan Phase 3).
  *

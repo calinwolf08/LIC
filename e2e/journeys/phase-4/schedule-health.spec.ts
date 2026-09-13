@@ -1,3 +1,4 @@
+// @coverage @req(R7.1) @req(R7.2) @req(R7.3) @req(R7.4)
 /**
  * J4.4 — Schedule health is one number everywhere (e2e plan Phase 4).
  *

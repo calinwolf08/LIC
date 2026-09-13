@@ -1,3 +1,4 @@
+// @coverage @req(R2.1) @req(R4.2) @req(R4.3)
 /**
  * J3.7 — Electives are tracked per elective (e2e plan Phase 3).
  *

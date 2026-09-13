@@ -1,3 +1,5 @@
+// @coverage @req(R5.1) @req(R5.2)
+// @coverage @finding(D7-2)
 /**
  * J7.4 — Dependency-deletion chain (e2e plan Phase 7).
  *

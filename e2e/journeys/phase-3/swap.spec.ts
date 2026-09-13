@@ -1,3 +1,4 @@
+// @coverage @req(R6.6)
 /**
  * J3.6 — Swapping two assignments' preceptors (e2e plan Phase 3).
  *

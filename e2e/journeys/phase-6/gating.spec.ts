@@ -1,3 +1,5 @@
+// @coverage @req(G1) @req(G7)
+// @coverage @finding(P6-a)
 /**
  * J6.2 — Gating table, both directions (e2e plan Phase 6).
  *

@@ -1,3 +1,4 @@
+// @coverage @req(R2.1) @req(R2.2) @req(R2.3) @req(R10.x)
 /**
  * J2.5 drill-through mesh + J2.6 list views (e2e plan Phase 2).
  *

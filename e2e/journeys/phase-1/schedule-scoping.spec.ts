@@ -1,3 +1,5 @@
+// @coverage @req(R1.3)
+// @coverage @finding(F-02) @finding(F-03) @finding(F-04) @finding(F-27)
 /**
  * J1.3 — Schedule scoping is real (e2e plan Phase 1).
  *

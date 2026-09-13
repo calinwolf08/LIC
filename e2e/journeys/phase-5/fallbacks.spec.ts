@@ -1,3 +1,5 @@
+// @coverage @req(G10)
+// @coverage @finding(P5-d)
 /**
  * J5.4 — Fallbacks and approval (e2e plan Phase 5).
  *

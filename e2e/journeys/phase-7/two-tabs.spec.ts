@@ -1,3 +1,4 @@
+// @coverage @req(R6.4)
 /**
  * J7.5 — Two tabs, one schedule (e2e plan Phase 7).
  *

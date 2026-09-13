@@ -1,3 +1,5 @@
+// @coverage @req(R8.5)
+// @coverage @finding(P4-f)
 /**
  * J4.3 — Export honours filters and carries the truth (e2e plan Phase 4).
  *

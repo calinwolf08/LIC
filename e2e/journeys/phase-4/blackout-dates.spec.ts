@@ -1,3 +1,5 @@
+// @coverage @req(R8.4)
+// @coverage @finding(P4-d) @finding(P4-e)
 /**
  * J4.2 — Blackout dates: create, conflict, resolve (e2e plan Phase 3/4).
  *

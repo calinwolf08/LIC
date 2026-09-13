@@ -26,9 +26,13 @@
 		"db:types": "kysely-codegen --dialect=sqlite --out-file=src/lib/db/types.ts",
 		"seed:scenario": "tsx scripts/seed/index.ts",
 		"test:pg": "vitest run --project server src/lib/db/postgres-integration.test.ts src/lib/db/migrations/migrations.equivalence.test.ts src/lib/auth.signup.test.ts",
-		"test:e2e:smoke": "playwright test --grep @smoke",
+		"test:e2e:smoke": "playwright test --project=journeys --grep @smoke",
 		"test:e2e:journeys": "playwright test --project=journeys",
-		"test:e2e:long": "playwright test --grep @long"
+		"test:e2e:full": "playwright test --project=journeys --grep-invert @long",
+		"test:e2e:long": "playwright test --project=journeys --grep @long",
+		"test:coverage": "vitest run --coverage",
+		"coverage:map": "tsx e2e/scripts/generate-coverage.ts",
+		"coverage:check": "tsx e2e/scripts/generate-coverage.ts --check"
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "^0.5.4",

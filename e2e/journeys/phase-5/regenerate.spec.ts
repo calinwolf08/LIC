@@ -1,3 +1,4 @@
+// @coverage @req(G2) @req(G4)
 /**
  * J5.2 — Regenerate modes against human edits (e2e plan Phase 5).
  *

@@ -1,3 +1,5 @@
+// @coverage @req(G2) @req(G3) @req(G4) @req(R3.1)
+// @coverage @finding(P5-a)
 /**
  * J5.1 — First full generation run (e2e plan Phase 5).
  *

@@ -1,3 +1,4 @@
+// @coverage @req(G6) @req(G11)
 /**
  * J5.6 — Teams management (e2e plan Phase 5).
  *

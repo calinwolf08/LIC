@@ -1,3 +1,4 @@
+// @coverage @req(R3.4) @req(R3.5)
 /**
  * J3.9 — Availability changes ripple into schedule health (e2e plan Phase 3).
  *

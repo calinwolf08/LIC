@@ -1,3 +1,5 @@
+// @coverage @req(R1.3)
+// @coverage @finding(P1-c)
 /**
  * J1.2 — Schedule lifecycle end to end (e2e plan Phase 1), on a fresh account of
  * each tier so the seeded Demo Schedule is never disturbed.

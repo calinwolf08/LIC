@@ -1,3 +1,5 @@
+// @coverage @req(R10.x)
+// @coverage @finding(P1-e)
 /**
  * J1.5 — Error surfacing and the unsaved-changes guard (e2e plan Phase 1).
  *

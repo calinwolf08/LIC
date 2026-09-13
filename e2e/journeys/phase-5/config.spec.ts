@@ -1,3 +1,4 @@
+// @coverage @req(R4.1) @req(G5)
 /**
  * J5.5 — Configuration → behaviour (e2e plan Phase 5).
  *

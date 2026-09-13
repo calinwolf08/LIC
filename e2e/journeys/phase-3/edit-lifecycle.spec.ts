@@ -1,3 +1,5 @@
+// @coverage @req(R6.5) @req(R6.6)
+// @coverage @finding(G8)
 /**
  * J3.5 — Edit lifecycle of a hand-built day (e2e plan Phase 3).
  *

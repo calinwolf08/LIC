@@ -1,3 +1,5 @@
+// @coverage @req(R1.3)
+// @coverage @finding(D7-3) @finding(D7-4)
 /**
  * J7.2 — Shared entities across schedules (e2e plan Phase 7).
  *

@@ -1,3 +1,4 @@
+// @coverage @req(R9.1) @req(R9.2) @req(R3.4)
 /**
  * J4.5 — Dashboard and readiness checklist (e2e plan Phase 4).
  *

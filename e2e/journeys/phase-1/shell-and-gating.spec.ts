@@ -1,3 +1,4 @@
+// @coverage @req(R1.1) @req(R1.2) @req(R10.x) @req(G1) @req(G7)
 /**
  * J1.4 — Shell, empty states, and the dead-end audit (e2e plan Phase 1).
  *

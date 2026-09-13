@@ -1,3 +1,4 @@
+// @coverage @finding(F-30)
 /**
  * J7.6 — Volume smoke (e2e plan Phase 7).
  *

@@ -1,3 +1,4 @@
+// @coverage @req(R5.1) @req(R5.2)
 /**
  * J2.1 — Locations hierarchy with dependencies (e2e plan Phase 2).
  *

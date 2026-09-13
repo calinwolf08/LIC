@@ -1,3 +1,4 @@
+// @coverage @req(R4.1) @req(R4.2) @req(R4.3) @req(R4.4)
 /**
  * J2.4 — Clerkship configuration, Stage 1 view (e2e plan Phase 2).
  *

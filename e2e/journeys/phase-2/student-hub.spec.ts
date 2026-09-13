@@ -1,3 +1,4 @@
+// @coverage @req(R2.1) @req(R2.2) @req(R2.3)
 /**
  * J2.3 — The student detail page as the hub for one student (e2e plan Phase 2).
  *

@@ -1,3 +1,4 @@
+// @coverage @req(G8) @req(G12)
 /**
  * J6.1 — Generated rows are ordinary rows (e2e plan Phase 6).
  *

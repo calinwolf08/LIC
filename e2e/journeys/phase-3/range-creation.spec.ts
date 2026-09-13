@@ -1,3 +1,4 @@
+// @coverage @req(R6.1) @req(R6.2)
 /**
  * J3.2 — Range creation places many clean days at once (e2e plan Phase 3).
  *

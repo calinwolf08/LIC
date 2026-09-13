@@ -1,3 +1,4 @@
+// @coverage @req(R6.7)
 /**
  * J3.8 — Locks are a Stage 2 (entitled) capability (e2e plan Phase 3).
  *

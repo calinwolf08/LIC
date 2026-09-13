@@ -257,6 +257,23 @@ surfaced in J7.2–J7.5.
 
 ## 10. Phase 8 — Hardening and CI gates
 
+**Status — done (CI + traceability + coverage floors; legacy-spec deletion
+pending human approval).** `ci.yml` now splits E2E into `e2e-smoke` (PR-blocking,
+`@smoke`), `e2e-full` (3-way sharded, everything but `@long`), `e2e-long`
+(nightly `cron`), and `e2e-guards` (`coverage:check` — fails on any
+`test.only/skip/fixme` under `e2e/journeys/phase-*` or a stale coverage map).
+`e2e/scripts/generate-coverage.ts` generates `e2e/COVERAGE.md` (journey→spec/tags,
+requirement→journeys, finding→journeys) from `@req`/`@finding` annotations added
+to every phase-1–7 spec, so the map cannot rot. `vite.config.ts` gains
+glob-scoped coverage floors on the scheduling paths and `test-coverage.yml`
+enforces them (finding **P8-a**: the coverage run first needed a test-timeout bump
+because argon2 hashing exceeds the 5 s default under v8 instrumentation). The
+aspirational 95/90/95 target is not yet met by the unit suite alone (e2e-only
+files read as uncovered) and is tracked as a follow-up. Retire targets
+`e2e/helpers.ts` / `e2e/utils/` were already gone; the 20 superseded legacy specs
+are mapped to their replacements and recommended for deletion, withheld pending
+human approval (irreversible). See `e2e-phase-8-findings.md`.
+
 1. **Blocking CI**: `E2E Tests` job split into `smoke` (PR-blocking, < 5 min) and `full` (merge-to-main blocking, sharded ×3 by tag); `@long` nightly. Playwright HTML report + traces uploaded on failure (already), plus a step that fails the job if any `test.fixme`/`test.skip` exists in `e2e/journeys`.
 2. **Coverage gates** (carried from `06 §4`): Vitest thresholds 95/90/95 on the scheduling paths; `test-coverage.yml` made blocking; `withQueryCounter` scale test landed alongside J7.6.
 3. **Traceability**: a generated `e2e/COVERAGE.md` mapping every `R*`/`G*` requirement and every `F-*`/`P-*` finding to journey ids (the tables in this document are the seed; a script greps `@req(R6.3)` annotations from the specs so the map cannot rot).
@@ -295,17 +312,17 @@ surfaced in J7.2–J7.5.
 
 ## 12. Sequencing, effort and exit criteria
 
-| Phase | Depends on | New spec files | Approx. effort | Exit criterion                                                                                            |
-| ----- | ---------- | -------------- | -------------- | --------------------------------------------------------------------------------------------------------- |
-| 0     | —          | fixtures, seed | 2–3 days       | Existing 49 green on fixtures; `@smoke` < 4 min; seed invariants asserted in global-setup                 |
-| 1     | 0          | 5              | 2 days         | All J1.x green for admin and basic; dead-link audit clean                                                 |
-| 2     | 0          | 6              | 3 days         | All J2.x green; `/students/[id]/edit` decision recorded                                                   |
-| 3     | 0, 2       | 9              | 5 days         | All J3.x green both tiers; swap decision recorded; every soft code exercised through the UI at least once |
-| 4     | 3          | 5              | 3 days         | Health counts equal on all surfaces; export parsed and asserted                                           |
-| 5     | 0 (seed)   | 7              | 5 days         | All J5.x green; approval UI decision recorded                                                             |
-| 6     | 3, 5       | 5              | 3 days         | Gating table green both directions; B snapshot identical across every A write path                        |
-| 7     | 1–6        | 6              | 4 days         | `@long` suite green nightly for a week                                                                    |
-| 8     | 7          | CI only        | 2 days         | Smoke PR-blocking; full merge-blocking; no fixme/skip; COVERAGE.md generated                              |
+| Phase | Depends on | New spec files | Approx. effort | Exit criterion                                                                                                                                                                                                           |
+| ----- | ---------- | -------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0     | —          | fixtures, seed | 2–3 days       | Existing 49 green on fixtures; `@smoke` < 4 min; seed invariants asserted in global-setup                                                                                                                                |
+| 1     | 0          | 5              | 2 days         | All J1.x green for admin and basic; dead-link audit clean                                                                                                                                                                |
+| 2     | 0          | 6              | 3 days         | All J2.x green; `/students/[id]/edit` decision recorded                                                                                                                                                                  |
+| 3     | 0, 2       | 9              | 5 days         | All J3.x green both tiers; swap decision recorded; every soft code exercised through the UI at least once                                                                                                                |
+| 4     | 3          | 5              | 3 days         | Health counts equal on all surfaces; export parsed and asserted                                                                                                                                                          |
+| 5     | 0 (seed)   | 7              | 5 days         | All J5.x green; approval UI decision recorded                                                                                                                                                                            |
+| 6     | 3, 5       | 5              | 3 days         | Gating table green both directions; B snapshot identical across every A write path                                                                                                                                       |
+| 7     | 1–6        | 6              | 4 days         | `@long` suite green nightly for a week                                                                                                                                                                                   |
+| 8     | 7          | CI only        | 2 days         | **Done** — smoke PR-blocking; full merge-blocking (sharded ×3); nightly `@long`; no fixme/skip guard; COVERAGE.md generated & checked; scheduling coverage floors enforced. Legacy-spec deletion pending human approval. |
 
 Parallelism: Phases 1–4 (Stage 1) and 5 (Stage 2) can run on two tracks after Phase 0; Phase 6 needs both; Phase 7 needs everything.
 

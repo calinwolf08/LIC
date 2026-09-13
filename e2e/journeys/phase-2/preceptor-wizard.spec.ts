@@ -1,3 +1,4 @@
+// @coverage @req(R3.1) @req(R3.2) @req(R3.3) @req(R3.4) @req(R3.5) @req(R3.6)
 /**
  * J2.2 — Preceptor from the wizard to a usable calendar (e2e plan Phase 2).
  *

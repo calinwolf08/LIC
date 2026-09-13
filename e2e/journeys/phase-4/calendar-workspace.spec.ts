@@ -1,3 +1,5 @@
+// @coverage @req(R8.1) @req(R8.2) @req(R8.3)
+// @coverage @finding(P4-a) @finding(P4-b)
 /**
  * J4.1 — Calendar as the workspace (e2e plan Phase 4).
  *

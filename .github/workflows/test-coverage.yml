@@ -28,8 +28,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests with coverage
-        run: npm run test:unit -- --run --coverage
+      # The client (svelte) vitest project runs in a real browser via the
+      # Playwright provider, so the browser must be present for the coverage run.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Enforces the scheduling-path coverage floors declared in vite.config.ts
+      # (Phase 8 §2): vitest exits non-zero if any glob threshold is breached, so
+      # this job is a real gate, not just a report.
+      - name: Run tests with coverage (enforces thresholds)
+        run: npm run test:coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
