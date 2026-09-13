@@ -43,6 +43,36 @@ override day and an optional elective day.
 
 ## Decisions / reconciliations
 
+### D7-2 — deleting a schedule is not dependency-blocked (it cascades)
+
+Unlike the entity deletes in J7.4 (site, health system, preceptor, clerkship,
+elective, student), deleting a _schedule_ is not refused when it still holds
+assignments: it cascades its own assignments and schedule-entity junctions
+(established by J1.2 and finding P3-g, so those rows never orphan the global
+UNIQUE(student, date) slot). J7.4 therefore treats the schedule delete as the
+final cleanup step, not a blocked delete. (The `scheduling_periods.is_active`
+column carries a separate "cannot delete the active period" guard, but that flag
+is distinct from the user's active-schedule _pointer_, which the sandbox uses;
+deleting the user's active schedule is allowed and simply clears the pointer.)
+
+### D7-3 — preceptor daily capacity is GLOBAL across schedules
+
+A preceptor's per-day capacity is enforced across every schedule, not per
+schedule: the create/edit validator counts a preceptor's assignments on a
+calendar date without scoping to a schedule (mirroring the global
+UNIQUE(student, date) rule for students). So a preceptor booked to capacity on
+day D in schedule A is over capacity for day D in schedule B. J7.2 asserts this.
+No code change — this records the (correct, intended) behaviour as the answer to
+the plan's "per schedule or global?" question.
+
+### D7-4 — shared-location ripple asserted via clerkship-eligibility, not a hard site delete
+
+The plan's J7.2 says "delete P's site". A site shared by two schedules is
+dependency-blocked from hard deletion (J7.4), so the assertable cross-schedule
+ripple is a change to the shared site's _clerkship eligibility_: re-pointing the
+clerkship↔site link surfaces `site_not_allowed` in both schedules' validation.
+J7.2 asserts that. No code change.
+
 ### D7-1 — an un-onboarded student is placed-but-flagged, not left unmet
 
 The plan's J7.1 narrative expects the un-onboarded student (S5 at health system B)
@@ -83,6 +113,34 @@ code change — this records the spec reconciliation.
   tripwire bounds asserted); the export streams; the dashboard's student-status
   partition covers the whole roster (all 60 fully scheduled). A regression
   tripwire, not a benchmark.
+- **J7.2 — Shared entities across schedules** (`shared-entities.spec.ts`,
+  `@long`). Two overlapping schedules (A, B) share a student, preceptor, site and
+  clerkship. Preceptor capacity is global (D7-3): a preceptor booked to capacity
+  on day D in A is over capacity for D in B. The SharedEntityWarning on the shared
+  student's Details tab names both schedules. A change to the shared site's
+  clerkship eligibility ripples `site_not_allowed` into both schedules' validation
+  (D7-4). Deleting schedule A leaves B's assignment and the shared entities intact.
+- **J7.3 — Time boundaries** (`time-boundaries.spec.ts`, `@long`). A schedule
+  straddling today: past assignments are credited (a student whose only days are
+  in the past reads as complete); creating on a past day surfaces `past_date`;
+  a Smart (minimal-change) and a Full regenerate both preserve past rows (locked
+  or not); moving a future row back into the past trips `past_date` and needs an
+  explicit override; the calendar marks today (`ring-primary`) correctly with the
+  grid spanning the month boundary.
+- **J7.4 — Dependency-deletion chain** (`dependency-chain.spec.ts`, `@long`).
+  A full graph (HS → site → preceptor / clerkship → elective → student, wired and
+  carrying assignments): every entity delete is refused while dependents exist
+  (site/preceptor/clerkship/student → 409; health-system/elective → 400), then the
+  blocks resolve bottom-up (assignments → elective → leaf entities → site → HS →
+  schedule) and each delete succeeds; afterwards no orphan rows remain in any
+  junction or child table. The locations UI slice is already covered by J2.1;
+  this asserts the full API block-status contract and DB-level cleanup.
+- **J7.5 — Two tabs, one schedule** (`two-tabs.spec.ts`, `@long`). Two pages on
+  one session/active schedule: tab 2 books a student/day first, tab 1's stale
+  submit is hard-blocked (`student_double_booked`) with no duplicate row, tab 2
+  deletes it and tab 1's retry succeeds; then tab 2 runs a Full generation and,
+  after a refresh, tab 1 shows the generated rows with a health pill equal to the
+  validation API's total.
 
 ## Harness notes
 
@@ -96,10 +154,10 @@ code change — this records the spec reconciliation.
 
 - `npm run check` — 0 errors.
 - `npx vitest run` — full unit/integration suite green (1724 tests; +2 for P7-a).
-- Phase-7 journeys (`e2e/journeys/phase-7/`) green: J7.1, J7.1-smoke, J7.6.
+- Phase-7 journeys (`e2e/journeys/phase-7/`) green: J7.1, J7.1-smoke, J7.2, J7.3,
+  J7.4, J7.5, J7.6 (7 tests).
 
-## Not yet covered (later pass)
+## Coverage
 
-J7.2 (shared entities across schedules), J7.3 (time boundaries), J7.4
-(dependency-deletion chain) and J7.5 (two tabs, one schedule) are specified in the
-plan but not yet implemented.
+All Phase 7 journeys from the plan are now implemented: J7.1 (+ smoke), J7.2,
+J7.3, J7.4, J7.5, J7.6.
