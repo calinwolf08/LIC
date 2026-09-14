@@ -81,8 +81,9 @@ test.describe('J2.4 clerkship configuration', { tag: ['@stage1'] }, () => {
 			await apiOf(asAdmin).get<Array<{ id: string; name: string }>>('/api/clerkships');
 		const im = clerkships.data?.find((c) => c.name === 'Internal Medicine');
 		expect(im?.id).toBeTruthy();
-		await asAdmin.goto(`/clerkships/${im!.id}`);
-		await asAdmin.getByRole('tab', { name: 'Electives' }).click();
+		// Navigate straight to the Electives tab via its URL param (EntityTabs syncs
+		// `?tab=`); a bare tab click can race hydration and not switch the panel.
+		await asAdmin.goto(`/clerkships/${im!.id}?tab=electives`);
 		// "Cardiology" appears as both the name and the specialty, so scope to first.
 		await expect(asAdmin.getByText('Cardiology').first()).toBeVisible({ timeout: 10000 });
 		await expect(asAdmin.getByText('Dermatology').first()).toBeVisible();

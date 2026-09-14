@@ -12,7 +12,7 @@
  * deletes the preceptors it creates so the schedule is left as found.
  */
 
-import { test, expect } from '../../fixtures';
+import { test, expect, fromToday } from '../../fixtures';
 import { openCustomModal } from './helpers';
 
 async function deletePreceptor(page: import('@playwright/test').Page, name: string) {
@@ -63,6 +63,12 @@ test.describe('J2.2 preceptor wizard & availability', { tag: ['@stage1'] }, () =
 			for (const day of ['Mon', 'Wed', 'Fri']) {
 				await asAdmin.getByRole('button', { name: day, exact: true }).click();
 			}
+			// Give the pattern a multi-week range so the weekly selection actually
+			// materialises dates. A new pattern defaults its range to a single day
+			// (today), which yields zero dates whenever today is a weekend or an
+			// unselected weekday — leaving "Save 0 Dates" disabled and the flow stuck.
+			await asAdmin.locator('#start-date').fill(fromToday(1));
+			await asAdmin.locator('#end-date').fill(fromToday(30));
 			await asAdmin.getByRole('button', { name: /^add pattern$/i }).click();
 
 			// Save all → materialises dates → lands back on the preceptors list.
