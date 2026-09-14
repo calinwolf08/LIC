@@ -96,13 +96,48 @@ regression-test references:
 
 Nothing is deferred without a re-checking journey.
 
-### 5. Retire (plan §10.5) — recommendation, pending approval
+### 5. Retire (plan §10.5) — done
 
-`e2e/helpers.ts` and `e2e/utils/` are already gone (retired in Phase 0). What
-remains are **20 pre-plan legacy specs** directly under `e2e/journeys/` (the
-`legacy` Playwright project, which exists to run them "until each is folded into a
-phase journey"). Every one maps to a richer phase journey that supersedes it —
-many are name-identical:
+`e2e/helpers.ts` and `e2e/utils/` were already gone (retired in Phase 0). The
+**20 pre-plan legacy specs** directly under `e2e/journeys/` have now been deleted
+and the `legacy` Playwright project removed from `playwright.config.ts` (only
+`journeys` remains). Before deleting, each was verified — assertion by assertion,
+not just by name — to be superseded by a richer phase journey and/or unit tests:
+
+- **401 unauth API / auth routes reachable** → J1.1 (`account-lifecycle`) + unit
+  `api-auth.test.ts`; **availability pattern editor** → J2.2; **calendar view URL
+  round-trip** → J4.1; **overrides log / accepted-warning listing** → J3.3 + J4.4;
+  **read-only Overview + Details edit** → J2.3, J2.5/J2.6; **tenant isolation** →
+  J6.5 + unit `tenant-isolation-*.test.ts`; **CRUD + dependency-blocked deletes**
+  → J2.1–J2.4, J7.4; gating/schedule-lifecycle/first-run/empty-states →
+  J6.2/J1.2/J4.5/J1.4.
+- **The one gap found and closed:** `override-lifecycle.spec.ts` was the only
+  browser-level test of the _"assign and mark the preceptor available"_
+  side-effect action (the double-book "raise the limit" side effect and all three
+  side-effect kinds are already covered — J3.3 raises the limit at the integration
+  layer; `assignment-overrides.test.ts` / `assignment-apis.test.ts` cover
+  mark-available / bump-capacity / remove-conflicting at the service+API layer).
+  That branch was **folded into J3.3** (`soft-codes.spec.ts`): a
+  `preceptor_unavailable` day taken through "assign and mark available", asserting
+  the side effect flips the preceptor's availability for that day. So no coverage
+  was lost.
+
+Two helper files under `e2e/journeys/` are kept — they are not specs: `helpers.ts`
+(date/user helpers, re-exported by `assignment-helpers.ts`) and
+`assignment-helpers.ts` (imported by the `AssignmentDialog` page object).
+
+**P8-b — J3.3's blackout test was latently broken by P4-d _(fixed)_.** While
+folding in the branch, the pre-existing `blackout_date` test in `soft-codes.spec.ts`
+was found red on a fresh seed: it read the seed's blackout via
+`GET /api/blackout-dates`, but blackouts are schedule-scoped (P4-d) and the seed
+attaches them to the Demo schedule while the test runs in a sandbox that has none.
+Fixed by having the test create its own blackout in the sandbox (the correct
+pattern under schedule-scoping) instead of relying on the seed's Demo-scoped one.
+
+#### Legacy → superseding-journey map (for the record)
+
+Every one mapped to a richer phase journey that superseded it — many
+name-identical:
 
 | Legacy spec                                            | Superseded by                                    |
 | ------------------------------------------------------ | ------------------------------------------------ |

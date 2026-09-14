@@ -5,10 +5,14 @@
  * The soft vocabulary is knowingly acceptable: each accepted code is persisted
  * on the row (`override_codes`) and surfaces in the schedule-health panel. This
  * walks the reliably-reproducible codes in a populated sandbox:
- *   - preceptor_capacity via a double-book, taking the "Raise the limit" branch;
  *   - blackout_date on the seeded blackout day;
  *   - not_onboarded for the seeded un-onboarded student, then resolved once the
- *     student is onboarded.
+ *     student is onboarded;
+ *   - preceptor_unavailable, taking the "assign and mark available" side-effect
+ *     branch — the override doesn't just record a code, it flips the preceptor's
+ *     availability for that day (folded in from the retired override-lifecycle
+ *     legacy spec; the double-book "raise the limit" side effect is covered at
+ *     the integration layer — see the note below).
  */
 
 import { test, expect, apiOf, fromToday, assignmentsForSchedule, parseCodes } from '../../fixtures';
@@ -35,7 +39,7 @@ test.describe('J3.3 manual scheduling — soft codes', { tag: ['@stage1'] }, () 
 	// is not re-driven here; blackout and not_onboarded below prove the accept →
 	// persist → resolve conversation end to end.
 
-	test('blackout_date: assigning on the seeded blackout day is accepted and recorded', async ({
+	test('blackout_date: assigning on a blackout day is accepted and recorded', async ({
 		asAdmin,
 		sandbox,
 		db
@@ -44,9 +48,13 @@ test.describe('J3.3 manual scheduling — soft codes', { tag: ['@stage1'] }, () 
 		const roster = await populatedSandbox(asAdmin, `J3.3bo ${Date.now()}`);
 		sandbox.register(roster.sandbox);
 		const api = apiOf(asAdmin);
-		const blackouts = await api.get<Array<{ date: string }>>('/api/blackout-dates');
-		const blackout = (blackouts.data ?? [])[0]?.date;
-		expect(blackout, 'seed provides a blackout date').toBeTruthy();
+		// Blackout dates are schedule-scoped (P4-d), so the seed's Demo-schedule
+		// blackout is not visible from this sandbox — create one here, on a free
+		// weekday the seeded roster carries no assignment on.
+		const blackout = futureWeekday(16);
+		expect(
+			(await api.post('/api/blackout-dates', { date: blackout, reason: 'J3.3 test' })).ok
+		).toBe(true);
 
 		const studentId = roster.students.find((s) => s.name === 'Alice Johnson')!.id;
 		await asAdmin.goto(`/students/${studentId}`);
@@ -105,5 +113,60 @@ test.describe('J3.3 manual scheduling — soft codes', { tag: ['@stage1'] }, () 
 		await health.setIncludeResolved(true);
 		const overrides = await health.overrideRows();
 		expect(overrides.some((o) => /resolved/i.test(o.status))).toBe(true);
+	});
+
+	test('preceptor_unavailable: "assign and mark available" flips the preceptor availability', async ({
+		asAdmin,
+		sandbox,
+		db
+	}) => {
+		test.setTimeout(150000);
+		const roster = await populatedSandbox(asAdmin, `J3.3ua ${Date.now()}`);
+		sandbox.register(roster.sandbox);
+		const api = apiOf(asAdmin);
+
+		// Dr. Amanda Smith teaches Family Medicine and pairs cleanly with Alice
+		// Johnson (see the blackout test). Read her materialised availability to
+		// learn the site she serves, then make her explicitly unavailable on a
+		// target day so the create trips `preceptor_unavailable`.
+		const amanda = roster.preceptors.find((p) => p.name === 'Dr. Amanda Smith')!;
+		const student = roster.students.find((s) => s.name === 'Alice Johnson')!;
+		const avail = await api.get<Array<{ date: string; site_id: string; is_available: number }>>(
+			`/api/preceptors/${amanda.id}/availability`
+		);
+		const siteId = (avail.data ?? [])[0]?.site_id;
+		expect(siteId, 'Amanda has materialised availability at a site').toBeTruthy();
+		const siteName = roster.sites.find((s) => s.id === siteId)!.name;
+		const day = futureWeekday(12);
+
+		const marked = await api.post(`/api/preceptors/${amanda.id}/availability`, {
+			site_id: siteId,
+			availability: [{ date: day, is_available: false }]
+		});
+		expect(marked.ok).toBe(true);
+
+		await asAdmin.goto(`/students/${student.id}`);
+		const dialog = new AssignmentDialog(asAdmin);
+		await dialog.open();
+		await dialog.selectClerkship(CLERKSHIP);
+		await dialog.selectPreceptor('Dr. Amanda Smith');
+		await dialog.selectSite(siteName);
+		await dialog.pickDay(day);
+		// The picker surfaces the unavailability before submit.
+		await dialog.expectWarning(/available/i);
+		// Take the side-effect branch: accept AND flip the preceptor's availability.
+		await dialog.submitAndExpectCreated({ prefer: [/assign and mark available/i] });
+
+		// The assignment landed for that student/day...
+		const rows = await assignmentsForSchedule(db, roster.sandbox.id);
+		expect(rows.some((r) => r.date === day && r.student_id === student.id)).toBe(true);
+
+		// ...and the side effect landed too: the branch didn't just record an
+		// override, it flipped the preceptor's availability for that day (the create
+		// applies the side effect before validating, so the row itself is clean).
+		const after = await api.get<Array<{ date: string; is_available: number }>>(
+			`/api/preceptors/${amanda.id}/availability`
+		);
+		expect((after.data ?? []).find((a) => a.date === day)?.is_available).toBe(1);
 	});
 });

@@ -7,12 +7,10 @@ const ENV =
 const isCI = Boolean(process.env.CI);
 
 /**
- * Two projects over the same browser and server:
- *
- * - `legacy`   — the pre-plan specs directly under `e2e/journeys/`. They keep
- *                one retry until each is folded into a phase journey.
- * - `journeys` — the phased journeys under `e2e/journeys/phase-*`. Zero retries
- *                everywhere: a flake is a bug (e2e plan §0 rule 8).
+ * One project over the browser and server: `journeys`, the phased journeys under
+ * `e2e/journeys/phase-*`. Zero retries everywhere: a flake is a bug (e2e plan §0
+ * rule 8). (The pre-plan `legacy` project was retired in Phase 8 once every
+ * legacy spec was superseded by a richer journey.)
  *
  * Tags (`@smoke`, `@stage1`, `@stage2`, `@tenant`, `@long`) select subsets:
  *   npx playwright test --grep @smoke
@@ -53,12 +51,10 @@ export default defineConfig({
 	},
 	projects: [
 		{
-			name: 'legacy',
-			testIgnore: /phase-\d+\//,
-			retries: 1,
-			use: { ...devices['Desktop Chrome'] }
-		},
-		{
+			// The phased journeys under `e2e/journeys/phase-*` are the whole suite now
+			// (the pre-plan `legacy` project was retired in Phase 8 once every legacy
+			// spec was superseded by a richer journey). Zero retries everywhere: a
+			// flake is a bug (e2e plan §0 rule 8).
 			name: 'journeys',
 			testMatch: /phase-\d+\/.*\.spec\.ts$/,
 			retries: 0,
