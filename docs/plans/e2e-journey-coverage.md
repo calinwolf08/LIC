@@ -4,8 +4,8 @@ A map of what the Playwright journey suite actually exercises, grouped by
 **product feature area** rather than by test phase, so you can scan a feature
 and see at a glance what is covered and where the holes are.
 
-- **Suite:** `e2e/journeys/**` (single `journeys` Playwright project), 45 spec
-  files, 43 journeys, 84 test cases. Full run is green on a fresh seed.
+- **Suite:** `e2e/journeys/**` (single `journeys` Playwright project), 48 spec
+  files, 46 journeys, 90 test cases. Full run is green on a fresh seed.
 - **What "covered" means here:** each journey asserts across up to three layers
   at its checkpoints — **UI** (role/label/testid), the **same-session API**, and
   the **database** — so a green journey means the user-visible behaviour, the
@@ -44,15 +44,16 @@ as an asserted user action); account deletion; multi-session/device eviction.
 
 ## 2. Schedules (lifecycle, scoping, active-schedule)
 
-**Journeys:** J1.2 (`schedule-lifecycle.spec.ts`), J1.3 (`schedule-scoping.spec.ts`)
+**Journeys:** J1.2 (`schedule-lifecycle.spec.ts`), J1.3 (`schedule-scoping.spec.ts`), J7.7c (`config-edits.spec.ts`)
 
-| Scenario                                                                                                             | Layers        |
-| -------------------------------------------------------------------------------------------------------------------- | ------------- |
-| Full lifecycle on **basic** tier: wizard → edit → duplicate → activate → delete (incl. deleting the active schedule) | UI + API + DB |
-| Same full lifecycle on **entitled** tier                                                                             | UI + API + DB |
-| Create form rejects an end date before the start date, in-context                                                    | UI            |
-| An entity in one schedule is invisible in another; rename updates the switcher live                                  | UI + API      |
-| Cross-tenant activation of another user's schedule is refused (404)                                                  | API           |
+| Scenario                                                                                                                                          | Layers        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Full lifecycle on **basic** tier: wizard → edit → duplicate → activate → delete (incl. deleting the active schedule)                              | UI + API + DB |
+| Same full lifecycle on **entitled** tier                                                                                                          | UI + API + DB |
+| Create form rejects an end date before the start date, in-context                                                                                 | UI            |
+| An entity in one schedule is invisible in another; rename updates the switcher live                                                               | UI + API      |
+| Cross-tenant activation of another user's schedule is refused (404)                                                                               | API           |
+| **Shrinking the window** past an existing assignment (gap #3 closed): the row is kept, not dropped, and surfaces as an `outside_schedule` finding | API + DB      |
 
 **Related invariants asserted elsewhere:** active-schedule **write gate** (P1-c)
 — writes are refused unless the target is the active schedule — is asserted in
@@ -60,48 +61,50 @@ J1.2 and again in J7.x. Schedule delete **cascades** (does not block) is asserte
 in J7.4 (D7-2).
 
 **Gaps / not covered:** duplicating a schedule that has generated rows (only
-hand-built rows are duplicated in the journey); schedule date-range _edit_ after
-assignments exist outside the new range (the boundary is covered for blackouts
-and for creation, not for a shrink-the-window edit); archiving/soft-delete if
-that concept exists.
+hand-built rows are duplicated in the journey); archiving/soft-delete if that
+concept exists. _Date-range shrink under existing assignments is now covered by
+J7.7c._
 
 ---
 
 ## 3. Locations (health systems & sites)
 
-**Journeys:** J2.1 (`locations.spec.ts`)
+**Journeys:** J2.1 (`locations.spec.ts`), J7.7b (`config-edits.spec.ts`)
 
-| Scenario                                                                                               | Layers        |
-| ------------------------------------------------------------------------------------------------------ | ------------- |
-| Build health system → site → preceptor, then delete **bottom-up** with dependency blocks at each level | UI + API + DB |
-| Creating a site without a health system is refused in-context                                          | UI            |
+| Scenario                                                                                                                                                                   | Layers        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Build health system → site → preceptor, then delete **bottom-up** with dependency blocks at each level                                                                     | UI + API + DB |
+| Creating a site without a health system is refused in-context                                                                                                              | UI            |
+| **Re-parenting a site** to another health system (gap #3 closed): the move succeeds and the assignments on that site survive intact (no cascade delete, site_id preserved) | API + DB      |
 
 **Related:** the full dependency-deletion chain (every entity blocked while
 dependents exist, resolves bottom-up, no orphans) is J7.4.
 
-**Gaps / not covered:** editing a site's health-system parent (re-parenting);
-site address/contact field validation; deactivating vs deleting a location.
+**Gaps / not covered:** site address/contact field validation; deactivating vs
+deleting a location. _Site re-parenting under existing assignments is now covered
+by J7.7b._
 
 ---
 
 ## 4. Preceptors & availability
 
-**Journeys:** J2.2 (`preceptor-wizard.spec.ts`), J2.6 (`drill-through-and-lists.spec.ts`), J3.9 (`availability-ripple.spec.ts`)
+**Journeys:** J2.2 (`preceptor-wizard.spec.ts`), J2.6 (`drill-through-and-lists.spec.ts`), J2.7 (`availability-editing.spec.ts`), J3.9 (`availability-ripple.spec.ts`)
 
-| Scenario                                                                                                                                                                                                             | Layers        |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| Wizard: basic info → health system & site → weekly availability **pattern** that materialises into concrete dates → list shows the availability-configured indicator; detail Availability tab reproduces the builder | UI + API + DB |
-| A preceptor is schedulable with **only a name** (no site, no availability); the list reads "Not Set" (R3.5)                                                                                                          | UI + API      |
-| Preceptor list shows the availability-configured indicator (per-row)                                                                                                                                                 | UI            |
-| Availability **ripple**: marking a preceptor unavailable surfaces a conflict on an existing assignment day                                                                                                           | UI + API + DB |
+| Scenario                                                                                                                                                                                                                 | Layers        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| Wizard: basic info → health system & site → weekly availability **pattern** that materialises into concrete dates → list shows the availability-configured indicator; detail Availability tab reproduces the builder     | UI + API + DB |
+| A preceptor is schedulable with **only a name** (no site, no availability); the list reads "Not Set" (R3.5)                                                                                                              | UI + API      |
+| Preceptor list shows the availability-configured indicator (per-row)                                                                                                                                                     | UI            |
+| Availability **ripple**: marking a preceptor unavailable surfaces a conflict on an existing assignment day                                                                                                               | UI + API + DB |
+| **Single-date edit** (gap #1 closed): an individual "Unavailable" override flips one materialised date to `is_available=0` while its neighbours stay available; **deleting** that override returns the date to available | UI + API      |
 
 **Related:** per-preceptor **daily capacity** is respected by generation (J5.5);
 the "mark available" side-effect override is J3.3 (§8 below).
 
-**Gaps / not covered:** editing/deleting an individual availability _date_ (vs a
-whole pattern); overlapping-pattern resolution; availability across multiple
-sites for one preceptor within one pattern (single-site pattern is the covered
-path); vacation/leave blocks distinct from per-day unavailability.
+**Gaps / not covered:** overlapping-pattern resolution; availability across
+multiple sites for one preceptor within one pattern (single-site pattern is the
+covered path); vacation/leave blocks distinct from per-day unavailability.
+_Per-date edit/delete is now covered by J2.7._
 
 ---
 
@@ -128,22 +131,24 @@ re-onboarding after a health-system change.
 
 ## 6. Clerkships & electives
 
-**Journeys:** J2.4 (`clerkship-config.spec.ts`), J2.6, J3.7 (`electives.spec.ts`)
+**Journeys:** J2.4 (`clerkship-config.spec.ts`), J2.6, J3.7 (`electives.spec.ts`), J7.7a (`config-edits.spec.ts`)
 
-| Scenario                                                                                                         | Layers        |
-| ---------------------------------------------------------------------------------------------------------------- | ------------- |
-| Create → edit details → manage allowed sites → create a required elective within the day budget → delete         | UI + API + DB |
-| The seeded Internal Medicine clerkship shows its required and optional electives                                 | UI            |
-| Tier gating: entitled sees the Stage 2 tabs (Auto-scheduling, Preceptor teams); basic sees only Stage 1 tabs     | UI            |
-| Clerkship list shows type and required-days columns; Manage opens the detail                                     | UI            |
-| **Per-elective** requirement tracking: Cardiology and Dermatology count **separately** toward their own minimums | UI + API + DB |
+| Scenario                                                                                                                               | Layers        |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Create → edit details → manage allowed sites → create a required elective within the day budget → delete                               | UI + API + DB |
+| The seeded Internal Medicine clerkship shows its required and optional electives                                                       | UI            |
+| Tier gating: entitled sees the Stage 2 tabs (Auto-scheduling, Preceptor teams); basic sees only Stage 1 tabs                           | UI            |
+| Clerkship list shows type and required-days columns; Manage opens the detail                                                           | UI            |
+| **Per-elective** requirement tracking: Cardiology and Dermatology count **separately** toward their own minimums                       | UI + API + DB |
+| **Raising an elective's minimum** after a day counts against it (gap #3 closed): requirement tracking re-baselines "2 of 3" → "4 of 5" | UI + API      |
 
 **Related:** optional electives do **not** reduce the base clerkship day budget
 (asserted at the unit layer; the day-budget guard is exercised in J2.4/J3.7).
 
-**Gaps / not covered:** editing an existing elective's minimum-days or
-required/optional flag after assignments reference it; removing an allowed site
-that already has assignments; elective ordering/priority if it exists.
+**Gaps / not covered:** editing an existing elective's required/optional flag
+after assignments reference it; removing an allowed site that already has
+assignments; elective ordering/priority if it exists. _Editing an elective's
+minimum-days under a dependent assignment is now covered by J7.7a._
 
 ---
 
@@ -172,29 +177,29 @@ the dialog, not a drag gesture); multi-select / bulk edit of assignments; an
 This is the safety core. Every mutation goes through **one validator** (asserted
 for parity in §11).
 
-**Journeys:** J3.3 (`soft-codes.spec.ts`), J3.4 (`hard-blocks.spec.ts`), J4.4 (`schedule-health.spec.ts`), J5.3 (`bypass.spec.ts`), J6.4 (`validation-parity.spec.ts`)
+**Journeys:** J3.3 (`soft-codes.spec.ts`), J3.4 (`hard-blocks.spec.ts`), J3.10 (`capacity-side-effects.spec.ts`), J4.4 (`schedule-health.spec.ts`), J5.3 (`bypass.spec.ts`), J6.4 (`validation-parity.spec.ts`)
 
-| Scenario                                                                                                                                            | Layers        |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| **Soft** `blackout_date`: assigning on a blackout day is accepted and recorded on the row                                                           | UI + API + DB |
-| **Soft** `not_onboarded`: accepted, recorded, and **resolved** once the student onboards                                                            | UI + API + DB |
-| **Soft** `preceptor_unavailable` via "assign and mark available": the override flips the preceptor's availability for that day (side-effect branch) | UI + API + DB |
-| **Hard block**: a student double-book is blocked in the picker **and** rejected by the API                                                          | UI + API      |
-| Bypass: un-onboarded student flagged by default, stamped when bypassed, resolved on onboarding                                                      | UI + API + DB |
-| Bypass: an unknown or hard bypass code is rejected (P5-b)                                                                                           | API           |
-| Schedule health is **one number** across API, calendar pill, per-type panel, and dashboard — and moves together when a finding is added/fixed       | UI + API      |
-| Validation payload equality: identical schedules yield equal Stage 1 payloads across tiers                                                          | API           |
+| Scenario                                                                                                                                                                        | Layers        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| **Soft** `blackout_date`: assigning on a blackout day is accepted and recorded on the row                                                                                       | UI + API + DB |
+| **Soft** `not_onboarded`: accepted, recorded, and **resolved** once the student onboards                                                                                        | UI + API + DB |
+| **Soft** `preceptor_unavailable` via "assign and mark available": the override flips the preceptor's availability for that day (side-effect branch)                             | UI + API + DB |
+| **Soft** `preceptor_capacity` via "double-book → raise the limit" (gap #1 closed): `bump_preceptor_capacity` raises `max_students` and both students land on the day            | UI + API + DB |
+| **Soft** `preceptor_capacity` via "move the other student off" (gap #1 closed): `remove_conflicting_assignment` frees the slot; the occupant's row is gone, the limit unchanged | UI + API + DB |
+| **Hard block**: a student double-book is blocked in the picker **and** rejected by the API                                                                                      | UI + API      |
+| Bypass: un-onboarded student flagged by default, stamped when bypassed, resolved on onboarding                                                                                  | UI + API + DB |
+| Bypass: an unknown or hard bypass code is rejected (P5-b)                                                                                                                       | API           |
+| Schedule health is **one number** across API, calendar pill, per-type panel, and dashboard — and moves together when a finding is added/fixed                                   | UI + API      |
+| Validation payload equality: identical schedules yield equal Stage 1 payloads across tiers                                                                                      | API           |
 
-**Related side-effects** (`bump_preceptor_capacity`, `remove_conflicting_assignment`)
-and the `preceptor_capacity` soft code via the UI double-book branch are covered
-at the **service + integration** layer (`assignment-overrides.test.ts`,
-`assignment-apis.test.ts`, the seed's four accepted capacity overrides), not
-re-driven through the browser — see the note at the top of `soft-codes.spec.ts`.
+**All three override side-effects now have browser coverage:**
+`mark_preceptor_available` (J3.3), `bump_preceptor_capacity` and
+`remove_conflicting_assignment` (J3.10). The service + integration layer
+(`assignment-overrides.test.ts`, `assignment-apis.test.ts`) still backs them at
+the unit level.
 
-**Gaps / not covered (browser layer):** the `preceptor_capacity` soft code
-accepted through the dialog; `remove_conflicting_assignment` through the dialog;
-concurrent overrides on the same day by two users (concurrency is covered for
-create, J7.5, not for override).
+**Gaps / not covered (browser layer):** concurrent overrides on the same day by
+two users (concurrency is covered for create, J7.5, not for override).
 
 ---
 
@@ -312,17 +317,18 @@ attempts.
 
 ## 15. Cross-cutting long arcs & robustness
 
-**Journeys:** J7.1 (`semester.spec.ts`), J7.2 (`shared-entities.spec.ts`), J7.3 (`time-boundaries.spec.ts`), J7.4 (`dependency-chain.spec.ts`), J7.5 (`two-tabs.spec.ts`), J7.6 (`volume.spec.ts`), plus the `@smoke` arc (`phase-7/smoke.spec.ts`)
+**Journeys:** J7.1 (`semester.spec.ts`), J7.2 (`shared-entities.spec.ts`), J7.3 (`time-boundaries.spec.ts`), J7.4 (`dependency-chain.spec.ts`), J7.5 (`two-tabs.spec.ts`), J7.6 (`volume.spec.ts`), J7.7 (`config-edits.spec.ts`), plus the `@smoke` arc (`phase-7/smoke.spec.ts`)
 
-| Scenario                                                                                                                         | Layers        |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| A semester, two tiers: a hand-built world survives generation, bypass, revoke and export                                         | UI + API + DB |
-| Shared entities across schedules: **global** capacity, shared-entity warning, cross-schedule ripple, isolated delete (D7-3/D7-4) | UI + API + DB |
-| Time boundaries: past is credited and preserved; `past_date` warns; today marker is correct                                      | UI + API + DB |
-| Dependency-deletion chain: every entity blocked while dependents exist, resolves bottom-up, no orphans (D7-2)                    | UI + API + DB |
-| Two tabs, one schedule: concurrent create is hard-blocked without a duplicate; generation is seen after refresh                  | UI + API + DB |
-| Volume: 60×6×12 generates, renders, filters, exports and counts correctly (F-30)                                                 | UI + API + DB |
-| Smoke: the essential register → build → generate → export arc in one pass                                                        | UI + API + DB |
+| Scenario                                                                                                                                                                             | Layers        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| A semester, two tiers: a hand-built world survives generation, bypass, revoke and export                                                                                             | UI + API + DB |
+| Shared entities across schedules: **global** capacity, shared-entity warning, cross-schedule ripple, isolated delete (D7-3/D7-4)                                                     | UI + API + DB |
+| Time boundaries: past is credited and preserved; `past_date` warns; today marker is correct                                                                                          | UI + API + DB |
+| Dependency-deletion chain: every entity blocked while dependents exist, resolves bottom-up, no orphans (D7-2)                                                                        | UI + API + DB |
+| Two tabs, one schedule: concurrent create is hard-blocked without a duplicate; generation is seen after refresh                                                                      | UI + API + DB |
+| Volume: 60×6×12 generates, renders, filters, exports and counts correctly (F-30)                                                                                                     | UI + API + DB |
+| **Config edits under existing assignments** (J7.7, gap #3 closed): elective-minimum change re-baselines tracking; site re-parent keeps rows; schedule shrink flags out-of-range days | UI + API + DB |
+| Smoke: the essential register → build → generate → export arc in one pass                                                                                                            | UI + API + DB |
 
 **Gaps / not covered:** browser back/forward across a long edit session;
 offline/network-drop recovery; server-restart mid-session state; very large
@@ -354,21 +360,27 @@ form autofill.
 
 ## Where the biggest gaps are (summary for triage)
 
-Ranked by how likely a real user hits them:
+The three highest-ranked gaps from the first pass are now **closed** with browser
+journeys (J3.10, J2.7, J7.7 — 6 new test cases):
 
-1. **Override side-effects through the browser** (§8) — `preceptor_capacity` and
-   `remove_conflicting_assignment` accepted via the dialog are only at the
-   service layer. The UI branch for those two isn't clicked in an e2e test.
-2. **Availability at the per-date grain** (§4) — patterns are covered; editing or
-   deleting a single materialised availability date is not.
-3. **Editing config that assignments already depend on** (§6, §2) — changing an
-   elective's minimum, re-parenting a site, or shrinking a schedule's date range
-   _after_ assignments exist.
+1. ~~**Override side-effects through the browser**~~ (§8) — **closed.** All three
+   side effects (`mark_preceptor_available`, `bump_preceptor_capacity`,
+   `remove_conflicting_assignment`) are now driven through the dialog (J3.3, J3.10).
+2. ~~**Availability at the per-date grain**~~ (§4) — **closed.** J2.7 flips one
+   materialised date to unavailable via an individual override and deletes it back.
+3. ~~**Editing config that assignments already depend on**~~ (§6, §2, §3) —
+   **closed.** J7.7 covers elective-minimum change, site re-parent, and
+   schedule-window shrink, each under an existing dependent assignment.
+
+Remaining, ranked by how likely a real user hits them:
+
 4. **Entitlement revoke as a focused UI assertion** (§13) — covered inside the
    J7.1 long arc but not as a standalone "nav hides again" check.
 5. **Alternate export formats and generated-row export columns through the
    browser** (§11) — xlsx + hand-built rows are covered; the rest is unit-tested.
 6. **Accessibility / responsive / keyboard** (§16) — not asserted anywhere.
+7. **Concurrent overrides on the same day by two users** (§8) — create-time
+   concurrency is covered (J7.5); override-time is not.
 
 None of these are silent regressions in _covered_ behaviour — they're areas the
 journey suite doesn't reach yet. Everything listed in a coverage table above is

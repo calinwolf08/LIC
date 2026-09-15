@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **45** across 8 phases
-- Journeys: **43**
-- Requirements mapped: **49**; findings/decisions mapped: **25**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×29, `@stage2` ×16, `@tenant` ×1
+- Spec files: **48** across 8 phases
+- Journeys: **46**
+- Requirements mapped: **49**; findings/decisions mapped: **28**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×32, `@stage2` ×16, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -24,12 +24,14 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 1 | J1.2 | `phase-1/schedule-lifecycle.spec.ts` | @stage1 | R1.3 | P1-c |
 | 1 | J1.3 | `phase-1/schedule-scoping.spec.ts` | @stage1 @tenant | R1.3 | F-02, F-03, F-04, F-27 |
 | 1 | J1.4 | `phase-1/shell-and-gating.spec.ts` | @stage1 | G1, G7, R1.1, R1.2, R10.x | — |
+| 2 | J2.7 | `phase-2/availability-editing.spec.ts` | @stage1 | R3.3, R3.4 | P8-d |
 | 2 | J2.4 | `phase-2/clerkship-config.spec.ts` | @stage1 | R4.1, R4.2, R4.3, R4.4 | — |
 | 2 | J2.5, J2.6 | `phase-2/drill-through-and-lists.spec.ts` | @stage1 | R2.1, R2.2, R2.3, R10.x | — |
 | 2 | J2.1 | `phase-2/locations.spec.ts` | @stage1 | R5.1, R5.2 | — |
 | 2 | J2.2 | `phase-2/preceptor-wizard.spec.ts` | @stage1 | R3.1, R3.2, R3.3, R3.4, R3.5, R3.6 | — |
 | 2 | J2.3 | `phase-2/student-hub.spec.ts` | @stage1 | R2.1, R2.2, R2.3 | — |
 | 3 | J3.9 | `phase-3/availability-ripple.spec.ts` | @stage1 | R3.4, R3.5 | — |
+| 3 | J3.10 | `phase-3/capacity-side-effects.spec.ts` | @stage1 | R7.1, R7.2, R7.3 | P8-c |
 | 3 | J3.5 | `phase-3/edit-lifecycle.spec.ts` | @stage1 | R6.5, R6.6 | G8 |
 | 3 | J3.7 | `phase-3/electives.spec.ts` | @stage1 | R2.1, R4.2, R4.3 | — |
 | 3 | — | `phase-3/entity-tab-deeplink.spec.ts` | @stage1 | R10.x | — |
@@ -56,6 +58,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 6 | J6.3 | `phase-6/parity-without-teams.spec.ts` | @stage2 | G11 | — |
 | 6 | J6.5 | `phase-6/tenant-isolation.spec.ts` | @stage2 | — | F-02, F-03, F-04, F-27 |
 | 6 | J6.4 | `phase-6/validation-parity.spec.ts` | @stage1 | G8, R7.1 | — |
+| 7 | J7.7 | `phase-7/config-edits.spec.ts` | @stage1 | R1.3, R4.2, R4.3, R5.1 | P8-e |
 | 7 | J7.4 | `phase-7/dependency-chain.spec.ts` | @long @stage1 | R5.1, R5.2 | D7-2 |
 | 7 | J7.1 | `phase-7/semester.spec.ts` | @long @stage2 | R1.3, R4.2 | D7-1, P7-a |
 | 7 | J7.2 | `phase-7/shared-entities.spec.ts` | @long @stage1 | R1.3 | D7-3, D7-4 |
@@ -82,21 +85,21 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | G12 | J6.1 |
 | R1.1 | J1.1, J1.4 |
 | R1.2 | J1.1, J1.4 |
-| R1.3 | J1.2, J1.3, J7.1, J7.2 |
+| R1.3 | J1.2, J1.3, J7.1, J7.2, J7.7 |
 | R2.1 | J2.3, J2.5, J2.6, J3.7 |
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
 | R3.1 | J2.2, J3.1, J5.1 |
 | R3.2 | J2.2 |
-| R3.3 | J2.2 |
-| R3.4 | J2.2, J3.9, J4.5 |
+| R3.3 | J2.2, J2.7 |
+| R3.4 | J2.2, J2.7, J3.9, J4.5 |
 | R3.5 | J2.2, J3.9 |
 | R3.6 | J2.2 |
 | R4.1 | J2.4, J5.5 |
-| R4.2 | J2.4, J3.7, J7.1 |
-| R4.3 | J2.4, J3.7 |
+| R4.2 | J2.4, J3.7, J7.1, J7.7 |
+| R4.3 | J2.4, J3.7, J7.7 |
 | R4.4 | J2.4 |
-| R5.1 | J2.1, J7.4 |
+| R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
 | R6.1 | J3.1, J3.2 |
 | R6.2 | J3.1, J3.2 |
@@ -105,9 +108,9 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R6.5 | J3.1, J3.5 |
 | R6.6 | J3.1, J3.5, J3.6 |
 | R6.7 | J3.1, J3.8 |
-| R7.1 | J3.3, J3.4, J4.4, J6.4 |
-| R7.2 | J3.3, J3.4, J4.4 |
-| R7.3 | J3.3, J4.4 |
+| R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
+| R7.2 | J3.3, J3.4, J3.10, J4.4 |
+| R7.3 | J3.3, J3.10, J4.4 |
 | R7.4 | J3.3, J4.4 |
 | R8.1 | J4.1 |
 | R8.2 | J4.1 |
@@ -147,6 +150,9 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | P5-d | J5.4 |
 | P6-a | J6.2 |
 | P7-a | J7.1 |
+| P8-c | J3.10 |
+| P8-d | J2.7 |
+| P8-e | J7.7 |
 
 ## Guard
 
