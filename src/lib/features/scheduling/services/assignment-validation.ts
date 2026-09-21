@@ -9,6 +9,7 @@
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
+import { CapacityChecker } from '../capacity/capacity-checker';
 
 export type ViolationCode =
 	| 'student_double_booked'
@@ -37,6 +38,14 @@ export interface AssignmentCandidate {
 	clerkship_id: string;
 	site_id?: string | null;
 	date: string;
+	/**
+	 * The elective this day satisfies, if any. Elective days are tracked against
+	 * the elective's own minimum, separately from the clerkship's core required
+	 * days (mirrors the credit split in the generation path), so a day carrying an
+	 * `elective_id` never counts toward — nor trips — the clerkship's
+	 * `over_required_days` budget.
+	 */
+	elective_id?: string | null;
 	/** Existing assignment id to exclude from conflict checks (edits). */
 	excludeId?: string;
 }
@@ -258,7 +267,11 @@ export async function validateAssignmentCandidate(
 
 	const soft: Violation[] = [];
 
-	// Student double-booking (hard)
+	// Student double-booking (hard). NOT scoped to the schedule on purpose: the DB
+	// enforces a global UNIQUE(student_id, date) (idx_assignments_student_date), so
+	// a student is one place per calendar day across every schedule. The validator
+	// mirrors that constraint so the conflict surfaces as a clean hard violation
+	// rather than a raw DB error.
 	let dbQuery = db
 		.selectFrom('schedule_assignments')
 		.select('id')
@@ -282,10 +295,11 @@ export async function validateAssignmentCandidate(
 		});
 	}
 
-	// Blackout (soft)
+	// Blackout (soft) — scoped to this schedule (blackouts are per-schedule, P4-d)
 	const blackout = await db
 		.selectFrom('blackout_dates')
 		.select('id')
+		.where('schedule_id', '=', scheduleId)
 		.where('date', '=', candidate.date)
 		.executeTakeFirst();
 	if (blackout)
@@ -306,7 +320,9 @@ export async function validateAssignmentCandidate(
 		});
 	}
 
-	// Preceptor capacity (soft)
+	// Preceptor capacity (soft). Use the single capacity resolver so the Stage 1
+	// warning matches the effective per-day cap the engine enforces — an explicit
+	// preceptor_capacity_rules row wins over preceptors.max_students (P-06/F-07).
 	let capQuery = db
 		.selectFrom('schedule_assignments')
 		.select('id')
@@ -314,7 +330,11 @@ export async function validateAssignmentCandidate(
 		.where('date', '=', candidate.date);
 	if (candidate.excludeId) capQuery = capQuery.where('id', '!=', candidate.excludeId);
 	const sameDay = await capQuery.execute();
-	if (preceptor && sameDay.length >= preceptor.max_students) {
+	const effectiveRule = await new CapacityChecker(db).resolveCapacityRule(
+		candidate.preceptor_id,
+		candidate.clerkship_id
+	);
+	if (sameDay.length >= effectiveRule.maxStudentsPerDay) {
 		soft.push({
 			code: 'preceptor_capacity',
 			message: 'Preceptor is at capacity for this date',
@@ -370,12 +390,18 @@ export async function validateAssignmentCandidate(
 		}
 
 		const required = clerkship?.required_days ?? 0;
-		if (required > 0) {
+		// Only a core clerkship day (no elective) is measured against the clerkship's
+		// required-days budget. An elective day belongs to the elective's own
+		// (minimum) requirement, so it neither counts toward nor trips
+		// over_required_days for the clerkship — the same split the generation credit
+		// path applies (P7-a). Core days are counted excluding elective rows.
+		if (required > 0 && !candidate.elective_id) {
 			let countQuery = db
 				.selectFrom('schedule_assignments')
 				.select('id')
 				.where('student_id', '=', candidate.student_id)
-				.where('clerkship_id', '=', candidate.clerkship_id);
+				.where('clerkship_id', '=', candidate.clerkship_id)
+				.where('elective_id', 'is', null);
 			if (candidate.excludeId) countQuery = countQuery.where('id', '!=', candidate.excludeId);
 			const existingForClerkship = await countQuery.execute();
 			if (existingForClerkship.length + 1 > required) {

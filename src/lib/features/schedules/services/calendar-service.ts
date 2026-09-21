@@ -34,21 +34,32 @@ export async function getEnrichedAssignments(
 
 	let query = db
 		.selectFrom('schedule_assignments as sa')
-		// Scope to the caller's schedule: assignments have no schedule_id, so
-		// membership flows through the student's schedule_students row.
-		.innerJoin('schedule_students as ss', (join) =>
-			join.onRef('ss.student_id', '=', 'sa.student_id').on('ss.schedule_id', '=', filters.scheduleId)
-		)
+		// Scope to the caller's schedule by the assignment's own schedule_id. A
+		// student can belong to more than one schedule with overlapping dates, so
+		// scoping only by schedule membership (schedule_students) would leak that
+		// student's rows from their other schedules into this calendar
+		// (e2e finding P4-a, sibling of P3-a/c/d).
+		.where('sa.schedule_id', '=', filters.scheduleId)
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
+		// Site is optional on a day, so a left join — a site-less row still appears.
+		.leftJoin('sites as st', 'st.id', 'sa.site_id')
 		.select([
 			'sa.id',
 			'sa.student_id',
 			'sa.preceptor_id',
 			'sa.clerkship_id',
+			'sa.elective_id',
+			'sa.site_id',
 			'sa.date',
 			'sa.status',
+			// Provenance and edit-safety flags (Phase 1b.4 / P-07): generated vs
+			// manual, whether the row is locked, and the accepted override codes.
+			'sa.source',
+			'sa.locked',
+			'sa.override_codes',
 			'sa.created_at',
 			'sa.updated_at',
 			's.name as student_name',
@@ -57,7 +68,9 @@ export async function getEnrichedAssignments(
 			'p.email as preceptor_email',
 			'c.name as clerkship_name',
 			'c.specialty as clerkship_specialty',
-			'c.required_days as clerkship_required_days'
+			'c.required_days as clerkship_required_days',
+			'e.name as elective_name',
+			'st.name as site_name'
 		]);
 
 	// Apply date range filters (required)

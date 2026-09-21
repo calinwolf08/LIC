@@ -29,6 +29,7 @@ function createTestDb(): Kysely<DB> {
 async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('blackout_dates')
+		.addColumn('schedule_id', 'text')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('reason', 'text')

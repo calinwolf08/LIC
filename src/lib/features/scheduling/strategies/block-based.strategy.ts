@@ -10,17 +10,22 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
 /**
  * Block-Based Strategy
  *
- * Divides required days into fixed-size blocks and assigns one preceptor per block.
+ * Assigns the student in stints ("blocks") with one preceptor per block.
  * Commonly used for inpatient rotations (e.g., 2-week blocks).
  *
- * Algorithm:
- * 1. Divide required days into blocks of configured size
- * 2. For each block:
- *    a. Find preceptor available for entire block
- *    b. Prefer same preceptor as previous block (if prefer_continuous_blocks)
- *    c. Check block capacity constraints
- * 3. Handle partial blocks at end (if allowed)
- * 4. Generate assignments per block
+ * Algorithm (review findings F-15, F-16, F-21):
+ * 1. Work down the day budget in blocks of `blockSizeDays` (the final block may
+ *    be shorter when `allowPartialBlocks` is not false).
+ * 2. For each block, pick a preceptor and take the earliest window of that
+ *    preceptor's *available* days that the student is still free on and that
+ *    still has daily capacity — sliding over real availability, never a blind
+ *    calendar slice (F-15). Prefer the previous block's preceptor when
+ *    `preferContinuousBlocks`.
+ * 3. Every placed day is checked against daily capacity, counting both the
+ *    engine's pending assignments and days placed earlier in this same call
+ *    (F-16).
+ * 4. Return the best partial result with a reason rather than discarding
+ *    everything when a block cannot be filled (F-21).
  */
 export class BlockBasedStrategy extends BaseStrategy {
   getName(): string {
@@ -34,7 +39,6 @@ export class BlockBasedStrategy extends BaseStrategy {
   async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
     const { student, clerkship, config, availableDates, availablePreceptors } = context;
 
-    // Validate required IDs
     if (!student.id) {
       return { success: false, assignments: [], error: 'Student must have a valid ID' };
     }
@@ -43,108 +47,132 @@ export class BlockBasedStrategy extends BaseStrategy {
     }
 
     const blockSize = config.blockSizeDays!;
-    // Use config.requiredDays which respects requirement overrides
     const totalDays = config.requiredDays;
+    const allowPartialBlocks = config.allowPartialBlocks !== false;
 
-    // Check if we have enough dates
-    if (availableDates.length < totalDays) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Insufficient available dates: ${availableDates.length} < ${totalDays}`,
-      };
-    }
+    // Sort deterministically (load, then id) so runs are reproducible (D-01).
+    const candidates = this.sortByLoad(
+      clerkship.specialty
+        ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
+        : availablePreceptors
+    );
 
-    // Calculate blocks
-    const fullBlocks = Math.floor(totalDays / blockSize);
-    const remainderDays = totalDays % blockSize;
-    const hasPartialBlock = remainderDays > 0;
+    type Candidate = StrategyContext['availablePreceptors'][number];
+    type Placement = { preceptor: Candidate; window: string[] };
 
-    // Check if partial blocks allowed
-    if (hasPartialBlock && config.allowPartialBlocks === false) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Total days (${totalDays}) not divisible by block size (${blockSize}) and partial blocks not allowed`,
-      };
-    }
+    // `availableDates` are the student's free days in range (already filtered by
+    // the engine); intersect with each preceptor's availability per block.
+    const availableDateSet = new Set(availableDates);
 
-    const totalBlocks = fullBlocks + (hasPartialBlock ? 1 : 0);
+    // Dates the student is used on within THIS call, plus per-preceptor per-date
+    // occupancy layered on top of the engine's pending counts (F-16).
+    const usedByStudent = new Set<string>();
+    const localCapacity = new Map<string, Map<string, number>>();
+    const dailyCount = (preceptorId: string, date: string): number => {
+      const pending = context.assignmentsByPreceptorDate?.get(preceptorId)?.get(date) ?? 0;
+      const local = localCapacity.get(preceptorId)?.get(date) ?? 0;
+      return pending + local;
+    };
+    const takeDay = (preceptorId: string, date: string) => {
+      usedByStudent.add(date);
+      if (!localCapacity.has(preceptorId)) localCapacity.set(preceptorId, new Map());
+      const m = localCapacity.get(preceptorId)!;
+      m.set(date, (m.get(date) ?? 0) + 1);
+    };
 
-    // Filter preceptors by specialty
-    let candidates = clerkship.specialty
-      ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
-      : availablePreceptors;
-
-    // Sort by load
-    candidates = this.sortByLoad(candidates);
+    /**
+     * The earliest window of up to `size` days a preceptor can take: their
+     * availability, in date order, restricted to the student's free days that
+     * still have daily capacity and are not already used this call.
+     */
+    const windowFor = (preceptor: Candidate, size: number): string[] => {
+      const window: string[] = [];
+      for (const date of [...preceptor.availability].sort()) {
+        if (window.length >= size) break;
+        if (!availableDateSet.has(date)) continue;
+        if (usedByStudent.has(date)) continue;
+        if (dailyCount(preceptor.id, date) >= preceptor.maxStudentsPerDay) continue;
+        window.push(date);
+      }
+      return window;
+    };
 
     const assignments = [];
-    let previousPreceptor: typeof candidates[0] | null = null;
+    let previousPreceptor: Candidate | null = null;
+    let remaining = totalDays;
+    let blockNum = 0;
+    let stalledReason: string | null = null;
 
-    // Assign each block
-    for (let blockNum = 0; blockNum < totalBlocks; blockNum++) {
-      const startIdx = blockNum * blockSize;
-      const endIdx =
-        blockNum === fullBlocks && hasPartialBlock
-          ? startIdx + remainderDays
-          : startIdx + blockSize;
+    while (remaining > 0) {
+      const blockLen = Math.min(blockSize, remaining);
+      // A short final block is only allowed when partial blocks are permitted.
+      if (blockLen < blockSize && !allowPartialBlocks) {
+        stalledReason = `Remaining ${remaining} day(s) do not fill a whole block of ${blockSize} and partial blocks are not allowed`;
+        break;
+      }
 
-      const blockDates = availableDates.slice(startIdx, endIdx);
+      // Prefer the previous preceptor for continuity when configured.
+      const prev = previousPreceptor;
+      const order: Candidate[] =
+        config.preferContinuousBlocks && prev
+          ? [prev, ...candidates.filter((c) => c.id !== prev.id)]
+          : candidates;
 
-      // Try to use previous preceptor if prefer_continuous_blocks
-      let selectedPreceptor: typeof candidates[0] | null = null;
-
-      if (config.preferContinuousBlocks && previousPreceptor) {
-        const canUsePrevious = blockDates.every(date =>
-          this.isDateAvailable(previousPreceptor!, date)
-        );
-
-        if (canUsePrevious) {
-          selectedPreceptor = previousPreceptor;
+      let placed: Placement | null = null;
+      let bestPartial: Placement | null = null;
+      for (const preceptor of order) {
+        const window = windowFor(preceptor, blockLen);
+        if (window.length === blockLen) {
+          placed = { preceptor, window };
+          break;
+        }
+        if (window.length > (bestPartial?.window.length ?? 0)) {
+          bestPartial = { preceptor, window };
         }
       }
 
-      // If no previous preceptor or couldn't use them, find new one
-      if (!selectedPreceptor) {
-        selectedPreceptor = this.findPreceptorAvailableForAllDates(candidates, blockDates);
+      // No preceptor can fill a full block — take the best partial window (F-21)
+      // so the student still gets the days that ARE placeable, then stop.
+      const chosen = placed ?? bestPartial;
+      if (!chosen || chosen.window.length === 0) {
+        stalledReason = `No preceptor available for block ${blockNum + 1} (${remaining} day(s) remaining)`;
+        break;
       }
 
-      if (!selectedPreceptor) {
-        return {
-          success: false,
-          assignments: [],
-          error: `No preceptor available for block ${blockNum + 1} (dates ${blockDates[0]} to ${blockDates[blockDates.length - 1]})`,
-          metadata: {
-            strategyUsed: this.getName(),
-            preceptorsConsidered: candidates.length,
-            assignmentCount: 0,
-            blocksCreated: blockNum,
-          },
-        };
-      }
-
-      // Generate assignments for this block
-      for (const date of blockDates) {
+      blockNum++;
+      for (const date of chosen.window) {
+        takeDay(chosen.preceptor.id, date);
         assignments.push(
-          this.createAssignment(student.id, selectedPreceptor.id, clerkship.id, date, {
+          this.createAssignment(student.id, chosen.preceptor.id, clerkship.id, date, {
             requirementType: config.requirementType,
-            blockNumber: blockNum + 1,
+            blockNumber: blockNum,
           })
         );
       }
+      remaining -= chosen.window.length;
+      previousPreceptor = chosen.preceptor;
 
-      previousPreceptor = selectedPreceptor;
+      // A partial block means we could not fully fill it — nothing more to place.
+      if (!placed) {
+        stalledReason = `Only ${chosen.window.length} of ${blockLen} days could be filled for block ${blockNum}`;
+        break;
+      }
     }
 
+    const assignedDays = assignments.length;
     return {
-      success: true,
+      success: assignedDays >= totalDays,
       assignments,
+      error:
+        assignedDays >= totalDays
+          ? undefined
+          : (stalledReason ??
+            `Only ${assignedDays} of ${totalDays} days could be assigned`),
       metadata: {
         strategyUsed: this.getName(),
         preceptorsConsidered: candidates.length,
-        assignmentCount: assignments.length,
-        blocksCreated: totalBlocks,
+        assignmentCount: assignedDays,
+        blocksCreated: blockNum,
       },
     };
   }

@@ -84,7 +84,7 @@ export const schoolAElectiveDefaults: GlobalElectiveDefaults = {
 export const schoolBOutpatientDefaults: GlobalOutpatientDefaults = {
   id: 'school-b-outpatient-defaults',
   schoolId: 'school-b',
-  assignmentStrategy: 'continuous_team',
+  assignmentStrategy: 'continuous_single',
   healthSystemRule: 'enforce_same_system',
   defaultMaxStudentsPerDay: 2,
   defaultMaxStudentsPerYear: 20,
@@ -103,7 +103,7 @@ export const schoolBOutpatientDefaults: GlobalOutpatientDefaults = {
 export const schoolBInpatientDefaults: GlobalInpatientDefaults = {
   id: 'school-b-inpatient-defaults',
   schoolId: 'school-b',
-  assignmentStrategy: 'continuous_team',
+  assignmentStrategy: 'continuous_single',
   healthSystemRule: 'enforce_same_system',
   defaultMaxStudentsPerDay: 2,
   defaultMaxStudentsPerYear: 20,

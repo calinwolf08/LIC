@@ -59,7 +59,7 @@ async function seed(db: Kysely<DB>) {
 		.execute();
 }
 
-async function addAssignment(db: Kysely<DB>, id: string, date: string) {
+async function addAssignment(db: Kysely<DB>, id: string, date: string, scheduleId: string = SCHED) {
 	const ts = new Date().toISOString();
 	await db
 		.insertInto('schedule_assignments')
@@ -68,6 +68,7 @@ async function addAssignment(db: Kysely<DB>, id: string, date: string) {
 			student_id: STU,
 			preceptor_id: PREC,
 			clerkship_id: CLERK,
+			schedule_id: scheduleId,
 			date,
 			status: 'scheduled',
 			created_at: ts,
@@ -169,6 +170,7 @@ describe('getStudentStatuses', () => {
 					student_id: STU,
 					preceptor_id: PREC,
 					clerkship_id: 'clerk-2',
+					schedule_id: SCHED,
 					date: '2025-07-01',
 					status: 'scheduled',
 					created_at: ts,
@@ -179,6 +181,7 @@ describe('getStudentStatuses', () => {
 					student_id: STU,
 					preceptor_id: PREC,
 					clerkship_id: 'clerk-2',
+					schedule_id: SCHED,
 					date: '2025-07-02',
 					status: 'scheduled',
 					created_at: ts,
@@ -208,5 +211,33 @@ describe('getStudentStatuses', () => {
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
 		expect(status.per_clerkship[0].over_scheduled).toBe(1);
 		expect(status.per_clerkship[0].unscheduled).toBe(0);
+	});
+
+	it('does not count the student’s days on another schedule (P3-d)', async () => {
+		const ts = new Date().toISOString();
+		// A second schedule the same student belongs to, with the same clerkship.
+		await db
+			.insertInto('scheduling_periods')
+			.values({
+				id: 'sched-other',
+				name: 'Other',
+				start_date: '2025-01-01',
+				end_date: '2025-12-31',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		// One scheduled day on our schedule, three on the other.
+		await addAssignment(db, 'own-1', '2025-07-01', SCHED);
+		await addAssignment(db, 'oth-1', '2025-07-02', 'sched-other');
+		await addAssignment(db, 'oth-2', '2025-07-03', 'sched-other');
+		await addAssignment(db, 'oth-3', '2025-07-04', 'sched-other');
+
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		// Only the single day on SCHED is counted; the other schedule's three are not.
+		expect(status.per_clerkship[0].scheduled).toBe(1);
+		expect(status.per_clerkship[0].completed).toBe(0);
+		expect(status.per_clerkship[0].unscheduled).toBe(2);
 	});
 });

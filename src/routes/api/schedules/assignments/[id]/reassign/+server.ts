@@ -5,6 +5,7 @@
  */
 
 import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { successResponse, validationErrorResponse, notFoundResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
@@ -22,11 +23,16 @@ import { z, ZodError } from 'zod';
 const log = createServerLogger('api:schedules:assignments:reassign');
 
 /**
- * Schema for reassignment request
+ * Schema for reassignment request. Accepts the same override envelope as manual
+ * creation (Phase 1b.3): soft violations reject with 422 unless their code is in
+ * `override_codes` (or `force`).
  */
 const reassignSchema = z.object({
 	new_preceptor_id: cuid2Schema,
-	dry_run: z.boolean().optional().default(false)
+	dry_run: z.boolean().optional().default(false),
+	force: z.boolean().optional(),
+	override_codes: z.array(z.string()).optional(),
+	override_note: z.string().max(1000).nullish()
 });
 
 /**
@@ -39,7 +45,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	try {
 		const { id } = assignmentIdSchema.parse({ id: params.id });
 		const body = await request.json();
-		const { new_preceptor_id, dry_run } = reassignSchema.parse(body);
+		const { new_preceptor_id, dry_run, force, override_codes, override_note } =
+			reassignSchema.parse(body);
 
 		// Ownership guard: both the assignment and the target preceptor must be in
 		// the caller's schedule, or reassignment becomes a cross-tenant vector.
@@ -47,15 +54,37 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		await assertAssignmentInSchedule(db, scheduleId, id);
 		await assertEntityInSchedule(db, scheduleId, 'preceptor', new_preceptor_id);
 
-		const result = await reassignToPreceptor(db, id, new_preceptor_id, dry_run);
+		const result = await reassignToPreceptor(db, id, new_preceptor_id, dry_run, {
+			force,
+			overrideCodes: override_codes,
+			overrideNote: override_note
+		});
 
 		log.info('Assignment reassigned', {
 			id,
 			newPreceptorId: new_preceptor_id,
 			dryRun: dry_run,
-			valid: result.valid,
-			hasErrors: result.errors.length > 0
+			valid: result.valid
 		});
+
+		// A blocked non-dry-run edit returns the 422 hard/soft envelope, matching
+		// the create path so the UI can offer the same overrides.
+		if (!dry_run && !result.valid) {
+			return json(
+				{
+					success: false,
+					error: {
+						message:
+							result.hard.length > 0
+								? 'Reassignment has conflicts that must be resolved'
+								: 'Reassignment has warnings that must be accepted first',
+						hard: result.hard,
+						soft: result.soft
+					}
+				},
+				{ status: 422 }
+			);
+		}
 
 		return successResponse(result);
 	} catch (error) {

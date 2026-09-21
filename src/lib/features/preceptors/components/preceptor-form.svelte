@@ -7,6 +7,7 @@
 	import { ZodError } from 'zod';
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 	import SiteForm from '$lib/features/sites/components/site-form.svelte';
+	import { registerUnsavedGuard } from '$lib/stores/unsaved-changes.svelte';
 
 	// Accept preceptor in either format (with site_ids or sites array)
 	interface PreceptorInput {
@@ -30,23 +31,39 @@
 
 	let { preceptor, healthSystems, sites, onSuccess, onCancel }: Props = $props();
 
-	let formData = $state({
+	const initial = {
 		name: preceptor?.name || '',
 		email: preceptor?.email || '',
 		phone: preceptor?.phone || '',
 		health_system_id: preceptor?.health_system_id || '',
 		max_students: preceptor?.max_students || 1
-	});
+	};
+
+	let formData = $state({ ...initial });
 
 	// Multi-site selection state - handle both site_ids array and sites object array
-	let selectedSiteIds = $state<string[]>(
-		preceptor?.site_ids || preceptor?.sites?.map(s => s.id) || []
-	);
+	const initialSiteIds = preceptor?.site_ids || preceptor?.sites?.map((s) => s.id) || [];
+	let selectedSiteIds = $state<string[]>([...initialSiteIds]);
 
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
 	let generalError = $state<string | null>(null);
+	let saved = $state(false);
 	let showHealthSystemForm = $state(false);
+
+	// Unsaved-changes guard (finding P1-e).
+	$effect(() =>
+		registerUnsavedGuard(() => {
+			if (saved) return false;
+			const fieldsDirty = (Object.keys(initial) as Array<keyof typeof initial>).some(
+				(k) => formData[k] !== initial[k]
+			);
+			const sitesDirty =
+				selectedSiteIds.length !== initialSiteIds.length ||
+				selectedSiteIds.some((id) => !initialSiteIds.includes(id));
+			return fieldsDirty || sitesDirty;
+		})
+	);
 	let showSiteForm = $state(false);
 	let healthSystemsList = $state([...healthSystems]);
 	let sitesList = $state([...sites]);
@@ -173,7 +190,8 @@
 				return;
 			}
 
-			// Success
+			// Success — drop the guard before the caller navigates away.
+			saved = true;
 			onSuccess?.();
 		} catch (error) {
 			if (error instanceof ZodError) {
@@ -339,7 +357,15 @@
 					{isSubmitting ? 'Saving...' : preceptor ? 'Update Preceptor' : 'Create Preceptor'}
 				</Button>
 				{#if onCancel}
-					<Button type="button" variant="outline" onclick={onCancel} disabled={isSubmitting}>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => {
+							saved = true;
+							onCancel?.();
+						}}
+						disabled={isSubmitting}
+					>
 						Cancel
 					</Button>
 				{/if}

@@ -35,10 +35,20 @@ export interface EligibilityOption {
 	reason?: string;
 }
 
+/** An elective option for the selected clerkship (Phase 1b.1 / P-01). */
+export interface ElectiveOption {
+	id: string;
+	name: string;
+	isRequired: boolean;
+	minimumDays: number;
+}
+
 export interface EligibleOptions {
 	clerkships: EligibilityOption[];
 	preceptors: EligibilityOption[];
 	sites: EligibilityOption[];
+	/** Electives of the selected clerkship; empty when no clerkship is selected. */
+	electives: ElectiveOption[];
 }
 
 /**
@@ -137,7 +147,7 @@ export async function getEligibleOptions(
 			restricts(preceptorClerkships, selectedPreceptor) &&
 			!preceptorClerkships.get(selectedPreceptor)!.has(c.id)
 		) {
-			return mark(c, `${preceptorName ?? 'This preceptor'} is not on a team for ${c.name}`);
+			return mark(c, `${preceptorName ?? 'This preceptor'} is not set up to teach ${c.name}`);
 		}
 		if (
 			selectedSite &&
@@ -155,7 +165,7 @@ export async function getEligibleOptions(
 			restricts(preceptorClerkships, p.id) &&
 			!clerkshipPreceptors.get(selectedClerkship)?.has(p.id)
 		) {
-			return mark(p, `Not on a team for ${clerkshipName ?? 'the selected clerkship'}`);
+			return mark(p, `Not set up to teach ${clerkshipName ?? 'the selected clerkship'}`);
 		}
 		if (
 			selectedSite &&
@@ -185,7 +195,27 @@ export async function getEligibleOptions(
 		return ok(s);
 	});
 
-	return { clerkships, preceptors, sites };
+	// Electives for the selected clerkship (P-01): the dialog offers them as an
+	// optional picker so a manual day can be tied to the elective it satisfies.
+	const electiveRows =
+		selectedClerkship !== null
+			? await db
+					.selectFrom('clerkship_electives')
+					.select(['id', 'name', 'is_required', 'minimum_days'])
+					.where('clerkship_id', '=', selectedClerkship)
+					.orderBy('name', 'asc')
+					.execute()
+			: [];
+	const electives: ElectiveOption[] = electiveRows
+		.filter((e): e is typeof e & { id: string } => e.id !== null)
+		.map((e) => ({
+			id: e.id,
+			name: e.name,
+			isRequired: Boolean(e.is_required),
+			minimumDays: e.minimum_days
+		}));
+
+	return { clerkships, preceptors, sites, electives };
 }
 
 function ok(row: { id: string; name: string }): EligibilityOption {

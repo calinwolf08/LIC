@@ -13,6 +13,5 @@ export { HealthSystemService } from './health-systems.service';
 export { CapacityRuleService } from './capacity.service';
 export { TeamService, type TeamWithMembers } from './teams.service';
 export { FallbackService } from './fallbacks.service';
-export { RequirementService } from './requirements.service';
 export { ElectiveService } from './electives.service';
 export { ConfigurationService } from './configuration.service';

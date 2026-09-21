@@ -21,6 +21,8 @@ export interface FallbackPreceptor {
 	teamName: string | null;
 	priority: number; // Priority within team
 	tier: 1 | 2 | 3; // Fallback tier
+	/** Global-fallback-only preceptors are used last within their tier (F-17 residue). */
+	isGlobalFallbackOnly?: boolean;
 }
 
 /**
@@ -80,6 +82,7 @@ export class FallbackPreceptorResolver {
 							teamName: sameTeam.name,
 							priority: member.priority,
 							tier: 1,
+							isGlobalFallbackOnly: member.isGlobalFallbackOnly,
 						});
 					}
 				}
@@ -114,6 +117,7 @@ export class FallbackPreceptorResolver {
 								teamName: team.name,
 								priority: member.priority,
 								tier: 2,
+								isGlobalFallbackOnly: member.isGlobalFallbackOnly,
 							});
 						}
 					}
@@ -141,10 +145,20 @@ export class FallbackPreceptorResolver {
 						teamName: team.name,
 						priority: member.priority,
 						tier: 3,
+						isGlobalFallbackOnly: member.isGlobalFallbackOnly,
 					});
 				}
 			}
 		}
+
+		// Within a tier, keep priority order but push global-fallback-only preceptors
+		// to the end — they are a backup, not a first choice (F-17 residue).
+		result.sort(
+			(a, b) =>
+				a.tier - b.tier ||
+				Number(a.isGlobalFallbackOnly ?? false) - Number(b.isGlobalFallbackOnly ?? false) ||
+				a.priority - b.priority
+		);
 
 		return result;
 	}
@@ -161,6 +175,7 @@ export class FallbackPreceptorResolver {
 				preceptorName: string;
 				healthSystemId: string | null;
 				priority: number;
+				isGlobalFallbackOnly: boolean;
 			}>;
 		}>
 	> {
@@ -179,6 +194,7 @@ export class FallbackPreceptorResolver {
 				preceptorName: string;
 				healthSystemId: string | null;
 				priority: number;
+				isGlobalFallbackOnly: boolean;
 			}>;
 		}> = [];
 
@@ -194,6 +210,7 @@ export class FallbackPreceptorResolver {
 					'preceptor_team_members.priority',
 					'preceptors.name',
 					'preceptors.health_system_id',
+					'preceptors.is_global_fallback_only',
 				])
 				.where('preceptor_team_members.team_id', '=', team.id)
 				.orderBy('preceptor_team_members.priority', 'asc')
@@ -207,6 +224,7 @@ export class FallbackPreceptorResolver {
 					preceptorName: m.name,
 					healthSystemId: m.health_system_id,
 					priority: m.priority,
+					isGlobalFallbackOnly: Boolean(m.is_global_fallback_only),
 				})),
 			});
 		}

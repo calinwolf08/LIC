@@ -20,6 +20,14 @@ export interface ProposedAssignment {
   electiveId?: string | null; // For elective assignments
   blockNumber?: number; // For block-based strategies
   teamId?: string; // For team strategies
+  /**
+   * Soft-violation codes the ProposalValidator accepted for this day (Phase 2.2 /
+   * F-11). Persisted on the committed row as `override_codes` so the schedule
+   * health panel shows a bypassed auto-generated day exactly like a manual override.
+   */
+  overrideCodes?: string[];
+  /** Row status; fallback rows needing sign-off are written `pending_approval` (F-17 residue). */
+  status?: string;
   metadata?: {
     isFallback?: boolean;
     fallbackTier?: number;
@@ -204,7 +212,11 @@ export abstract class BaseStrategy implements SchedulingStrategy {
   protected sortByLoad(
     preceptors: StrategyContext['availablePreceptors']
   ): StrategyContext['availablePreceptors'] {
-    return [...preceptors].sort((a, b) => a.currentAssignmentCount - b.currentAssignmentCount);
+    // Deterministic tie-break by id (D-01) so a run is reproducible regardless of
+    // the order the DB returned preceptors in.
+    return [...preceptors].sort(
+      (a, b) => a.currentAssignmentCount - b.currentAssignmentCount || a.id.localeCompare(b.id)
+    );
   }
 
   /**

@@ -50,6 +50,10 @@ export interface CalendarDayAssignment {
 	studentName?: string;
 	studentInitials?: string;
 	color: string;
+	/** Provenance / edit-safety markers (Phase 1b.4 / P-07). */
+	source?: string;
+	locked?: boolean;
+	electiveName?: string;
 }
 
 /**
@@ -145,6 +149,13 @@ export interface StudentAssignment {
 	healthSystemId?: string;
 	healthSystemName?: string;
 	status: string;
+	/** Provenance and edit-safety (Phase 1b.4 / P-07). */
+	source: string;
+	locked: boolean;
+	electiveId?: string;
+	electiveName?: string;
+	/** Accepted soft-violation codes persisted on the row. */
+	overrideCodes: string[];
 }
 
 /**
@@ -216,6 +227,12 @@ export interface PreceptorAssignment {
 	clerkshipName: string;
 	clerkshipColor: string;
 	status: string;
+	/** Provenance and edit-safety (Phase 1b.4 / P-07). */
+	source: string;
+	locked: boolean;
+	electiveId?: string;
+	electiveName?: string;
+	overrideCodes: string[];
 }
 
 /**

@@ -151,12 +151,55 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	// Schedule assignments table
+		await db.schema
+		.createTable('clerkship_sites')
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
 	await db.schema
+		.createTable('student_health_system_onboarding')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('health_system_id', 'text', (col) => col.notNull())
+		.addColumn('is_completed', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('completed_date', 'text')
+		.addColumn('notes', 'text')
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('clerkship_electives')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('minimum_days', 'integer', (col) => col.notNull().defaultTo(0))
+		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(0))
+		.execute();
+
+	await db.schema
+		.createTable('preceptor_capacity_rules')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('clerkship_id', 'text')
+		.addColumn('requirement_type', 'text')
+		.addColumn('max_students_per_day', 'integer', (col) => col.notNull())
+		.addColumn('max_students_per_year', 'integer', (col) => col.notNull())
+		.addColumn('max_students_per_block', 'integer')
+		.addColumn('max_blocks_per_year', 'integer')
+		.execute();
+
+await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text')
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('elective_id', 'text')
+		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
@@ -170,6 +213,7 @@ async function initializeSchema(db: Kysely<DB>) {
 	// Blackout dates table
 	await db.schema
 		.createTable('blackout_dates')
+		.addColumn('schedule_id', 'text')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('reason', 'text')
@@ -237,7 +281,11 @@ async function linkStudentToSchedule(db: Kysely<DB>, studentId: string, schedule
 /**
  * Link a clerkship to the active schedule so tenant-scoped reads resolve it.
  */
-async function linkClerkshipToSchedule(db: Kysely<DB>, clerkshipId: string, scheduleId = PERIOD_ID) {
+async function linkClerkshipToSchedule(
+	db: Kysely<DB>,
+	clerkshipId: string,
+	scheduleId = PERIOD_ID
+) {
 	await db
 		.insertInto('schedule_clerkships')
 		.values({
@@ -246,6 +294,20 @@ async function linkClerkshipToSchedule(db: Kysely<DB>, clerkshipId: string, sche
 			clerkship_id: clerkshipId,
 			created_at: new Date().toISOString()
 		})
+		.execute();
+}
+
+/**
+ * Stamp schedule-less rows onto the schedule. The legacy `createAssignment`
+ * service used for test setup inserts with `schedule_id = null`; the
+ * schedule-scoped views (getStudentScheduleData) only count rows on the queried
+ * schedule, so setup rows must be stamped to be visible.
+ */
+async function stampAssignmentsToSchedule(db: Kysely<DB>, scheduleId = PERIOD_ID) {
+	await db
+		.updateTable('schedule_assignments')
+		.set({ schedule_id: scheduleId })
+		.where('schedule_id', 'is', null)
 		.execute();
 }
 
@@ -560,6 +622,7 @@ describe('Schedules API Integration Tests', () => {
 
 			await linkStudentToSchedule(db, student.id as string);
 			await linkClerkshipToSchedule(db, clerkship.id as string);
+			await stampAssignmentsToSchedule(db);
 
 			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
@@ -608,6 +671,7 @@ describe('Schedules API Integration Tests', () => {
 
 			await linkStudentToSchedule(db, student.id as string);
 			await linkClerkshipToSchedule(db, clerkship.id as string);
+			await stampAssignmentsToSchedule(db);
 
 			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 
@@ -703,6 +767,8 @@ describe('Schedules API Integration Tests', () => {
 				clerkship_type: 'outpatient',
 				required_days: 10
 			});
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
 
 			const summary = await getScheduleSummaryData(db, PERIOD_ID);
 
@@ -730,6 +796,8 @@ describe('Schedules API Integration Tests', () => {
 				clerkship_type: 'outpatient',
 				required_days: 3
 			});
+			await linkStudentToSchedule(db, student.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
 
 			// Create all required assignments
 			for (let i = 0; i < 3; i++) {
@@ -771,6 +839,9 @@ describe('Schedules API Integration Tests', () => {
 				clerkship_type: 'outpatient',
 				required_days: 5
 			});
+			await linkStudentToSchedule(db, student1.id as string);
+			await linkStudentToSchedule(db, student2.id as string);
+			await linkClerkshipToSchedule(db, clerkship.id as string);
 
 			// Alice: 2 days, Bob: 1 day
 			await createAssignment(db, {
@@ -1059,17 +1130,23 @@ describe('Schedules API Integration Tests', () => {
 				required_days: 10
 			});
 
-			// Create multiple assignments
+			// Create multiple assignments in one schedule
+			const clearSchedule = 'clear-sched-1';
 			for (let i = 0; i < 5; i++) {
-				await createAssignment(db, {
+				const created = await createAssignment(db, {
 					student_id: student.id as string,
 					preceptor_id: preceptor.id as string,
 					clerkship_id: clerkship.id as string,
 					date: `2024-06-${15 + i}`
 				});
+				await db
+					.updateTable('schedule_assignments')
+					.set({ schedule_id: clearSchedule })
+					.where('id', '=', created.id)
+					.execute();
 			}
 
-			const deletedCount = await clearAllAssignments(db);
+			const deletedCount = await clearAllAssignments(db, clearSchedule);
 
 			expect(deletedCount).toBe(5);
 
@@ -1096,27 +1173,23 @@ describe('Schedules API Integration Tests', () => {
 				required_days: 10
 			});
 
-			// Create assignments on different dates
-			await createAssignment(db, {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-06-10' // Before cutoff
-			});
-			await createAssignment(db, {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-06-15' // On cutoff
-			});
-			await createAssignment(db, {
-				student_id: student.id as string,
-				preceptor_id: preceptor.id as string,
-				clerkship_id: clerkship.id as string,
-				date: '2024-06-20' // After cutoff
-			});
+			// Create assignments on different dates, all in one schedule
+			const clearSchedule = 'clear-sched-2';
+			for (const date of ['2024-06-10', '2024-06-15', '2024-06-20']) {
+				const created = await createAssignment(db, {
+					student_id: student.id as string,
+					preceptor_id: preceptor.id as string,
+					clerkship_id: clerkship.id as string,
+					date
+				});
+				await db
+					.updateTable('schedule_assignments')
+					.set({ schedule_id: clearSchedule })
+					.where('id', '=', created.id)
+					.execute();
+			}
 
-			const deletedCount = await clearAllAssignments(db, '2024-06-15');
+			const deletedCount = await clearAllAssignments(db, clearSchedule, '2024-06-15');
 
 			expect(deletedCount).toBe(2); // On and after cutoff
 
@@ -1238,6 +1311,7 @@ describe('Schedules API Integration Tests', () => {
 
 			await linkStudentToSchedule(db, student.id as string);
 			await linkClerkshipToSchedule(db, clerkship.id as string);
+			await stampAssignmentsToSchedule(db);
 
 			const schedule = await getStudentScheduleData(db, student.id as string, PERIOD_ID);
 

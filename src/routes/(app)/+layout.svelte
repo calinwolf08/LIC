@@ -3,6 +3,8 @@
 	import { authClient } from '$lib/auth-client';
 	import ScheduleSelector from '$lib/features/schedules/components/schedule-selector.svelte';
 	import { Toaster } from '$lib/components/toast';
+	import FormShell from '$lib/components/form-shell.svelte';
+	import { hasUnsavedChanges } from '$lib/stores/unsaved-changes.svelte';
 	import {
 		LayoutDashboard,
 		CalendarDays,
@@ -208,7 +210,11 @@
 	<!-- Main content area -->
 	<div class="pt-14 lg:pt-0 lg:pl-72">
 		<main class="p-4 sm:p-6 lg:p-8">
-			{@render children?.()}
+			<!-- One shared unsaved-changes guard (R10.3); forms register their dirty
+			     state via registerUnsavedGuard. -->
+			<FormShell isDirty={hasUnsavedChanges}>
+				{@render children?.()}
+			</FormShell>
 		</main>
 	</div>
 </div>

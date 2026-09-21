@@ -34,7 +34,10 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		]);
 
 		if (!studentRes.ok) {
-			if (studentRes.status === 404) {
+			// A malformed id yields a 400 from the API; from the user's point of
+			// view a mistyped or stale link is simply "no such student", so render
+			// the not-found page rather than a 500 dead end (e2e finding P1-d, R10.2).
+			if (studentRes.status === 404 || studentRes.status === 400) {
 				throw error(404, 'Student not found');
 			}
 			throw new Error('Failed to fetch student');

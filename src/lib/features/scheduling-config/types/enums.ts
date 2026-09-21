@@ -20,11 +20,6 @@ export const AssignmentStrategy = {
   CONTINUOUS_SINGLE: 'continuous_single',
 
   /**
-   * Team of preceptors for the entire duration
-   */
-  CONTINUOUS_TEAM: 'continuous_team',
-
-  /**
    * Students rotate in fixed blocks (e.g., 14-day blocks)
    */
   BLOCK_BASED: 'block_based',

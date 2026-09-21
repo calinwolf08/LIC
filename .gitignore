@@ -40,3 +40,6 @@ playwright-report/
 
 # Vitest browser-mode failure screenshots
 __screenshots__/
+
+# Playwright per-worker auth storage states (regenerated every run)
+e2e/.auth/

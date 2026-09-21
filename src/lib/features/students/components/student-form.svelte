@@ -6,6 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { createStudentSchema } from '../schemas.js';
 	import { ZodError } from 'zod';
+	import { registerUnsavedGuard } from '$lib/stores/unsaved-changes.svelte';
 
 	interface Props {
 		student?: Students;
@@ -15,14 +16,27 @@
 
 	let { student, onSuccess, onCancel }: Props = $props();
 
-	let formData = $state({
+	const initial = {
 		name: student?.name || '',
 		email: student?.email || ''
-	});
+	};
+
+	let formData = $state({ ...initial });
 
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
 	let generalError = $state<string | null>(null);
+	// Cleared to false the moment a save succeeds so the post-save navigation is
+	// not itself blocked by the guard.
+	let saved = $state(false);
+
+	// Unsaved-changes guard (finding P1-e): warn before navigating away with dirty
+	// fields. Registers once and disposes on unmount.
+	$effect(() =>
+		registerUnsavedGuard(
+			() => !saved && (formData.name !== initial.name || formData.email !== initial.email)
+		)
+	);
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -63,7 +77,8 @@
 				return;
 			}
 
-			// Success
+			// Success — drop the guard before the caller navigates away.
+			saved = true;
 			onSuccess?.();
 		} catch (error) {
 			if (error instanceof ZodError) {
@@ -128,7 +143,16 @@
 					{isSubmitting ? 'Saving...' : student ? 'Update' : 'Create'}
 				</Button>
 				{#if onCancel}
-					<Button type="button" variant="outline" onclick={onCancel} disabled={isSubmitting}>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => {
+							// Cancel is an explicit discard — don't re-prompt via the guard.
+							saved = true;
+							onCancel?.();
+						}}
+						disabled={isSubmitting}
+					>
 						Cancel
 					</Button>
 				{/if}

@@ -7,6 +7,7 @@
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
+import { clerkshipHasWorkablePreceptor } from '../eligibility/eligibility';
 
 export interface ChecklistItem {
 	id: string;
@@ -127,10 +128,39 @@ export async function getSetupChecklist(
 	];
 
 	if (entitled) {
+		// Auto-generation readiness (review finding F-28): every clerkship in the
+		// schedule must have at least one *workable* preceptor under the shared
+		// eligibility predicate — a team member (or, when the clerkship has no team,
+		// any preceptor) with availability at an allowed site inside the schedule's
+		// date range. A bare "some clerkships + some preceptors exist" check let
+		// generation start against clerkships that can never place a day.
+		const scheduleClerkships = await db
+			.selectFrom('schedule_clerkships')
+			.innerJoin('clerkships', 'clerkships.id', 'schedule_clerkships.clerkship_id')
+			.select(['clerkships.id as id', 'clerkships.name as name'])
+			.where('schedule_clerkships.schedule_id', '=', scheduleId)
+			.where('clerkships.required_days', '>', 0)
+			.execute();
+
+		let clerkshipsWithoutPreceptor = 0;
+		for (const clerkship of scheduleClerkships) {
+			if (!clerkship.id) continue;
+			const workable = await clerkshipHasWorkablePreceptor(db, clerkship.id, {
+				scheduleId,
+				startDate: period?.start_date ?? undefined,
+				endDate: period?.end_date ?? undefined
+			});
+			if (!workable) clerkshipsWithoutPreceptor++;
+		}
+
 		items.push({
 			id: 'autogen-ready',
-			label: 'Configure auto-generation (teams / capacity)',
-			done: clerkshipCount > 0 && preceptorCount > 0,
+			label:
+				clerkshipsWithoutPreceptor > 0
+					? `Give every clerkship a preceptor with availability (${clerkshipsWithoutPreceptor} without)`
+					: 'Configure auto-generation (teams / capacity)',
+			done: clerkshipCount > 0 && scheduleClerkships.length > 0 && clerkshipsWithoutPreceptor === 0,
+			count: clerkshipsWithoutPreceptor || undefined,
 			href: '/generate'
 		});
 	}

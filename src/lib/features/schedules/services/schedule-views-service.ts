@@ -27,6 +27,7 @@ import {
 	getTodayUTC,
 	getDaysBetween
 } from '$lib/features/scheduling/utils/date-utils';
+import { parseCodes } from './assignment-service';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:schedules:views');
@@ -101,6 +102,7 @@ export async function getStudentScheduleData(
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
 			'sa.date',
@@ -110,8 +112,19 @@ export async function getStudentScheduleData(
 			'c.specialty as clerkship_specialty',
 			'sa.preceptor_id',
 			'p.name as preceptor_name',
-			'p.health_system_id as health_system_id'
+			'p.health_system_id as health_system_id',
+			// Provenance / edit-safety (Phase 1b.4 / P-07)
+			'sa.source',
+			'sa.locked',
+			'sa.elective_id',
+			'sa.override_codes',
+			'e.name as elective_name'
 		])
+		// Scope to THIS schedule — a student can belong to more than one schedule
+		// (of the same or another user) with overlapping date ranges, and without
+		// this filter their schedule/progress view would count assignments from
+		// those other schedules (e2e finding P3-a).
+		.where('sa.schedule_id', '=', scheduleId)
 		.where('sa.student_id', '=', studentId)
 		.where('sa.date', '>=', startDate)
 		.where('sa.date', '<=', endDate)
@@ -224,7 +237,10 @@ export async function getStudentScheduleData(
 			preceptorName: a.preceptor_name,
 			studentId: student.id as string,
 			studentName: student.name,
-			color: getClerkshipColor(a.clerkship_specialty ?? 'General')
+			color: getClerkshipColor(a.clerkship_specialty ?? 'General'),
+			source: a.source,
+			locked: Boolean(a.locked),
+			electiveName: a.elective_name ?? undefined
 		}
 	})));
 
@@ -243,7 +259,12 @@ export async function getStudentScheduleData(
 		healthSystemName: a.health_system_id
 			? (healthSystemNames.get(a.health_system_id) ?? undefined)
 			: undefined,
-		status: a.status
+		status: a.status,
+		source: a.source,
+		locked: Boolean(a.locked),
+		electiveId: a.elective_id ?? undefined,
+		electiveName: a.elective_name ?? undefined,
+		overrideCodes: parseCodes(a.override_codes)
 	}));
 
 	log.info('Student schedule data fetched', {
@@ -336,6 +357,7 @@ export async function getPreceptorScheduleData(
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
 			'sa.date',
@@ -344,7 +366,13 @@ export async function getPreceptorScheduleData(
 			's.name as student_name',
 			'sa.clerkship_id',
 			'c.name as clerkship_name',
-			'c.specialty as clerkship_specialty'
+			'c.specialty as clerkship_specialty',
+			// Provenance / edit-safety (Phase 1b.4 / P-07)
+			'sa.source',
+			'sa.locked',
+			'sa.elective_id',
+			'sa.override_codes',
+			'e.name as elective_name'
 		])
 		.where('sa.preceptor_id', '=', preceptorId)
 		.where('sa.date', '>=', startDate)
@@ -487,7 +515,12 @@ export async function getPreceptorScheduleData(
 		clerkshipId: a.clerkship_id,
 		clerkshipName: a.clerkship_name,
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
-		status: a.status
+		status: a.status,
+		source: a.source,
+		locked: Boolean(a.locked),
+		electiveId: a.elective_id ?? undefined,
+		electiveName: a.elective_name ?? undefined,
+		overrideCodes: parseCodes(a.override_codes)
 	}));
 
 	log.info('Preceptor schedule data fetched', {
@@ -547,25 +580,42 @@ export async function getScheduleSummaryData(
 	const startDate = period.start_date;
 	const endDate = period.end_date;
 
-	// Get all students
+	// Students in THIS schedule only (review finding F-27): the summary must not
+	// count other tenants' students as unscheduled.
 	const students = await db
 		.selectFrom('students')
-		.select(['id', 'name'])
+		.innerJoin('schedule_students', 'schedule_students.student_id', 'students.id')
+		.select(['students.id as id', 'students.name as name'])
+		.where('schedule_students.schedule_id', '=', scheduleId!)
 		.execute();
 
-	// Get all clerkships with requirements
+	// Clerkships in THIS schedule only.
 	const clerkships = await db
 		.selectFrom('clerkships')
-		.select(['id', 'name', 'specialty', 'required_days'])
+		.innerJoin('schedule_clerkships', 'schedule_clerkships.clerkship_id', 'clerkships.id')
+		.select([
+			'clerkships.id as id',
+			'clerkships.name as name',
+			'clerkships.specialty as specialty',
+			'clerkships.required_days as required_days'
+		])
+		.where('schedule_clerkships.schedule_id', '=', scheduleId!)
 		.execute();
 
-	// Get all assignments in period
-	const assignments = await db
-		.selectFrom('schedule_assignments')
-		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date'])
-		.where('date', '>=', startDate)
-		.where('date', '<=', endDate)
-		.execute();
+	// Assignments in THIS schedule and period. Scope through the schedule's own
+	// students (the tenant boundary, F-27) rather than the assignment's
+	// schedule_id column, so rows created before that column existed still count.
+	const scopedStudentIds = students.map((s) => s.id).filter((id): id is string => !!id);
+	const assignments =
+		scopedStudentIds.length > 0
+			? await db
+					.selectFrom('schedule_assignments')
+					.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date'])
+					.where('student_id', 'in', scopedStudentIds)
+					.where('date', '>=', startDate)
+					.where('date', '<=', endDate)
+					.execute()
+			: [];
 
 	// Count assignments by student and clerkship
 	const studentClerkshipCounts = new Map<string, Map<string, number>>();

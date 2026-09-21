@@ -30,6 +30,7 @@ export interface BlackoutDates {
   date: string;
   id: string | null;
   reason: string | null;
+  schedule_id: string | null;
 }
 
 export interface ClerkshipConfigurations {
@@ -104,6 +105,20 @@ export interface ElectiveSites {
   elective_id: string;
   id: string | null;
   site_id: string;
+}
+
+export interface GenerationRuns {
+  created_at: string;
+  duration_ms: Generated<number>;
+  id: string;
+  mode: string;
+  options_json: string;
+  plan_json: string;
+  preview: Generated<number>;
+  result_json: string;
+  schedule_id: string;
+  success: number;
+  user_id: string | null;
 }
 
 export interface GlobalElectiveDefaults {
@@ -274,6 +289,7 @@ export interface ScheduleAssignments {
   override_codes: Generated<string>;
   override_note: string | null;
   preceptor_id: string;
+  schedule_id: string | null;
   site_id: string | null;
   source: Generated<string>;
   status: Generated<string>;
@@ -466,6 +482,7 @@ export interface DB {
   clerkships: Clerkships;
   elective_preceptors: ElectivePreceptors;
   elective_sites: ElectiveSites;
+  generation_runs: GenerationRuns;
   global_elective_defaults: GlobalElectiveDefaults;
   global_inpatient_defaults: GlobalInpatientDefaults;
   global_outpatient_defaults: GlobalOutpatientDefaults;

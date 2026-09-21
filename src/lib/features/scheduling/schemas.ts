@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { dateStringSchema } from '$lib/validation/common-schemas';
+import { isOverrideCode } from './services/assignment-validation';
 
 /**
  * Schema for schedule generation request
@@ -40,9 +41,18 @@ export const generateScheduleSchema = z
 		preview: z.boolean().optional().default(false),
 
 		/**
-		 * Optional: Constraint names to bypass (future feature)
+		 * Optional: soft-constraint codes to relax for newly generated days. Only
+		 * overridable (soft) codes are accepted — an unknown or hard code is rejected
+		 * (finding P5-b), so a caller cannot bypass a hard block or a typo'd code.
 		 */
-		bypassedConstraints: z.array(z.string()).optional().default([])
+		bypassedConstraints: z
+			.array(
+				z.string().refine(isOverrideCode, {
+					message: 'Unknown or non-overridable constraint code'
+				})
+			)
+			.optional()
+			.default([])
 	})
 	.refine(
 		(data) => {

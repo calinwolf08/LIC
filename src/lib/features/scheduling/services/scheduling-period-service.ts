@@ -243,6 +243,13 @@ export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promis
 		}
 	}
 
+	// Delete this schedule's assignments. They are scoped to the schedule and are
+	// unreachable once it is gone (every assignment view is schedule-scoped), yet
+	// they still occupy the global UNIQUE(student_id, date) slot — leaving them
+	// would orphan rows and block re-assigning those students on those dates
+	// (e2e finding P3-g).
+	await db.deleteFrom('schedule_assignments').where('schedule_id', '=', id).execute();
+
 	// Delete schedule-entity associations
 	await db.deleteFrom('schedule_students').where('schedule_id', '=', id).execute();
 	await db.deleteFrom('schedule_preceptors').where('schedule_id', '=', id).execute();

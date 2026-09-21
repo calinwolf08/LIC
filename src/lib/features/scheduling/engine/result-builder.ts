@@ -82,6 +82,17 @@ export class ResultBuilder {
   private unmetRequirements: UnmetRequirement[] = [];
   private violations: ConstraintViolation[] = [];
   private pendingApprovals: PendingApproval[] = [];
+  /** The full set of students the run considered (review finding F-13). */
+  private rosterStudentIds: Set<string> | null = null;
+
+  /**
+   * Record the full student roster the run is scheduling for, so statistics are
+   * computed over every student — not just those that happened to get an
+   * assignment (which produced negative "fully scheduled" counts, F-13).
+   */
+  setRoster(studentIds: string[]): void {
+    this.rosterStudentIds = new Set(studentIds);
+  }
 
   /**
    * Add successful assignment
@@ -131,21 +142,30 @@ export class ResultBuilder {
    * Calculate statistics
    */
   private calculateStatistics(): SchedulingStatistics {
-    // Count unique students
-    const studentIds = new Set(this.assignments.map(a => a.studentId));
-    const totalStudents = studentIds.size;
+    // The roster is every student the run considered; fall back to the union of
+    // students that appear in assignments or unmet requirements when the engine
+    // did not set it. Counting only students-with-assignments is what produced
+    // negative "fully scheduled" numbers (review finding F-13).
+    const assignmentStudentIds = new Set(this.assignments.map(a => a.studentId));
+    const unmetStudentIds = new Set(this.unmetRequirements.map(r => r.studentId));
+    const roster =
+      this.rosterStudentIds ?? new Set([...assignmentStudentIds, ...unmetStudentIds]);
+    const totalStudents = roster.size;
 
-    // Count students by completion status
-    const studentCompletionMap = new Map<string, { required: number; assigned: number }>();
-
-    // This would need actual requirement data
-    // For now, simplified calculation
-    const fullyScheduledStudents = totalStudents - this.unmetRequirements.length;
-    const partiallyScheduledStudents = Math.min(
-      this.unmetRequirements.filter(r => r.assignedDays > 0).length,
-      totalStudents - fullyScheduledStudents
-    );
-    const unscheduledStudents = this.unmetRequirements.filter(r => r.assignedDays === 0).length;
+    // A student is fully scheduled when they have no unmet requirement; partially
+    // when they have both an assignment and an unmet requirement; unscheduled when
+    // they have an unmet requirement and no assignment at all. Every count is a
+    // partition of the roster, so none can go negative.
+    let fullyScheduledStudents = 0;
+    let partiallyScheduledStudents = 0;
+    let unscheduledStudents = 0;
+    for (const id of roster) {
+      const hasUnmet = unmetStudentIds.has(id);
+      const hasAssignment = assignmentStudentIds.has(id);
+      if (!hasUnmet) fullyScheduledStudents++;
+      else if (hasAssignment) partiallyScheduledStudents++;
+      else unscheduledStudents++;
+    }
 
     // Count unique preceptors
     const preceptorIds = new Set(this.assignments.map(a => a.preceptorId));
@@ -190,5 +210,6 @@ export class ResultBuilder {
     this.unmetRequirements = [];
     this.violations = [];
     this.pendingApprovals = [];
+    this.rosterStudentIds = null;
   }
 }

@@ -106,7 +106,7 @@ describe('Global Defaults Schemas', () => {
   describe('globalOutpatientDefaultsInputSchema', () => {
     it('should validate outpatient defaults with team settings', () => {
       const validConfig = {
-        assignmentStrategy: 'continuous_team' as const,
+        assignmentStrategy: 'continuous_single' as const,
         healthSystemRule: 'enforce_same_system' as const,
         defaultMaxStudentsPerDay: 2,
         defaultMaxStudentsPerYear: 20,
@@ -123,7 +123,7 @@ describe('Global Defaults Schemas', () => {
 
     it('should reject when team size min > max', () => {
       const invalidConfig = {
-        assignmentStrategy: 'continuous_team',
+        assignmentStrategy: 'continuous_single',
         healthSystemRule: 'enforce_same_system',
         defaultMaxStudentsPerDay: 2,
         defaultMaxStudentsPerYear: 20,
@@ -206,7 +206,7 @@ describe('Global Defaults Schemas', () => {
 
     it('should validate with team settings', () => {
       const validConfig = {
-        assignmentStrategy: 'continuous_team' as const,
+        assignmentStrategy: 'continuous_single' as const,
         healthSystemRule: 'enforce_same_system' as const,
         defaultMaxStudentsPerDay: 2,
         defaultMaxStudentsPerYear: 20,

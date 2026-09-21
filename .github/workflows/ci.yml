@@ -9,6 +9,9 @@ on:
     branches:
       - main
       - master
+  schedule:
+    # Nightly (07:00 UTC) — runs the @long journey suite.
+    - cron: '0 7 * * *'
 
 jobs:
   lint:
@@ -54,8 +57,30 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit -- --run
 
-  e2e-tests:
-    name: E2E Tests
+  e2e-guards:
+    name: E2E Guards (no fixme/skip, coverage map current)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fails if e2e/journeys contains test.only/skip/fixme, or if e2e/COVERAGE.md
+      # is out of date with the specs' @req/@finding annotations.
+      - name: Check coverage map & focused/skipped tests
+        run: npm run coverage:check
+
+  e2e-smoke:
+    name: E2E Smoke (PR-blocking)
     runs-on: ubuntu-latest
 
     steps:
@@ -72,16 +97,85 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      - name: Run smoke journeys
+        run: npm run test:e2e:smoke
 
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-smoke
+          path: playwright-report/
+          retention-days: 7
+
+  e2e-full:
+    name: E2E Full (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Everything except @long, split three ways for wall-clock.
+      - name: Run full journey suite (sharded)
+        run: npm run test:e2e:full -- --shard=${{ matrix.shard }}/3
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-full-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 7
+
+  e2e-long:
+    name: E2E Long (nightly)
+    runs-on: ubuntu-latest
+    # The @long arcs run nightly, not on every push/PR.
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run long journeys
+        run: npm run test:e2e:long
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-long
           path: playwright-report/
           retention-days: 7
 

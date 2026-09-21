@@ -38,10 +38,7 @@ process.env.BETTER_AUTH_SECRET ||= 'auth-signup-test-secret-auth-signup-test';
 async function createAppTables(db: Kysely<DB>, dialect: DbDialectName): Promise<void> {
 	const t = getDialectAdapter(dialect).columnTypes;
 
-	await db.schema
-		.alterTable('user')
-		.addColumn('active_schedule_id', sql.raw(t.text))
-		.execute();
+	await db.schema.alterTable('user').addColumn('active_schedule_id', sql.raw(t.text)).execute();
 	await db.schema
 		.alterTable('user')
 		.addColumn('entitlements', sql.raw(t.text), (col) => col.defaultTo('[]'))
@@ -72,7 +69,7 @@ function expectedAcademicYear(now = new Date()) {
 const engines: Array<{ dialect: DbDialectName; connect: () => Promise<Kysely<DB>> }> = [
 	{
 		dialect: 'sqlite',
-		connect: async () => createDB(':memory:'),
+		connect: async () => createDB(':memory:')
 	},
 	{
 		dialect: 'postgres',
@@ -82,8 +79,8 @@ const engines: Array<{ dialect: DbDialectName; connect: () => Promise<Kysely<DB>
 			const { KyselyPGlite } = await import('kysely-pglite');
 			const { dialect } = await KyselyPGlite.create();
 			return createDBFromDialect(dialect);
-		},
-	},
+		}
+	}
 ];
 
 describe.each(engines)('better-auth sign-up on $dialect', ({ dialect, connect }) => {
@@ -105,7 +102,7 @@ describe.each(engines)('better-auth sign-up on $dialect', ({ dialect, connect })
 		const email = `signup-${dialect}@example.com`;
 
 		const result = await auth.api.signUpEmail({
-			body: { name: 'Signup Test', email, password: 'password12345' },
+			body: { name: 'Signup Test', email, password: 'password12345' }
 		});
 
 		expect(result.user.id).toBeTruthy();
@@ -137,16 +134,19 @@ describe.each(engines)('better-auth sign-up on $dialect', ({ dialect, connect })
 		expect(user?.active_schedule_id).toBe(schedule?.id);
 	});
 
-	it('signs the new user back in', async () => {
+	// Sign-up + sign-in run argon2 password hashing twice; under v8 coverage
+	// instrumentation that is ~6s, past the default 5s test timeout, so give this
+	// one a generous budget (it stays fast in an uninstrumented run).
+	it('signs the new user back in', { timeout: 30000 }, async () => {
 		const email = `signin-${dialect}@example.com`;
 		await auth.api.signUpEmail({
-			body: { name: 'Signin Test', email, password: 'password12345' },
+			body: { name: 'Signin Test', email, password: 'password12345' }
 		});
 
 		// Proves the session row round-trips too — session expiry is the other
 		// place where an engine-inappropriate column type bites.
 		const session = await auth.api.signInEmail({
-			body: { email, password: 'password12345' },
+			body: { email, password: 'password12345' }
 		});
 		expect(session.user.email).toBe(email);
 	});
@@ -158,7 +158,7 @@ describe.each(engines)('better-auth sign-up on $dialect', ({ dialect, connect })
 		try {
 			const email = `resilient-${dialect}@example.com`;
 			const result = await auth.api.signUpEmail({
-				body: { name: 'Resilient', email, password: 'password12345' },
+				body: { name: 'Resilient', email, password: 'password12345' }
 			});
 			expect(result.user.id).toBeTruthy();
 

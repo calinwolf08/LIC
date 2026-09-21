@@ -20,6 +20,7 @@ import {
 	addEntitiesToSchedule
 } from '$lib/features/scheduling/services/scheduling-period-service';
 import { nanoid } from 'nanoid';
+import { duplicateScheduleSchema } from '$lib/features/preceptors/pattern-schemas';
 
 describe('Schedule Duplication Service', () => {
 	let db: Kysely<DB>;
@@ -134,6 +135,29 @@ describe('Schedule Duplication Service', () => {
 			expect(result.schedule.start_date).toBe('2026-01-01');
 			expect(result.schedule.end_date).toBe('2026-12-31');
 			expect(result.schedule.year).toBe(2026);
+		});
+
+		it('duplicates without a year (the wizard does not collect one) — regression P1-a', async () => {
+			// The new-schedule wizard's duplicate path sends no `year`; a required
+			// year previously rejected every duplicate with "Validation failed".
+			const parsed = duplicateScheduleSchema.parse({
+				name: 'Copy of Source',
+				startDate: '2026-02-01',
+				endDate: '2026-11-30'
+			});
+			expect(parsed.year == null).toBe(true);
+
+			const result = await duplicateToNewSchedule(
+				db,
+				sourceScheduleId,
+				parsed.name,
+				parsed.startDate,
+				parsed.endDate,
+				parsed.year,
+				parsed.options
+			);
+			expect(result.schedule.name).toBe('Copy of Source');
+			expect(result.schedule.year ?? null).toBeNull();
 		});
 
 		it('copies all students when option is "all"', async () => {

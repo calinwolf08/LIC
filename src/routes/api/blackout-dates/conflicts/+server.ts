@@ -12,6 +12,7 @@ import {
 } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { dateStringSchema } from '$lib/validation/common-schemas';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { z, ZodError } from 'zod';
 
@@ -39,16 +40,19 @@ interface ConflictInfo {
  * POST /api/blackout-dates/conflicts
  * Checks if a given date has existing schedule assignments
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Checking blackout date conflicts');
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
 		const body = await request.json();
 		const { date } = conflictCheckSchema.parse(body);
 
 		log.debug('Checking conflicts for date', { date });
 
-		// Query assignments for the given date with related info
+		// Query assignments for the given date with related info, scoped to the
+		// active schedule so a blackout only reports (and deletes) its own
+		// schedule's assignments (finding P4-d).
 		const assignments = await db
 			.selectFrom('schedule_assignments')
 			.innerJoin('students', 'students.id', 'schedule_assignments.student_id')
@@ -64,6 +68,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				'clerkships.name as clerkshipName'
 			])
 			.where('schedule_assignments.date', '=', date)
+			.where('schedule_assignments.schedule_id', '=', scheduleId)
 			.execute();
 
 		const result: ConflictInfo = {

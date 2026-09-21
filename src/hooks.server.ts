@@ -3,7 +3,8 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
 import { json, type Handle } from '@sveltejs/kit';
 import { parseEntitlements } from '$lib/server/entitlements';
-import { requiresApiAuthChallenge } from '$lib/server/api-auth';
+import { requiresApiAuthChallenge, requiresAutogenEntitlement } from '$lib/server/api-auth';
+import { ENTITLEMENT_AUTOGEN } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -39,6 +40,22 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return json(
 			{ success: false, error: { message: 'Authentication required' } },
 			{ status: 401 }
+		);
+	}
+
+	// Central Stage 2 gate (05 §3): engine-only `/api/` prefixes return 403 here
+	// when the caller lacks `autogen`, so a new sub-route cannot forget the check.
+	// Handlers keep `requireAutogen` as defence in depth. Only authenticated
+	// callers reach this — unauthenticated ones were already 401'd above.
+	if (
+		!building &&
+		session?.user &&
+		requiresAutogenEntitlement(event.url.pathname) &&
+		!event.locals.entitlements.includes(ENTITLEMENT_AUTOGEN)
+	) {
+		return json(
+			{ success: false, error: { message: 'Auto-generation requires an upgraded plan' } },
+			{ status: 403 }
 		);
 	}
 

@@ -8,6 +8,7 @@
 	import { createSiteSchema } from '../schemas.js';
 	import { ZodError } from 'zod';
 	import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
+	import { registerUnsavedGuard } from '$lib/stores/unsaved-changes.svelte';
 
 	interface Props {
 		site?: Selectable<Sites>;
@@ -18,19 +19,29 @@
 
 	let { site, healthSystems, onSuccess, onCancel }: Props = $props();
 
-	let formData = $state({
+	const initial = {
 		name: site?.name || '',
 		health_system_id: site?.health_system_id || '',
 		address: site?.address || '',
 		office_phone: site?.office_phone || '',
 		contact_person: site?.contact_person || '',
 		contact_email: site?.contact_email || ''
-	});
+	};
+
+	let formData = $state({ ...initial });
 
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
 	let generalError = $state<string | null>(null);
+	let saved = $state(false);
 	let showHealthSystemForm = $state(false);
+
+	// Unsaved-changes guard (finding P1-e).
+	$effect(() =>
+		registerUnsavedGuard(
+			() => !saved && (Object.keys(initial) as Array<keyof typeof initial>).some((k) => formData[k] !== initial[k])
+		)
+	);
 	let healthSystemsList = $state([...healthSystems]);
 
 	function handleHealthSystemChange(e: Event) {
@@ -108,7 +119,8 @@
 				return;
 			}
 
-			// Success
+			// Success — drop the guard before the caller navigates away.
+			saved = true;
 			onSuccess?.();
 		} catch (error) {
 			if (error instanceof ZodError) {
@@ -237,7 +249,15 @@
 
 			<div class="flex justify-end gap-2 pt-4">
 				{#if onCancel}
-					<Button type="button" variant="outline" onclick={onCancel} disabled={isSubmitting}>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => {
+							saved = true;
+							onCancel?.();
+						}}
+						disabled={isSubmitting}
+					>
 						Cancel
 					</Button>
 				{/if}

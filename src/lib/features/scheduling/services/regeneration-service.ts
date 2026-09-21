@@ -9,9 +9,148 @@ import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { SchedulingContext, Assignment } from '../types';
 import { getAssignmentsByDateRange } from '$lib/features/schedules/services/assignment-service';
+import { validateAssignmentCandidate } from './assignment-validation';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:scheduling:regeneration');
+
+/**
+ * The regeneration plan (design recommendation 03 §2.2). One classification of
+ * every existing assignment into keep-vs-delete, computed once and used by BOTH
+ * the preview and the apply so they can never disagree (review finding F-12).
+ * Deletion happens by explicit id after planning — never a date-range delete
+ * (F-02/F-04).
+ */
+export interface RegenerationPlan {
+	/** Ids to preserve (past, locked, and — per strategy — valid/all future). */
+	keepIds: string[];
+	/** Ids to delete before regenerating. */
+	deleteIds: string[];
+	summary: {
+		strategy: RegenerationStrategy;
+		cutoff: string;
+		preservedPast: number;
+		preservedLocked: number;
+		/** Unlocked future rows kept (minimal-change keeps the valid ones). */
+		preservedFuture: number;
+		deletedFuture: number;
+	};
+}
+
+/**
+ * Classify every assignment in a schedule into keep vs delete for a regeneration
+ * run, per the bucket table in `03 §2.2`:
+ *
+ *   past (date < cutoff)  → keep (all strategies)
+ *   locked                → keep (all strategies)
+ *   future, unlocked:
+ *     full-reoptimize      → delete
+ *     completion           → keep
+ *     minimal-change       → keep if still valid today (no hard/soft violations),
+ *                            else delete
+ *
+ * Pure classification: it reads assignments and (for minimal-change) validates
+ * each future row, but performs no writes.
+ */
+export async function planRegeneration(
+	db: Kysely<DB>,
+	scheduleId: string,
+	opts: { cutoff: string; strategy: RegenerationStrategy }
+): Promise<RegenerationPlan> {
+	const { cutoff, strategy } = opts;
+	const rows = await db
+		.selectFrom('schedule_assignments')
+		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date', 'locked'])
+		.where('schedule_id', '=', scheduleId)
+		.execute();
+
+	const keepIds: string[] = [];
+	const deleteIds: string[] = [];
+	let preservedPast = 0;
+	let preservedLocked = 0;
+	let preservedFuture = 0;
+	let deletedFuture = 0;
+
+	for (const row of rows) {
+		if (!row.id) continue;
+		const isPast = row.date < cutoff;
+		const isLocked = Boolean(row.locked);
+
+		if (isPast) {
+			keepIds.push(row.id);
+			preservedPast++;
+			continue;
+		}
+		if (isLocked) {
+			keepIds.push(row.id);
+			preservedLocked++;
+			continue;
+		}
+
+		// Future, unlocked.
+		if (strategy === 'completion') {
+			keepIds.push(row.id);
+			preservedFuture++;
+			continue;
+		}
+		if (strategy === 'full-reoptimize') {
+			deleteIds.push(row.id);
+			deletedFuture++;
+			continue;
+		}
+
+		// minimal-change: keep the row only if it is still valid today.
+		const validation = await validateAssignmentCandidate(
+			db,
+			scheduleId,
+			{
+				student_id: row.student_id,
+				preceptor_id: row.preceptor_id,
+				clerkship_id: row.clerkship_id,
+				site_id: row.site_id,
+				date: row.date,
+				excludeId: row.id
+			},
+			{ checkCreateTimeCodes: false }
+		);
+		if (validation.hard.length === 0 && validation.soft.length === 0) {
+			keepIds.push(row.id);
+			preservedFuture++;
+		} else {
+			deleteIds.push(row.id);
+			deletedFuture++;
+		}
+	}
+
+	log.info('Regeneration planned', {
+		scheduleId,
+		strategy,
+		cutoff,
+		preservedPast,
+		preservedLocked,
+		preservedFuture,
+		deletedFuture
+	});
+
+	return {
+		keepIds,
+		deleteIds,
+		summary: { strategy, cutoff, preservedPast, preservedLocked, preservedFuture, deletedFuture }
+	};
+}
+
+/** Delete a plan's delete-set by explicit id (never a date-range delete). */
+export async function applyRegenerationDeletions(
+	db: Kysely<DB>,
+	deleteIds: string[]
+): Promise<number> {
+	if (deleteIds.length === 0) return 0;
+	const result = await db
+		.deleteFrom('schedule_assignments')
+		.where('id', 'in', deleteIds)
+		.executeTakeFirst();
+	return Number(result.numDeletedRows ?? 0);
+}
 
 /**
  * Regeneration strategy types

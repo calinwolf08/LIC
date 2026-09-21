@@ -15,7 +15,11 @@ import {
 import { handleApiError } from '$lib/api/errors';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { preceptorTeamInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
-import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	associateEntityWithSchedule,
+	getActiveScheduleId,
+	requireActiveScheduleId
+} from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError, z } from 'zod';
 
@@ -99,6 +103,9 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 	log.debug('Creating team');
 
 	try {
+		// A schedule must be selected to create anything (finding P1-c).
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		const body = await request.json();
 
 		// Support both query param (legacy) and body (new)
@@ -133,9 +140,9 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 			return errorResponse(result.error.message, 400);
 		}
 
-		// Auto-associate with user's active schedule
+		// Associate with the active schedule.
 		if (result.data.id) {
-			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'team', result.data.id);
+			await associateEntityWithSchedule(db, scheduleId, 'team', result.data.id);
 		}
 
 		log.info('Team created', {

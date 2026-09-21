@@ -172,8 +172,32 @@ npm run lint                  # prettier --check
 npm run format                # prettier --write
 npm run test:unit -- --run    # unit + integration (Vitest)
 npm run test:e2e              # Playwright (builds + previews first)
+npm run test:e2e:smoke        # the @smoke subset (PR gate, a few minutes)
+npm run test:e2e:journeys     # only the phased journeys (e2e/journeys/phase-*)
 npm run build                 # production build
 ```
+
+### End-to-end journeys
+
+The Playwright suite is organised by the plan in `docs/plans/e2e-validation-plan.md`:
+
+- `e2e/fixtures/` — the `test` object every spec imports. `asAdmin` / `asBasic` are
+  pages already signed in as the seeded users (login runs once per worker and the
+  storage state is reused); `asFreshUser` / `asFreshEntitledUser` register a new
+  account through the real form; `sandbox` creates throwaway schedules that are
+  restored and deleted after the test; `db` is a Kysely handle on
+  `./test-sqlite.db`; `apiOf(page)` calls the JSON API in the page's own session.
+- `e2e/pages/` — page objects for the seams every journey touches: the unified
+  assignment dialog, the schedule-health panel, the calendar, entity tabs and the
+  shared confirm dialog.
+- `e2e/journeys/phase-N/` — the phased journeys (project `journeys`, zero
+  retries: a flake is a bug). Everything directly under `e2e/journeys/` is the
+  pre-plan `legacy` project and keeps one retry until it is folded into a phase.
+- Tags select subsets: `--grep @smoke`, `@stage1`, `@stage2`, `@tenant`, `@long`.
+- `e2e/global-setup.ts` asserts the seed invariants (users, entitlement,
+  materialised availability, electives, blackout dates, a locked row, one
+  un-onboarded student) so a broken seed fails in one message.
+- Traces, videos and screenshots are kept for failures only (`test-results/`).
 
 ## Project layout
 

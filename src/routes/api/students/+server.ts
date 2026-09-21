@@ -15,7 +15,11 @@ import {
 import { ConflictError, handleApiError } from '$lib/api/errors';
 import { getStudentsWithOnboardingStatsBySchedule, createStudent } from '$lib/features/students/services/student-service.js';
 import { createStudentSchema } from '$lib/features/students/schemas.js';
-import { autoAssociateWithActiveSchedule, getActiveScheduleId } from '$lib/api/schedule-context';
+import {
+	associateEntityWithSchedule,
+	getActiveScheduleId,
+	requireActiveScheduleId
+} from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -59,14 +63,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Creating student');
 
 	try {
+		// A user must have a schedule selected to make any change (finding P1-c):
+		// without one, creation is inert (400) rather than silently orphaning a
+		// student that belongs to no schedule.
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		const body = await request.json();
 		const validatedData = createStudentSchema.parse(body);
 
 		const student = await createStudent(db, validatedData);
 
-		// Auto-associate with user's active schedule
+		// Associate with the active schedule.
 		if (student.id) {
-			await autoAssociateWithActiveSchedule(db, locals.session?.user?.id, 'student', student.id);
+			await associateEntityWithSchedule(db, scheduleId, 'student', student.id);
 		}
 
 		log.info('Student created', {

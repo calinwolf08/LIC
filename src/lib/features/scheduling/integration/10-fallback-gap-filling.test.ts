@@ -537,7 +537,7 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 	});
 
 	describe('Test 10: No teams for clerkship', () => {
-		it('should handle gracefully when clerkship has no teams', async () => {
+		it('schedules against available preceptors when clerkship has no teams (F-19)', async () => {
 			// Setup
 			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
 
@@ -569,8 +569,12 @@ describe('Integration Suite 10: Fallback Gap Filling', () => {
 				dryRun: false,
 			});
 
-			// Should have unmet requirements since no teams exist
-			expect(result.unmetRequirements.length).toBeGreaterThan(0);
+			// With the shared eligibility predicate (03 §6), a clerkship with no
+			// team falls back to preceptors with availability at an allowed site,
+			// so the unteamed preceptor is used and all required days are met.
+			expect(result.assignments.length).toBe(5);
+			expect(result.assignments.every((a) => a.preceptorId === preceptorId)).toBe(true);
+			expect(result.unmetRequirements.length).toBe(0);
 		});
 	});
 

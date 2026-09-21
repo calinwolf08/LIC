@@ -19,6 +19,7 @@ import {
 	createBlackoutDate
 } from '$lib/features/blackout-dates/services/blackout-date-service';
 import { createBlackoutDateSchema, dateRangeSchema } from '$lib/features/blackout-dates/schemas';
+import { requireActiveScheduleId } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
 
@@ -26,23 +27,25 @@ const log = createServerLogger('api:blackout-dates');
 
 /**
  * GET /api/blackout-dates
- * Returns all blackout dates, optionally filtered by date range
+ * Returns the active schedule's blackout dates, optionally filtered by date range
  */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const startDate = url.searchParams.get('start_date') || undefined;
 	const endDate = url.searchParams.get('end_date') || undefined;
 
 	log.debug('Fetching blackout dates', { startDate, endDate });
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
+
 		// Validate date range if provided
 		if (startDate || endDate) {
 			dateRangeSchema.parse({ start_date: startDate, end_date: endDate });
 		}
 
 		const blackoutDates = startDate || endDate
-			? await getBlackoutDatesByRange(db, startDate, endDate)
-			: await getBlackoutDates(db);
+			? await getBlackoutDatesByRange(db, scheduleId, startDate, endDate)
+			: await getBlackoutDates(db, scheduleId);
 
 		log.info('Blackout dates fetched', {
 			count: blackoutDates.length,
@@ -66,14 +69,15 @@ export const GET: RequestHandler = async ({ url }) => {
  * POST /api/blackout-dates
  * Creates a new blackout date
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Creating blackout date');
 
 	try {
+		const scheduleId = await requireActiveScheduleId(locals);
 		const body = await request.json();
 		const validatedData = createBlackoutDateSchema.parse(body);
 
-		const blackoutDate = await createBlackoutDate(db, validatedData);
+		const blackoutDate = await createBlackoutDate(db, validatedData, scheduleId);
 
 		log.info('Blackout date created', {
 			id: blackoutDate.id,

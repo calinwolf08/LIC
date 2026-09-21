@@ -386,6 +386,31 @@ describe('Scheduling Period Service', () => {
 				expect(found).toBeNull();
 			});
 
+			it('deletes the period’s assignments too (P3-g, no orphans)', async () => {
+				const created = await createSchedulingPeriod(db, {
+					name: 'Fall 2024',
+					start_date: '2024-09-01',
+					end_date: '2024-12-15',
+					is_active: false
+				});
+				await db
+					.insertInto('schedule_assignments')
+					.values([
+						{ id: 'a1', schedule_id: created.id },
+						{ id: 'a2', schedule_id: created.id }
+					])
+					.execute();
+
+				await deleteSchedulingPeriod(db, created.id);
+
+				const left = await db
+					.selectFrom('schedule_assignments')
+					.select('id')
+					.where('schedule_id', '=', created.id)
+					.execute();
+				expect(left).toHaveLength(0);
+			});
+
 			it('throws NotFoundError when period not found', async () => {
 				await expect(
 					deleteSchedulingPeriod(db, 'nonexistent-id')

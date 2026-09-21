@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		scheduleId ? getPreceptorsBySchedule(db, scheduleId) : Promise.resolve([]),
 		scheduleId ? getClerkshipsBySchedule(db, scheduleId) : Promise.resolve([]),
 		getScheduleSummaryData(db, scheduleId),
-		getBlackoutDates(db)
+		getBlackoutDates(db, scheduleId)
 	]);
 
 	return {

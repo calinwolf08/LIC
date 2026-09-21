@@ -14,7 +14,8 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	]);
 
 	if (!siteRes.ok) {
-		if (siteRes.status === 404) throw error(404, 'Site not found');
+		// 400 (malformed id) reads as not-found for the user (e2e finding P1-d).
+		if (siteRes.status === 404 || siteRes.status === 400) throw error(404, 'Site not found');
 		throw error(siteRes.status, 'Failed to load site');
 	}
 

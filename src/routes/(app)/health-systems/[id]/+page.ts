@@ -23,7 +23,8 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		]);
 
 		if (!hsResponse.ok) {
-			if (hsResponse.status === 404) {
+			// 400 (malformed id) reads as not-found for the user (e2e finding P1-d).
+			if (hsResponse.status === 404 || hsResponse.status === 400) {
 				throw error(404, 'Health system not found');
 			}
 			throw new Error('Failed to fetch health system');
@@ -82,7 +83,9 @@ export const load: PageLoad = async ({ params, fetch }) => {
 				parts.push(`• ${dependencyCounts.sites} site${dependencyCounts.sites > 1 ? 's' : ''}`);
 			}
 			if (dependencyCounts.preceptors > 0) {
-				parts.push(`• ${dependencyCounts.preceptors} preceptor${dependencyCounts.preceptors > 1 ? 's' : ''}`);
+				parts.push(
+					`• ${dependencyCounts.preceptors} preceptor${dependencyCounts.preceptors > 1 ? 's' : ''}`
+				);
 			}
 			parts.push('', 'Remove or reassign these before deleting.');
 			deleteTooltip = parts.join('\n');

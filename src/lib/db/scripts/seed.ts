@@ -21,6 +21,26 @@ import type { DB } from '../types';
 import { TEST_SCHEDULE as SEED_SCHEDULE, fromToday } from './seed-schedule';
 import { seedAdminAssignments } from './seed-demo';
 
+/** `date` itself if it is Mon–Fri, otherwise the following Monday (YYYY-MM-DD). */
+function nextWeekday(date: string): string {
+	const d = new Date(`${date}T00:00:00Z`);
+	while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+	return d.toISOString().slice(0, 10);
+}
+
+/** Weekday (Mon–Fri, UTC) date strings within an inclusive range. */
+function weekdayDatesInRange(start: string, end: string): string[] {
+	const dates: string[] = [];
+	const cur = new Date(start + 'T00:00:00.000Z');
+	const last = new Date(end + 'T00:00:00.000Z');
+	while (cur <= last) {
+		const dow = cur.getUTCDay();
+		if (dow !== 0 && dow !== 6) dates.push(cur.toISOString().slice(0, 10));
+		cur.setUTCDate(cur.getUTCDate() + 1);
+	}
+	return dates;
+}
+
 const TEST_USER = {
 	email: 'admin@example.com',
 	password: 'password123',
@@ -568,6 +588,26 @@ async function seed(db: Kysely<DB>) {
 					updated_at: timestamp
 				})
 				.execute();
+
+			// Materialise the weekly pattern into concrete availability rows. The
+			// scheduling engine reads `preceptor_availability`, not patterns
+			// (review finding F-29), so without this the seeded admin cannot
+			// auto-generate anything.
+			const availabilityRows = weekdayDatesInRange(
+				SEED_SCHEDULE.startDate,
+				SEED_SCHEDULE.endDate
+			).map((date) => ({
+				id: nanoid(),
+				preceptor_id: id,
+				site_id: siteIds[siteIndex],
+				date,
+				is_available: 1,
+				created_at: timestamp,
+				updated_at: timestamp
+			}));
+			if (availabilityRows.length > 0) {
+				await db.insertInto('preceptor_availability').values(availabilityRows).execute();
+			}
 		} else {
 			preceptorIds.push(preceptor.id!);
 		}
@@ -649,6 +689,144 @@ async function seed(db: Kysely<DB>) {
 		);
 	}
 	console.log(`  Created/found ${teamIds.length} teams`);
+
+	// Step 9b: Electives on Internal Medicine (e2e plan Phase 0 / 06 §5).
+	// One required (carved out of the clerkship total, R4.4) and one optional
+	// (self-standing), each with a preceptor pool drawn from the IM team and the
+	// sites those preceptors work at — so the assignment dialog's elective picker,
+	// per-elective requirement tracking and the engine's elective pools all have
+	// real data without every journey building it first. Idempotent by name.
+	console.log('\nCreating electives...');
+	const internalMedicineId = clerkshipIds[1];
+	const electivesData = [
+		{
+			name: 'Cardiology',
+			specialty: 'Cardiology',
+			minimum_days: 3,
+			is_required: 1,
+			preceptorIndices: [2, 3],
+			siteIndices: [0, 1]
+		},
+		{
+			name: 'Dermatology',
+			specialty: 'Dermatology',
+			minimum_days: 2,
+			is_required: 0,
+			preceptorIndices: [2],
+			siteIndices: [0]
+		}
+	];
+	for (const e of electivesData) {
+		const existing = await db
+			.selectFrom('clerkship_electives')
+			.select('id')
+			.where('clerkship_id', '=', internalMedicineId)
+			.where('name', '=', e.name)
+			.executeTakeFirst();
+		if (existing) continue;
+		const electiveId = nanoid();
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id: electiveId,
+				clerkship_id: internalMedicineId,
+				name: e.name,
+				specialty: e.specialty,
+				minimum_days: e.minimum_days,
+				is_required: e.is_required,
+				created_at: timestamp,
+				updated_at: timestamp
+			})
+			.execute();
+		for (const pi of e.preceptorIndices) {
+			await db
+				.insertInto('elective_preceptors')
+				.values({
+					id: nanoid(),
+					elective_id: electiveId,
+					preceptor_id: preceptorIds[pi],
+					created_at: timestamp
+				})
+				.execute();
+		}
+		for (const si of e.siteIndices) {
+			await db
+				.insertInto('elective_sites')
+				.values({
+					id: nanoid(),
+					elective_id: electiveId,
+					site_id: siteIds[si],
+					created_at: timestamp
+				})
+				.execute();
+		}
+	}
+	console.log(`  Created/found ${electivesData.length} electives on Internal Medicine`);
+
+	// Step 9c: Two blackout dates inside the schedule range, on weekdays that
+	// carry no seeded assignment (the demo scenario uses days 1–14, 20–23 and
+	// 30 from today). Blackouts are scoped to this schedule (finding P4-d).
+	// Idempotent by (schedule_id, date).
+	const blackoutDates = [nextWeekday(fromToday(16)), nextWeekday(fromToday(37))];
+	for (const date of blackoutDates) {
+		const existing = await db
+			.selectFrom('blackout_dates')
+			.select('id')
+			.where('schedule_id', '=', scheduleId)
+			.where('date', '=', date)
+			.executeTakeFirst();
+		if (existing) continue;
+		await db
+			.insertInto('blackout_dates')
+			.values({
+				id: nanoid(),
+				schedule_id: scheduleId,
+				date,
+				reason: 'Seeded holiday (e2e)',
+				created_at: timestamp
+			})
+			.execute();
+	}
+	console.log(`  Blackout dates: ${blackoutDates.join(', ')}`);
+
+	// Onboard every student at every health system so an auto-generated schedule
+	// is clean in the health panel out of the box (review Phase 0 / F-29). The
+	// demo scenario (step 10) intentionally leaves one exception unresolved for
+	// the override-review surface; that runs after this and is idempotent.
+	//
+	// Exception (e2e plan Phase 0): the LAST seeded student stays un-onboarded at
+	// the SECOND health system, so journeys have a real `not_onboarded` case
+	// (bypass, override conversation, readiness) without building one.
+	const unOnboardedStudentId = studentIds[studentIds.length - 1];
+	const unOnboardedHealthSystemId = healthSystemIds[1];
+	for (const sId of studentIds) {
+		for (const hId of healthSystemIds) {
+			if (sId === unOnboardedStudentId && hId === unOnboardedHealthSystemId) continue;
+			const existing = await db
+				.selectFrom('student_health_system_onboarding')
+				.select('id')
+				.where('student_id', '=', sId)
+				.where('health_system_id', '=', hId)
+				.executeTakeFirst();
+			if (!existing) {
+				await db
+					.insertInto('student_health_system_onboarding')
+					.values({
+						id: nanoid(),
+						student_id: sId,
+						health_system_id: hId,
+						is_completed: 1,
+						completed_date: timestamp,
+						created_at: timestamp,
+						updated_at: timestamp
+					})
+					.execute();
+			}
+		}
+	}
+	console.log(
+		`  Onboarded ${studentIds.length} students at ${healthSystemIds.length} health systems`
+	);
 
 	// Step 10: Seed a realistic assignment scenario for the admin so the
 	// calendar, schedule-health panel and override review have content on first
@@ -774,11 +952,23 @@ async function seedSecondTenant(db: Kysely<DB>) {
 		.execute();
 	await db
 		.insertInto('sites')
-		.values({ id: siteId, name: 'Tenant B Site', health_system_id: hsId, created_at: ts, updated_at: ts })
+		.values({
+			id: siteId,
+			name: 'Tenant B Site',
+			health_system_id: hsId,
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
 	await db
 		.insertInto('students')
-		.values({ id: studentId, name: 'Tenant B Student', email: 'tenant-b-student@example.com', created_at: ts, updated_at: ts })
+		.values({
+			id: studentId,
+			name: 'Tenant B Student',
+			email: 'tenant-b-student@example.com',
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
 	await db
 		.insertInto('preceptors')
@@ -804,16 +994,32 @@ async function seedSecondTenant(db: Kysely<DB>) {
 		})
 		.execute();
 
-	await db.insertInto('schedule_health_systems').values({ id: nanoid(), schedule_id: scheduleId, health_system_id: hsId, created_at: ts }).execute();
-	await db.insertInto('schedule_sites').values({ id: nanoid(), schedule_id: scheduleId, site_id: siteId, created_at: ts }).execute();
-	await db.insertInto('schedule_students').values({ id: nanoid(), schedule_id: scheduleId, student_id: studentId, created_at: ts }).execute();
-	await db.insertInto('schedule_preceptors').values({ id: nanoid(), schedule_id: scheduleId, preceptor_id: preceptorId, created_at: ts }).execute();
-	await db.insertInto('schedule_clerkships').values({ id: nanoid(), schedule_id: scheduleId, clerkship_id: clerkshipId, created_at: ts }).execute();
+	await db
+		.insertInto('schedule_health_systems')
+		.values({ id: nanoid(), schedule_id: scheduleId, health_system_id: hsId, created_at: ts })
+		.execute();
+	await db
+		.insertInto('schedule_sites')
+		.values({ id: nanoid(), schedule_id: scheduleId, site_id: siteId, created_at: ts })
+		.execute();
+	await db
+		.insertInto('schedule_students')
+		.values({ id: nanoid(), schedule_id: scheduleId, student_id: studentId, created_at: ts })
+		.execute();
+	await db
+		.insertInto('schedule_preceptors')
+		.values({ id: nanoid(), schedule_id: scheduleId, preceptor_id: preceptorId, created_at: ts })
+		.execute();
+	await db
+		.insertInto('schedule_clerkships')
+		.values({ id: nanoid(), schedule_id: scheduleId, clerkship_id: clerkshipId, created_at: ts })
+		.execute();
 
 	await db
 		.insertInto('schedule_assignments')
 		.values({
 			id: nanoid(),
+			schedule_id: scheduleId,
 			student_id: studentId,
 			preceptor_id: preceptorId,
 			clerkship_id: clerkshipId,
@@ -825,18 +1031,50 @@ async function seedSecondTenant(db: Kysely<DB>) {
 		})
 		.execute();
 
+	// A team owned by tenant B, so team lists / readiness / generation can be
+	// proven isolated too (e2e plan Phase 0).
+	const teamBId = nanoid();
+	await db
+		.insertInto('preceptor_teams')
+		.values({
+			id: teamBId,
+			clerkship_id: clerkshipId,
+			name: 'Tenant B Team',
+			created_at: ts,
+			updated_at: ts
+		})
+		.execute();
+	await db
+		.insertInto('preceptor_team_members')
+		.values({ id: nanoid(), team_id: teamBId, preceptor_id: preceptorId, created_at: ts })
+		.execute();
+	await db
+		.insertInto('schedule_teams')
+		.values({ id: nanoid(), schedule_id: scheduleId, team_id: teamBId, created_at: ts })
+		.execute();
+
 	// A second student with an accepted override, so tenant-isolation tests have
 	// more than a single row to miss (and an override to leak).
 	const studentTwoId = nanoid();
 	await db
 		.insertInto('students')
-		.values({ id: studentTwoId, name: 'Tenant B Student Two', email: 'tenant-b-student-two@example.com', created_at: ts, updated_at: ts })
+		.values({
+			id: studentTwoId,
+			name: 'Tenant B Student Two',
+			email: 'tenant-b-student-two@example.com',
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
-	await db.insertInto('schedule_students').values({ id: nanoid(), schedule_id: scheduleId, student_id: studentTwoId, created_at: ts }).execute();
+	await db
+		.insertInto('schedule_students')
+		.values({ id: nanoid(), schedule_id: scheduleId, student_id: studentTwoId, created_at: ts })
+		.execute();
 	await db
 		.insertInto('schedule_assignments')
 		.values({
 			id: nanoid(),
+			schedule_id: scheduleId,
 			student_id: studentTwoId,
 			preceptor_id: preceptorId,
 			clerkship_id: clerkshipId,

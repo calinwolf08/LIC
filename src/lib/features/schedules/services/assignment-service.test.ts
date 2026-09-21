@@ -21,7 +21,6 @@ import {
 	bulkCreateAssignments,
 	hasStudentConflict,
 	hasPreceptorConflict,
-	validateAssignment,
 	getStudentProgress,
 	assignmentExists
 } from './assignment-service';
@@ -84,9 +83,12 @@ async function initializeSchema(db: Kysely<DB>) {
 	await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('schedule_id', 'text')
 		.addColumn('student_id', 'text', (col) => col.notNull())
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('elective_id', 'text')
+		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
@@ -100,6 +102,7 @@ async function initializeSchema(db: Kysely<DB>) {
 	// Create blackout_dates table
 	await db.schema
 		.createTable('blackout_dates')
+		.addColumn('schedule_id', 'text')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('reason', 'text')
@@ -988,67 +991,6 @@ describe('Assignment Service', () => {
 			const result = await hasPreceptorConflict(db, preceptor.id, '2024-01-15');
 
 			expect(result).toBe(true);
-		});
-	});
-
-	describe('validateAssignment()', () => {
-		it('returns valid for valid assignment', async () => {
-			const student = createMockStudent();
-			const preceptor = createMockPreceptor({ specialty: 'Cardiology' });
-			const clerkship = createMockClerkship({ specialty: 'Cardiology' });
-
-			await db.insertInto('students').values(student).execute();
-			await db.insertInto('preceptors').values(preceptor).execute();
-			await db.insertInto('clerkships').values(clerkship).execute();
-
-			const assignmentData = {
-				student_id: student.id,
-				preceptor_id: preceptor.id,
-				clerkship_id: clerkship.id,
-				date: '2024-01-15'
-			};
-
-			const result = await validateAssignment(db, assignmentData);
-
-			expect(result.valid).toBe(true);
-			expect(result.errors).toEqual([]);
-		});
-
-		it('returns error when student not found', async () => {
-			const preceptor = createMockPreceptor();
-			const clerkship = createMockClerkship();
-
-			await db.insertInto('preceptors').values(preceptor).execute();
-			await db.insertInto('clerkships').values(clerkship).execute();
-
-			const assignmentData = {
-				student_id: 'non-existent-student',
-				preceptor_id: preceptor.id,
-				clerkship_id: clerkship.id,
-				date: '2024-01-15'
-			};
-
-			const result = await validateAssignment(db, assignmentData);
-
-			expect(result.valid).toBe(false);
-			expect(result.errors).toContain('Student not found');
-		});
-
-		it('returns multiple errors when multiple validations fail', async () => {
-			const assignmentData = {
-				student_id: 'non-existent-student',
-				preceptor_id: 'non-existent-preceptor',
-				clerkship_id: 'non-existent-clerkship',
-				date: '2024-01-15'
-			};
-
-			const result = await validateAssignment(db, assignmentData);
-
-			expect(result.valid).toBe(false);
-			expect(result.errors).toHaveLength(3);
-			expect(result.errors).toContain('Student not found');
-			expect(result.errors).toContain('Preceptor not found');
-			expect(result.errors).toContain('Clerkship not found');
 		});
 	});
 

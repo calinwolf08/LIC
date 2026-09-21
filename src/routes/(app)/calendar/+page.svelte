@@ -360,6 +360,12 @@
 		const months = getMonthsBetween(startDate, endDate);
 		const result: CalendarMonth[] = [];
 
+		// Schedule bounds, so out-of-range days (leading/trailing padding, or days
+		// past the schedule end) are flagged for the grid's out-of-range styling
+		// (finding P4-b). Falls back to the loaded range when no active schedule.
+		const rangeStart = data.activeSchedule?.startDate ?? startDate;
+		const rangeEnd = data.activeSchedule?.endDate ?? endDate;
+
 		// Build assignment map - collect all events per date
 		const assignmentMap = new Map<string, CalendarEvent[]>();
 		for (const event of events) {
@@ -400,7 +406,13 @@
 						preceptorName: event.assignment.preceptor_name,
 						studentId: event.assignment.student_id,
 						studentName: event.assignment.student_name,
-						color: event.color
+						color: event.color,
+						// Provenance / edit-safety markers (finding P5-a): without these the
+						// grid rendered every chip as manual, so the Auto (generated), lock,
+						// and elective markers never showed.
+						source: event.assignment.source,
+						locked: !!event.assignment.locked,
+						electiveName: event.assignment.elective_name ?? undefined
 					}));
 
 					days.push({
@@ -410,6 +422,7 @@
 						isCurrentMonth,
 						isToday: dateStr === todayStr,
 						isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+						isInRange: dateStr >= rangeStart && dateStr <= rangeEnd,
 						assignments,
 						// Keep assignment for backward compatibility
 						assignment: assignments[0]

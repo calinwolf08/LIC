@@ -46,6 +46,8 @@
 		<!-- Schedule Selector Button -->
 		<button
 			type="button"
+			data-testid="schedule-switcher"
+			data-schedule-id={$activeSchedule.id}
 			onclick={toggleDropdown}
 			class="w-full px-4 py-3 flex items-center justify-between text-left bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
 		>
@@ -92,6 +94,8 @@
 				{#each $scheduleStore.schedules as schedule}
 					<button
 						type="button"
+						data-testid="schedule-switcher-option"
+						data-schedule-id={schedule.id}
 						onclick={() => handleScheduleChange(schedule)}
 						class="w-full px-4 py-2 flex items-center gap-3 text-left hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg {schedule.id ===
 						$activeSchedule?.id

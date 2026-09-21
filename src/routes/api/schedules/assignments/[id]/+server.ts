@@ -13,11 +13,11 @@ import { successResponse, validationErrorResponse, notFoundResponse } from '$lib
 import { NotFoundError, ValidationError, handleApiError } from '$lib/api/errors';
 import {
 	getAssignmentById,
-	updateAssignment,
 	deleteAssignment,
 	setAssignmentLock,
 	isDateInPast
 } from '$lib/features/schedules/services/assignment-service.js';
+import { updateAssignmentChecked } from '$lib/features/schedules/services/editing-service.js';
 import { assignmentIdSchema, updateAssignmentSchema } from '$lib/features/schedules/schemas.js';
 import { requireActiveScheduleId, assertAssignmentInSchedule } from '$lib/api/schedule-context';
 import { hasAutogen } from '$lib/server/entitlements';
@@ -92,8 +92,14 @@ export const PATCH: RequestHandler = async ({ params, request, url, locals }) =>
 			await setAssignmentLock(db, id, body.locked);
 		}
 
-		// If only `locked` was provided, we're done.
-		const { locked: _locked, force: _force, ...rest } = body ?? {};
+		// Pull the override envelope out before schema-parsing the field updates.
+		const {
+			locked: _locked,
+			force: _force,
+			override_codes,
+			override_note,
+			...rest
+		} = body ?? {};
 		if (Object.keys(rest).length === 0) {
 			const current = await db
 				.selectFrom('schedule_assignments')
@@ -104,16 +110,46 @@ export const PATCH: RequestHandler = async ({ params, request, url, locals }) =>
 		}
 
 		const updates = updateAssignmentSchema.parse(rest);
-		const updated = await updateAssignment(db, id, updates, force);
+		// The edit runs the single validator (Phase 1b.3). `?force=true` (used by
+		// the dialog for a past-date edit) accepts all soft codes; explicit
+		// override_codes accept individual ones.
+		const result = await updateAssignmentChecked(
+			db,
+			id,
+			{
+				preceptor_id: updates.preceptor_id,
+				clerkship_id: updates.clerkship_id,
+				site_id: updates.site_id,
+				elective_id: updates.elective_id,
+				date: updates.date,
+				status: updates.status
+			},
+			{ force, overrideCodes: override_codes, overrideNote: override_note }
+		);
+
+		if (!result.valid) {
+			return json(
+				{
+					success: false,
+					error: {
+						message:
+							result.hard.length > 0
+								? 'Update has conflicts that must be resolved'
+								: 'Update has warnings that must be accepted first',
+						hard: result.hard,
+						soft: result.soft
+					}
+				},
+				{ status: 422 }
+			);
+		}
 
 		log.info('Assignment updated', {
 			id,
-			updatedFields: Object.keys(updates),
-			preceptorId: updated.preceptor_id,
-			date: updated.date
+			updatedFields: Object.keys(updates)
 		});
 
-		return successResponse(updated);
+		return successResponse(result.assignment);
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Assignment update validation failed', {

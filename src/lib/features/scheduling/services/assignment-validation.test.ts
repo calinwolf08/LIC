@@ -158,7 +158,12 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 	it('flags a blackout date as soft', async () => {
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo-1', date: TUE, created_at: new Date().toISOString() })
+			.values({
+				id: 'bo-1',
+				schedule_id: SCHEDULE,
+				date: TUE,
+				created_at: new Date().toISOString()
+			})
 			.execute();
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: TUE });
 		expect(r.valid).toBe(true);
@@ -503,12 +508,104 @@ describe('validateAssignmentCandidate — edge cases (DB-backed)', () => {
 		const ts = new Date().toISOString();
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo', date: '2030-06-06', created_at: ts })
+			.values({ id: 'bo', schedule_id: SCHEDULE, date: '2030-06-06', created_at: ts })
 			.execute();
 		// Out of range + blackout together.
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: '2030-06-06' });
 		expect(r.soft.map((v) => v.code).sort()).toEqual(
 			expect.arrayContaining(['blackout_date', 'outside_schedule'])
 		);
+	});
+});
+
+describe('over_required_days vs electives (P7-a)', () => {
+	const ELECTIVE_CLERKSHIP = 'clerk-elec';
+	const ELECTIVE = 'elective-1';
+	let db: Kysely<DB>;
+
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+		const ts = new Date().toISOString();
+		// A clerkship that needs just 2 core days, with one optional elective.
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: ELECTIVE_CLERKSHIP,
+				name: 'Elective-bearing',
+				clerkship_type: 'outpatient',
+				required_days: 2,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id: ELECTIVE,
+				clerkship_id: ELECTIVE_CLERKSHIP,
+				name: 'Sub-specialty',
+				minimum_days: 1,
+				is_required: 0,
+				created_at: ts
+			})
+			.execute();
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	const day = { student_id: STUDENT, preceptor_id: PRECEPTOR, clerkship_id: ELECTIVE_CLERKSHIP };
+
+	it('an elective day never trips over_required_days for the clerkship', async () => {
+		// The clerkship's 2 core days are already fully scheduled.
+		expect((await createManualAssignment(db, SCHEDULE, { ...day, date: MON })).ok).toBe(true);
+		expect((await createManualAssignment(db, SCHEDULE, { ...day, date: TUE })).ok).toBe(true);
+
+		// An elective day on top is extra to the clerkship's required days — it must
+		// not be reported (or rejected) as over_required_days.
+		const v = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...day, elective_id: ELECTIVE, date: WED },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(v.soft.some((s) => s.code === 'over_required_days')).toBe(false);
+
+		// And the create path accepts it without an override.
+		const created = await createManualAssignment(db, SCHEDULE, {
+			...day,
+			elective_id: ELECTIVE,
+			date: WED
+		});
+		expect(created.ok).toBe(true);
+	});
+
+	it('existing elective days do not count toward the core required-days budget', async () => {
+		// One core day + one elective day exist.
+		expect((await createManualAssignment(db, SCHEDULE, { ...day, date: MON })).ok).toBe(true);
+		expect(
+			(await createManualAssignment(db, SCHEDULE, { ...day, elective_id: ELECTIVE, date: TUE })).ok
+		).toBe(true);
+
+		// A second CORE day is still within the 2 required (the elective day is not
+		// counted), so it is clean.
+		const v = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...day, date: WED },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(v.soft.some((s) => s.code === 'over_required_days')).toBe(false);
+
+		// The third core day (a genuine 3rd against 2 required) does trip it.
+		expect((await createManualAssignment(db, SCHEDULE, { ...day, date: WED })).ok).toBe(true);
+		const over = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...day, date: THU },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(over.soft.some((s) => s.code === 'over_required_days')).toBe(true);
 	});
 });

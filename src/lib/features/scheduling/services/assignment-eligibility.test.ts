@@ -290,6 +290,6 @@ describe('getEligibleOptions', () => {
 
 	it('returns empty lists for a schedule with no entities', async () => {
 		const r = await getEligibleOptions(db, 'sched-empty', {});
-		expect(r).toEqual({ clerkships: [], preceptors: [], sites: [] });
+		expect(r).toEqual({ clerkships: [], preceptors: [], sites: [], electives: [] });
 	});
 });

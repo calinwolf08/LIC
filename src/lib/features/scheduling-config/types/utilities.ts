@@ -56,7 +56,6 @@ export function allowsFallbacks(config: ResolvedRequirementConfiguration): boole
 export const AssignmentStrategyLabels: Record<AssignmentStrategy, string> = {
   team_continuity: 'Team Continuity',
   continuous_single: 'Continuous Single Preceptor',
-  continuous_team: 'Continuous Team',
   block_based: 'Block-Based Scheduling',
   daily_rotation: 'Daily Rotation',
 };

@@ -44,6 +44,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		excludeId = parsed.data;
 	}
 
+	// Optional: preview against a specific elective's minimum_days (P-01).
+	const rawElectiveId = url.searchParams.get('electiveId');
+	let electiveId: string | null = null;
+	if (rawElectiveId) {
+		const parsed = cuid2Schema.safeParse(rawElectiveId);
+		if (!parsed.success) return errorResponse('electiveId must be a valid id', 400);
+		electiveId = parsed.data;
+	}
+
 	try {
 		const impact = await previewRequirementImpact(
 			db,
@@ -52,7 +61,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			clerkshipId,
 			count,
 			undefined,
-			excludeId
+			excludeId,
+			electiveId
 		);
 		return successResponse(impact);
 	} catch (err) {
