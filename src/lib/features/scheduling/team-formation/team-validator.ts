@@ -101,10 +101,13 @@ export class TeamValidator {
       };
     }
 
-    // Validate health system consistency
+    // Validate health system consistency. A mismatch is a soft, overrideable
+    // guide (a team is a coverage group; different health systems may still be
+    // valid) — never a hard block. A one-member team, or members without a
+    // health system, always passes.
     if (config.requireSameHealthSystem) {
-      const hsErrors = await this.validateHealthSystemConsistency(members);
-      errors.push(...hsErrors);
+      const hsWarnings = await this.validateHealthSystemConsistency(members);
+      warnings.push(...hsWarnings);
     }
 
     // Validate site consistency
@@ -204,7 +207,10 @@ export class TeamValidator {
   private async validateHealthSystemConsistency(
     members: TeamMember[]
   ): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
+    const warnings: ValidationError[] = [];
+
+    // A one-member team has nothing to be inconsistent about.
+    if (members.length < 2) return warnings;
 
     const preceptors = await this.db
       .selectFrom('preceptors')
@@ -216,18 +222,25 @@ export class TeamValidator {
       )
       .execute();
 
-    const healthSystems = new Set(preceptors.map(p => p.health_system_id));
-    const hasNull = preceptors.some(p => p.health_system_id === null);
+    // Compare only preceptors that actually have a health system assigned; a
+    // preceptor without one is not a violation (health system is optional in
+    // Stage 1), so it never blocks or warns on its own.
+    const distinctHealthSystems = new Set(
+      preceptors
+        .map(p => p.health_system_id)
+        .filter((id): id is string => id !== null)
+    );
 
-    if (healthSystems.size > 1 || hasNull) {
-      errors.push({
+    if (distinctHealthSystems.size > 1) {
+      warnings.push({
         field: 'healthSystem',
-        message: 'All team members must belong to the same health system',
-        severity: 'error',
+        message:
+          'Team members belong to different health systems. You can still create this team, but they may not be interchangeable coverage.',
+        severity: 'warning',
       });
     }
 
-    return errors;
+    return warnings;
   }
 
   /**

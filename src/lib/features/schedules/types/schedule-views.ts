@@ -167,6 +167,8 @@ export interface PreceptorCapacitySummary {
 	endDate: string;
 	availableDays: number;
 	assignedDays: number;
+	/** Assigned days that fall on a day the preceptor is NOT marked available. */
+	assignedOutsideAvailability: number;
 	openSlots: number;
 	utilizationPercent: number;
 }
@@ -193,6 +195,8 @@ export interface PreceptorSchedule {
 	overallCapacity: {
 		availableDays: number;
 		assignedDays: number;
+		/** Assigned days that fall outside the preceptor's marked availability. */
+		assignedOutsideAvailability: number;
 		openSlots: number;
 		utilizationPercent: number;
 	};

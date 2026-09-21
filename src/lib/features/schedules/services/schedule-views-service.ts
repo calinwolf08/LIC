@@ -392,6 +392,7 @@ export async function getPreceptorScheduleData(
 
 	let totalAvailable = 0;
 	let totalAssigned = 0;
+	let totalAssignedOutside = 0;
 
 	for (const { year, month, name } of months) {
 		const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -399,7 +400,8 @@ export async function getPreceptorScheduleData(
 		const monthEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
 		let available = 0;
-		let assigned = 0;
+		let assignedWithin = 0;
+		let assignedOutside = 0;
 
 		// Count days - use UTC to avoid timezone shifts
 		const current = parseUTCDate(monthStart);
@@ -414,16 +416,23 @@ export async function getPreceptorScheduleData(
 				if (isAvailable === true) {
 					available++;
 				}
+				// An assignment on a day the preceptor is not marked available is
+				// allowed (Stage 1 is permissive, R3.6) but must be counted
+				// separately so it never inflates utilization past 100% or makes
+				// openSlots go negative (client feedback I1).
 				if (assignmentByDate.has(dateStr)) {
-					assigned++;
+					if (isAvailable === true) assignedWithin++;
+					else assignedOutside++;
 				}
 			}
 
 			current.setUTCDate(current.getUTCDate() + 1);
 		}
 
+		const assigned = assignedWithin + assignedOutside;
 		totalAvailable += available;
 		totalAssigned += assigned;
+		totalAssignedOutside += assignedOutside;
 
 		monthlyCapacity.push({
 			periodName: name,
@@ -431,8 +440,13 @@ export async function getPreceptorScheduleData(
 			endDate: monthEnd < endDate ? monthEnd : endDate,
 			availableDays: available,
 			assignedDays: assigned,
-			openSlots: Math.max(0, available - assigned),
-			utilizationPercent: available > 0 ? Math.round((assigned / available) * 100) : 0
+			assignedOutsideAvailability: assignedOutside,
+			// Open slots are available days not filled by an in-availability
+			// assignment; out-of-availability days don't consume an available slot.
+			openSlots: Math.max(0, available - assignedWithin),
+			// Utilization measures how much of the AVAILABLE capacity is used, so it
+			// stays within 0–100%; out-of-availability days are reported separately.
+			utilizationPercent: available > 0 ? Math.round((assignedWithin / available) * 100) : 0
 		});
 	}
 
@@ -528,8 +542,12 @@ export async function getPreceptorScheduleData(
 		preceptorName: preceptor.name,
 		totalAvailableDays: totalAvailable,
 		totalAssignedDays: totalAssigned,
-		openSlots: Math.max(0, totalAvailable - totalAssigned),
-		utilizationPercent: totalAvailable > 0 ? Math.round((totalAssigned / totalAvailable) * 100) : 0,
+		assignedOutsideAvailability: totalAssignedOutside,
+		openSlots: Math.max(0, totalAvailable - (totalAssigned - totalAssignedOutside)),
+		utilizationPercent:
+			totalAvailable > 0
+				? Math.round(((totalAssigned - totalAssignedOutside) / totalAvailable) * 100)
+				: 0,
 		uniqueStudents: assignedStudents.length
 	});
 
@@ -550,8 +568,12 @@ export async function getPreceptorScheduleData(
 		overallCapacity: {
 			availableDays: totalAvailable,
 			assignedDays: totalAssigned,
-			openSlots: Math.max(0, totalAvailable - totalAssigned),
-			utilizationPercent: totalAvailable > 0 ? Math.round((totalAssigned / totalAvailable) * 100) : 0
+			assignedOutsideAvailability: totalAssignedOutside,
+			openSlots: Math.max(0, totalAvailable - (totalAssigned - totalAssignedOutside)),
+			utilizationPercent:
+				totalAvailable > 0
+					? Math.round(((totalAssigned - totalAssignedOutside) / totalAvailable) * 100)
+					: 0
 		},
 		calendar,
 		assignedStudents,
@@ -793,7 +815,7 @@ function emptyPreceptorSchedule(preceptor: {
 		},
 		period: null,
 		monthlyCapacity: [],
-		overallCapacity: { availableDays: 0, assignedDays: 0, openSlots: 0, utilizationPercent: 0 },
+		overallCapacity: { availableDays: 0, assignedDays: 0, assignedOutsideAvailability: 0, openSlots: 0, utilizationPercent: 0 },
 		calendar: [],
 		assignedStudents: [],
 		assignments: []

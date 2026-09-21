@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **48** across 8 phases
+- Spec files: **54** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **49**; findings/decisions mapped: **28**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×32, `@stage2` ×16, `@tenant` ×1
+- Requirements mapped: **49**; findings/decisions mapped: **34**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×38, `@stage2` ×16, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -66,6 +66,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 7 | J7.3 | `phase-7/time-boundaries.spec.ts` | @long @stage2 | — | F-22 |
 | 7 | J7.5 | `phase-7/two-tabs.spec.ts` | @long @stage2 | R6.4 | — |
 | 7 | J7.6 | `phase-7/volume.spec.ts` | @long @stage2 | — | F-30 |
+| 9 | — | `phase-9/assign-outside-availability.spec.ts` | @stage1 | R3.6, R7.4 | CF-I1 |
+| 9 | — | `phase-9/availability-empty-pattern.spec.ts` | @stage1 | R3.2, R3.3 | CF-H1 |
+| 9 | — | `phase-9/schedule-end-before-start.spec.ts` | @stage1 | R1.3 | CF-C1 |
+| 9 | — | `phase-9/signup-invalid-email.spec.ts` | @stage1 | — | CF-A1 |
+| 9 | — | `phase-9/team-single-member.spec.ts` | @stage1 | — | CF-G1 |
+| 9 | — | `phase-9/wizard-activates-schedule.spec.ts` | @stage1 | R1.2, R1.3 | CF-B1 |
 
 ## Requirement → journeys
 
@@ -84,17 +90,17 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | G11 | J5.6, J6.3 |
 | G12 | J6.1 |
 | R1.1 | J1.1, J1.4 |
-| R1.2 | J1.1, J1.4 |
-| R1.3 | J1.2, J1.3, J7.1, J7.2, J7.7 |
+| R1.2 | J1.1, J1.4, wizard-activates-schedule.spec.ts |
+| R1.3 | J1.2, J1.3, J7.1, J7.2, J7.7, schedule-end-before-start.spec.ts, wizard-activates-schedule.spec.ts |
 | R2.1 | J2.3, J2.5, J2.6, J3.7 |
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
 | R3.1 | J2.2, J3.1, J5.1 |
-| R3.2 | J2.2 |
-| R3.3 | J2.2, J2.7 |
+| R3.2 | availability-empty-pattern.spec.ts, J2.2 |
+| R3.3 | availability-empty-pattern.spec.ts, J2.2, J2.7 |
 | R3.4 | J2.2, J2.7, J3.9, J4.5 |
 | R3.5 | J2.2, J3.9 |
-| R3.6 | J2.2 |
+| R3.6 | assign-outside-availability.spec.ts, J2.2 |
 | R4.1 | J2.4, J5.5 |
 | R4.2 | J2.4, J3.7, J7.1, J7.7 |
 | R4.3 | J2.4, J3.7, J7.7 |
@@ -111,7 +117,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
-| R7.4 | J3.3, J4.4 |
+| R7.4 | assign-outside-availability.spec.ts, J3.3, J4.4 |
 | R8.1 | J4.1 |
 | R8.2 | J4.1 |
 | R8.3 | J4.1 |
@@ -125,6 +131,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 | Finding / decision | Journeys |
 | ------------------ | -------- |
+| CF-A1 | signup-invalid-email.spec.ts |
+| CF-B1 | wizard-activates-schedule.spec.ts |
+| CF-C1 | schedule-end-before-start.spec.ts |
+| CF-G1 | team-single-member.spec.ts |
+| CF-H1 | availability-empty-pattern.spec.ts |
+| CF-I1 | assign-outside-availability.spec.ts |
 | D5-1 | J5.3 |
 | D7-1 | J7.1 |
 | D7-2 | J7.4 |

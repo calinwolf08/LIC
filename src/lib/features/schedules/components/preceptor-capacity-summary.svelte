@@ -37,6 +37,21 @@
 		</div>
 	</div>
 
+	<!-- Assigned outside availability (client feedback I1): a bypassable warning so
+	     the coordinator can find and fix days scheduled when the preceptor isn't
+	     marked available, instead of the numbers silently going wrong. -->
+	{#if capacity.assignedOutsideAvailability > 0}
+		<div
+			role="alert"
+			data-testid="assigned-outside-availability"
+			class="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+		>
+			{capacity.assignedOutsideAvailability}
+			assigned {capacity.assignedOutsideAvailability === 1 ? 'day is' : 'days are'} outside this
+			preceptor's availability. Review the calendar to confirm or fix these.
+		</div>
+	{/if}
+
 	<!-- Stats grid -->
 	<div class="grid grid-cols-3 gap-3 pt-2">
 		<div class="text-center p-3 bg-muted/50 rounded-lg">

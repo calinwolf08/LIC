@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { loginSchema } from "../utils";
 	import { authClient } from "$lib/auth-client";
+	import { goto } from "$app/navigation";
 	import { FormField } from "$lib/components/forms";
 	import { useForm } from "$lib/components/forms";
 	import { Input } from "$lib/components/ui/input";
@@ -57,6 +58,19 @@
 			);
 		}
 	});
+
+	// Sign-up hand-off (client feedback A1): if the user typed an email before
+	// clicking "Sign up", validate it first. An invalid email blocks the hand-off
+	// and surfaces the inline field error instead of silently navigating away; a
+	// valid one is carried to the register page so it isn't retyped.
+	function handleSignUpClick(event: MouseEvent) {
+		const email = formManager.values.email.trim();
+		if (email.length === 0) return; // nothing typed — go to /register normally
+		event.preventDefault();
+		formManager.handleBlur('email'); // marks touched + populates field errors
+		if ((formManager.fields.email?.errors?.length ?? 0) > 0) return; // stay, error shows
+		goto(`/register?email=${encodeURIComponent(email)}`);
+	}
 
 	// Merge server errors with client errors
 	const getFieldErrors = (fieldName: keyof typeof formManager.values) => {
@@ -151,7 +165,7 @@
 
 		<div class="text-center text-sm">
 			Don't have an account?
-			<a href="/register" class="text-primary hover:underline" tabindex={formManager.isSubmitting ? -1 : 0}>
+			<a href="/register" onclick={handleSignUpClick} class="text-primary hover:underline" tabindex={formManager.isSubmitting ? -1 : 0}>
 				Sign up
 			</a>
 		</div>

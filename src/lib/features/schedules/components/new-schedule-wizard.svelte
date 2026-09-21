@@ -299,6 +299,31 @@
 		}
 	}
 
+	/**
+	 * Activate the freshly-created schedule so the user lands inside it (correct
+	 * date range, scoped entities) instead of being stranded in the previously
+	 * active/default schedule (client feedback B1). Returns false and surfaces an
+	 * error if activation fails, so we never navigate away pretending it worked.
+	 */
+	async function activateSchedule(id: string): Promise<boolean> {
+		// The app scopes everything to the user's active schedule
+		// (user.active_schedule_id), which is set through this endpoint — not the
+		// global is_active flag on /scheduling-periods/[id]/activate.
+		const res = await fetch('/api/user/active-schedule', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ scheduleId: id })
+		});
+		const json = await res.json().catch(() => null);
+		if (!res.ok || !json?.success) {
+			error =
+				json?.error?.message ||
+				'Schedule created, but it could not be activated. Open it from Schedules to make it active.';
+			return false;
+		}
+		return true;
+	}
+
 	async function handleSubmit(): Promise<void> {
 		submitting = true;
 		error = null;
@@ -364,6 +389,7 @@
 				const result = await response.json();
 
 				if (result.success) {
+					if (!(await activateSchedule(result.data.schedule.id))) return;
 					await refreshSchedules();
 					goto('/calendar');
 				} else {
@@ -411,6 +437,7 @@
 						}
 					}
 
+					if (!(await activateSchedule(newScheduleId))) return;
 					await refreshSchedules();
 					goto('/calendar');
 				} else {
@@ -539,6 +566,12 @@
 						/>
 					</div>
 				</div>
+
+				{#if startDate && endDate && startDate > endDate}
+					<p class="text-sm text-red-600" role="alert" data-testid="date-range-error">
+						End date must be on or after the start date.
+					</p>
+				{/if}
 			</div>
 
 		{:else if currentStep === 1}

@@ -56,6 +56,7 @@
 	let isSaving = $state(false);
 	let isGenerating = $state(false);
 	let error = $state<string | null>(null);
+	let warning = $state<string | null>(null);
 	let showPatternForm = $state(false);
 	let editingPattern = $state<LocalPattern | null>(null);
 	let editingIndex = $state<number | null>(null);
@@ -93,11 +94,13 @@
 	async function generatePreviewLocal() {
 		if (localPatterns.length === 0) {
 			generationResult = null;
+			warning = null;
 			return;
 		}
 
 		isGenerating = true;
 		error = null;
+		warning = null;
 
 		try {
 			// Import the pattern generator functions
@@ -122,6 +125,14 @@
 
 			// Generate dates locally
 			const generatedDates = applyPatternsBySpecificity(createPatterns);
+
+			// H1 (client feedback): a pattern whose weekdays never fall inside its
+			// date range (e.g. Wed/Thu/Fri over a range that is only a Sunday)
+			// produces zero dates. Warn loudly instead of silently saving nothing.
+			warning =
+				createPatterns.length > 0 && generatedDates.length === 0
+					? 'This pattern doesn’t match any dates in the selected range. Check the days of week and the start/end dates.'
+					: null;
 
 			// Calculate stats
 			const availableDates = generatedDates.filter((d) => d.is_available).length;
@@ -399,6 +410,16 @@
 	{#if error}
 		<div class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
 			{error}
+		</div>
+	{/if}
+
+	{#if warning}
+		<div
+			role="alert"
+			data-testid="pattern-no-dates-warning"
+			class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+		>
+			{warning}
 		</div>
 	{/if}
 

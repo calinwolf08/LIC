@@ -893,6 +893,63 @@ describe('Schedule Views Service', () => {
 			expect(result!.overallCapacity.utilizationPercent).toBe(50); // 2/4 = 50%
 		});
 
+		// I1 (client feedback): an assignment on a day the preceptor is NOT marked
+		// available must not corrupt the capacity math — utilization stays within
+		// 0–100%, open slots never go negative, and the out-of-availability count is
+		// reported so the coordinator can find and fix it.
+		it('counts out-of-availability assignments without breaking the math', async () => {
+			const preceptorId = generateTestId('clpreceptor');
+			const studentId = generateTestId('clstudent');
+			const clerkshipId = generateTestId('clclerkship');
+
+			await insertTestData(db, {
+				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
+				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
+				// Exactly ONE available day.
+				availability: [
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1
+					}
+				],
+				// One assignment on the available day, one on a day with no availability
+				// row at all (outside availability).
+				assignments: [
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-20',
+						status: 'confirmed'
+					}
+				]
+			});
+
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
+
+			expect(result!.overallCapacity.availableDays).toBe(1);
+			expect(result!.overallCapacity.assignedDays).toBe(2);
+			expect(result!.overallCapacity.assignedOutsideAvailability).toBe(1);
+			// Open slots never negative; the outside day does not consume a slot.
+			expect(result!.overallCapacity.openSlots).toBe(0);
+			// Utilization measures used AVAILABLE capacity: 1 of 1 = 100%, not 200%.
+			expect(result!.overallCapacity.utilizationPercent).toBe(100);
+		});
+
 		it('groups assignments by student', async () => {
 			const preceptorId = generateTestId('clpreceptor');
 			const studentId1 = generateTestId('clstudent');
