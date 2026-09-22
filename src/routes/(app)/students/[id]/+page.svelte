@@ -174,6 +174,7 @@
 
 <div class="container mx-auto max-w-6xl p-6">
 	<PageHeader
+		entityType="Student"
 		title={data.student.name}
 		description={data.student.email}
 		breadcrumbs={[{ label: 'Students', href: '/students' }, { label: data.student.name }]}

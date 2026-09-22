@@ -56,6 +56,7 @@
 
 <div class="container mx-auto max-w-6xl p-6">
 	<PageHeader
+		entityType="Preceptor"
 		title={data.preceptor.name}
 		description={data.preceptor.email}
 		breadcrumbs={[{ label: 'Preceptors', href: '/preceptors' }, { label: data.preceptor.name }]}

@@ -398,13 +398,32 @@
 
 <div class="space-y-6">
 	<div>
-		<h3 class="text-lg font-semibold">Availability Patterns for {preceptor.name}</h3>
+		<h3 class="text-lg font-semibold">Availability for {preceptor.name}</h3>
 		<p class="mt-1 text-sm text-muted-foreground">
-			Create patterns to define year-long availability schedules
+			Build this preceptor's available days from one or more rules
 			{#if hasUnsavedChanges}
 				<span class="text-orange-600 dark:text-orange-400">• Unsaved changes</span>
 			{/if}
 		</p>
+	</div>
+
+	<!-- How availability works (feedback H2/H3/H5): the day-of-week choice is a
+	     rule applied to a date range, not a statement that the preceptor is always
+	     available on those days. -->
+	<div
+		data-testid="availability-help"
+		class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200"
+	>
+		<p class="font-medium">How this works</p>
+		<ol class="mt-1 list-decimal space-y-0.5 pl-5">
+			<li>
+				Add a rule — e.g. a <strong>Weekly</strong> rule for Mon–Fri
+				<strong>applied to a date range</strong> you choose (it doesn't mean “always available”; you
+				still set the start and end dates).
+			</li>
+			<li>Preview the days the rule produces.</li>
+			<li>Save to turn those days into this preceptor's availability.</li>
+		</ol>
 	</div>
 
 	{#if error}
@@ -520,9 +539,12 @@
 				{#if isSaving}
 					Saving...
 				{:else if generationResult}
-					Save {generationResult.generated_dates} Dates
+					Save {generationResult.generated_dates} availability {generationResult.generated_dates ===
+					1
+						? 'day'
+						: 'days'}
 				{:else}
-					Save All
+					Save availability
 				{/if}
 			</Button>
 		</div>

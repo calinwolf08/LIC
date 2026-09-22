@@ -6,10 +6,16 @@
 		title: string;
 		description?: string;
 		breadcrumbs?: Breadcrumb[];
+		/**
+		 * The kind of entity this page is about (e.g. "Preceptor", "Student").
+		 * Rendered as an eyebrow above the title so the user always knows which
+		 * entity — and therefore whose numbers — they are looking at (feedback N1).
+		 */
+		entityType?: string;
 		actions?: Snippet;
 	}
 
-	let { title, description, breadcrumbs = [], actions }: Props = $props();
+	let { title, description, breadcrumbs = [], entityType, actions }: Props = $props();
 </script>
 
 <div class="mb-6">
@@ -29,6 +35,14 @@
 	{/if}
 	<div class="flex items-start justify-between gap-4">
 		<div>
+			{#if entityType}
+				<p
+					data-testid="page-context"
+					class="mb-1 text-sm font-medium tracking-wide text-muted-foreground uppercase"
+				>
+					{entityType}
+				</p>
+			{/if}
 			<h1 class="text-3xl font-bold tracking-tight">{title}</h1>
 			{#if description}
 				<p class="mt-1 text-muted-foreground">{description}</p>

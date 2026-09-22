@@ -49,6 +49,12 @@
 
 	<!-- Header -->
 	<div class="mb-6">
+		<p
+			data-testid="page-context"
+			class="mb-1 text-sm font-medium tracking-wide text-muted-foreground uppercase"
+		>
+			Health System
+		</p>
 		<h1 class="text-3xl font-bold">{data.healthSystem.name}</h1>
 		{#if data.healthSystem.location}
 			<p class="mt-1 text-muted-foreground">{data.healthSystem.location}</p>

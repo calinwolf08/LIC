@@ -115,7 +115,10 @@
 </svelte:head>
 
 <div class="container mx-auto py-8">
-	<PageHeader title="Schedules" description="Each schedule is a scheduling period with its own students, preceptors, and assignments.">
+	<PageHeader
+		title="Schedules"
+		description="Each schedule is a scheduling period with its own students, preceptors, and assignments. If you're just getting started, finish setting up your current schedule rather than creating a new one — create a new schedule only when you need a separate period (e.g. a new academic year)."
+	>
 		{#snippet actions()}
 			<Button onclick={() => goto('/schedules/new')}>+ New schedule</Button>
 		{/snippet}

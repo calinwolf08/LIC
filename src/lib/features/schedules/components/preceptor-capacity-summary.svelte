@@ -18,7 +18,10 @@
 </script>
 
 <div class="border rounded-lg p-4 space-y-4">
-	<h3 class="font-semibold text-lg">Capacity Overview</h3>
+	<div>
+		<h3 class="font-semibold text-lg">Capacity Overview</h3>
+		<p class="text-xs text-muted-foreground">This preceptor's availability and assigned days</p>
+	</div>
 
 	<!-- Overall utilization -->
 	<div class="space-y-2">

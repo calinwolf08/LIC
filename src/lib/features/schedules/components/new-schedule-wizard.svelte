@@ -254,30 +254,72 @@
 		await refreshPreceptors();
 	}
 
+	/**
+	 * Auto-select entities that appeared after an inline create (feedback C4): a
+	 * coordinator who just added an entity expects it to be included in the
+	 * schedule without hunting for it in the list. We diff ids around the refresh
+	 * and add any new ones to the current selection.
+	 */
+	function autoSelectNew(beforeIds: string[], afterIds: string[], current: string[]): string[] {
+		const before = new Set(beforeIds);
+		const created = afterIds.filter((id) => !before.has(id));
+		return created.length ? Array.from(new Set([...current, ...created])) : current;
+	}
+
 	// Handlers for form success
 	async function handleHealthSystemCreated() {
 		showHealthSystemForm = false;
+		const before = localEntityData.healthSystems.map((e) => e.id);
 		await refreshHealthSystems();
+		selectedHealthSystems = autoSelectNew(
+			before,
+			localEntityData.healthSystems.map((e) => e.id),
+			selectedHealthSystems
+		);
 	}
 
 	async function handleSiteCreated() {
 		showSiteForm = false;
+		const before = localEntityData.sites.map((e) => e.id);
 		await refreshSites();
+		selectedSites = autoSelectNew(
+			before,
+			localEntityData.sites.map((e) => e.id),
+			selectedSites
+		);
 	}
 
 	async function handleClerkshipCreated() {
 		showClerkshipForm = false;
+		const before = localEntityData.clerkships.map((e) => e.id);
 		await refreshClerkships();
+		selectedClerkships = autoSelectNew(
+			before,
+			localEntityData.clerkships.map((e) => e.id),
+			selectedClerkships
+		);
 	}
 
 	async function handlePreceptorCreated() {
 		showPreceptorForm = false;
+		const before = localEntityData.preceptors.map((e) => e.id);
 		await refreshPreceptors();
+		selectedPreceptors = autoSelectNew(
+			before,
+			localEntityData.preceptors.map((e) => e.id),
+			selectedPreceptors
+		);
 	}
 
 	async function handleStudentCreated() {
 		showStudentForm = false;
+		const before = localEntityData.students.map((e) => e.id);
 		await refreshStudents();
+		selectedStudents = autoSelectNew(
+			before,
+			localEntityData.students.map((e) => e.id),
+			selectedStudents
+		);
 	}
 
 	async function handleTeamCreated() {
@@ -576,7 +618,12 @@
 
 		{:else if currentStep === 1}
 			<!-- Step 1: Health Systems -->
-			<h2 class="text-xl font-semibold mb-6">Select Health Systems</h2>
+			<h2 class="text-xl font-semibold mb-1">Include Health Systems</h2>
+			<p class="text-sm text-gray-500 mb-6">
+				Check the health systems this schedule should cover. This chooses what's
+				<em>included</em> in the schedule — it doesn't change the health systems themselves, and
+				you can add or edit them anytime. This step is optional.
+			</p>
 
 			{#if localEntityData.healthSystems.length === 0}
 				<div class="text-center py-8">
@@ -610,7 +657,11 @@
 
 		{:else if currentStep === 2}
 			<!-- Step 2: Sites -->
-			<h2 class="text-xl font-semibold mb-6">Select Sites</h2>
+			<h2 class="text-xl font-semibold mb-1">Include Sites</h2>
+			<p class="text-sm text-gray-500 mb-6">
+				Check the sites this schedule should cover. The health system is shown so sites that share
+				a name (e.g. two "Kaiser" locations) are easy to tell apart. This step is optional.
+			</p>
 
 			{#if localEntityData.sites.length === 0}
 				<div class="text-center py-8">
@@ -625,12 +676,20 @@
 				</div>
 			{:else}
 				<EntitySelectionTable
-					entities={localEntityData.sites.map((s) => ({ id: s.id, name: s.name }))}
+					entities={localEntityData.sites.map((s) => ({
+						id: s.id,
+						name: s.name,
+						health_system_name: s.health_system_name
+					}))}
 					selectedIds={selectedSites}
 					onSelectionChange={(ids) => (selectedSites = ids)}
 					searchPlaceholder="Search sites..."
 					emptyMessage="No sites available"
-				/>
+				>
+					{#snippet columns(site)}
+						<span>{site.health_system_name ?? 'No health system'}</span>
+					{/snippet}
+				</EntitySelectionTable>
 				<div class="mt-4">
 					<button
 						type="button"
@@ -823,7 +882,11 @@
 
 		{:else if currentStep === 7}
 			<!-- Step 7: Review -->
-			<h2 class="text-xl font-semibold mb-6">Review & Create</h2>
+			<h2 class="text-xl font-semibold mb-1">Review & Create</h2>
+			<p class="text-sm text-gray-500 mb-6">
+				After you create this schedule you'll land in it, and you can add, remove, or edit any of
+				these entities anytime from the Students, Preceptors, Clerkships, and Locations pages.
+			</p>
 
 			<!-- Scheduling Warnings -->
 			{#if selectedTeams.length === 0 || selectedStudents.length === 0 || selectedClerkships.length === 0}
