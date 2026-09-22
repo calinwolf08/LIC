@@ -338,7 +338,11 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="max_students">Max Students</Label>
+				<Label for="max_students">Max students (this preceptor)</Label>
+				<p class="text-xs text-muted-foreground">
+					How many students this preceptor can supervise on the same day. This is the preceptor's
+					own capacity, not the site's.
+				</p>
 				<Input
 					id="max_students"
 					type="number"

@@ -114,6 +114,10 @@
 
 			<div class="space-y-2">
 				<Label for="name">Name</Label>
+				<p class="text-xs text-muted-foreground">
+					The name you'll recognize this clerkship by throughout the app (e.g. "Internal
+					Medicine"). Use your program's official course name if you want it to match your catalog.
+				</p>
 				<Input
 					id="name"
 					type="text"

@@ -11,7 +11,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 - Spec files: **56** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **37**
+- Requirements mapped: **50**; findings/decisions mapped: **38**
 - Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×40, `@stage2` ×16, `@tenant` ×1
 
 ## Journeys by phase
@@ -73,7 +73,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/signup-invalid-email.spec.ts` | @stage1 | — | CF-A1 |
 | 9 | — | `phase-9/team-single-member.spec.ts` | @stage1 | — | CF-G1 |
 | 9 | — | `phase-9/wizard-activates-schedule.spec.ts` | @stage1 | R1.2, R1.3 | CF-B1 |
-| 9 | — | `phase-9/wizard-clarity.spec.ts` | @stage1 | R1.3 | CF-C4, CF-C5 |
+| 9 | — | `phase-9/wizard-clarity.spec.ts` | @stage1 | R1.3 | CF-C4, CF-C5, CF-D2 |
 
 ## Requirement → journeys
 
@@ -139,6 +139,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-C1 | schedule-end-before-start.spec.ts |
 | CF-C4 | wizard-clarity.spec.ts |
 | CF-C5 | wizard-clarity.spec.ts |
+| CF-D2 | wizard-clarity.spec.ts |
 | CF-G1 | team-single-member.spec.ts |
 | CF-H1 | availability-empty-pattern.spec.ts |
 | CF-I1 | assign-outside-availability.spec.ts |

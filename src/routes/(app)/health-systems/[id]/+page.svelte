@@ -56,9 +56,6 @@
 			Health System
 		</p>
 		<h1 class="text-3xl font-bold">{data.healthSystem.name}</h1>
-		{#if data.healthSystem.location}
-			<p class="mt-1 text-muted-foreground">{data.healthSystem.location}</p>
-		{/if}
 	</div>
 
 	<!-- Tabs -->

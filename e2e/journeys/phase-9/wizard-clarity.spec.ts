@@ -1,4 +1,4 @@
-// @coverage @finding(CF-C4) @finding(CF-C5) @req(R1.3)
+// @coverage @finding(CF-C4) @finding(CF-C5) @finding(CF-D2) @req(R1.3)
 /**
  * CF-C4 / CF-C5 — The new-schedule wizard explains what selection means and
  * auto-selects entities the user creates inline.
@@ -37,6 +37,8 @@ test.describe('CF-C4/C5 wizard selection clarity + auto-select', { tag: ['@stage
 			.getByRole('button', { name: /add health system/i })
 			.first()
 			.click();
+		// D2: the health-system form no longer collects a location (it lives on sites).
+		await expect(page.locator('#location')).toHaveCount(0);
 		const hsName = `Kaiser ${Date.now()}`;
 		await page.locator('#name').fill(hsName);
 		await page.getByRole('button', { name: /^create$/i }).click();
