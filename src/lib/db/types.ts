@@ -248,6 +248,7 @@ export interface Preceptors {
   max_students: Generated<number>;
   name: string;
   phone: string | null;
+  phone_type: string | null;
   updated_at: Generated<string>;
 }
 

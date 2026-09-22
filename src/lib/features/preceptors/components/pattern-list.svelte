@@ -98,9 +98,9 @@
 
 	function getSpecificityLabel(specificity: number): string {
 		const labels: Record<number, string> = {
-			1: 'Repeating',
-			2: 'Block',
-			3: 'Override'
+			1: 'Recurring',
+			2: 'Date block',
+			3: 'Day override'
 		};
 		return labels[specificity] || `Level ${specificity}`;
 	}
@@ -143,7 +143,7 @@
 										: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
 								}`}
 							>
-								{pattern.is_available ? 'Available' : 'Unavailable'}
+								{pattern.is_available ? 'Marks available' : 'Marks unavailable'}
 							</span>
 							<span class="text-sm text-muted-foreground">•</span>
 							<span class={`px-2 py-0.5 text-xs font-medium rounded ${getSpecificityColor(pattern.specificity)}`}>

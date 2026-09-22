@@ -774,6 +774,13 @@
 				{/if}
 
 				{#if range}
+					{#if preceptor}
+						<p class="text-xs text-muted-foreground" data-testid="availability-hint">
+							Green days are within this preceptor's availability. Days they're not marked
+							available appear amber — you can still pick them and confirm the override. If no days
+							look available, this preceptor may have no availability set yet.
+						</p>
+					{/if}
 					<AssignmentDatePicker
 						rangeStart={range.start}
 						rangeEnd={range.end}

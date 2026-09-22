@@ -23,6 +23,7 @@
 		name: '',
 		email: '',
 		phone: '',
+		phone_type: '',
 		health_system_id: '',
 		max_students: 1
 	});
@@ -149,6 +150,7 @@
 		try {
 			const dataToValidate = {
 				...formData,
+				phone_type: formData.phone_type || undefined,
 				site_ids: selectedSiteIds.length > 0 ? selectedSiteIds : undefined
 			};
 
@@ -343,14 +345,28 @@
 
 				<div class="space-y-2">
 					<Label for="phone">Phone (Optional)</Label>
-					<Input
-						id="phone"
-						type="tel"
-						bind:value={formData.phone}
-						placeholder="+1 (555) 123-4567"
-						disabled={isSubmitting}
-						class={errors.phone ? 'border-destructive' : ''}
-					/>
+					<div class="flex gap-2">
+						<Input
+							id="phone"
+							type="tel"
+							bind:value={formData.phone}
+							placeholder="+1 (555) 123-4567"
+							disabled={isSubmitting}
+							class="flex-1 {errors.phone ? 'border-destructive' : ''}"
+						/>
+						<select
+							id="phone_type"
+							aria-label="Phone type"
+							bind:value={formData.phone_type}
+							disabled={isSubmitting}
+							class="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							<option value="">Type…</option>
+							<option value="cell">Cell</option>
+							<option value="office">Office</option>
+							<option value="home">Home</option>
+						</select>
+					</div>
 					{#if errors.phone}
 						<p class="text-sm text-destructive">{errors.phone}</p>
 					{/if}

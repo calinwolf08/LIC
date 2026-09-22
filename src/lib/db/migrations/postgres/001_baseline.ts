@@ -138,6 +138,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('name', TEXT, (col) => col.notNull())
 		.addColumn('email', TEXT, (col) => col.notNull())
 		.addColumn('phone', TEXT)
+		.addColumn('phone_type', TEXT)
 		.addColumn('health_system_id', TEXT)
 		.addColumn('max_students', INTEGER, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))

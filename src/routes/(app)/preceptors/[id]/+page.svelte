@@ -83,7 +83,14 @@
 					<dl class="space-y-1 text-sm">
 						<div><dt class="inline text-muted-foreground">Email:</dt> <dd class="inline">{data.preceptor.email}</dd></div>
 						{#if data.preceptor.phone}
-							<div><dt class="inline text-muted-foreground">Phone:</dt> <dd class="inline">{data.preceptor.phone}</dd></div>
+							<div>
+								<dt class="inline text-muted-foreground">Phone:</dt>
+								<dd class="inline">
+									{data.preceptor.phone}{#if data.preceptor.phone_type}
+										<span class="text-muted-foreground"> ({data.preceptor.phone_type})</span>
+									{/if}
+								</dd>
+							</div>
 						{/if}
 					</dl>
 					{#if data.preceptor.sites && data.preceptor.sites.length > 0}

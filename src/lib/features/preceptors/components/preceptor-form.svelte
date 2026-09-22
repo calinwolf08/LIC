@@ -15,6 +15,7 @@
 		name: string;
 		email: string;
 		phone?: string | null;
+		phone_type?: string | null;
 		health_system_id?: string | null;
 		max_students?: number;
 		site_ids?: string[];
@@ -35,6 +36,7 @@
 		name: preceptor?.name || '',
 		email: preceptor?.email || '',
 		phone: preceptor?.phone || '',
+		phone_type: preceptor?.phone_type || '',
 		health_system_id: preceptor?.health_system_id || '',
 		max_students: preceptor?.max_students || 1
 	};
@@ -153,6 +155,9 @@
 			// Include site_ids in the submission
 			const dataToValidate = {
 				...formData,
+				// An unselected phone type is "" in the <select>; the schema expects
+				// an enum value or nothing, so normalise the empty choice to undefined.
+				phone_type: formData.phone_type || undefined,
 				site_ids: selectedSiteIds.length > 0 ? selectedSiteIds : undefined
 			};
 
@@ -253,14 +258,28 @@
 
 			<div class="space-y-2">
 				<Label for="phone">Phone (Optional)</Label>
-				<Input
-					id="phone"
-					type="tel"
-					bind:value={formData.phone}
-					placeholder="+1 (555) 123-4567"
-					disabled={isSubmitting}
-					class={errors.phone ? 'border-destructive' : ''}
-				/>
+				<div class="flex gap-2">
+					<Input
+						id="phone"
+						type="tel"
+						bind:value={formData.phone}
+						placeholder="+1 (555) 123-4567"
+						disabled={isSubmitting}
+						class="flex-1 {errors.phone ? 'border-destructive' : ''}"
+					/>
+					<select
+						id="phone_type"
+						aria-label="Phone type"
+						bind:value={formData.phone_type}
+						disabled={isSubmitting}
+						class="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						<option value="">Type…</option>
+						<option value="cell">Cell</option>
+						<option value="office">Office</option>
+						<option value="home">Home</option>
+					</select>
+				</div>
 				{#if errors.phone}
 					<p class="text-sm text-destructive">{errors.phone}</p>
 				{/if}
