@@ -6,7 +6,8 @@ import {
 	getEligiblePreceptorIds,
 	clerkshipHasWorkablePreceptor,
 	getClerkshipSiteIds,
-	getTeamMemberPreceptorIds
+	getTeamMemberPreceptorIds,
+	getTeamServeableClerkships
 } from './eligibility';
 
 const HS = 'hs-1';
@@ -197,5 +198,71 @@ describe('eligibility predicate (03 §6)', () => {
 		await addTeam(db, 'team-1', ['p1', 'p2']);
 		const members = await getTeamMemberPreceptorIds(db, CLERK);
 		expect([...members].sort()).toEqual(['p1', 'p2']);
+	});
+
+	// G3/G4: serveable clerkships = clerkships EVERY member can cover; overlap is
+	// false when members share none.
+	describe('getTeamServeableClerkships', () => {
+		async function seedTwoClerkships(db: Kysely<DB>) {
+			const ts = new Date().toISOString();
+			// CLERK (from baseSeed) is offered at site-1; add CLERK2 at site-2.
+			await db
+				.insertInto('clerkships')
+				.values({
+					id: 'clerk-2',
+					name: 'Surgery',
+					clerkship_type: 'outpatient',
+					required_days: 5,
+					created_at: ts,
+					updated_at: ts
+				})
+				.execute();
+			await db
+				.insertInto('clerkship_sites')
+				.values([
+					{ clerkship_id: CLERK, site_id: 'site-1', created_at: ts },
+					{ clerkship_id: 'clerk-2', site_id: 'site-2', created_at: ts }
+				])
+				.execute();
+			await db
+				.insertInto('schedule_clerkships')
+				.values([
+					{ id: 'sc-1', schedule_id: SCHED, clerkship_id: CLERK, created_at: ts },
+					{ id: 'sc-2', schedule_id: SCHED, clerkship_id: 'clerk-2', created_at: ts }
+				])
+				.execute();
+		}
+
+		it('flags no overlap when members serve different clerkships', async () => {
+			await seedTwoClerkships(db);
+			await addPreceptor(db, 'p1');
+			await addPreceptor(db, 'p2');
+			await addAvailability(db, 'p1', 'site-1', '2025-03-03'); // p1 → CLERK only
+			await addAvailability(db, 'p2', 'site-2', '2025-03-04'); // p2 → clerk-2 only
+
+			const result = await getTeamServeableClerkships(db, SCHED, ['p1', 'p2']);
+			expect(result.serveable).toHaveLength(0);
+			expect(result.overlap).toBe(false);
+		});
+
+		it('lists the shared clerkship when members overlap', async () => {
+			await seedTwoClerkships(db);
+			await addPreceptor(db, 'p1');
+			await addPreceptor(db, 'p2');
+			await addAvailability(db, 'p1', 'site-1', '2025-03-03'); // both at site-1 → CLERK
+			await addAvailability(db, 'p2', 'site-1', '2025-03-04');
+
+			const result = await getTeamServeableClerkships(db, SCHED, ['p1', 'p2']);
+			expect(result.serveable.map((c) => c.id)).toEqual([CLERK]);
+			expect(result.overlap).toBe(true);
+		});
+
+		it('a one-member team trivially overlaps', async () => {
+			await seedTwoClerkships(db);
+			await addPreceptor(db, 'p1');
+			await addAvailability(db, 'p1', 'site-1', '2025-03-03');
+			const result = await getTeamServeableClerkships(db, SCHED, ['p1']);
+			expect(result.overlap).toBe(true);
+		});
 	});
 });

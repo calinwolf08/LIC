@@ -175,6 +175,47 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.soft.some((v) => v.code === 'outside_schedule')).toBe(true);
 	});
 
+	// F5: assigning outside the student's core preceptors is a soft warning; with
+	// no core preceptors set, or when the preceptor IS core, it's clean.
+	it('flags an assignment outside the student core preceptors as soft', async () => {
+		const ts = new Date().toISOString();
+		const otherPreceptor = 'core-preceptor-1';
+		await db
+			.insertInto('preceptors')
+			.values({
+				id: otherPreceptor,
+				name: 'Dr Core',
+				email: 'core@x.com',
+				max_students: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// The student's only core preceptor is `otherPreceptor`, so assigning the
+		// base PRECEPTOR is outside-core.
+		await db
+			.insertInto('student_core_preceptors')
+			.values({ id: 'scp-1', student_id: STUDENT, preceptor_id: otherPreceptor, created_at: ts })
+			.execute();
+
+		const outside = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
+		expect(outside.valid).toBe(true);
+		expect(outside.soft.some((v) => v.code === 'outside_core_preceptor')).toBe(true);
+
+		// Assigning the core preceptor itself is clean.
+		const inCore = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			preceptor_id: otherPreceptor,
+			date: MON
+		});
+		expect(inCore.soft.some((v) => v.code === 'outside_core_preceptor')).toBe(false);
+	});
+
+	it('does not flag core-preceptor when the student has none set', async () => {
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
+		expect(r.soft.some((v) => v.code === 'outside_core_preceptor')).toBe(false);
+	});
+
 	it('flags preceptor capacity as soft (different student, same slot)', async () => {
 		await createManualAssignment(db, SCHEDULE, { ...base, date: WED });
 		const r = await validateAssignmentCandidate(db, SCHEDULE, {

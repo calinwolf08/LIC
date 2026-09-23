@@ -410,7 +410,8 @@
 
 	let selectionWide = $derived({
 		overRequired: (impact?.exceedsBy ?? 0) > 0,
-		notOnboarded: serverSoftCodes.includes('not_onboarded')
+		notOnboarded: serverSoftCodes.includes('not_onboarded'),
+		outsideCorePreceptor: serverSoftCodes.includes('outside_core_preceptor')
 	});
 
 	let liveAnalysis = $derived(analyseSelection(selectedDates, [...dayStates.values()], selectionWide));

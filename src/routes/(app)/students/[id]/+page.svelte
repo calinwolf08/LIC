@@ -166,6 +166,33 @@
 			toast.error('Failed to update onboarding');
 		}
 	}
+
+	// ---- Core preceptors (F5) ----
+	let corePreceptorIds = $state<string[]>([...(data.corePreceptorIds ?? [])]);
+	let savingCore = $state(false);
+	function toggleCore(id: string) {
+		corePreceptorIds = corePreceptorIds.includes(id)
+			? corePreceptorIds.filter((x) => x !== id)
+			: [...corePreceptorIds, id];
+	}
+	async function saveCorePreceptors() {
+		savingCore = true;
+		try {
+			const res = await fetch(`/api/students/${data.studentId}/core-preceptors`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ preceptor_ids: corePreceptorIds })
+			});
+			if (!res.ok) throw new Error('Failed to save core preceptors');
+			toast.success('Core preceptors saved');
+			await invalidateAll();
+		} catch (err) {
+			console.error('Failed to save core preceptors:', err);
+			toast.error('Failed to save core preceptors');
+		} finally {
+			savingCore = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -223,6 +250,35 @@
 				items={summaryItems}
 				onEdit={() => (activeTab = 'details')}
 			/>
+		</Card>
+
+		<!-- Core preceptors (F5) -->
+		<Card class="mb-6 p-6" data-testid="core-preceptors">
+			<h3 class="text-lg font-semibold">Core preceptors</h3>
+			<p class="mt-1 mb-3 text-sm text-muted-foreground">
+				This student's continuity preceptors. Assigning the student to a preceptor outside this set
+				shows a warning you can override.
+			</p>
+			{#if data.preceptors.length === 0}
+				<p class="text-sm text-muted-foreground">No preceptors in this schedule yet.</p>
+			{:else}
+				<div class="max-h-48 space-y-1 overflow-y-auto">
+					{#each data.preceptors as p (p.id)}
+						<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50">
+							<input
+								type="checkbox"
+								checked={corePreceptorIds.includes(p.id)}
+								onchange={() => toggleCore(p.id)}
+								class="h-4 w-4 rounded border-gray-300"
+							/>
+							{p.name}
+						</label>
+					{/each}
+				</div>
+				<Button class="mt-3" size="sm" onclick={saveCorePreceptors} disabled={savingCore}>
+					{savingCore ? 'Saving…' : 'Save core preceptors'}
+				</Button>
+			{/if}
 		</Card>
 
 		<!-- Summary cards -->

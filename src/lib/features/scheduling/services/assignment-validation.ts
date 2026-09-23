@@ -19,6 +19,8 @@ export type ViolationCode =
 	| 'site_not_allowed'
 	| 'outside_schedule'
 	| 'not_onboarded'
+	/** The preceptor is not one of the student's core preceptors. */
+	| 'outside_core_preceptor'
 	| 'entity_missing'
 	/** Assigning this day takes the student past the clerkship's required days. */
 	| 'over_required_days'
@@ -62,7 +64,8 @@ export const OVERRIDABLE_CODES = [
 	'over_required_days',
 	'past_date',
 	'site_not_allowed',
-	'outside_schedule'
+	'outside_schedule',
+	'outside_core_preceptor'
 ] as const satisfies readonly ViolationCode[];
 
 export type OverrideCode = (typeof OVERRIDABLE_CODES)[number];
@@ -82,7 +85,8 @@ export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
 	over_required_days: 'More days than required',
 	past_date: 'Date already passed',
 	site_not_allowed: 'Site not approved for clerkship',
-	outside_schedule: 'Outside the schedule range'
+	outside_schedule: 'Outside the schedule range',
+	outside_core_preceptor: 'Not the student’s core preceptor'
 };
 
 export interface CandidateValidation {
@@ -376,6 +380,25 @@ export async function validateAssignmentCandidate(
 				}
 			});
 		}
+	}
+
+	// Outside the student's core preceptor(s) (soft). Only when the student has
+	// declared any core preceptors: assigning them to someone outside that set is
+	// allowed but flagged for review (client feedback F5).
+	const corePreceptors = await db
+		.selectFrom('student_core_preceptors')
+		.select('preceptor_id')
+		.where('student_id', '=', candidate.student_id)
+		.execute();
+	if (
+		corePreceptors.length > 0 &&
+		!corePreceptors.some((c) => c.preceptor_id === candidate.preceptor_id)
+	) {
+		soft.push({
+			code: 'outside_core_preceptor',
+			message: "This preceptor is not one of the student's core preceptors",
+			entity_refs: { student_id: candidate.student_id, preceptor_id: candidate.preceptor_id }
+		});
 	}
 
 	// Create-time-only soft codes. Opt-in so whole-schedule validation is not

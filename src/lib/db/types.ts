@@ -326,6 +326,13 @@ export interface SchedulePreceptors {
   schedule_id: string;
 }
 
+export interface StudentCorePreceptors {
+  created_at: Generated<string>;
+  id: string | null;
+  preceptor_id: string;
+  student_id: string;
+}
+
 export interface ScheduleSites {
   created_at: Generated<string>;
   id: string | null;
@@ -510,6 +517,7 @@ export interface DB {
   site_availability_patterns: SiteAvailabilityPatterns;
   site_capacity_rules: SiteCapacityRules;
   sites: Sites;
+  student_core_preceptors: StudentCorePreceptors;
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;
   team_sites: TeamSites;

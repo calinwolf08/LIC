@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **57** across 9 phases
+- Spec files: **59** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **39**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×41, `@stage2` ×16, `@tenant` ×1
+- Requirements mapped: **50**; findings/decisions mapped: **42**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×43, `@stage2` ×16, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -68,10 +68,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 7 | J7.6 | `phase-7/volume.spec.ts` | @long @stage2 | — | F-30 |
 | 9 | — | `phase-9/assign-outside-availability.spec.ts` | @stage1 | R3.6, R7.4 | CF-I1 |
 | 9 | — | `phase-9/availability-empty-pattern.spec.ts` | @stage1 | R3.2, R3.3 | CF-H1 |
+| 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
 | 9 | — | `phase-9/preceptor-phone-type.spec.ts` | @stage1 | — | CF-F1 |
 | 9 | — | `phase-9/schedule-end-before-start.spec.ts` | @stage1 | R1.3 | CF-C1 |
 | 9 | — | `phase-9/signup-invalid-email.spec.ts` | @stage1 | — | CF-A1 |
+| 9 | — | `phase-9/team-serveable.spec.ts` | @stage1 | — | CF-G3, CF-G4 |
 | 9 | — | `phase-9/team-single-member.spec.ts` | @stage1 | — | CF-G1 |
 | 9 | — | `phase-9/wizard-activates-schedule.spec.ts` | @stage1 | R1.2, R1.3 | CF-B1 |
 | 9 | — | `phase-9/wizard-clarity.spec.ts` | @stage1 | R1.3 | CF-C4, CF-C5, CF-D2 |
@@ -120,7 +122,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
-| R7.4 | assign-outside-availability.spec.ts, J3.3, J4.4 |
+| R7.4 | assign-outside-availability.spec.ts, core-preceptor.spec.ts, J3.3, J4.4 |
 | R8.1 | J4.1 |
 | R8.2 | J4.1 |
 | R8.3 | J4.1 |
@@ -142,7 +144,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-C5 | wizard-clarity.spec.ts |
 | CF-D2 | wizard-clarity.spec.ts |
 | CF-F1 | preceptor-phone-type.spec.ts |
+| CF-F5 | core-preceptor.spec.ts |
 | CF-G1 | team-single-member.spec.ts |
+| CF-G3 | team-serveable.spec.ts |
+| CF-G4 | team-serveable.spec.ts |
 | CF-H1 | availability-empty-pattern.spec.ts |
 | CF-I1 | assign-outside-availability.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |

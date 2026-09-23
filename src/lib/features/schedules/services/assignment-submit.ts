@@ -15,6 +15,7 @@ export type OverrideCategory =
 	| 'preceptor_capacity'
 	| 'blackout_date'
 	| 'not_onboarded'
+	| 'outside_core_preceptor'
 	| 'over_required_days'
 	| 'past_date';
 
@@ -39,6 +40,8 @@ export interface SelectionWideFlags {
 	overRequired?: boolean;
 	/** The student has not completed onboarding at the preceptor's health system. */
 	notOnboarded?: boolean;
+	/** The preceptor is not one of the student's core preceptors. */
+	outsideCorePreceptor?: boolean;
 }
 
 export interface FlagAnalysis {
@@ -55,6 +58,7 @@ const CATEGORY_ORDER: OverrideCategory[] = [
 	'preceptor_capacity',
 	'blackout_date',
 	'not_onboarded',
+	'outside_core_preceptor',
 	'over_required_days',
 	'past_date'
 ];
@@ -108,6 +112,7 @@ export function analyseSelection(
 	// Selection-wide categories only matter if something is actually submittable.
 	if (submittableDates.length > 0) {
 		if (selectionWide.notOnboarded) bucket('not_onboarded');
+		if (selectionWide.outsideCorePreceptor) bucket('outside_core_preceptor');
 		if (selectionWide.overRequired) bucket('over_required_days');
 	}
 
@@ -183,6 +188,10 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 	not_onboarded: {
 		title: 'Student is not onboarded',
 		describe: "The student has not completed onboarding at this preceptor's health system."
+	},
+	outside_core_preceptor: {
+		title: 'Not a core preceptor',
+		describe: "This preceptor is not one of the student's core preceptors."
 	},
 	over_required_days: {
 		title: 'More days than required',

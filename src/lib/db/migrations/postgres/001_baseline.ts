@@ -552,6 +552,20 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();
 
+	// Student core preceptors (migration 029): a student's continuity preceptors.
+	await db.schema
+		.createTable('student_core_preceptors')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('student_id', TEXT, (col) =>
+			col.notNull().references('students.id').onDelete('cascade')
+		)
+		.addColumn('preceptor_id', TEXT, (col) =>
+			col.notNull().references('preceptors.id').onDelete('cascade')
+		)
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.addUniqueConstraint('student_core_preceptors_unique', ['student_id', 'preceptor_id'])
+		.execute();
+
 	// ---------------------------------------------------------- assignments
 
 	// `site_id` has no foreign key on SQLite either — migration 010 added it with

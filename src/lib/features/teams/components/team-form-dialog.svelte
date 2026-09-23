@@ -301,9 +301,10 @@
 							disabled={isSubmitting}
 						/>
 						<Label for="requireSameSpecialty" class="cursor-pointer">
-							Require Same Specialty
+							Members should serve the same clerkships
 							<span class="block text-xs font-normal text-muted-foreground">
-								All team members must have the same specialty
+								Optional guide: warn if members don't share the clerkship(s) they can cover (their
+								"specialty"). You can override and still save.
 							</span>
 						</Label>
 					</div>
@@ -317,9 +318,10 @@
 							disabled={isSubmitting}
 						/>
 						<Label for="requiresAdminApproval" class="cursor-pointer">
-							Requires Admin Approval
+							Requires your approval
 							<span class="block text-xs font-normal text-muted-foreground">
-								Team assignments must be approved by admin
+								You (the coordinator) must approve backup/fallback assignments from this team before
+								they're final.
 							</span>
 						</Label>
 					</div>

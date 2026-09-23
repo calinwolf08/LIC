@@ -171,6 +171,14 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	await db.schema
+		.createTable('student_core_preceptors')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
 		.createTable('clerkship_electives')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())

@@ -19,6 +19,7 @@
 			team: any;
 			sites: Array<{ id: string; name: string }>;
 			preceptors: Array<{ id: string; name: string; sites?: Array<{ id: string; name: string }> }>;
+			serveable: { serveable: Array<{ id: string; name: string }>; overlap: boolean };
 			teamId: string;
 		};
 	}
@@ -219,6 +220,40 @@
 			<Button class="mt-4" onclick={() => goto(backUrl)}>Back</Button>
 		</Card>
 	{:else}
+		<!-- Serveable clerkships inferred from members (G3) + overlap warning (G4) -->
+		{#if !data.serveable.overlap}
+			<div
+				role="alert"
+				data-testid="team-overlap-warning"
+				class="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+			>
+				<p class="font-medium">Members don't overlap</p>
+				<p>
+					These preceptors share no clerkship they can all cover (based on their availability at
+					allowed sites). You can keep the team, but it may not work as interchangeable coverage —
+					review the members' sites and availability.
+				</p>
+			</div>
+		{/if}
+		<Card class="mb-4 p-4" data-testid="team-serveable">
+			<h3 class="text-sm font-semibold">Serveable clerkships</h3>
+			<p class="mb-2 text-xs text-muted-foreground">
+				Inferred from what every member can cover (their availability at each clerkship's allowed
+				sites).
+			</p>
+			{#if data.serveable.serveable.length > 0}
+				<div class="flex flex-wrap gap-2">
+					{#each data.serveable.serveable as c (c.id)}
+						<span class="rounded bg-muted px-2 py-0.5 text-xs">{c.name}</span>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-xs text-muted-foreground">
+					No clerkship is currently covered by all members.
+				</p>
+			{/if}
+		</Card>
+
 		<!-- Header -->
 		<div class="mb-6 flex items-start justify-between">
 			<div>
