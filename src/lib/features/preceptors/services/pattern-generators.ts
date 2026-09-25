@@ -457,6 +457,9 @@ export function applyPatternsBySpecificity(patterns: CreatePattern[]): Generated
 				// Carry the preference through to the materialised day (H8); it only
 				// meaningfully applies to available days.
 				preference: pattern.is_available ? pattern.preference : undefined,
+				// Carry the pattern's note through to the materialised day (H6). Kept for
+				// unavailable days too — "out for conference" is exactly when it helps.
+				notes: pattern.reason ?? undefined,
 				source_pattern_type: pattern.pattern_type
 			});
 		}

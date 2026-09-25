@@ -69,6 +69,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('preference', 'text')
+		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -370,6 +371,35 @@ describe('Availability Service', () => {
 				'preferred'
 			);
 			expect(cleared.preference).toBeNull();
+		});
+
+		// H6: a per-day note is stored and kept regardless of availability.
+		it('stores a note on an available day and keeps it when the day turns unavailable', async () => {
+			const withNote = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-16',
+				true,
+				'preferred',
+				'Mornings only'
+			);
+			expect(withNote.notes).toBe('Mornings only');
+
+			// The note explains an unavailable day too ("out for conference"), so it is
+			// NOT cleared like preference is.
+			const unavailable = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-16',
+				false,
+				null,
+				'Out for conference'
+			);
+			expect(unavailable.is_available).toBe(0);
+			expect(unavailable.preference).toBeNull();
+			expect(unavailable.notes).toBe('Out for conference');
 		});
 
 		it('creates unavailability record', async () => {

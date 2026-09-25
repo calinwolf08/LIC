@@ -90,7 +90,8 @@ export async function setAvailability(
 	siteId: string,
 	date: string,
 	isAvailable: boolean,
-	preference: string | null = null
+	preference: string | null = null,
+	notes: string | null = null
 ): Promise<Selectable<PreceptorAvailability>> {
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, preceptorId);
@@ -116,6 +117,8 @@ export async function setAvailability(
 			.set({
 				is_available: isAvailable ? 1 : 0,
 				preference: isAvailable ? preference : null,
+				// A note is kept regardless of availability (H6).
+				notes,
 				updated_at: timestamp
 			})
 			.where('id', '=', existing.id)
@@ -140,6 +143,7 @@ export async function setAvailability(
 			date,
 			is_available: isAvailable ? 1 : 0,
 			preference: isAvailable ? preference : null,
+			notes,
 			created_at: timestamp,
 			updated_at: timestamp
 		};

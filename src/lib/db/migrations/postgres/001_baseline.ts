@@ -366,6 +366,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('date', TEXT, (col) => col.notNull())
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('preference', TEXT)
+		.addColumn('notes', TEXT)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();

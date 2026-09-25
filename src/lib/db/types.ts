@@ -193,6 +193,7 @@ export interface PreceptorAvailability {
   date: string;
   id: string | null;
   is_available: Generated<number>;
+  notes: string | null;
   preceptor_id: string;
   preference: string | null;
   site_id: string;

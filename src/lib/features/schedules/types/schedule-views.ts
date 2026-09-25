@@ -74,6 +74,8 @@ export interface CalendarDay {
 	assignment?: CalendarDayAssignment;
 	/** For preceptor view: availability status */
 	availability?: 'available' | 'unavailable' | 'unset';
+	/** For preceptor view: free-text note for the day (H6). */
+	availabilityNote?: string;
 	/** For preceptor view: student assigned */
 	assignedStudent?: {
 		id: string;

@@ -153,6 +153,7 @@ await db.schema
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
 		.addColumn('preference', 'text')
+		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -209,7 +210,13 @@ async function insertTestData(
 			date: string;
 			status: string;
 		}>;
-		availability?: Array<{ id: string; preceptor_id: string; date: string; is_available: number }>;
+		availability?: Array<{
+			id: string;
+			preceptor_id: string;
+			date: string;
+			is_available: number;
+			notes?: string | null;
+		}>;
 	}
 ) {
 	const timestamp = new Date().toISOString();
@@ -827,6 +834,30 @@ describe('Schedule Views Service', () => {
 			expect(result!.overallCapacity.availableDays).toBe(3);
 			expect(result!.overallCapacity.openSlots).toBe(3);
 			expect(result!.overallCapacity.utilizationPercent).toBe(0);
+		});
+
+		// H6: a per-day availability note surfaces on the calendar read model.
+		it('surfaces the per-day availability note on the calendar', async () => {
+			const preceptorId = generateTestId('clpreceptor');
+
+			await insertTestData(db, {
+				preceptors: [{ id: preceptorId, name: 'Dr. Note', email: 'note@hospital.com' }],
+				availability: [
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1,
+						notes: 'Mornings only'
+					}
+				]
+			});
+
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
+			const day = result!.calendar
+				.flatMap((m) => m.weeks.flatMap((w) => w.days))
+				.find((d) => d.date === '2024-01-15');
+			expect(day?.availabilityNote).toBe('Mornings only');
 		});
 
 		it('calculates utilization with assignments', async () => {

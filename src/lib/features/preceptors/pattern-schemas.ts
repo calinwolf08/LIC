@@ -228,6 +228,8 @@ export const generatedDateSchema = z.object({
 	site_id: cuid2Schema,
 	is_available: z.boolean(),
 	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
+	/** Free-text note carried from the source pattern's `reason` (H6). */
+	notes: z.string().max(500).optional(),
 	source_pattern_id: cuid2Schema.optional(),
 	source_pattern_type: patternTypeSchema.optional()
 });

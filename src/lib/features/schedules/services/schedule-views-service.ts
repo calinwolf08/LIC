@@ -341,15 +341,21 @@ export async function getPreceptorScheduleData(
 	// Get preceptor availability
 	const availability = await db
 		.selectFrom('preceptor_availability')
-		.select(['date', 'is_available'])
+		.select(['date', 'is_available', 'notes'])
 		.where('preceptor_id', '=', preceptorId)
 		.where('date', '>=', startDate)
 		.where('date', '<=', endDate)
 		.execute();
 
 	const availabilityMap = new Map<string, boolean>();
+	// Per-day availability notes (H6). Multiple site rows can share a date; keep the
+	// first non-empty note so the calendar shows the planning annotation.
+	const availabilityNoteMap = new Map<string, string>();
 	for (const a of availability) {
 		availabilityMap.set(a.date, a.is_available === 1);
+		if (a.notes && !availabilityNoteMap.has(a.date)) {
+			availabilityNoteMap.set(a.date, a.notes);
+		}
 	}
 
 	// Get all assignments for this preceptor
@@ -451,7 +457,7 @@ export async function getPreceptorScheduleData(
 	}
 
 	// Build calendar with availability and assignments - use UTC to avoid timezone shifts
-	const calendarData: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; assignedStudent?: any; assignment?: any }> = [];
+	const calendarData: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; availabilityNote?: string; assignedStudent?: any; assignment?: any }> = [];
 
 	const current = parseUTCDate(startDate);
 	const end = parseUTCDate(endDate);
@@ -464,6 +470,7 @@ export async function getPreceptorScheduleData(
 		calendarData.push({
 			date: dateStr,
 			availability: isAvailable === true ? 'available' : isAvailable === false ? 'unavailable' : 'unset',
+			availabilityNote: availabilityNoteMap.get(dateStr),
 			assignedStudent: assignment ? {
 				id: assignment.student_id,
 				name: assignment.student_name,
@@ -927,7 +934,7 @@ function buildCalendarMonths(
 function buildCalendarMonthsWithAvailability(
 	startDate: string,
 	endDate: string,
-	data: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; assignedStudent?: any; assignment?: any }>
+	data: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; availabilityNote?: string; assignedStudent?: any; assignment?: any }>
 ): CalendarMonth[] {
 	// Collect all data per date (supports multiple assignments per day)
 	const dataMap = new Map<string, Array<typeof data[0]>>();
@@ -982,6 +989,7 @@ function buildCalendarMonthsWithAvailability(
 					// Keep assignment for backward compatibility
 					assignment: firstDayData?.assignment,
 					availability: firstDayData?.availability,
+					availabilityNote: firstDayData?.availabilityNote,
 					assignedStudent: firstDayData?.assignedStudent
 				});
 

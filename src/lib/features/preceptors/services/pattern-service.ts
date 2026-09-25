@@ -352,7 +352,8 @@ export async function saveGeneratedDates(
 			generatedDate.site_id,
 			generatedDate.date,
 			generatedDate.is_available,
-			generatedDate.preference ?? null
+			generatedDate.preference ?? null,
+			generatedDate.notes ?? null
 		);
 	}
 

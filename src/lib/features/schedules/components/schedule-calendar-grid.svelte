@@ -157,6 +157,8 @@
 								data-in-range={day.isInRange !== false}
 								data-blackout={isBlackoutDate(day.date)}
 								data-conflict={violationDates.has(day.date)}
+								data-note={mode === 'preceptor' ? (day.availabilityNote ?? '') : ''}
+								title={mode === 'preceptor' && day.availabilityNote ? day.availabilityNote : undefined}
 								class="{getDayClasses(day)} min-h-[76px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative cursor-pointer {!isInteractive(day) ? 'pointer-events-none' : ''}"
 								onclick={() => handleDayClick(day)}
 								onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleDayClick(day)}
@@ -171,6 +173,15 @@
 										title={(violationMessages[day.date] ?? ['Scheduling conflict']).join('\n')}
 										aria-label="Scheduling conflict"
 									></span>
+								{/if}
+
+								{#if mode === 'preceptor' && day.availabilityNote && day.isCurrentMonth}
+									<span
+										data-testid="cal-note-{day.date}"
+										class="absolute left-0.5 top-0.5 z-10 text-[9px] leading-none"
+										title={day.availabilityNote}
+										aria-label="Availability note: {day.availabilityNote}">📝</span
+									>
 								{/if}
 
 								{#if day.assignments && day.assignments.length > 0}
