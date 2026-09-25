@@ -473,6 +473,155 @@ describe('validateCandidateWithContext (pure, for Step 10)', () => {
 			)
 		).toBe(true);
 	});
+
+	// preferred_day_available (H8): an in-a-pinch day is noted when the preceptor
+	// still has an OPEN preferred day the student could take instead.
+	const pinchCtx = (over: Partial<ValidationContext> = {}) =>
+		ctx({
+			preceptorInPinch: new Map([[PRECEPTOR, new Set(['2025-03-03'])]]),
+			preceptorPreferredDates: new Map([[PRECEPTOR, ['2025-03-05']]]),
+			preceptorDateOccupancy: new Map(),
+			...over
+		});
+
+	it('flags preferred_day_available when an in-a-pinch day has an open preferred alternative', () => {
+		const r = validateCandidateWithContext({ ...base, date: '2025-03-03' }, pinchCtx(), new Map());
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(true);
+	});
+
+	it('does not flag preferred_day_available when the preferred day is at capacity', () => {
+		const r = validateCandidateWithContext(
+			{ ...base, date: '2025-03-03' },
+			pinchCtx({ preceptorDateOccupancy: new Map([[`${PRECEPTOR}:2025-03-05`, 1]]) }),
+			new Map()
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag preferred_day_available when the student is busy on the preferred day', () => {
+		const r = validateCandidateWithContext(
+			{ ...base, date: '2025-03-03' },
+			pinchCtx(),
+			new Map([[`${STUDENT}:2025-03-05`, 'x']])
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag preferred_day_available when only in-a-pinch days remain', () => {
+		const r = validateCandidateWithContext(
+			{ ...base, date: '2025-03-03' },
+			pinchCtx({ preceptorPreferredDates: new Map() }),
+			new Map()
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('omitting the preference maps skips the preferred_day_available check (backward compat)', () => {
+		const r = validateCandidateWithContext({ ...base, date: '2025-03-03' }, ctx(), new Map());
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+});
+
+describe('preferred_day_available (DB-backed, H8)', () => {
+	let db: Kysely<DB>;
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	async function addAvail(date: string, preference: 'preferred' | 'in_a_pinch' | null) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: `av-${date}-${preference ?? 'n'}`,
+				preceptor_id: PRECEPTOR,
+				site_id: 'site-1',
+				date,
+				is_available: 1,
+				preference,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('flags an in-a-pinch day when the preceptor has an open preferred day', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(true);
+	});
+
+	it('does not flag when there is no preferred day open', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag when the preferred day is already taken by the student', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		await createManualAssignment(db, SCHEDULE, { ...base, date: WED });
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag the preferred day itself', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: WED },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('is create-time-gated: generation (checkCreateTimeCodes:false) never sees it', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: false }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('is overridable: a manual create is blocked until the code is accepted', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const blocked = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		expect(blocked.ok).toBe(false);
+		const ok = await createManualAssignment(db, SCHEDULE, {
+			...base,
+			date: MON,
+			override_codes: ['preferred_day_available']
+		});
+		expect(ok.ok).toBe(true);
+		if (ok.ok) expect(ok.assignment.override_codes).toContain('preferred_day_available');
+	});
 });
 
 describe('validateAssignmentCandidate — edge cases (DB-backed)', () => {

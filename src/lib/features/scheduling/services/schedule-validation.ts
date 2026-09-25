@@ -86,7 +86,7 @@ export async function validateSchedule(
 			db.selectFrom('clerkships').select('id').where('id', 'in', clerkshipIds).execute(),
 			db
 				.selectFrom('preceptor_availability')
-				.select(['preceptor_id', 'date', 'is_available'])
+				.select(['preceptor_id', 'date', 'is_available', 'preference'])
 				.where('preceptor_id', 'in', preceptorIds)
 				.execute(),
 			db
@@ -115,12 +115,37 @@ export async function validateSchedule(
 	}
 
 	const preceptorUnavailable = new Map<string, Set<string>>();
+	// Preference-aware maps for the `preferred_day_available` health note (H8): the
+	// "in a pinch" days a preceptor is on, and the "preferred" days (in range) they
+	// still have open.
+	const preceptorInPinch = new Map<string, Set<string>>();
+	const preceptorPreferredDates = new Map<string, string[]>();
+	const rangeStart = period?.start_date ?? '0000-01-01';
+	const rangeEnd = period?.end_date ?? '9999-12-31';
 	for (const a of availability) {
 		if (a.is_available === 0) {
 			if (!preceptorUnavailable.has(a.preceptor_id))
 				preceptorUnavailable.set(a.preceptor_id, new Set());
 			preceptorUnavailable.get(a.preceptor_id)!.add(a.date);
+			continue;
 		}
+		if (a.preference === 'in_a_pinch') {
+			if (!preceptorInPinch.has(a.preceptor_id))
+				preceptorInPinch.set(a.preceptor_id, new Set());
+			preceptorInPinch.get(a.preceptor_id)!.add(a.date);
+		} else if (a.preference === 'preferred' && a.date >= rangeStart && a.date <= rangeEnd) {
+			if (!preceptorPreferredDates.has(a.preceptor_id))
+				preceptorPreferredDates.set(a.preceptor_id, []);
+			preceptorPreferredDates.get(a.preceptor_id)!.push(a.date);
+		}
+	}
+
+	// Per-preceptor-day occupancy from committed assignments, so the health note only
+	// counts a preferred day as an alternative when the preceptor is under capacity.
+	const preceptorDateOccupancy = new Map<string, number>();
+	for (const a of assignments) {
+		const k = `${a.preceptor_id}:${a.date}`;
+		preceptorDateOccupancy.set(k, (preceptorDateOccupancy.get(k) ?? 0) + 1);
 	}
 
 	const clerkshipSiteMap = new Map<string, Set<string>>();
@@ -148,7 +173,10 @@ export async function validateSchedule(
 		blackoutDates: new Set(blackouts.map((b) => b.date)),
 		existingStudentIds: new Set(studentIds),
 		existingPreceptorIds: new Set(preceptorIds),
-		existingClerkshipIds: new Set(clerkships.map((c) => c.id!))
+		existingClerkshipIds: new Set(clerkships.map((c) => c.id!)),
+		preceptorInPinch,
+		preceptorPreferredDates,
+		preceptorDateOccupancy
 	};
 
 	// Preceptor-date occupancy for capacity checks: keep the actual assignments on

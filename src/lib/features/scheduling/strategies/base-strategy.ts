@@ -58,6 +58,13 @@ export interface StrategyContext {
     siteId: string | null; // Primary site (for backwards compat)
     siteIds?: string[]; // All sites preceptor is associated with
     availability: string[]; // Dates this preceptor is available
+    /**
+     * Per-date availability preference (H8): 'preferred' days are weighted ahead of
+     * untagged days, and 'in_a_pinch' days are used only when nothing better is
+     * open, so auto-generation never places an in-a-pinch day while a preferred day
+     * is still available. Dates absent from the map are untagged (neutral).
+     */
+    preferenceByDate?: Record<string, 'preferred' | 'in_a_pinch' | null>;
     currentAssignmentCount: number; // For load balancing
     maxStudentsPerDay: number;
     maxStudentsPerYear: number;
@@ -217,6 +224,23 @@ export abstract class BaseStrategy implements SchedulingStrategy {
     return [...preceptors].sort(
       (a, b) => a.currentAssignmentCount - b.currentAssignmentCount || a.id.localeCompare(b.id)
     );
+  }
+
+  /**
+   * Helper: Preference rank for a (preceptor, date) — lower is better (H8).
+   * 'preferred' (0) is chosen before untagged (1), and 'in_a_pinch' (2) is used
+   * only when nothing better remains. This makes greedy day selection consume
+   * preferred days first, so an in-a-pinch day is never placed while a preferred
+   * day is still open.
+   */
+  protected preferenceRank(
+    preceptor: StrategyContext['availablePreceptors'][0],
+    date: string
+  ): number {
+    const pref = preceptor.preferenceByDate?.[date];
+    if (pref === 'preferred') return 0;
+    if (pref === 'in_a_pinch') return 2;
+    return 1;
   }
 
   /**

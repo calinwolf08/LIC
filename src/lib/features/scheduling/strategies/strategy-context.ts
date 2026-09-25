@@ -238,15 +238,20 @@ export class StrategyContextBuilder {
     const result: StrategyContext['availablePreceptors'] = [];
 
     for (const preceptor of preceptors) {
-      // Get preceptor availability with site info
+      // Get preceptor availability with site info and preference (H8)
       const availability = await this.db
         .selectFrom('preceptor_availability')
-        .select(['date', 'site_id'])
+        .select(['date', 'site_id', 'preference'])
         .where('preceptor_id', '=', preceptor.id)
         .where('is_available', '=', 1)
         .execute();
 
       const availabilityDates = availability.map(a => a.date);
+      const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
+      for (const a of availability) {
+        preferenceByDate[a.date] =
+          (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
+      }
 
       // Get current assignment count from database
       const dbAssignmentCount = await this.db
@@ -290,6 +295,7 @@ export class StrategyContextBuilder {
         siteId: preceptorSites[0]?.site_id ?? null, // Use first site for backwards compat
         siteIds: preceptorSites.map(ps => ps.site_id),
         availability: availabilityDates,
+        preferenceByDate,
         currentAssignmentCount: totalAssignmentCount,
         maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
         maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,

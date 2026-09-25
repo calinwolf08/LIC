@@ -16,6 +16,7 @@ export type OverrideCategory =
 	| 'blackout_date'
 	| 'not_onboarded'
 	| 'outside_core_preceptor'
+	| 'preferred_day_available'
 	| 'over_required_days'
 	| 'past_date';
 
@@ -42,6 +43,8 @@ export interface SelectionWideFlags {
 	notOnboarded?: boolean;
 	/** The preceptor is not one of the student's core preceptors. */
 	outsideCorePreceptor?: boolean;
+	/** The day sits on an "in a pinch" availability while a preferred day was open. */
+	preferredDayAvailable?: boolean;
 }
 
 export interface FlagAnalysis {
@@ -59,6 +62,7 @@ const CATEGORY_ORDER: OverrideCategory[] = [
 	'blackout_date',
 	'not_onboarded',
 	'outside_core_preceptor',
+	'preferred_day_available',
 	'over_required_days',
 	'past_date'
 ];
@@ -113,6 +117,7 @@ export function analyseSelection(
 	if (submittableDates.length > 0) {
 		if (selectionWide.notOnboarded) bucket('not_onboarded');
 		if (selectionWide.outsideCorePreceptor) bucket('outside_core_preceptor');
+		if (selectionWide.preferredDayAvailable) bucket('preferred_day_available');
 		if (selectionWide.overRequired) bucket('over_required_days');
 	}
 
@@ -192,6 +197,11 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 	outside_core_preceptor: {
 		title: 'Not a core preceptor',
 		describe: "This preceptor is not one of the student's core preceptors."
+	},
+	preferred_day_available: {
+		title: 'A preferred day is available',
+		describe:
+			'This day is one the preceptor marked "in a pinch", but they have a preferred day open that the student could take instead.'
 	},
 	over_required_days: {
 		title: 'More days than required',

@@ -21,6 +21,11 @@ export type ViolationCode =
 	| 'not_onboarded'
 	/** The preceptor is not one of the student's core preceptors. */
 	| 'outside_core_preceptor'
+	/**
+	 * The day sits on an "in a pinch" availability while the preceptor has an open
+	 * "preferred" day the student could take instead (client feedback H8).
+	 */
+	| 'preferred_day_available'
 	| 'entity_missing'
 	/** Assigning this day takes the student past the clerkship's required days. */
 	| 'over_required_days'
@@ -65,7 +70,8 @@ export const OVERRIDABLE_CODES = [
 	'past_date',
 	'site_not_allowed',
 	'outside_schedule',
-	'outside_core_preceptor'
+	'outside_core_preceptor',
+	'preferred_day_available'
 ] as const satisfies readonly ViolationCode[];
 
 export type OverrideCode = (typeof OVERRIDABLE_CODES)[number];
@@ -86,7 +92,8 @@ export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
 	past_date: 'Date already passed',
 	site_not_allowed: 'Site not approved for clerkship',
 	outside_schedule: 'Outside the schedule range',
-	outside_core_preceptor: 'Not the student’s core preceptor'
+	outside_core_preceptor: 'Not the student’s core preceptor',
+	preferred_day_available: 'A preferred day was available'
 };
 
 export interface CandidateValidation {
@@ -121,6 +128,16 @@ export interface ValidationContext {
 	existingStudentIds: Set<string>;
 	existingPreceptorIds: Set<string>;
 	existingClerkshipIds: Set<string>;
+	/**
+	 * preceptorId -> set of dates the preceptor is available on with an "in a pinch"
+	 * preference. Optional: when omitted, the `preferred_day_available` check is
+	 * skipped (H8).
+	 */
+	preceptorInPinch?: Map<string, Set<string>>;
+	/** preceptorId -> dates the preceptor is available on with a "preferred" preference (in range). */
+	preceptorPreferredDates?: Map<string, string[]>;
+	/** "preceptorId:date" -> number of assignments already on that preceptor-day, for open-slot checks. */
+	preceptorDateOccupancy?: Map<string, number>;
 }
 
 /**
@@ -209,6 +226,28 @@ export function validateCandidateWithContext(
 	// occupancy before calling if needed.
 	// (Occupancy computed by the caller-provided map is out of scope here; the
 	//  DB-backed path below handles the single-candidate case.)
+
+	// Preferred day available (soft): this day sits on an "in a pinch" availability
+	// while the preceptor still has an OPEN "preferred" day — one in range where the
+	// student is free and the preceptor is under capacity — that could have been
+	// used instead (H8). Only evaluated when the caller supplies the preference maps.
+	if (ctx.preceptorInPinch?.get(candidate.preceptor_id)?.has(candidate.date)) {
+		const preferred = ctx.preceptorPreferredDates?.get(candidate.preceptor_id) ?? [];
+		const cap = ctx.preceptorMaxStudents.get(candidate.preceptor_id) ?? 1;
+		const hasOpenPreferred = preferred.some(
+			(d) =>
+				d !== candidate.date &&
+				!existingByStudentDate.has(`${candidate.student_id}:${d}`) &&
+				(ctx.preceptorDateOccupancy?.get(`${candidate.preceptor_id}:${d}`) ?? 0) < cap
+		);
+		if (hasOpenPreferred) {
+			soft.push({
+				code: 'preferred_day_available',
+				message: 'Assigned on an "in a pinch" day while a preferred day was available',
+				entity_refs: { preceptor_id: candidate.preceptor_id }
+			});
+		}
+	}
 
 	return { valid: hard.length === 0, hard, soft };
 }
@@ -312,7 +351,7 @@ export async function validateAssignmentCandidate(
 	// Preceptor availability (soft)
 	const avail = await db
 		.selectFrom('preceptor_availability')
-		.select('is_available')
+		.select(['is_available', 'preference'])
 		.where('preceptor_id', '=', candidate.preceptor_id)
 		.where('date', '=', candidate.date)
 		.executeTakeFirst();
@@ -436,6 +475,61 @@ export async function validateAssignmentCandidate(
 						clerkship_id: candidate.clerkship_id
 					}
 				});
+			}
+		}
+
+		// Preferred day available (soft, manual-create only). The chosen day is an
+		// "in a pinch" availability for the preceptor, yet the preceptor has an OPEN
+		// "preferred" day — one in the schedule range where the student is free and
+		// the preceptor is under capacity — that could have been used instead (H8).
+		// Advisory: allowed with an override so the coordinator is aware. Gated behind
+		// checkCreateTimeCodes so auto-generation (which actively prefers preferred
+		// days) is not flagged by mid-run DB state.
+		if (avail && avail.is_available === 1 && avail.preference === 'in_a_pinch') {
+			const rangeStart = period?.start_date ?? '0000-01-01';
+			const rangeEnd = period?.end_date ?? '9999-12-31';
+			const preferredRows = await db
+				.selectFrom('preceptor_availability')
+				.select('date')
+				.where('preceptor_id', '=', candidate.preceptor_id)
+				.where('is_available', '=', 1)
+				.where('preference', '=', 'preferred')
+				.where('date', '>=', rangeStart)
+				.where('date', '<=', rangeEnd)
+				.where('date', '!=', candidate.date)
+				.execute();
+			if (preferredRows.length > 0) {
+				const dates = preferredRows.map((r) => r.date);
+				const [studentBusy, preceptorDays] = await Promise.all([
+					db
+						.selectFrom('schedule_assignments')
+						.select('date')
+						.where('student_id', '=', candidate.student_id)
+						.where('date', 'in', dates)
+						.execute(),
+					db
+						.selectFrom('schedule_assignments')
+						.select('date')
+						.where('preceptor_id', '=', candidate.preceptor_id)
+						.where('date', 'in', dates)
+						.execute()
+				]);
+				const studentBusyDates = new Set(studentBusy.map((r) => r.date));
+				const preceptorCountByDate = new Map<string, number>();
+				for (const r of preceptorDays) {
+					preceptorCountByDate.set(r.date, (preceptorCountByDate.get(r.date) ?? 0) + 1);
+				}
+				const cap = preceptor?.max_students ?? 1;
+				const hasOpenPreferred = dates.some(
+					(d) => !studentBusyDates.has(d) && (preceptorCountByDate.get(d) ?? 0) < cap
+				);
+				if (hasOpenPreferred) {
+					soft.push({
+						code: 'preferred_day_available',
+						message: 'This is an "in a pinch" day, but a preferred day is available',
+						entity_refs: { preceptor_id: candidate.preceptor_id }
+					});
+				}
 			}
 		}
 	}

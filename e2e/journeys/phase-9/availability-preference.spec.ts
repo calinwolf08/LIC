@@ -5,7 +5,8 @@
  * Client feedback: "Preceptor available need to model 'in a pinch' or
  * 'preferred'." In Basic the coordinator tags available days with a preference,
  * sees it on the pattern, and it persists onto the materialised availability
- * rows (the paid engine later weights it — out of scope for this Basic journey).
+ * rows. How that tag is then *consumed* — the manual warning and the auto-gen
+ * weighting — is covered by availability-preference-consumption.spec.ts.
  */
 
 import { test, expect, apiOf, fromToday } from '../../fixtures';

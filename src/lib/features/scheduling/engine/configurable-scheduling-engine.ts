@@ -677,10 +677,10 @@ export class ConfigurableSchedulingEngine {
           .where('id', 'in', elective.preceptorIds)
           .execute();
 
-        // Get availability for these preceptors
+        // Get availability for these preceptors (with preference for H8 weighting)
         const availability = await this.db
           .selectFrom('preceptor_availability')
-          .select(['preceptor_id', 'date', 'site_id'])
+          .select(['preceptor_id', 'date', 'site_id', 'preference'])
           .where('preceptor_id', 'in', elective.preceptorIds)
           .where('is_available', '=', 1)
           .execute();
@@ -693,6 +693,11 @@ export class ConfigurableSchedulingEngine {
             const availableDates = preceptorAvailability
               .map(a => a.date)
               .filter(date => !studentAssignedDates.has(date)); // Exclude dates student is already assigned
+            const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
+            for (const a of preceptorAvailability) {
+              preferenceByDate[a.date] =
+                (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
+            }
 
             return {
               id: preceptor.id,
@@ -701,6 +706,7 @@ export class ConfigurableSchedulingEngine {
               siteId: null, // Site determined by availability, not preceptor record
               siteIds: [], // Sites determined by availability
               availability: availableDates,
+              preferenceByDate,
               currentAssignmentCount: 0,
               // Use preceptor's max_students setting for daily capacity
               maxStudentsPerDay: preceptor.max_students ?? config.maxStudentsPerDay ?? 1,
