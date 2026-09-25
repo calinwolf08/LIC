@@ -111,6 +111,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('specialty', 'text')
 		.addColumn('clerkship_type', 'text')
 		.addColumn('required_days', 'integer', (col) => col.notNull())
+		.addColumn('min_required_days', 'integer')
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())

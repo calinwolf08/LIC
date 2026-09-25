@@ -45,6 +45,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('clerkship_type', 'text', (col) => col.notNull())
 		.addColumn('required_days', 'integer', (col) => col.notNull())
+		.addColumn('min_required_days', 'integer')
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -82,6 +83,7 @@ function createMockClerkshipData(
 		name: 'Family Medicine Clerkship',
 		clerkship_type: 'outpatient',
 		required_days: 5,
+		min_required_days: null,
 		description: null,
 		...overrides
 	};
@@ -253,6 +255,21 @@ describe('Clerkship Service', () => {
 			const created = await createClerkship(db, data);
 
 			expect(created.created_at).toBe(created.updated_at);
+		});
+
+		// E2: allowable-miss floor.
+		it('stores a min_required_days floor at or below required', async () => {
+			const created = await createClerkship(
+				db,
+				createMockClerkshipData({ required_days: 5, min_required_days: 3 })
+			);
+			expect(created.min_required_days).toBe(3);
+		});
+
+		it('rejects a min_required_days above required', async () => {
+			await expect(
+				createClerkship(db, createMockClerkshipData({ required_days: 3, min_required_days: 5 }))
+			).rejects.toThrow('cannot exceed required days');
 		});
 	});
 

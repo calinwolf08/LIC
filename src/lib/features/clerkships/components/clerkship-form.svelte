@@ -20,6 +20,7 @@
 		name: clerkship?.name || '',
 		clerkship_type: (clerkship?.clerkship_type as 'inpatient' | 'outpatient') || 'inpatient',
 		required_days: clerkship?.required_days || 1,
+		min_required_days: clerkship?.min_required_days ?? null,
 		description: clerkship?.description || ''
 	};
 
@@ -38,6 +39,7 @@
 				(formData.name !== initial.name ||
 					formData.clerkship_type !== initial.clerkship_type ||
 					formData.required_days !== initial.required_days ||
+					formData.min_required_days !== initial.min_required_days ||
 					formData.description !== initial.description)
 		)
 	);
@@ -174,6 +176,29 @@
 				/>
 				{#if errors.required_days}
 					<p class="text-sm text-destructive">{errors.required_days}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2">
+				<Label for="min_required_days">
+					Minimum required days <span class="text-muted-foreground">(optional)</span>
+				</Label>
+				<Input
+					id="min_required_days"
+					type="number"
+					bind:value={formData.min_required_days}
+					min="1"
+					max={formData.required_days}
+					placeholder="Same as required"
+					disabled={isSubmitting}
+					class={errors.min_required_days ? 'border-destructive' : ''}
+				/>
+				<p class="text-xs text-muted-foreground">
+					A student counts as complete once they reach this many days, even if below the full
+					requirement. Leave blank to require all {formData.required_days} days.
+				</p>
+				{#if errors.min_required_days}
+					<p class="text-sm text-destructive">{errors.min_required_days}</p>
 				{/if}
 			</div>
 

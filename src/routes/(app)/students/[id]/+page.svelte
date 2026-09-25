@@ -319,7 +319,8 @@
 									{c.clerkship_name}
 								</a>
 								<span class="text-sm text-muted-foreground">
-									{c.completed} done · {c.scheduled} scheduled · {c.unscheduled} left / {c.required}
+									{c.completed} done · {c.scheduled} scheduled · {c.unscheduled} left / {c.required}{#if c.min_required > 0 && c.min_required < c.required}
+										<span class="text-muted-foreground"> (min {c.min_required})</span>{/if}
 								</span>
 							</div>
 							<!-- Segmented progress bar -->

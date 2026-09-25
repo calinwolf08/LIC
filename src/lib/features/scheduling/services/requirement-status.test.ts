@@ -165,6 +165,34 @@ describe('getStudentStatuses', () => {
 		expect(status.scheduling_state).toBe('full');
 	});
 
+	// E2: a min_required_days floor marks the student complete at the floor.
+	it('marks a clerkship complete once the min_required_days floor is met', async () => {
+		// Medicine requires 3 days; set an allowable-miss floor of 2.
+		await db.updateTable('clerkships').set({ min_required_days: 2 }).where('id', '=', CLERK).execute();
+		await addAssignment(db, 'm1', '2025-05-01');
+		await addAssignment(db, 'm2', '2025-05-02');
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.required).toBe(3);
+		expect(c.min_required).toBe(2);
+		expect(c.completed).toBe(2);
+		// Floor met → no remaining gap and no false "unscheduled".
+		expect(c.unscheduled).toBe(0);
+		expect(status.scheduling_state).toBe('full');
+		// Still tracked as under the full requirement via over_scheduled staying 0.
+		expect(c.over_scheduled).toBe(0);
+	});
+
+	it('without a floor, the full required days are still the target', async () => {
+		await addAssignment(db, 'm1', '2025-05-01');
+		await addAssignment(db, 'm2', '2025-05-02');
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.min_required).toBe(0);
+		expect(c.unscheduled).toBe(1); // 3 required - 2
+		expect(status.scheduling_state).toBe('partial');
+	});
+
 	it('counts an assignment dated exactly today as scheduled, not completed', async () => {
 		await addAssignment(db, 'a-today', TODAY);
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);

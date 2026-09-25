@@ -70,6 +70,11 @@ export async function createClerkship(
 		throw new ConflictError('Clerkship name already exists');
 	}
 
+	// The allowable-miss floor cannot exceed the requirement (E2).
+	if (data.min_required_days != null && data.min_required_days > data.required_days) {
+		throw new ConflictError('Minimum required days cannot exceed required days');
+	}
+
 	const timestamp = new Date().toISOString();
 	const clerkshipId = crypto.randomUUID();
 
@@ -78,6 +83,7 @@ export async function createClerkship(
 		name: data.name,
 		clerkship_type: data.clerkship_type,
 		required_days: data.required_days,
+		min_required_days: data.min_required_days ?? null,
 		description: data.description || null,
 		created_at: timestamp,
 		updated_at: timestamp
@@ -131,10 +137,24 @@ export async function updateClerkship(
 		}
 	}
 
+	// Cross-check the allowable-miss floor against the effective required days (E2):
+	// a min-only update is validated against the stored required_days.
+	if (data.min_required_days != null) {
+		const effectiveRequired = data.required_days ?? existing.required_days;
+		if (data.min_required_days > effectiveRequired) {
+			throw new ConflictError('Minimum required days cannot exceed required days');
+		}
+	}
+
 	const updated = await db
 		.updateTable('clerkships')
 		.set({
 			...data,
+			// undefined would confuse the query builder; only set the column when the
+			// caller included it (null clears the floor).
+			...(data.min_required_days !== undefined
+				? { min_required_days: data.min_required_days }
+				: {}),
 			updated_at: new Date().toISOString()
 		})
 		.where('id', '=', id)

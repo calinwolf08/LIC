@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **63** across 9 phases
+- Spec files: **64** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **45**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×47, `@stage2` ×17, `@tenant` ×1
+- Requirements mapped: **50**; findings/decisions mapped: **46**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×48, `@stage2` ×17, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -66,6 +66,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 7 | J7.3 | `phase-7/time-boundaries.spec.ts` | @long @stage2 | — | F-22 |
 | 7 | J7.5 | `phase-7/two-tabs.spec.ts` | @long @stage2 | R6.4 | — |
 | 7 | J7.6 | `phase-7/volume.spec.ts` | @long @stage2 | — | F-30 |
+| 9 | — | `phase-9/allowed-missed-days.spec.ts` | @stage1 | R4.4 | CF-E2 |
 | 9 | — | `phase-9/assign-outside-availability.spec.ts` | @stage1 | R3.6, R7.4 | CF-I1 |
 | 9 | — | `phase-9/availability-empty-pattern.spec.ts` | @stage1 | R3.2, R3.3 | CF-H1 |
 | 9 | — | `phase-9/availability-notes.spec.ts` | @stage1 | R3.2 | CF-H6 |
@@ -113,7 +114,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R4.1 | J2.4, J5.5 |
 | R4.2 | J2.4, J3.7, J7.1, J7.7 |
 | R4.3 | J2.4, J3.7, J7.7 |
-| R4.4 | credit-value.spec.ts, J2.4 |
+| R4.4 | allowed-missed-days.spec.ts, credit-value.spec.ts, J2.4 |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
 | R6.1 | J3.1, J3.2 |
@@ -147,6 +148,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-C4 | wizard-clarity.spec.ts |
 | CF-C5 | wizard-clarity.spec.ts |
 | CF-D2 | wizard-clarity.spec.ts |
+| CF-E2 | allowed-missed-days.spec.ts |
 | CF-F1 | preceptor-phone-type.spec.ts |
 | CF-F5 | core-preceptor.spec.ts |
 | CF-G1 | team-single-member.spec.ts |

@@ -90,6 +90,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().check(sql`clerkship_type IN ('inpatient', 'outpatient')`)
 		)
 		.addColumn('required_days', INTEGER, (col) => col.notNull().check(sql`required_days > 0`))
+		.addColumn('min_required_days', INTEGER)
 		.addColumn('description', TEXT)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))

@@ -14,6 +14,11 @@ import type { DB } from '$lib/db/types';
 
 export interface RequirementCounts {
 	required: number;
+	/**
+	 * Allowable-miss floor (E2): the student is complete at >= this many credit-days
+	 * even if below `required`. 0 means no separate floor — `required` is the target.
+	 */
+	min_required: number;
 	completed: number;
 	scheduled: number;
 	unscheduled: number;
@@ -65,8 +70,18 @@ function round2(n: number): number {
 	return Math.round(n * 100) / 100;
 }
 
-function emptyCounts(required: number): RequirementCounts {
-	return { required, completed: 0, scheduled: 0, unscheduled: required, over_scheduled: 0 };
+function emptyCounts(required: number, minRequired = 0): RequirementCounts {
+	// Unscheduled measures the gap to the completion target — the floor when set,
+	// else the full requirement (E2).
+	const target = minRequired > 0 ? minRequired : required;
+	return {
+		required,
+		min_required: minRequired,
+		completed: 0,
+		scheduled: 0,
+		unscheduled: target,
+		over_scheduled: 0
+	};
 }
 
 /**
@@ -95,7 +110,12 @@ export async function getStudentStatuses(
 		.selectFrom('clerkships')
 		.innerJoin('schedule_clerkships', 'schedule_clerkships.clerkship_id', 'clerkships.id')
 		.where('schedule_clerkships.schedule_id', '=', scheduleId)
-		.select(['clerkships.id as id', 'clerkships.name as name', 'clerkships.required_days as required_days'])
+		.select([
+			'clerkships.id as id',
+			'clerkships.name as name',
+			'clerkships.required_days as required_days',
+			'clerkships.min_required_days as min_required_days'
+		])
 		.execute();
 
 	// All assignments for these students (elective_id drives per-elective progress)
@@ -150,7 +170,10 @@ export async function getStudentStatuses(
 	return students.map((student) => {
 		const sid = student.id!;
 		const perClerkship: ClerkshipRequirementStatus[] = clerkships.map((c) => {
-			const counts = emptyCounts(c.required_days);
+			const minRequired = c.min_required_days ?? 0;
+			// The floor is the completion target when set (and not above required).
+			const target = minRequired > 0 ? Math.min(minRequired, c.required_days) : c.required_days;
+			const counts = emptyCounts(c.required_days, minRequired);
 			const forClerkship = assignments.filter(
 				(a) => a.student_id === sid && a.clerkship_id === c.id
 			);
@@ -166,7 +189,11 @@ export async function getStudentStatuses(
 			scheduled = round2(scheduled);
 			counts.completed = completed;
 			counts.scheduled = scheduled;
-			counts.unscheduled = round2(Math.max(0, c.required_days - completed - scheduled));
+			// Gap to the completion target (the floor when set, else full required) —
+			// so a student who has met the floor reads as complete, with no false
+			// "unscheduled" remainder (E2). Over-scheduling is still measured against
+			// the full required days.
+			counts.unscheduled = round2(Math.max(0, target - completed - scheduled));
 			counts.over_scheduled = round2(Math.max(0, completed + scheduled - c.required_days));
 
 			// Per-elective progress: count only the days tagged with each elective.
@@ -187,6 +214,8 @@ export async function getStudentStatuses(
 					elective_name: e.name,
 					is_required: Boolean(e.is_required),
 					required: e.minimum_days,
+					// Electives track against their own minimum_days; no separate floor.
+					min_required: 0,
 					completed: eCompleted,
 					scheduled: eScheduled,
 					unscheduled: round2(Math.max(0, e.minimum_days - eCompleted - eScheduled)),
@@ -205,8 +234,11 @@ export async function getStudentStatuses(
 		const overall: RequirementCounts = perClerkship.reduce(
 			(acc, c) => ({
 				required: acc.required + c.required,
+				min_required: acc.min_required + (c.min_required || c.required),
 				completed: acc.completed + c.completed,
 				scheduled: acc.scheduled + c.scheduled,
+				// Sum the per-clerkship (target-based) gaps so a met floor never inflates
+				// the overall remainder (E2).
 				unscheduled: acc.unscheduled + c.unscheduled,
 				over_scheduled: acc.over_scheduled + c.over_scheduled
 			}),
@@ -215,9 +247,7 @@ export async function getStudentStatuses(
 		overall.completed = round2(overall.completed);
 		overall.scheduled = round2(overall.scheduled);
 		overall.over_scheduled = round2(overall.over_scheduled);
-		overall.unscheduled = round2(
-			Math.max(0, overall.required - overall.completed - overall.scheduled)
-		);
+		overall.unscheduled = round2(overall.unscheduled);
 
 		const hasAny = perClerkship.some((c) => c.completed + c.scheduled > 0);
 		const allMet = perClerkship.every((c) => c.unscheduled === 0);
