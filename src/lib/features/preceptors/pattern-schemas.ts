@@ -110,6 +110,8 @@ const basePatternFields = {
 	date_range_start: dateStringSchema,
 	date_range_end: dateStringSchema,
 	reason: z.string().max(500).optional(),
+	/** Preference level for available days: preferred vs. in-a-pinch (H8). */
+	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
 	enabled: z.boolean().default(true)
 };
 
@@ -187,6 +189,7 @@ export const updatePatternSchema = z.object({
 	date_range_end: dateStringSchema.optional(),
 	config: patternConfigSchema.optional(),
 	reason: z.string().max(500).optional(),
+	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
 	enabled: z.boolean().optional()
 }).refine(
 	(data) => {
@@ -224,6 +227,7 @@ export const generatedDateSchema = z.object({
 	date: dateStringSchema,
 	site_id: cuid2Schema,
 	is_available: z.boolean(),
+	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
 	source_pattern_id: cuid2Schema.optional(),
 	source_pattern_type: patternTypeSchema.optional()
 });

@@ -19,6 +19,7 @@
 		date_range_end: string;
 		config: any;
 		reason?: string | null;
+		preference?: string | null;
 	}
 
 	interface Props {
@@ -145,6 +146,16 @@
 							>
 								{pattern.is_available ? 'Marks available' : 'Marks unavailable'}
 							</span>
+							{#if pattern.is_available && pattern.preference}
+								<span class="text-sm text-muted-foreground">•</span>
+								<span
+									class="rounded px-2 py-0.5 text-xs font-medium {pattern.preference === 'preferred'
+										? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+										: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}"
+								>
+									{pattern.preference === 'preferred' ? 'Preferred' : 'In a pinch'}
+								</span>
+							{/if}
 							<span class="text-sm text-muted-foreground">•</span>
 							<span class={`px-2 py-0.5 text-xs font-medium rounded ${getSpecificityColor(pattern.specificity)}`}>
 								{getSpecificityLabel(pattern.specificity)}

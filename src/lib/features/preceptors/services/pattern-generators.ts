@@ -454,6 +454,9 @@ export function applyPatternsBySpecificity(patterns: CreatePattern[]): Generated
 				date,
 				site_id: pattern.site_id,
 				is_available: pattern.is_available,
+				// Carry the preference through to the materialised day (H8); it only
+				// meaningfully applies to available days.
+				preference: pattern.is_available ? pattern.preference : undefined,
 				source_pattern_type: pattern.pattern_type
 			});
 		}

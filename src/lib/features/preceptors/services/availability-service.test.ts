@@ -68,6 +68,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
+		.addColumn('preference', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
@@ -345,6 +346,30 @@ describe('Availability Service', () => {
 			expect(created.site_id).toBe(DEFAULT_SITE_ID);
 			expect(created.date).toBe('2024-01-15');
 			expect(created.is_available).toBe(1);
+		});
+
+		// H8: preference is stored for available days and cleared for unavailable ones.
+		it('stores a preference on an available day and clears it when unavailable', async () => {
+			const preferred = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-15',
+				true,
+				'preferred'
+			);
+			expect(preferred.preference).toBe('preferred');
+
+			// Re-setting the same day as unavailable clears the preference.
+			const cleared = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-15',
+				false,
+				'preferred'
+			);
+			expect(cleared.preference).toBeNull();
 		});
 
 		it('creates unavailability record', async () => {

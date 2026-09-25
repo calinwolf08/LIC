@@ -35,6 +35,7 @@
 		date_range_end: string;
 		config: any;
 		reason: string | null;
+		preference: string | null;
 		enabled: number;
 		created_at: string;
 		updated_at: string;
@@ -120,6 +121,7 @@
 					date_range_end: p.date_range_end,
 					config: p.config,
 					reason: p.reason || undefined,
+					preference: (p.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
 					enabled: typeof p.enabled === 'number' ? p.enabled === 1 : p.enabled
 				})) as CreatePattern[];
 
@@ -171,6 +173,7 @@
 			date_range_end: pattern.date_range_end,
 			config: pattern.config,
 			reason: pattern.reason || null,
+			preference: pattern.preference || null,
 			enabled: pattern.enabled ? 1 : 0,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -197,6 +200,7 @@
 			date_range_end: pattern.date_range_end,
 			config: pattern.config,
 			reason: pattern.reason || null,
+			preference: pattern.preference || null,
 			enabled: pattern.enabled ? 1 : 0,
 			updated_at: new Date().toISOString()
 		};
@@ -290,6 +294,7 @@
 						date_range_end: pattern.date_range_end,
 						config: pattern.config,
 						reason: pattern.reason || undefined,
+						preference: (pattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
 						enabled: pattern.enabled === 1
 					};
 
@@ -317,6 +322,7 @@
 						date_range_end: pattern.date_range_end,
 						config: pattern.config,
 						reason: pattern.reason || undefined,
+						preference: (pattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
 						enabled: pattern.enabled === 1
 					};
 
@@ -391,6 +397,7 @@
 			date_range_end: p.date_range_end,
 			config: p.config,
 			reason: p.reason || undefined,
+			preference: (p.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
 			enabled: p.enabled === 1
 		} as CreatePattern;
 	}

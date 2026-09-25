@@ -365,6 +365,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('site_id', TEXT, (col) => col.notNull())
 		.addColumn('date', TEXT, (col) => col.notNull())
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
+		.addColumn('preference', TEXT)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();
@@ -380,6 +381,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('date_range_end', TEXT, (col) => col.notNull())
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('reason', TEXT)
+		.addColumn('preference', TEXT)
 		.addColumn('specificity', INTEGER, (col) => col.notNull().defaultTo(0))
 		.addColumn('enabled', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))

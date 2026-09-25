@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **59** across 9 phases
+- Spec files: **60** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **42**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×43, `@stage2` ×16, `@tenant` ×1
+- Requirements mapped: **50**; findings/decisions mapped: **43**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×44, `@stage2` ×16, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -68,6 +68,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 7 | J7.6 | `phase-7/volume.spec.ts` | @long @stage2 | — | F-30 |
 | 9 | — | `phase-9/assign-outside-availability.spec.ts` | @stage1 | R3.6, R7.4 | CF-I1 |
 | 9 | — | `phase-9/availability-empty-pattern.spec.ts` | @stage1 | R3.2, R3.3 | CF-H1 |
+| 9 | — | `phase-9/availability-preference.spec.ts` | @stage1 | R3.2 | CF-H8 |
 | 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
 | 9 | — | `phase-9/preceptor-phone-type.spec.ts` | @stage1 | — | CF-F1 |
@@ -101,7 +102,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
 | R3.1 | J2.2, J3.1, J5.1 |
-| R3.2 | availability-empty-pattern.spec.ts, J2.2 |
+| R3.2 | availability-empty-pattern.spec.ts, availability-preference.spec.ts, J2.2 |
 | R3.3 | availability-empty-pattern.spec.ts, J2.2, J2.7 |
 | R3.4 | J2.2, J2.7, J3.9, J4.5 |
 | R3.5 | J2.2, J3.9 |
@@ -149,6 +150,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-G3 | team-serveable.spec.ts |
 | CF-G4 | team-serveable.spec.ts |
 | CF-H1 | availability-empty-pattern.spec.ts |
+| CF-H8 | availability-preference.spec.ts |
 | CF-I1 | assign-outside-availability.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
 | D5-1 | J5.3 |

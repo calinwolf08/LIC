@@ -32,6 +32,7 @@
 	// Form state
 	let patternType = $state<'weekly' | 'monthly' | 'block' | 'individual'>('weekly');
 	let isAvailable = $state(true);
+	let preference = $state<'' | 'preferred' | 'in_a_pinch'>('');
 	let selectedSiteId = $state<string>(sites.length === 1 ? sites[0].id : '');
 	let startDate = $state('');
 	let endDate = $state('');
@@ -62,6 +63,7 @@
 		if (editPattern) {
 			patternType = editPattern.pattern_type;
 			isAvailable = editPattern.is_available;
+			preference = editPattern.preference ?? '';
 			selectedSiteId = editPattern.site_id || (sites.length === 1 ? sites[0].id : '');
 			startDate = editPattern.date_range_start;
 			endDate = editPattern.date_range_end;
@@ -147,6 +149,7 @@
 			date_range_end: patternType === 'individual' ? startDate : endDate,
 			config,
 			reason: reason || undefined,
+			preference: isAvailable && preference ? preference : undefined,
 			enabled: true
 		} as CreatePattern;
 	}
@@ -296,6 +299,25 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- Preference (H8): only meaningful for available days -->
+		{#if isAvailable}
+			<div class="space-y-2">
+				<Label for="preference-select">Preference (optional)</Label>
+				<select
+					id="preference-select"
+					bind:value={preference}
+					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				>
+					<option value="">No preference</option>
+					<option value="preferred">Preferred</option>
+					<option value="in_a_pinch">In a pinch (use only if needed)</option>
+				</select>
+				<p class="text-xs text-muted-foreground">
+					Shown to you when scheduling; the paid Auto-Generate tier uses it to prefer these days.
+				</p>
+			</div>
+		{/if}
 
 		<!-- Pattern-specific configuration -->
 		<div class="space-y-4">

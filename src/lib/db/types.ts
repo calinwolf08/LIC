@@ -194,6 +194,7 @@ export interface PreceptorAvailability {
   id: string | null;
   is_available: Generated<number>;
   preceptor_id: string;
+  preference: string | null;
   site_id: string;
   updated_at: Generated<string>;
 }
@@ -208,6 +209,7 @@ export interface PreceptorAvailabilityPatterns {
   is_available: Generated<number>;
   pattern_type: string;
   preceptor_id: string;
+  preference: string | null;
   reason: string | null;
   site_id: string;
   specificity: Generated<number>;

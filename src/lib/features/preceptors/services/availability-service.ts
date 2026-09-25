@@ -89,7 +89,8 @@ export async function setAvailability(
 	preceptorId: string,
 	siteId: string,
 	date: string,
-	isAvailable: boolean
+	isAvailable: boolean,
+	preference: string | null = null
 ): Promise<Selectable<PreceptorAvailability>> {
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, preceptorId);
@@ -114,6 +115,7 @@ export async function setAvailability(
 			.updateTable('preceptor_availability')
 			.set({
 				is_available: isAvailable ? 1 : 0,
+				preference: isAvailable ? preference : null,
 				updated_at: timestamp
 			})
 			.where('id', '=', existing.id)
@@ -137,6 +139,7 @@ export async function setAvailability(
 			site_id: siteId,
 			date,
 			is_available: isAvailable ? 1 : 0,
+			preference: isAvailable ? preference : null,
 			created_at: timestamp,
 			updated_at: timestamp
 		};

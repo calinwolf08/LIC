@@ -108,6 +108,7 @@ export async function createPattern(
 		date_range_end: data.date_range_end,
 		config: data.config ? JSON.stringify(data.config) : null,
 		reason: data.reason || null,
+		preference: data.preference || null,
 		enabled: data.enabled ? 1 : 0,
 		created_at: timestamp,
 		updated_at: timestamp
@@ -167,6 +168,10 @@ export async function updatePattern(
 
 	if (data.reason !== undefined) {
 		updateData.reason = data.reason || null;
+	}
+
+	if (data.preference !== undefined) {
+		updateData.preference = data.preference || null;
 	}
 
 	if (data.enabled !== undefined) {
@@ -241,6 +246,7 @@ function dbPatternToCreatePattern(
 		date_range_end: dbPattern.date_range_end,
 		config,
 		reason: dbPattern.reason || undefined,
+		preference: (dbPattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
 		enabled: dbPattern.enabled === 1
 	};
 }
@@ -345,7 +351,8 @@ export async function saveGeneratedDates(
 			data.preceptor_id,
 			generatedDate.site_id,
 			generatedDate.date,
-			generatedDate.is_available
+			generatedDate.is_available,
+			generatedDate.preference ?? null
 		);
 	}
 
