@@ -53,6 +53,8 @@ export interface NewAssignmentRow {
 	/** Accepted soft-violation codes to persist on the row. */
 	override_codes?: string[];
 	override_note?: string | null;
+	/** Days of requirement credit this row is worth (default 1.0; M1/F4). */
+	credit_value?: number;
 }
 
 /** Map a normalized row onto the full insertable column set, with defaults. */
@@ -72,9 +74,20 @@ function toInsertable(row: NewAssignmentRow, timestamp: string): Insertable<Sche
 		override_codes: JSON.stringify(row.override_codes ?? []),
 		override_note:
 			(row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
+		credit_value: normalizeCredit(row.credit_value),
 		created_at: timestamp,
 		updated_at: timestamp
 	};
+}
+
+/**
+ * Clamp a caller-supplied credit to a sane value (M1/F4). Missing → 1.0. Credit
+ * must be positive; a non-positive or non-finite value falls back to 1.0 so a bad
+ * input can never zero out or corrupt a requirement total.
+ */
+export function normalizeCredit(value: number | null | undefined): number {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 1;
+	return Math.round(value * 100) / 100;
 }
 
 /**
@@ -113,6 +126,8 @@ export interface ManualAssignmentInput {
 	override_codes?: string[];
 	/** Free text captured alongside the override. */
 	override_note?: string | null;
+	/** Days of requirement credit this day is worth (default 1.0; M1/F4). */
+	credit_value?: number;
 }
 
 /**
@@ -216,7 +231,8 @@ export async function createManualAssignment(
 			source: 'manual',
 			locked: input.locked,
 			override_codes: persistedCodes,
-			override_note: input.override_note
+			override_note: input.override_note,
+			credit_value: input.credit_value
 		}
 	]);
 
@@ -246,6 +262,8 @@ export interface BulkManualInput {
 	/** Soft violation codes the user explicitly accepted, applied to every date. */
 	override_codes?: string[];
 	override_note?: string | null;
+	/** Days of requirement credit each created day is worth (default 1.0; M1/F4). */
+	credit_value?: number;
 }
 
 export interface BulkManualDateResult {
@@ -318,7 +336,8 @@ export async function createManualAssignmentsBulk(
 					date,
 					locked: input.locked,
 					override_codes: input.override_codes,
-					override_note: input.override_note
+					override_note: input.override_note,
+					credit_value: input.credit_value
 				},
 				opts
 			);

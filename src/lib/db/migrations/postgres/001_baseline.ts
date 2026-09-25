@@ -45,6 +45,7 @@ import type { Kysely } from 'kysely';
 // created separately by ensureAuthTables, not here.
 const TEXT = sql.raw('text');
 const INTEGER = sql.raw('integer');
+const REAL = sql.raw('real');
 /** 0/1 in an integer column — deliberately NOT a Postgres boolean. */
 const BOOLEAN = sql.raw('integer');
 /** ISO-8601 text — deliberately NOT a Postgres timestamp. */
@@ -597,6 +598,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('source', TEXT, (col) => col.notNull().defaultTo('manual'))
 		.addColumn('override_codes', TEXT, (col) => col.notNull().defaultTo('[]'))
 		.addColumn('override_note', TEXT)
+		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
 		.execute();
 
 	// ------------------------------------------------------ schedule scoping

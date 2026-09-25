@@ -134,6 +134,8 @@ export interface AssignmentSelectionInput {
 	electiveId?: string | null;
 	locked?: boolean;
 	note?: string;
+	/** Days of requirement credit each created day is worth (default 1.0; M1/F4). */
+	creditValue?: number;
 }
 
 export interface SubmitPayload {
@@ -147,6 +149,8 @@ export interface SubmitPayload {
 	override_codes: OverrideCategory[];
 	override_note?: string;
 	side_effects?: OverrideSideEffect[];
+	/** Days of requirement credit each created day is worth; omitted when 1.0 (M1/F4). */
+	credit_value?: number;
 }
 
 /**
@@ -172,7 +176,11 @@ export function buildSubmitPayload(
 		locked: !!selection.locked,
 		override_codes: codes,
 		...(codes.length > 0 && selection.note ? { override_note: selection.note } : {}),
-		...(sideEffects.length > 0 ? { side_effects: sideEffects } : {})
+		...(sideEffects.length > 0 ? { side_effects: sideEffects } : {}),
+		// Only send a non-default credit; the server defaults to 1.0.
+		...(selection.creditValue !== undefined && selection.creditValue !== 1
+			? { credit_value: selection.creditValue }
+			: {})
 	};
 }
 

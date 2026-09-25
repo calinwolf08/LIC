@@ -55,6 +55,16 @@ function todayUTC(): string {
 	return new Date().toISOString().split('T')[0];
 }
 
+/** A day's credit toward its requirement; missing/invalid defaults to 1.0 (M1/F4). */
+function creditOf(value: number | null | undefined): number {
+	return typeof value === 'number' && Number.isFinite(value) ? value : 1;
+}
+
+/** Round to 2 decimals so credit sums (0.5 + 0.5) read as 1, not 0.999… */
+function round2(n: number): number {
+	return Math.round(n * 100) / 100;
+}
+
 function emptyCounts(required: number): RequirementCounts {
 	return { required, completed: 0, scheduled: 0, unscheduled: required, over_scheduled: 0 };
 }
@@ -94,7 +104,7 @@ export async function getStudentStatuses(
 		studentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['student_id', 'clerkship_id', 'elective_id', 'date'])
+					.select(['student_id', 'clerkship_id', 'elective_id', 'date', 'credit_value'])
 					// Scope to THIS schedule — the students and clerkships above are
 					// already schedule-scoped, and a student may belong to more than one
 					// schedule with overlapping dates; counting the other schedules' days
@@ -144,16 +154,20 @@ export async function getStudentStatuses(
 			const forClerkship = assignments.filter(
 				(a) => a.student_id === sid && a.clerkship_id === c.id
 			);
+			// Requirement progress sums each day's credit_value (default 1.0), not the
+			// row count — a half day counts 0.5, a long day can count >1 (M1/F4).
 			let completed = 0;
 			let scheduled = 0;
 			for (const a of forClerkship) {
-				if (a.date < today) completed++;
-				else scheduled++;
+				if (a.date < today) completed += creditOf(a.credit_value);
+				else scheduled += creditOf(a.credit_value);
 			}
+			completed = round2(completed);
+			scheduled = round2(scheduled);
 			counts.completed = completed;
 			counts.scheduled = scheduled;
-			counts.unscheduled = Math.max(0, c.required_days - completed - scheduled);
-			counts.over_scheduled = Math.max(0, completed + scheduled - c.required_days);
+			counts.unscheduled = round2(Math.max(0, c.required_days - completed - scheduled));
+			counts.over_scheduled = round2(Math.max(0, completed + scheduled - c.required_days));
 
 			// Per-elective progress: count only the days tagged with each elective.
 			const electiveStatuses: ElectiveRequirementStatus[] = (
@@ -163,9 +177,11 @@ export async function getStudentStatuses(
 				let eCompleted = 0;
 				let eScheduled = 0;
 				for (const a of forElective) {
-					if (a.date < today) eCompleted++;
-					else eScheduled++;
+					if (a.date < today) eCompleted += creditOf(a.credit_value);
+					else eScheduled += creditOf(a.credit_value);
 				}
+				eCompleted = round2(eCompleted);
+				eScheduled = round2(eScheduled);
 				return {
 					elective_id: e.id!,
 					elective_name: e.name,
@@ -173,8 +189,8 @@ export async function getStudentStatuses(
 					required: e.minimum_days,
 					completed: eCompleted,
 					scheduled: eScheduled,
-					unscheduled: Math.max(0, e.minimum_days - eCompleted - eScheduled),
-					over_scheduled: Math.max(0, eCompleted + eScheduled - e.minimum_days)
+					unscheduled: round2(Math.max(0, e.minimum_days - eCompleted - eScheduled)),
+					over_scheduled: round2(Math.max(0, eCompleted + eScheduled - e.minimum_days))
 				};
 			});
 
@@ -196,9 +212,11 @@ export async function getStudentStatuses(
 			}),
 			emptyCounts(0)
 		);
-		overall.unscheduled = Math.max(
-			0,
-			overall.required - overall.completed - overall.scheduled
+		overall.completed = round2(overall.completed);
+		overall.scheduled = round2(overall.scheduled);
+		overall.over_scheduled = round2(overall.over_scheduled);
+		overall.unscheduled = round2(
+			Math.max(0, overall.required - overall.completed - overall.scheduled)
 		);
 
 		const hasAny = perClerkship.some((c) => c.completed + c.scheduled > 0);

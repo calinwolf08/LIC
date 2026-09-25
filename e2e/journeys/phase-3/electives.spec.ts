@@ -18,13 +18,17 @@ const STUDENT = 'Alice Johnson';
 const CLERKSHIP = 'Internal Medicine';
 const PRECEPTOR = 'Dr. Maria Garcia'; // IM team, teaches both seeded electives at Metro General
 
-function futureWeekday(atLeast: number): string {
-	let n = atLeast;
-	for (;;) {
-		const dow = new Date(`${fromToday(n)}T00:00:00Z`).getUTCDay();
-		if (dow !== 0 && dow !== 6) return fromToday(n);
+/** `count` distinct future weekdays (Mon–Fri), starting at day offset `startAt`. */
+function futureWeekdays(count: number, startAt: number): string[] {
+	const out: string[] = [];
+	let n = startAt;
+	while (out.length < count) {
+		const date = fromToday(n);
+		const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+		if (dow !== 0 && dow !== 6) out.push(date);
 		n++;
 	}
+	return out;
 }
 
 test.describe('J3.7 manual scheduling — electives', { tag: ['@stage1'] }, () => {
@@ -38,8 +42,7 @@ test.describe('J3.7 manual scheduling — electives', { tag: ['@stage1'] }, () =
 		sandbox.register(roster.sandbox);
 		const api = apiOf(asAdmin);
 		const studentId = roster.students.find((s) => s.name === STUDENT)!.id;
-		const d1 = futureWeekday(8);
-		const d2 = futureWeekday(9);
+		const [d1, d2] = futureWeekdays(2, 8);
 
 		const scheduleRows = async () => {
 			const res = await api.get<{

@@ -30,7 +30,9 @@ export const updateAssignmentSchema = z
 		site_id: cuid2Schema.nullish(),
 		elective_id: cuid2Schema.nullish(),
 		date: dateStringSchema.optional(),
-		status: z.string().optional()
+		status: z.string().optional(),
+		// Days of requirement credit this day is worth (M1/F4).
+		credit_value: z.number().positive().max(10).optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {
 		message: 'At least one field must be provided for update'

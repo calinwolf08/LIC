@@ -288,11 +288,15 @@
 				<div class="text-sm text-muted-foreground">Days required</div>
 			</Card>
 			<Card class="p-4 text-center">
-				<div class="text-2xl font-bold text-green-600">{status?.overall.completed ?? 0}</div>
+				<div class="text-2xl font-bold text-green-600" data-testid="overall-completed">
+					{status?.overall.completed ?? 0}
+				</div>
 				<div class="text-sm text-muted-foreground">Completed</div>
 			</Card>
 			<Card class="p-4 text-center">
-				<div class="text-2xl font-bold text-blue-600">{status?.overall.scheduled ?? 0}</div>
+				<div class="text-2xl font-bold text-blue-600" data-testid="overall-scheduled">
+					{status?.overall.scheduled ?? 0}
+				</div>
 				<div class="text-sm text-muted-foreground">Scheduled</div>
 			</Card>
 			<Card class="p-4 text-center">

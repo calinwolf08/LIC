@@ -84,6 +84,7 @@
 	let pickerMode = $state<'single' | 'range' | 'individual'>('single');
 	let locked = $state(false);
 	let note = $state('');
+	let credit = $state(1);
 	let clearedNotice = $state<string | null>(null);
 
 	// ---- loaded data --------------------------------------------------------
@@ -144,6 +145,7 @@
 		pickerMode = 'single';
 		locked = false;
 		note = '';
+		credit = 1;
 		clearedNotice = null;
 		originalDate = '';
 		serverSoftCodes = [];
@@ -208,6 +210,7 @@
 			selectedDates = [body.data.date];
 			originalDate = body.data.date;
 			locked = body.data.locked === 1;
+			credit = body.data.credit_value ?? 1;
 			visibleMonth = body.data.date.slice(0, 7);
 		} catch {
 			/* leave the prefill in place */
@@ -545,7 +548,8 @@
 				siteId: site,
 				electiveId: electiveId || null,
 				locked: canLock && locked,
-				note
+				note,
+				creditValue: credit
 			},
 			analysis!,
 			acceptedCodes,
@@ -617,6 +621,7 @@
 						date: day,
 						override_codes: acceptedCodes,
 						override_note: note || null,
+						credit_value: credit,
 						...(canLock ? { locked } : {})
 					})
 				}
@@ -819,6 +824,23 @@
 						</ul>
 					</div>
 				{/if}
+
+				<div class="space-y-1">
+					<Label for="ad-credit">
+						Credit per day
+						<span class="text-muted-foreground">(1 = a full day; 0.5 = a half day)</span>
+					</Label>
+					<input
+						id="ad-credit"
+						data-testid="ad-credit"
+						type="number"
+						min="0.5"
+						max="10"
+						step="0.5"
+						bind:value={credit}
+						class="border-input bg-background focus-visible:ring-ring flex h-9 w-32 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+					/>
+				</div>
 
 				{#if liveAnalysis.categories.length > 0}
 					<div

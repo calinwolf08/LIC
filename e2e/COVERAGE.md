@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **62** across 9 phases
+- Spec files: **63** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **44**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×46, `@stage2` ×17, `@tenant` ×1
+- Requirements mapped: **50**; findings/decisions mapped: **45**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×47, `@stage2` ×17, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -72,6 +72,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/availability-preference-consumption.spec.ts` | @stage1 @stage2 | R3.2 | CF-H8 |
 | 9 | — | `phase-9/availability-preference.spec.ts` | @stage1 | R3.2 | CF-H8 |
 | 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
+| 9 | — | `phase-9/credit-value.spec.ts` | @stage1 | R4.4 | CF-M1 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
 | 9 | — | `phase-9/preceptor-phone-type.spec.ts` | @stage1 | — | CF-F1 |
 | 9 | — | `phase-9/schedule-end-before-start.spec.ts` | @stage1 | R1.3 | CF-C1 |
@@ -112,7 +113,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R4.1 | J2.4, J5.5 |
 | R4.2 | J2.4, J3.7, J7.1, J7.7 |
 | R4.3 | J2.4, J3.7, J7.7 |
-| R4.4 | J2.4 |
+| R4.4 | credit-value.spec.ts, J2.4 |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
 | R6.1 | J3.1, J3.2 |
@@ -155,6 +156,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-H6 | availability-notes.spec.ts |
 | CF-H8 | availability-preference-consumption.spec.ts, availability-preference.spec.ts |
 | CF-I1 | assign-outside-availability.spec.ts |
+| CF-M1 | credit-value.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
 | D5-1 | J5.3 |
 | D7-1 | J7.1 |

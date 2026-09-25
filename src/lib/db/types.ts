@@ -286,6 +286,7 @@ export interface PreceptorTeams {
 export interface ScheduleAssignments {
   clerkship_id: string;
   created_at: Generated<string>;
+  credit_value: Generated<number>;
   date: string;
   elective_id: string | null;
   id: string | null;

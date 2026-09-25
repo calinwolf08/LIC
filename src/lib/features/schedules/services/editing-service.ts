@@ -11,7 +11,8 @@ import { NotFoundError } from '$lib/api/errors';
 import {
 	getAssignmentById,
 	updateAssignment as updateAssignmentBase,
-	checkElectiveBelongsToClerkship
+	checkElectiveBelongsToClerkship,
+	normalizeCredit
 } from './assignment-service.js';
 import {
 	validateAssignmentCandidate,
@@ -188,6 +189,7 @@ export async function updateAssignmentChecked(
 		elective_id?: string | null;
 		date?: string;
 		status?: string;
+		credit_value?: number;
 	},
 	opts: EditOptions = {}
 ): Promise<EditResult> {
@@ -233,6 +235,9 @@ export async function updateAssignmentChecked(
 			...(changes.elective_id !== undefined ? { elective_id: changes.elective_id } : {}),
 			...(changes.date !== undefined ? { date: changes.date } : {}),
 			...(changes.status !== undefined ? { status: changes.status } : {}),
+			...(changes.credit_value !== undefined
+				? { credit_value: normalizeCredit(changes.credit_value) }
+				: {}),
 			override_codes: JSON.stringify(persistedCodes),
 			override_note: persistedCodes.length > 0 ? (opts.overrideNote ?? null) : null,
 			updated_at: new Date().toISOString()

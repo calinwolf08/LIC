@@ -86,6 +86,8 @@ const baseSchema = z.object({
 	force: z.boolean().optional(),
 	override_codes: z.array(z.string()).optional(),
 	override_note: z.string().max(1000).nullish(),
+	// Days of requirement credit each created day is worth (default 1.0; M1/F4).
+	credit_value: z.number().positive().max(10).optional(),
 	side_effects: z.array(sideEffectSchema).optional(),
 	// Edit-mode dry runs pass the assignment being edited so it isn't validated
 	// against itself (double-book / capacity / required-days). Ignored on create.
@@ -228,7 +230,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					elective_id: input.elective_id ?? null,
 					locked: mayLock ? input.locked : false,
 					override_codes: input.override_codes,
-					override_note: input.override_note
+					override_note: input.override_note,
+					credit_value: input.credit_value
 				},
 				{ force: input.force }
 			);

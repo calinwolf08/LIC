@@ -125,6 +125,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 
 	// Blackout dates table (no updated_at - matches real schema)

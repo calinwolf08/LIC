@@ -59,7 +59,13 @@ async function seed(db: Kysely<DB>) {
 		.execute();
 }
 
-async function addAssignment(db: Kysely<DB>, id: string, date: string, scheduleId: string = SCHED) {
+async function addAssignment(
+	db: Kysely<DB>,
+	id: string,
+	date: string,
+	scheduleId: string = SCHED,
+	creditValue?: number
+) {
 	const ts = new Date().toISOString();
 	await db
 		.insertInto('schedule_assignments')
@@ -71,6 +77,7 @@ async function addAssignment(db: Kysely<DB>, id: string, date: string, scheduleI
 			schedule_id: scheduleId,
 			date,
 			status: 'scheduled',
+			...(creditValue !== undefined ? { credit_value: creditValue } : {}),
 			created_at: ts,
 			updated_at: ts
 		})
@@ -134,6 +141,28 @@ describe('getStudentStatuses', () => {
 		await addAssignment(db, 'a1', '2025-05-05');
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
 		expect(status.conflict_count).toBe(0);
+	});
+
+	// M1/F4: requirement progress sums credit_value, not row count.
+	it('sums credit_value rather than counting rows (two half days = 1.0 completed)', async () => {
+		await addAssignment(db, 'h1', '2025-05-01', SCHED, 0.5);
+		await addAssignment(db, 'h2', '2025-05-02', SCHED, 0.5);
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.completed).toBe(1); // 0.5 + 0.5, not 2
+		expect(c.scheduled).toBe(0);
+		expect(c.unscheduled).toBe(2); // 3 required - 1 credit
+		expect(status.scheduling_state).toBe('partial');
+	});
+
+	it('a >1 credit day reaches the requirement faster', async () => {
+		await addAssignment(db, 'd1', '2025-05-01', SCHED, 1.5);
+		await addAssignment(db, 'd2', '2025-05-02', SCHED, 1.5);
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.completed).toBe(3); // 1.5 + 1.5
+		expect(c.unscheduled).toBe(0);
+		expect(status.scheduling_state).toBe('full');
 	});
 
 	it('counts an assignment dated exactly today as scheduled, not completed', async () => {
