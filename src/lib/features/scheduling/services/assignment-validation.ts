@@ -42,7 +42,8 @@ export interface Violation {
 export interface AssignmentCandidate {
 	student_id: string;
 	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for a standalone-elective day, which has no parent clerkship (E3). */
+	clerkship_id: string | null;
 	site_id?: string | null;
 	date: string;
 	/**
@@ -160,7 +161,9 @@ export function validateCandidateWithContext(
 		hard.push({ code: 'entity_missing', message: 'Student not found' });
 	if (!ctx.existingPreceptorIds.has(candidate.preceptor_id))
 		hard.push({ code: 'entity_missing', message: 'Preceptor not found' });
-	if (!ctx.existingClerkshipIds.has(candidate.clerkship_id))
+	// A standalone-elective day has no clerkship (E3); only a day that claims one
+	// must have it exist.
+	if (candidate.clerkship_id && !ctx.existingClerkshipIds.has(candidate.clerkship_id))
 		hard.push({ code: 'entity_missing', message: 'Clerkship not found' });
 	if (hard.length > 0) return { valid: false, hard, soft };
 
@@ -196,8 +199,9 @@ export function validateCandidateWithContext(
 		});
 	}
 
-	// Site not allowed for clerkship (soft)
-	if (candidate.site_id) {
+	// Site not allowed for clerkship (soft). A standalone-elective day has no
+	// clerkship allowlist, so the site check doesn't apply.
+	if (candidate.site_id && candidate.clerkship_id) {
 		const allowed = ctx.clerkshipSites.get(candidate.clerkship_id);
 		if (allowed && allowed.size > 0 && !allowed.has(candidate.site_id)) {
 			soft.push({
@@ -295,17 +299,22 @@ export async function validateAssignmentCandidate(
 			.select(['id', 'max_students', 'health_system_id'])
 			.where('id', '=', candidate.preceptor_id)
 			.executeTakeFirst(),
-		db
-			.selectFrom('clerkships')
-			.select(['id', 'required_days'])
-			.where('id', '=', candidate.clerkship_id)
-			.executeTakeFirst()
+		// A standalone-elective day has no clerkship (E3), so there's nothing to look up.
+		candidate.clerkship_id
+			? db
+					.selectFrom('clerkships')
+					.select(['id', 'required_days'])
+					.where('id', '=', candidate.clerkship_id)
+					.executeTakeFirst()
+			: Promise.resolve(undefined)
 	]);
 
 	const hard: Violation[] = [];
 	if (!student) hard.push({ code: 'entity_missing', message: 'Student not found' });
 	if (!preceptor) hard.push({ code: 'entity_missing', message: 'Preceptor not found' });
-	if (!clerkship) hard.push({ code: 'entity_missing', message: 'Clerkship not found' });
+	// Only a day that claims a clerkship must have one that exists.
+	if (candidate.clerkship_id && !clerkship)
+		hard.push({ code: 'entity_missing', message: 'Clerkship not found' });
 	if (hard.length > 0) return { valid: false, hard, soft: [] };
 
 	const soft: Violation[] = [];
@@ -375,7 +384,7 @@ export async function validateAssignmentCandidate(
 	const sameDay = await capQuery.execute();
 	const effectiveRule = await new CapacityChecker(db).resolveCapacityRule(
 		candidate.preceptor_id,
-		candidate.clerkship_id
+		candidate.clerkship_id ?? undefined
 	);
 	if (sameDay.length >= effectiveRule.maxStudentsPerDay) {
 		soft.push({
@@ -385,18 +394,19 @@ export async function validateAssignmentCandidate(
 		});
 	}
 
-	// Site allowed (soft)
-	if (candidate.site_id) {
+	// Site allowed (soft). A standalone-elective day has no clerkship allowlist.
+	if (candidate.site_id && candidate.clerkship_id) {
+		const clerkshipId = candidate.clerkship_id;
 		const allowed = await db
 			.selectFrom('clerkship_sites')
 			.select('site_id')
-			.where('clerkship_id', '=', candidate.clerkship_id)
+			.where('clerkship_id', '=', clerkshipId)
 			.execute();
 		if (allowed.length > 0 && !allowed.some((a) => a.site_id === candidate.site_id)) {
 			soft.push({
 				code: 'site_not_allowed',
 				message: 'This site is not among the allowed sites for the clerkship',
-				entity_refs: { clerkship_id: candidate.clerkship_id, site_id: candidate.site_id }
+				entity_refs: { clerkship_id: clerkshipId, site_id: candidate.site_id }
 			});
 		}
 	}
@@ -457,12 +467,13 @@ export async function validateAssignmentCandidate(
 		// (minimum) requirement, so it neither counts toward nor trips
 		// over_required_days for the clerkship — the same split the generation credit
 		// path applies (P7-a). Core days are counted excluding elective rows.
-		if (required > 0 && !candidate.elective_id) {
+		if (required > 0 && !candidate.elective_id && candidate.clerkship_id) {
+			const clerkshipId = candidate.clerkship_id;
 			let countQuery = db
 				.selectFrom('schedule_assignments')
 				.select('id')
 				.where('student_id', '=', candidate.student_id)
-				.where('clerkship_id', '=', candidate.clerkship_id)
+				.where('clerkship_id', '=', clerkshipId)
 				.where('elective_id', 'is', null);
 			if (candidate.excludeId) countQuery = countQuery.where('id', '!=', candidate.excludeId);
 			const existingForClerkship = await countQuery.execute();
@@ -472,7 +483,7 @@ export async function validateAssignmentCandidate(
 					message: `This is more days than ${required} required for the clerkship`,
 					entity_refs: {
 						student_id: candidate.student_id,
-						clerkship_id: candidate.clerkship_id
+						clerkship_id: clerkshipId
 					}
 				});
 			}

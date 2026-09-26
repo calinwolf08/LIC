@@ -348,7 +348,9 @@ async function computeCredit(
 
 	for (const r of rows) {
 		if (r.elective_id) bump(electiveCredit, r.student_id, r.elective_id);
-		else bump(credit, r.student_id, r.clerkship_id);
+		// A non-elective day always has a clerkship; a standalone-elective day (no
+		// clerkship, E3) is credited above, not here.
+		else if (r.clerkship_id) bump(credit, r.student_id, r.clerkship_id);
 	}
 	return { credit, electiveCredit, totalExisting: rows.length };
 }

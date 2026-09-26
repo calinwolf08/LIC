@@ -42,7 +42,8 @@ export async function getEnrichedAssignments(
 		.where('sa.schedule_id', '=', filters.scheduleId)
 		.innerJoin('students as s', 's.id', 'sa.student_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so standalone-elective days (no clerkship, E3) still appear.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		// Site is optional on a day, so a left join — a site-less row still appears.
 		.leftJoin('sites as st', 'st.id', 'sa.site_id')
@@ -215,10 +216,12 @@ export async function getScheduleSummary(
 	// Group by clerkship
 	const clerkshipCounts = new Map<string, { name: string; count: number }>();
 	for (const assignment of assignments) {
+		// Standalone-elective days (E3) have no clerkship — skip the clerkship breakdown.
+		if (!assignment.clerkship_id) continue;
 		const key = assignment.clerkship_id;
 		if (!clerkshipCounts.has(key)) {
 			clerkshipCounts.set(key, {
-				name: assignment.clerkship_name,
+				name: assignment.clerkship_name ?? 'Elective',
 				count: 0
 			});
 		}

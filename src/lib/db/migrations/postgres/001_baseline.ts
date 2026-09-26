@@ -207,9 +207,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('clerkship_electives')
 		.addColumn('id', TEXT, (col) => col.primaryKey())
-		.addColumn('clerkship_id', TEXT, (col) =>
-			col.notNull().references('clerkships.id').onDelete('cascade')
-		)
+		// Nullable: a standalone elective has no parent clerkship (E3).
+		.addColumn('clerkship_id', TEXT, (col) => col.references('clerkships.id').onDelete('cascade'))
 		.addColumn('name', TEXT, (col) => col.notNull())
 		.addColumn('minimum_days', INTEGER, (col) => col.notNull().check(sql`minimum_days > 0`))
 		.addColumn('specialty', TEXT)
@@ -584,9 +583,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', TEXT, (col) =>
 			col.notNull().references('preceptors.id').onDelete('restrict')
 		)
-		.addColumn('clerkship_id', TEXT, (col) =>
-			col.notNull().references('clerkships.id').onDelete('restrict')
-		)
+		// Nullable: a standalone-elective day has no clerkship (E3).
+		.addColumn('clerkship_id', TEXT, (col) => col.references('clerkships.id').onDelete('restrict'))
 		.addColumn('date', TEXT, (col) => col.notNull())
 		.addColumn('status', TEXT, (col) => col.notNull().defaultTo('scheduled'))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))

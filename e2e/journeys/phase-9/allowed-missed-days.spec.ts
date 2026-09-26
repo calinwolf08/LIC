@@ -36,10 +36,23 @@ test.describe('CF-E2 allowable missed days (min required)', { tag: ['@stage1'] }
 		sandbox.register(roster.sandbox);
 		const api = apiOf(asAdmin);
 
-		const alice = roster.students.find((s) => s.name === 'Alice Johnson')!;
 		const amanda = roster.preceptors.find((p) => p.name === 'Dr. Amanda Smith')!;
 		const site = roster.sites[0];
 		const stamp = Date.now();
+
+		// A dedicated student so this test never collides with the shared roster.
+		const stuRes = (
+			await api.post<{ id?: string; student?: { id: string } }>('/api/students', {
+				name: `E2 Student ${stamp}`,
+				email: `e2_${stamp}@example.com`
+			})
+		).data as unknown as { id?: string; student?: { id: string } };
+		const sid = stuRes?.student?.id ?? stuRes?.id;
+		expect(sid).toBeTruthy();
+		await api.post(`/api/scheduling-periods/${roster.sandbox.id}/entities`, {
+			entityType: 'students',
+			entityIds: [sid]
+		});
 
 		// A clerkship requiring 3 days but complete at a minimum of 2.
 		const clerkshipName = `MinClerk ${stamp}`;
@@ -61,7 +74,7 @@ test.describe('CF-E2 allowable missed days (min required)', { tag: ['@stage1'] }
 		const [d1, d2] = futureWeekdays(2, 8);
 		for (const date of [d1, d2]) {
 			const r = await api.post('/api/schedules/assignments', {
-				student_id: alice.id,
+				student_id: sid,
 				preceptor_id: amanda.id,
 				clerkship_id: clerkshipId,
 				site_id: site.id,
@@ -72,7 +85,7 @@ test.describe('CF-E2 allowable missed days (min required)', { tag: ['@stage1'] }
 		}
 
 		// The student's strip shows the clerkship as complete: min annotation, 0 left.
-		await asAdmin.goto(`/students/${alice.id}`);
+		await asAdmin.goto(`/students/${sid}`);
 		const row = asAdmin
 			.locator('div.rounded-lg.border')
 			.filter({ hasText: clerkshipName });

@@ -399,14 +399,17 @@ export class ElectiveService {
 
       if (data.name !== undefined) updateData.name = data.name;
       if (data.minimumDays !== undefined) {
-        // Validate that updating days won't exceed clerkship total
-        const daysValidation = await this.validateElectiveDays(
-          existing.clerkship_id,
-          data.minimumDays,
-          id
-        );
-        if (!daysValidation.success) {
-          return daysValidation as ServiceResult<ClerkshipElective>;
+        // A standalone elective (no parent clerkship, E3) has no clerkship total to
+        // validate against.
+        if (existing.clerkship_id) {
+          const daysValidation = await this.validateElectiveDays(
+            existing.clerkship_id,
+            data.minimumDays,
+            id
+          );
+          if (!daysValidation.success) {
+            return daysValidation as ServiceResult<ClerkshipElective>;
+          }
         }
         updateData.minimum_days = data.minimumDays;
       }

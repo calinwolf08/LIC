@@ -799,3 +799,68 @@ describe('over_required_days vs electives (P7-a)', () => {
 		expect(over.soft.some((s) => s.code === 'over_required_days')).toBe(true);
 	});
 });
+
+describe('standalone electives (DB-backed, E3)', () => {
+	let db: Kysely<DB>;
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	async function addStandaloneElective(id: string) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id,
+				clerkship_id: null,
+				name: 'Global Health',
+				minimum_days: 2,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('creates a standalone-elective day with a null clerkship_id', async () => {
+		await addStandaloneElective('elec-sa');
+		const res = await createManualAssignment(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: PRECEPTOR,
+			clerkship_id: null,
+			elective_id: 'elec-sa',
+			date: MON
+		});
+		expect(res.ok).toBe(true);
+		if (res.ok) {
+			expect(res.assignment.clerkship_id).toBeNull();
+			expect(res.assignment.elective_id).toBe('elec-sa');
+		}
+	});
+
+	it('rejects a day with neither a clerkship nor an elective', async () => {
+		const res = await createManualAssignment(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: PRECEPTOR,
+			clerkship_id: null,
+			date: MON
+		});
+		expect(res.ok).toBe(false);
+		if (!res.ok) expect(res.hard.some((h) => h.code === 'entity_missing')).toBe(true);
+	});
+
+	it('rejects pairing a standalone elective with a clerkship (mismatch)', async () => {
+		await addStandaloneElective('elec-sa');
+		const res = await createManualAssignment(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: PRECEPTOR,
+			clerkship_id: CLERKSHIP,
+			elective_id: 'elec-sa',
+			date: MON
+		});
+		expect(res.ok).toBe(false);
+	});
+});

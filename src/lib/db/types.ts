@@ -57,7 +57,7 @@ export interface ClerkshipConfigurations {
 }
 
 export interface ClerkshipElectives {
-  clerkship_id: string;
+  clerkship_id: string | null;
   created_at: Generated<string>;
   id: string | null;
   is_required: Generated<number>;
@@ -285,7 +285,7 @@ export interface PreceptorTeams {
 }
 
 export interface ScheduleAssignments {
-  clerkship_id: string;
+  clerkship_id: string | null;
   created_at: Generated<string>;
   credit_value: Generated<number>;
   date: string;

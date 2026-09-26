@@ -196,6 +196,8 @@ export function creditPastAssignmentsToRequirements(
 	const creditsByStudent = new Map<string, Map<string, number>>();
 
 	for (const assignment of pastAssignments) {
+		// Standalone-elective days (no clerkship, E3) don't credit any clerkship.
+		if (!assignment.clerkship_id) continue;
 		const studentReqs = context.studentRequirements.get(assignment.student_id);
 		if (!studentReqs) continue;
 
@@ -376,8 +378,10 @@ export function applyMinimalChangeStrategy(
 ): Assignment[] {
 	const assignmentsToAttempt: Assignment[] = [];
 
-	// Add all preservable assignments to context as if they were already assigned
+	// Add all preservable assignments to context as if they were already assigned.
+	// Standalone-elective rows (no clerkship, E3) aren't engine-managed, so skip them.
 	for (const assignment of preservableAssignments) {
+		if (!assignment.clerkship_id) continue;
 		const preservedAssignment: Assignment = {
 			studentId: assignment.student_id,
 			preceptorId: assignment.preceptor_id,
@@ -416,8 +420,10 @@ export function applyMinimalChangeStrategy(
 		}
 	}
 
-	// Try to find replacements for affected assignments
+	// Try to find replacements for affected assignments (standalone-elective rows are
+	// not engine-managed, E3).
 	for (const assignment of affectedAssignments) {
+		if (!assignment.clerkship_id) continue;
 		const replacementPreceptorId = findReplacementPreceptor(
 			assignment,
 			context,
@@ -598,6 +604,8 @@ export async function analyzeRegenerationImpact(
 	const progressMap = new Map<string, Map<string, number>>();
 
 	for (const assignment of pastAssignments) {
+		// Standalone-elective days (E3) aren't part of clerkship progress.
+		if (!assignment.clerkship_id) continue;
 		if (!progressMap.has(assignment.student_id)) {
 			progressMap.set(assignment.student_id, new Map());
 		}
@@ -734,6 +742,8 @@ export async function prepareCompletionContext(
 	// Add ALL existing assignments to context
 	// This makes the engine aware of them and work around them
 	for (const assignment of allExistingAssignments) {
+		// Standalone-elective rows (no clerkship, E3) aren't engine-managed.
+		if (!assignment.clerkship_id) continue;
 		const preservedAssignment: Assignment = {
 			studentId: assignment.student_id,
 			preceptorId: assignment.preceptor_id,

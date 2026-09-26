@@ -74,7 +74,9 @@ const sideEffectSchema = z.discriminatedUnion('kind', [
 const baseSchema = z.object({
 	student_id: z.string().min(1),
 	preceptor_id: z.string().min(1),
-	clerkship_id: z.string().min(1),
+	// Optional: a standalone-elective day has no clerkship (E3). When absent, the
+	// handler requires a standalone `elective_id` instead.
+	clerkship_id: z.string().min(1).nullish(),
 	// Site is required on create (a client-only rule is not a rule): preceptor
 	// availability is site-scoped and the mark-available side effect needs it.
 	site_id: z.string().min(1, 'Select a site'),
@@ -113,14 +115,16 @@ async function guardCreatePayload(
 	input: {
 		student_id: string;
 		preceptor_id: string;
-		clerkship_id: string;
+		clerkship_id?: string | null;
 		site_id?: string | null;
 		side_effects?: OverrideSideEffect[];
 	}
 ): Promise<void> {
 	await assertEntityInSchedule(db, scheduleId, 'student', input.student_id);
 	await assertEntityInSchedule(db, scheduleId, 'preceptor', input.preceptor_id);
-	await assertEntityInSchedule(db, scheduleId, 'clerkship', input.clerkship_id);
+	// A standalone-elective day (E3) has no clerkship to check.
+	if (input.clerkship_id)
+		await assertEntityInSchedule(db, scheduleId, 'clerkship', input.clerkship_id);
 	if (input.site_id) {
 		await assertEntityInSchedule(db, scheduleId, 'site', input.site_id);
 	}
@@ -173,7 +177,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					{
 						student_id: input.student_id,
 						preceptor_id: input.preceptor_id,
-						clerkship_id: input.clerkship_id,
+						clerkship_id: input.clerkship_id ?? null,
 						site_id: input.site_id ?? null,
 						elective_id: input.elective_id ?? null,
 						date: previewDate
@@ -190,7 +194,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				return createManualAssignmentsBulk(
 					trx,
 					scheduleId,
-					{ ...input, elective_id: input.elective_id ?? null, locked: mayLock ? input.locked : false },
+					{
+						...input,
+						clerkship_id: input.clerkship_id ?? null,
+						elective_id: input.elective_id ?? null,
+						locked: mayLock ? input.locked : false
+					},
 					{ force: input.force }
 				);
 			});
@@ -202,7 +211,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const candidate = {
 			student_id: input.student_id,
 			preceptor_id: input.preceptor_id,
-			clerkship_id: input.clerkship_id,
+			clerkship_id: input.clerkship_id ?? null,
 			site_id: input.site_id ?? null,
 			elective_id: input.elective_id ?? null,
 			date: input.date,

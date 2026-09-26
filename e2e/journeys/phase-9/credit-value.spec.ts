@@ -37,15 +37,30 @@ test.describe('CF-M1 credit value sums toward requirements', { tag: ['@stage1'] 
 		sandbox.register(roster.sandbox);
 		const api = apiOf(asAdmin);
 
-		const alice = roster.students.find((s) => s.name === 'Alice Johnson')!;
+		// A dedicated student so this test never collides (global UNIQUE(student,date))
+		// with any other test's use of the shared seeded roster.
+		const stamp = Date.now();
+		const studentId = (
+			await api.post<{ id?: string; student?: { id: string } }>('/api/students', {
+				name: `M1 Student ${stamp}`,
+				email: `m1_${stamp}@example.com`
+			})
+		).data as unknown as { id?: string; student?: { id: string } };
+		const sid = studentId?.student?.id ?? studentId?.id;
+		expect(sid).toBeTruthy();
+		await api.post(`/api/scheduling-periods/${roster.sandbox.id}/entities`, {
+			entityType: 'students',
+			entityIds: [sid]
+		});
+
 		const amanda = roster.preceptors.find((p) => p.name === 'Dr. Amanda Smith')!;
 		const site = roster.sites[0];
 
-		// Two half-credit days for Alice in Family Medicine. force accepts the
+		// Two half-credit days in Family Medicine. force accepts the
 		// availability/onboarding soft codes so the test isolates the credit math.
 		const create = (date: string, credit: number) =>
 			api.post<{ assignment?: { id: string } }>('/api/schedules/assignments', {
-				student_id: alice.id,
+				student_id: sid,
 				preceptor_id: amanda.id,
 				clerkship_id: roster.clerkships.find((c) => c.name === 'Family Medicine')!.id,
 				site_id: site.id,
@@ -62,7 +77,7 @@ test.describe('CF-M1 credit value sums toward requirements', { tag: ['@stage1'] 
 		expect(firstId).toBeTruthy();
 
 		// The requirement strip sums credit: 0.5 + 0.5 = 1 scheduled, not 2 rows.
-		await asAdmin.goto(`/students/${alice.id}`);
+		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByTestId('overall-scheduled')).toHaveText('1', { timeout: 15000 });
 
 		// The dialog exposes a credit field.
@@ -71,10 +86,13 @@ test.describe('CF-M1 credit value sums toward requirements', { tag: ['@stage1'] 
 		await expect(asAdmin.getByTestId('ad-credit')).toBeVisible();
 		await dialog.cancel();
 
-		// Edit one day's credit to 1.5 → strip sums to 2.0.
-		const patch = await api.patch(`/api/schedules/assignments/${firstId}`, { credit_value: 1.5 });
+		// Edit one day's credit to 1.5 → strip sums to 2.0. force so any pre-existing
+		// soft on the day (unavailable/onboarding) doesn't block the credit edit.
+		const patch = await api.patch(`/api/schedules/assignments/${firstId}?force=true`, {
+			credit_value: 1.5
+		});
 		expect(patch.ok).toBe(true);
-		await asAdmin.goto(`/students/${alice.id}`);
+		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByTestId('overall-scheduled')).toHaveText('2', { timeout: 15000 });
 	});
 });

@@ -400,8 +400,10 @@
 					// Convert events to CalendarDayAssignment array
 					const assignments: CalendarDayAssignment[] = dayEvents.map((event) => ({
 						id: event.assignment.id!, // Non-null: queried from database
-						clerkshipId: event.assignment.clerkship_id,
-						clerkshipName: event.assignment.clerkship_name,
+						// Standalone-elective days (E3) have no clerkship — label by elective.
+						clerkshipId: event.assignment.clerkship_id ?? '',
+						clerkshipName:
+							event.assignment.clerkship_name ?? event.assignment.elective_name ?? 'Elective',
 						preceptorId: event.assignment.preceptor_id,
 						preceptorName: event.assignment.preceptor_name,
 						studentId: event.assignment.student_id,

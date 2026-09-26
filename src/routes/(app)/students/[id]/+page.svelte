@@ -340,6 +340,32 @@
 				</div>
 			{/if}
 		</Card>
+
+		{#if status && status.standalone_electives.length > 0}
+			<Card class="mt-6 p-6" data-testid="standalone-electives">
+				<h2 class="mb-1 text-xl font-semibold">Standalone electives</h2>
+				<p class="mb-4 text-sm text-muted-foreground">
+					Optional electives that aren't part of a clerkship. Their days count toward the elective only.
+				</p>
+				<div class="space-y-4">
+					{#each status.standalone_electives as e (e.elective_id)}
+						{@const total = Math.max(e.required, e.completed + e.scheduled)}
+						<div class="rounded-lg border p-4" data-testid="standalone-elective-{e.elective_id}">
+							<div class="mb-2 flex items-center justify-between">
+								<span class="font-medium">{e.elective_name}</span>
+								<span class="text-sm text-muted-foreground">
+									{e.completed} done · {e.scheduled} scheduled · {e.unscheduled} left / {e.required}
+								</span>
+							</div>
+							<div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
+								<div class="h-full bg-green-500" style="width: {(e.completed / total) * 100}%"></div>
+								<div class="h-full bg-blue-500" style="width: {(e.scheduled / total) * 100}%"></div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</Card>
+		{/if}
 	{:else if activeTab === 'schedule'}
 		{@render onboardingBanner()}
 		<Card class="p-6">

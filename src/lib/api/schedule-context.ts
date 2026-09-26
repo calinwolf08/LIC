@@ -240,7 +240,9 @@ export async function assertElectiveInSchedule(
 		.where('id', '=', electiveId)
 		.executeTakeFirst();
 	if (!row) throw new NotFoundError('Elective');
-	await assertEntityInSchedule(dbConn, scheduleId, 'clerkship', row.clerkship_id);
+	// A standalone elective has no parent clerkship to check (E3).
+	if (row.clerkship_id)
+		await assertEntityInSchedule(dbConn, scheduleId, 'clerkship', row.clerkship_id);
 }
 
 /** Capacity rule → its preceptor must be in the schedule. */

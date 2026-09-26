@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **64** across 9 phases
+- Spec files: **65** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **46**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×48, `@stage2` ×17, `@tenant` ×1
+- Requirements mapped: **50**; findings/decisions mapped: **47**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×49, `@stage2` ×17, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -78,6 +78,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/preceptor-phone-type.spec.ts` | @stage1 | — | CF-F1 |
 | 9 | — | `phase-9/schedule-end-before-start.spec.ts` | @stage1 | R1.3 | CF-C1 |
 | 9 | — | `phase-9/signup-invalid-email.spec.ts` | @stage1 | — | CF-A1 |
+| 9 | — | `phase-9/standalone-elective.spec.ts` | @stage1 | R4.4 | CF-E3 |
 | 9 | — | `phase-9/team-serveable.spec.ts` | @stage1 | — | CF-G3, CF-G4 |
 | 9 | — | `phase-9/team-single-member.spec.ts` | @stage1 | — | CF-G1 |
 | 9 | — | `phase-9/wizard-activates-schedule.spec.ts` | @stage1 | R1.2, R1.3 | CF-B1 |
@@ -114,7 +115,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R4.1 | J2.4, J5.5 |
 | R4.2 | J2.4, J3.7, J7.1, J7.7 |
 | R4.3 | J2.4, J3.7, J7.7 |
-| R4.4 | allowed-missed-days.spec.ts, credit-value.spec.ts, J2.4 |
+| R4.4 | allowed-missed-days.spec.ts, credit-value.spec.ts, J2.4, standalone-elective.spec.ts |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
 | R6.1 | J3.1, J3.2 |
@@ -149,6 +150,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-C5 | wizard-clarity.spec.ts |
 | CF-D2 | wizard-clarity.spec.ts |
 | CF-E2 | allowed-missed-days.spec.ts |
+| CF-E3 | standalone-elective.spec.ts |
 | CF-F1 | preceptor-phone-type.spec.ts |
 | CF-F5 | core-preceptor.spec.ts |
 | CF-G1 | team-single-member.spec.ts |

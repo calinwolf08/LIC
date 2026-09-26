@@ -101,7 +101,8 @@ export async function getStudentScheduleData(
 	const assignments = await db
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so standalone-elective days (no clerkship, E3) still appear.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
@@ -248,8 +249,9 @@ export async function getStudentScheduleData(
 	const formattedAssignments: StudentAssignment[] = enrichedAssignments.map((a) => ({
 		id: a.id as string,
 		date: a.date,
-		clerkshipId: a.clerkship_id,
-		clerkshipName: a.clerkship_name,
+		// Standalone-elective days (E3) have no clerkship — label them by the elective.
+		clerkshipId: a.clerkship_id ?? '',
+		clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
 		preceptorId: a.preceptor_id,
 		preceptorName: a.preceptor_name,
@@ -362,7 +364,8 @@ export async function getPreceptorScheduleData(
 	const assignments = await db
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('students as s', 's.id', 'sa.student_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so standalone-elective days (no clerkship, E3) still appear.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
@@ -506,8 +509,8 @@ export async function getPreceptorScheduleData(
 			studentAssignments.set(key, {
 				studentId: a.student_id,
 				studentName: a.student_name,
-				clerkshipId: a.clerkship_id,
-				clerkshipName: a.clerkship_name,
+				clerkshipId: a.clerkship_id ?? '',
+				clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 				dates: []
 			});
 		}
@@ -533,8 +536,8 @@ export async function getPreceptorScheduleData(
 		studentId: a.student_id,
 		studentName: a.student_name,
 		studentInitials: getInitials(a.student_name),
-		clerkshipId: a.clerkship_id,
-		clerkshipName: a.clerkship_name,
+		clerkshipId: a.clerkship_id ?? '',
+		clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
 		status: a.status,
 		source: a.source,
@@ -650,6 +653,9 @@ export async function getScheduleSummaryData(
 	const studentClerkshipCounts = new Map<string, Map<string, number>>();
 
 	for (const a of assignments) {
+		// Standalone-elective days (no clerkship, E3) don't count toward clerkship
+		// requirement summaries.
+		if (!a.clerkship_id) continue;
 		if (!studentClerkshipCounts.has(a.student_id)) {
 			studentClerkshipCounts.set(a.student_id, new Map());
 		}
@@ -709,6 +715,7 @@ export async function getScheduleSummaryData(
 	// Calculate clerkship breakdown
 	const clerkshipAssignments = new Map<string, { count: number; students: Set<string> }>();
 	for (const a of assignments) {
+		if (!a.clerkship_id) continue;
 		if (!clerkshipAssignments.has(a.clerkship_id)) {
 			clerkshipAssignments.set(a.clerkship_id, { count: 0, students: new Set() });
 		}

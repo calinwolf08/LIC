@@ -52,6 +52,12 @@ export interface StudentStatus {
 	student_name: string;
 	overall: RequirementCounts;
 	per_clerkship: ClerkshipRequirementStatus[];
+	/**
+	 * Standalone electives (no parent clerkship, E3) the student has days for.
+	 * Tracked against the elective's own minimum only — never folded into any
+	 * clerkship total or the overall counts.
+	 */
+	standalone_electives: ElectiveRequirementStatus[];
 	scheduling_state: 'full' | 'partial' | 'none';
 	conflict_count: number;
 }
@@ -147,10 +153,27 @@ export async function getStudentStatuses(
 			: [];
 	const electivesByClerkship = new Map<string, typeof electives>();
 	for (const e of electives) {
+		if (!e.clerkship_id) continue;
 		const list = electivesByClerkship.get(e.clerkship_id) ?? [];
 		list.push(e);
 		electivesByClerkship.set(e.clerkship_id, list);
 	}
+
+	// Standalone electives (no parent clerkship, E3): surfaced per student from the
+	// days they've been assigned. Their days carry a null clerkship_id, so they never
+	// appear in any clerkship's total above — they are tracked only here.
+	const referencedElectiveIds = [
+		...new Set(assignments.map((a) => a.elective_id).filter((id): id is string => !!id))
+	];
+	const standaloneElectives =
+		referencedElectiveIds.length > 0
+			? await db
+					.selectFrom('clerkship_electives')
+					.select(['id', 'clerkship_id', 'name', 'minimum_days', 'is_required'])
+					.where('id', 'in', referencedElectiveIds)
+					.where('clerkship_id', 'is', null)
+					.execute()
+			: [];
 
 	// Conflicts: a student double-booked on a date (>1 assignment same day)
 	const perStudentDateCount = new Map<string, number>();
@@ -249,6 +272,33 @@ export async function getStudentStatuses(
 		overall.over_scheduled = round2(overall.over_scheduled);
 		overall.unscheduled = round2(overall.unscheduled);
 
+		// Standalone electives (E3): this student's progress toward each one's own
+		// minimum. Never folded into `overall` or any clerkship total.
+		const standaloneElectiveStatuses: ElectiveRequirementStatus[] = standaloneElectives.map((e) => {
+			const forElective = assignments.filter(
+				(a) => a.student_id === sid && a.elective_id === e.id
+			);
+			let eCompleted = 0;
+			let eScheduled = 0;
+			for (const a of forElective) {
+				if (a.date < today) eCompleted += creditOf(a.credit_value);
+				else eScheduled += creditOf(a.credit_value);
+			}
+			eCompleted = round2(eCompleted);
+			eScheduled = round2(eScheduled);
+			return {
+				elective_id: e.id!,
+				elective_name: e.name,
+				is_required: Boolean(e.is_required),
+				required: e.minimum_days,
+				min_required: 0,
+				completed: eCompleted,
+				scheduled: eScheduled,
+				unscheduled: round2(Math.max(0, e.minimum_days - eCompleted - eScheduled)),
+				over_scheduled: round2(Math.max(0, eCompleted + eScheduled - e.minimum_days))
+			};
+		});
+
 		const hasAny = perClerkship.some((c) => c.completed + c.scheduled > 0);
 		const allMet = perClerkship.every((c) => c.unscheduled === 0);
 		const scheduling_state: StudentStatus['scheduling_state'] = !hasAny
@@ -262,6 +312,7 @@ export async function getStudentStatuses(
 			student_name: student.name,
 			overall,
 			per_clerkship: perClerkship,
+			standalone_electives: standaloneElectiveStatuses,
 			scheduling_state,
 			conflict_count: conflictDatesByStudent.get(sid)?.size ?? 0
 		};

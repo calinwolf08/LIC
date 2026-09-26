@@ -94,6 +94,54 @@ describe('getStudentStatuses', () => {
 		await cleanupTestDatabase(db);
 	});
 
+	// E3: standalone electives (no parent clerkship) track separately and never
+	// fold into a clerkship total.
+	it('tracks a standalone elective on its own, not against any clerkship', async () => {
+		const ts = new Date().toISOString();
+		// A standalone elective: minimum 2 days, no parent clerkship.
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id: 'elec-standalone',
+				clerkship_id: null,
+				name: 'Global Health',
+				minimum_days: 2,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// One completed standalone-elective day (no clerkship on the row).
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id: 'sa-elec',
+				student_id: STU,
+				preceptor_id: PREC,
+				clerkship_id: null,
+				elective_id: 'elec-standalone',
+				schedule_id: SCHED,
+				date: '2025-05-01',
+				status: 'scheduled',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		// Surfaced as its own requirement.
+		expect(status.standalone_electives).toHaveLength(1);
+		const se = status.standalone_electives[0];
+		expect(se.elective_name).toBe('Global Health');
+		expect(se.required).toBe(2);
+		expect(se.completed).toBe(1);
+		expect(se.unscheduled).toBe(1);
+		// The Medicine clerkship total is untouched by the standalone-elective day.
+		const medicine = status.per_clerkship.find((c) => c.clerkship_id === CLERK)!;
+		expect(medicine.completed).toBe(0);
+		expect(medicine.scheduled).toBe(0);
+		expect(status.overall.completed).toBe(0);
+	});
+
 	it('reports all-unscheduled with no assignments (state=none)', async () => {
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
 		expect(status.overall).toMatchObject({

@@ -57,7 +57,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			.selectFrom('schedule_assignments')
 			.innerJoin('students', 'students.id', 'schedule_assignments.student_id')
 			.innerJoin('preceptors', 'preceptors.id', 'schedule_assignments.preceptor_id')
-			.innerJoin('clerkships', 'clerkships.id', 'schedule_assignments.clerkship_id')
+			// leftJoin so a standalone-elective day (no clerkship, E3) still counts as a
+			// blackout conflict.
+			.leftJoin('clerkships', 'clerkships.id', 'schedule_assignments.clerkship_id')
 			.select([
 				'schedule_assignments.id',
 				'schedule_assignments.student_id as studentId',
@@ -80,8 +82,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				studentName: a.studentName,
 				preceptorId: a.preceptorId,
 				preceptorName: a.preceptorName,
-				clerkshipId: a.clerkshipId,
-				clerkshipName: a.clerkshipName
+				clerkshipId: a.clerkshipId ?? '',
+				clerkshipName: a.clerkshipName ?? 'Elective'
 			}))
 		};
 

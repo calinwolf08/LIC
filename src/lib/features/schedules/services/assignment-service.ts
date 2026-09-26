@@ -43,7 +43,8 @@ export interface NewAssignmentRow {
 	schedule_id: string | null;
 	student_id: string;
 	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for a standalone-elective day, which has no parent clerkship (E3). */
+	clerkship_id: string | null;
 	elective_id?: string | null;
 	site_id?: string | null;
 	date: string;
@@ -116,7 +117,8 @@ export async function insertAssignments(
 export interface ManualAssignmentInput {
 	student_id: string;
 	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for a standalone-elective day (no parent clerkship, E3). */
+	clerkship_id: string | null;
 	site_id?: string | null;
 	/** Elective this day satisfies, if any. Must belong to the clerkship (P-01). */
 	elective_id?: string | null;
@@ -138,18 +140,23 @@ export interface ManualAssignmentInput {
 export async function checkElectiveBelongsToClerkship(
 	db: Kysely<DB>,
 	electiveId: string,
-	clerkshipId: string
+	clerkshipId: string | null
 ): Promise<Violation | null> {
 	const elective = await db
 		.selectFrom('clerkship_electives')
 		.select(['id', 'clerkship_id'])
 		.where('id', '=', electiveId)
 		.executeTakeFirst();
-	if (!elective || elective.clerkship_id !== clerkshipId) {
+	// A standalone elective (clerkship_id null) belongs to a standalone day (no
+	// clerkship). An attached elective must match the day's clerkship (E3/P-01).
+	if (!elective || (elective.clerkship_id ?? null) !== (clerkshipId ?? null)) {
 		return {
 			code: 'entity_missing',
 			message: 'Elective does not belong to this clerkship',
-			entity_refs: { clerkship_id: clerkshipId, elective_id: electiveId }
+			entity_refs: {
+				...(clerkshipId ? { clerkship_id: clerkshipId } : {}),
+				elective_id: electiveId
+			}
 		};
 	}
 	return null;
@@ -184,6 +191,15 @@ export async function createManualAssignment(
 	input: ManualAssignmentInput,
 	opts: ManualCreateOptions = {}
 ): Promise<ManualCreateResult> {
+	// A day must belong to a clerkship or a (standalone) elective — never neither.
+	if (!input.clerkship_id && !input.elective_id) {
+		return {
+			ok: false,
+			hard: [{ code: 'entity_missing', message: 'A clerkship or elective is required' }],
+			soft: []
+		};
+	}
+
 	const candidate: AssignmentCandidate = {
 		student_id: input.student_id,
 		preceptor_id: input.preceptor_id,
@@ -247,7 +263,8 @@ export async function createManualAssignment(
 export interface BulkManualInput {
 	student_id: string;
 	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for standalone-elective days (no parent clerkship, E3). */
+	clerkship_id: string | null;
 	site_id?: string | null;
 	/** Elective these days satisfy, if any. Must belong to the clerkship (P-01). */
 	elective_id?: string | null;
@@ -512,7 +529,9 @@ export async function listOverrides(
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('schedule_students as ss', 'ss.student_id', 'sa.student_id')
 		.innerJoin('students as st', 'st.id', 'sa.student_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so a standalone-elective day (no clerkship, E3) with an override
+		// still surfaces in the overrides list.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.select([
 			'sa.id as id',
@@ -555,8 +574,8 @@ export async function listOverrides(
 				date: r.date,
 				studentId: r.student_id,
 				studentName: r.student_name,
-				clerkshipId: r.clerkship_id,
-				clerkshipName: r.clerkship_name,
+				clerkshipId: r.clerkship_id ?? '',
+				clerkshipName: r.clerkship_name ?? 'Elective',
 				preceptorId: r.preceptor_id,
 				preceptorName: r.preceptor_name,
 				codes,
