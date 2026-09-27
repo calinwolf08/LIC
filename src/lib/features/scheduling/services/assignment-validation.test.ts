@@ -128,14 +128,26 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.hard.some((v) => v.code === 'entity_missing')).toBe(true);
 	});
 
-	it('flags student double-booking as hard', async () => {
+	it('flags a same-day over-book as soft, not hard (L1 — half-days allowed)', async () => {
+		// A full day already booked; another full day on top exceeds one day.
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
-		expect(r.valid).toBe(false);
-		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(r.hard).toEqual([]);
+		expect(r.valid).toBe(true); // overridable
+		expect(r.soft.some((v) => v.code === 'day_overbooked')).toBe(true);
 	});
 
-	it('editing an assignment in place does not double-book itself (excludeId)', async () => {
+	it('lets two half-days on one day pass with no over-book (0.5 + 0.5 = 1)', async () => {
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON, credit_value: 0.5 });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			date: MON,
+			credit_value: 0.5
+		});
+		expect(r.soft.some((v) => v.code === 'day_overbooked')).toBe(false);
+	});
+
+	it('editing an assignment in place does not over-book itself (excludeId)', async () => {
 		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		expect(created.ok).toBe(true);
 		const id = created.ok ? created.assignment.id : undefined;
@@ -148,11 +160,11 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 			date: MON,
 			excludeId: id ?? undefined
 		});
-		expect(edit.hard.some((v) => v.code === 'student_double_booked')).toBe(false);
+		expect(edit.soft.some((v) => v.code === 'day_overbooked')).toBe(false);
 
-		// A genuine second assignment on the same day (no exclusion) still conflicts.
+		// A genuine second full day on top of the first over-books (soft).
 		const second = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
-		expect(second.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(second.soft.some((v) => v.code === 'day_overbooked')).toBe(true);
 	});
 
 	it('flags a blackout date as soft', async () => {
@@ -248,11 +260,12 @@ describe('createManualAssignment', () => {
 		}
 	});
 
-	it('rejects a hard conflict even with force', async () => {
+	it('creates an over-booked day with force, recording the day_overbooked override', async () => {
+		// Same-day capacity is now soft (L1): a blanket force accepts it and records it.
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: MON }, { force: true });
-		expect(r.ok).toBe(false);
-		if (!r.ok) expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(r.ok).toBe(true);
+		if (r.ok) expect(String(r.assignment.override_codes)).toContain('day_overbooked');
 	});
 
 	it('rejects a soft violation without force', async () => {
@@ -304,7 +317,7 @@ describe('createManualAssignmentsBulk', () => {
 		expect(r.results.filter((x) => x.created)).toHaveLength(3);
 	});
 
-	it('skips dates the student is already booked (hard conflict)', async () => {
+	it('skips an over-booked date without an override (soft-blocked)', async () => {
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await createManualAssignmentsBulk(db, SCHEDULE, {
 			...base,
@@ -313,7 +326,8 @@ describe('createManualAssignmentsBulk', () => {
 		});
 		const conflict = r.results.find((x) => x.date === MON);
 		expect(conflict?.created).toBe(false);
-		expect(conflict?.skipped).toBe('hard_conflict');
+		// A same-day over-book is now a soft violation, not a hard conflict.
+		expect(conflict?.skipped).toBe('soft_blocked');
 	});
 });
 
@@ -361,11 +375,14 @@ describe('validateCandidateWithContext (pure, for Step 10)', () => {
 		expect(r.soft).toHaveLength(0);
 	});
 
-	it('detects double-booking from the existing map (hard)', () => {
+	it('no longer flags same-day booking here — over-book is slot-scoped now (L1)', () => {
+		// The per-candidate validator dropped the double-book check; whole-schedule
+		// validation computes credit-aware `day_overbooked` per over-booked day.
 		const existing = new Map([[`${STUDENT}:2025-03-03`, 'other-assignment']]);
 		const r = validateCandidateWithContext({ ...base, date: '2025-03-03' }, ctx(), existing);
-		expect(r.valid).toBe(false);
-		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(r.valid).toBe(true);
+		expect(r.hard).toEqual([]);
+		expect(r.soft.some((v) => v.code === 'day_overbooked')).toBe(false);
 	});
 
 	it('flags blackout + outside-range as soft', () => {
@@ -446,14 +463,14 @@ describe('validateCandidateWithContext (pure, for Step 10)', () => {
 		expect(r.soft).toHaveLength(0);
 	});
 
-	it('excludeId prevents an assignment from double-booking itself', () => {
+	it('does not raise a same-day hard conflict against its own existing row', () => {
 		const existing = new Map([[`${STUDENT}:2025-03-03`, 'self']]);
 		const r = validateCandidateWithContext(
 			{ ...base, date: '2025-03-03', excludeId: 'self' },
 			ctx(),
 			existing
 		);
-		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(false);
+		expect(r.hard).toEqual([]);
 	});
 
 	it('boundary dates at schedule start/end are in range', () => {

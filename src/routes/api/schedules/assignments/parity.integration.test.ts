@@ -336,8 +336,9 @@ describe('one-validator parity across every mutation path', () => {
 			expected: ['preceptor_capacity']
 		});
 
-		// STU already has a day on 2026-10-13 (via PREC2) → a second day is a hard
-		// double-booking regardless of preceptor.
+		// STU already has a full day on 2026-10-13 (via PREC2) → a second full day
+		// over-books the day (credit 1 + 1 > 1): a soft, overridable warning now, not
+		// a hard block (L1 — same-day half-days allowed).
 		await insertAssignment(db, {
 			id: 'occ-double',
 			student_id: STU,
@@ -345,7 +346,7 @@ describe('one-validator parity across every mutation path', () => {
 			date: '2026-10-13'
 		});
 		scenarios.push({
-			name: 'student_double_booked',
+			name: 'day_overbooked',
 			cand: {
 				student_id: STU,
 				preceptor_id: PREC,
@@ -353,7 +354,7 @@ describe('one-validator parity across every mutation path', () => {
 				site_id: SITE,
 				date: '2026-10-13'
 			},
-			expected: ['student_double_booked']
+			expected: ['day_overbooked']
 		});
 
 		const validator = new ProposalValidator(db, SCHED, new Set());

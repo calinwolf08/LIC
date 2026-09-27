@@ -256,6 +256,82 @@ describe('validateSchedule', () => {
 		const r = await validateSchedule(db, SCHED);
 		expect(r.violations.some((v) => v.code === 'student_double_booked')).toBe(false);
 	});
+
+	// --- day_overbooked (L1: same-day half-days) ---------------------------
+	const PREC2 = 'prec-2';
+	async function onboardAndAddSecondPreceptor(db: Kysely<DB>) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('student_health_system_onboarding')
+			.values({
+				id: 'ob',
+				student_id: STU,
+				health_system_id: HS,
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		await db
+			.insertInto('preceptors')
+			.values({
+				id: PREC2,
+				name: 'P2',
+				email: 'p2@x.com',
+				max_students: 1,
+				health_system_id: HS,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		await db
+			.insertInto('schedule_preceptors')
+			.values({ id: 'sp2', schedule_id: SCHED, preceptor_id: PREC2, created_at: ts })
+			.execute();
+	}
+	async function addAssignmentX(
+		db: Kysely<DB>,
+		id: string,
+		date: string,
+		preceptorId: string,
+		credit: number
+	) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id,
+				student_id: STU,
+				preceptor_id: preceptorId,
+				clerkship_id: CLERK,
+				date,
+				status: 'scheduled',
+				credit_value: credit,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('flags one day_overbooked per over-booked student-day, referencing every day', async () => {
+		await onboardAndAddSecondPreceptor(db);
+		// Two full days on one date (distinct preceptors, so capacity does not fire).
+		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 1);
+		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 1);
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['day_overbooked']).toBe(1);
+		const finding = r.byStudent[STU]?.find((v) => v.code === 'day_overbooked');
+		expect(finding?.assignment_ids.slice().sort()).toEqual(['a1', 'a2']);
+		expect(r.byDate['2025-03-03']?.some((v) => v.code === 'day_overbooked')).toBe(true);
+	});
+
+	it('does not flag two half-days that sum to one full day', async () => {
+		await onboardAndAddSecondPreceptor(db);
+		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 0.5);
+		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 0.5);
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['day_overbooked']).toBeUndefined();
+	});
 });
 
 describe('getSetupChecklist', () => {

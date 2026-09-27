@@ -14,6 +14,7 @@
 
 	const violationLabels: Record<string, string> = {
 		student_double_booked: 'Double-booked students',
+		day_overbooked: 'Over-booked days (credits > 1)',
 		preceptor_unavailable: 'Preceptor unavailable',
 		blackout_date: 'On a blackout date',
 		preceptor_capacity: 'Preceptor over capacity',

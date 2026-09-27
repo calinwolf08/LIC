@@ -168,6 +168,12 @@ export class AssignmentDialog {
 	async setNote(text: string) {
 		await this.page.locator('#ad-note').fill(text);
 	}
+	/** Set the per-day credit value (M1 / half-days). */
+	async setCredit(value: number) {
+		const input = this.page.getByTestId('ad-credit');
+		await expect(input).toBeVisible();
+		await input.fill(String(value));
+	}
 
 	// ---- read-outs ---------------------------------------------------------
 

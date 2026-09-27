@@ -10,6 +10,8 @@ import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import {
 	validateCandidateWithContext,
+	candidateCredit,
+	FULL_DAY_CREDIT,
 	type ValidationContext,
 	type Violation
 } from './assignment-validation';
@@ -64,7 +66,7 @@ export async function validateSchedule(
 	// of a student's days when flagging double-books and capacity.
 	const assignments = await db
 		.selectFrom('schedule_assignments')
-		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date'])
+		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date', 'credit_value'])
 		.where('student_id', 'in', studentIds)
 		.execute();
 
@@ -218,6 +220,33 @@ export async function validateSchedule(
 				date: a.date,
 				student_id: a.student_id,
 				preceptor_id: a.preceptor_id
+			});
+		}
+	}
+
+	// Day over-book (L1): ONE finding per over-booked (student, date) — a student
+	// whose assignments that day sum to more than one full day of credit. Half-days
+	// (0.5 + 0.5 = 1) pass; a genuine double-book (1 + 1 = 2), across any mix of
+	// clerkships, is flagged. Slot-scoped like capacity so the count is per day.
+	const studentDaySlots = new Map<string, typeof assignments>();
+	for (const a of assignments) {
+		const k = `${a.student_id}:${a.date}`;
+		(studentDaySlots.get(k) ?? studentDaySlots.set(k, []).get(k)!).push(a);
+	}
+	for (const [, slot] of studentDaySlots) {
+		if (slot.length < 2) continue;
+		const totalCredit = slot.reduce((sum, a) => sum + candidateCredit(a.credit_value), 0);
+		if (totalCredit > FULL_DAY_CREDIT + 1e-9) {
+			const first = slot[0];
+			violations.push({
+				code: 'day_overbooked',
+				message: `Student has ${totalCredit} days booked on ${first.date} (more than one full day)`,
+				entity_refs: { student_id: first.student_id },
+				assignment_id: first.id!,
+				assignment_ids: slot.map((a) => a.id!),
+				date: first.date,
+				student_id: first.student_id,
+				preceptor_id: first.preceptor_id
 			});
 		}
 	}

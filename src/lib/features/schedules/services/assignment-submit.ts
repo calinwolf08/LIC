@@ -11,6 +11,7 @@ import type { DayState } from '$lib/features/scheduling/services/assignment-day-
 
 /** Soft categories the dialog can raise a conversation about. */
 export type OverrideCategory =
+	| 'day_overbooked'
 	| 'preceptor_unavailable'
 	| 'preceptor_capacity'
 	| 'blackout_date'
@@ -57,6 +58,7 @@ export interface FlagAnalysis {
 }
 
 const CATEGORY_ORDER: OverrideCategory[] = [
+	'day_overbooked',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -74,7 +76,13 @@ const CATEGORY_ORDER: OverrideCategory[] = [
 export function analyseSelection(
 	selectedDates: string[],
 	dayStates: DayState[],
-	selectionWide: SelectionWideFlags = {}
+	selectionWide: SelectionWideFlags = {},
+	/**
+	 * Credit each new day is worth (M1). A day is over-booked only when the
+	 * student's existing credit that day plus this credit exceeds one full day, so
+	 * half-days (0.5 + 0.5 = 1) submit cleanly (L1).
+	 */
+	creditValue = 1
 ): FlagAnalysis {
 	const byDate = new Map(dayStates.map((d) => [d.date, d]));
 	const blockedDates: string[] = [];
@@ -92,12 +100,16 @@ export function analyseSelection(
 
 	for (const date of [...selectedDates].sort()) {
 		const day = byDate.get(date);
-		if (day?.studentBusy) {
-			blockedDates.push(date);
-			continue;
-		}
+		// Same-day assignments are allowed (half-days), so a busy day is no longer a
+		// hard block. It becomes an over-book warning only when the day's total credit
+		// would exceed one full day — 0.5 + 0.5 passes, 1 + anything is flagged.
 		submittableDates.push(date);
 		if (!day) continue;
+
+		const booked = day.studentBookedCredit ?? (day.studentBusy ? 1 : 0);
+		if (booked > 0 && booked + creditValue > 1 + 1e-9) {
+			bucket('day_overbooked').dates.push(date);
+		}
 
 		if (day.state === 'unavailable') bucket('preceptor_unavailable').dates.push(date);
 		if (day.state === 'blackout') bucket('blackout_date').dates.push(date);
@@ -186,6 +198,11 @@ export function buildSubmitPayload(
 
 /** Human copy for each override conversation. */
 export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: string }> = {
+	day_overbooked: {
+		title: 'More than a full day booked',
+		describe:
+			'The student already has assignments on these days and this brings the total above one full day. Half-days (0.5 + 0.5) are fine; confirm if you intend to over-book.'
+	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',
 		describe: 'The preceptor is marked unavailable on these days.'

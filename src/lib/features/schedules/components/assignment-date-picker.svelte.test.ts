@@ -15,6 +15,7 @@ function day(date: string, over: Partial<DayState> = {}): DayState {
 		preceptorBookings: [],
 		preceptorAtCapacity: false,
 		studentBusy: false,
+		studentBookedCredit: 0,
 		isPast: false,
 		...over
 	};

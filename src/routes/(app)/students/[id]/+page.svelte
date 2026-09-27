@@ -65,6 +65,49 @@
 		return [...byHealthSystem.values()];
 	});
 
+	// ---- Scheduling conflicts (L1) -------------------------------------------
+	/**
+	 * This student's whole-schedule conflicts (over-booked days and any other
+	 * findings that reference the student), from the shared validation payload.
+	 * Refetched whenever the loaded page data changes (e.g. after removing a day).
+	 */
+	interface StudentConflict {
+		date: string;
+		code: string;
+		message: string;
+	}
+	/**
+	 * Student-day conflicts worth flagging on the student: an over-booked day (more
+	 * than one full day of credit, L1), a blackout day, or a day outside the
+	 * schedule range. Preceptor-side issues (capacity) live on the preceptor/health
+	 * panel, and advisory soft codes (onboarding, core-preceptor, preference) are
+	 * shown in their own sections, so they are excluded here.
+	 */
+	const CONFLICT_CODES = new Set(['day_overbooked', 'blackout_date', 'outside_schedule', 'entity_missing']);
+	let conflicts = $state<StudentConflict[]>([]);
+	$effect(() => {
+		const studentId = data.studentId;
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await fetch('/api/schedules/validation');
+				if (!res.ok) return;
+				const body = await res.json();
+				const rows = (body?.data?.byStudent?.[studentId] ?? []) as StudentConflict[];
+				if (!cancelled)
+					conflicts = rows
+						.filter((r) => CONFLICT_CODES.has(r.code))
+						.map((r) => ({ date: r.date, code: r.code, message: r.message }))
+						.sort((a, b) => a.date.localeCompare(b.date));
+			} catch {
+				/* validation is advisory; a fetch failure just leaves the panel empty */
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	});
+
 	// ---- Schedule tab view ---------------------------------------------------
 	let scheduleView = $state<'calendar' | 'list'>('calendar');
 
@@ -235,7 +278,27 @@
 	{/snippet}
 
 	{#if activeTab === 'overview'}
-		{#if status && status.conflict_count > 0}
+		{#if conflicts.length > 0}
+			<div
+				class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+				data-testid="student-conflicts"
+			>
+				<p class="font-semibold">
+					{conflicts.length} scheduling conflict{conflicts.length > 1 ? 's' : ''} to review
+				</p>
+				<ul class="mt-2 space-y-1">
+					{#each conflicts as c (c.date + c.code)}
+						<li
+							data-testid="student-conflict-{c.code}-{c.date}"
+							data-date={c.date}
+							data-code={c.code}
+						>
+							<strong>{c.date}</strong> — {c.message}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{:else if status && status.conflict_count > 0}
 			<div class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
 				This student has {status.conflict_count} scheduling conflict{status.conflict_count > 1 ? 's' : ''}.
 			</div>

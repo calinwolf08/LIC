@@ -440,7 +440,9 @@
 		preferredDayAvailable: serverSoftCodes.includes('preferred_day_available')
 	});
 
-	let liveAnalysis = $derived(analyseSelection(selectedDates, [...dayStates.values()], selectionWide));
+	let liveAnalysis = $derived(
+		analyseSelection(selectedDates, [...dayStates.values()], selectionWide, credit)
+	);
 
 	let canSubmit = $derived(
 		!submitting &&

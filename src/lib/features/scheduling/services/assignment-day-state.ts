@@ -28,6 +28,13 @@ export interface DayState {
 	preceptorAtCapacity: boolean;
 	/** The student already has an assignment (of any kind) on this day. */
 	studentBusy: boolean;
+	/**
+	 * Sum of the student's existing credit on this day (excluding `excludeId`).
+	 * Lets the picker/dialog decide, credit-aware, whether adding another
+	 * assignment would over-book the day — half-days (0.5 + 0.5) fit, a full day
+	 * plus anything does not (L1).
+	 */
+	studentBookedCredit: number;
 	/** Strictly before today — today itself is not past. */
 	isPast: boolean;
 }
@@ -130,18 +137,21 @@ export async function getDayStates(
 		.execute();
 	const blackouts = new Set(blackoutRows.map((b) => b.date));
 
-	let studentBusyDates = new Set<string>();
+	const studentCreditByDate = new Map<string, number>();
 	if (query.studentId) {
 		let busyQuery = db
 			.selectFrom('schedule_assignments')
-			.select('date')
+			.select(['date', 'credit_value'])
 			.where('student_id', '=', query.studentId)
 			.where('date', '>=', query.from)
 			.where('date', '<=', query.to);
 		// Edit mode: don't let the edited assignment mark its own day as busy.
 		if (query.excludeId) busyQuery = busyQuery.where('id', '!=', query.excludeId);
 		const rows = await busyQuery.execute();
-		studentBusyDates = new Set(rows.map((r) => r.date));
+		for (const r of rows) {
+			const credit = typeof r.credit_value === 'number' && r.credit_value > 0 ? r.credit_value : 1;
+			studentCreditByDate.set(r.date, (studentCreditByDate.get(r.date) ?? 0) + credit);
+		}
 	}
 
 	// date -> is any explicit availability row present, and is any of them "available"
@@ -179,7 +189,8 @@ export async function getDayStates(
 			state,
 			preceptorBookings,
 			preceptorAtCapacity: !!query.preceptorId && preceptorBookings.length >= maxStudents,
-			studentBusy: studentBusyDates.has(date),
+			studentBusy: (studentCreditByDate.get(date) ?? 0) > 0,
+			studentBookedCredit: studentCreditByDate.get(date) ?? 0,
 			isPast: date < today
 		};
 	});

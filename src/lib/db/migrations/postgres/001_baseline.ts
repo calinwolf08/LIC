@@ -773,7 +773,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_assignments_date', 'schedule_assignments', ['date']);
 	await index('idx_assignments_elective', 'schedule_assignments', ['elective_id']);
 	await index('idx_assignments_preceptor_date', 'schedule_assignments', ['preceptor_id', 'date']);
-	await uniqueIndex('idx_assignments_student_date', 'schedule_assignments', ['student_id', 'date']);
+	// Non-unique: a student may have more than one assignment per day (half-days /
+	// AM-PM). Same-day capacity is an app-level, credit-aware check (L1), not a DB
+	// constraint. Mirrors sqlite migration 104.
+	await index('idx_assignments_student_date', 'schedule_assignments', ['student_id', 'date']);
 	await index('idx_schedule_assignments_site', 'schedule_assignments', ['site_id']);
 
 	await index('idx_schedule_clerkships_schedule', 'schedule_clerkships', ['schedule_id']);

@@ -80,6 +80,9 @@ async function evaluateEdit(
 		// core clerkship day against the clerkship and leaves elective days alone (P7-a).
 		elective_id: changes.elective_id !== undefined ? changes.elective_id : current.elective_id,
 		date: changes.date ?? current.date,
+		// The day-overbook check sums the other same-day rows' credit plus this one's;
+		// use the row's real credit (default 1) rather than assuming a full day.
+		credit_value: current.credit_value,
 		excludeId: current.id ?? undefined
 	};
 	const v = await validateAssignmentCandidate(db, current.schedule_id ?? '', candidate, {

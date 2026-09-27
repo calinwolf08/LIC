@@ -206,7 +206,8 @@ export async function createManualAssignment(
 		clerkship_id: input.clerkship_id,
 		site_id: input.site_id ?? null,
 		elective_id: input.elective_id ?? null,
-		date: input.date
+		date: input.date,
+		credit_value: input.credit_value
 	};
 	const result = await validateAssignmentCandidate(db, scheduleId, candidate, {
 		today: opts.today,
@@ -888,19 +889,12 @@ export async function updateAssignment(
 		throw new ValidationError(dateCheck.error!);
 	}
 
-	// Raw writer. The only invariant it enforces itself is the one true hard rule
-	// — a student cannot be in two places on the same day. Every overridable
-	// (soft) rule is checked by the callers that own the mutation contract
-	// (createManualAssignment and the edit paths in editing-service, both via the
-	// single validateAssignmentCandidate validator). Callers that want the
-	// hard/soft override envelope must go through those.
-	const targetStudent = data.student_id || current.student_id;
-	const targetDate = data.date || current.date;
-	if (data.student_id || data.date) {
-		if (await hasStudentConflict(db, targetStudent, targetDate, id)) {
-			throw new ValidationError('Student already has an assignment on this date');
-		}
-	}
+	// Raw writer. Same-day capacity is no longer a hard rule here: a student may
+	// hold more than one assignment per day (half-days), and over-booking is the
+	// credit-aware, overridable `day_overbooked` soft code checked by the callers
+	// that own the mutation contract (createManualAssignment and the edit paths in
+	// editing-service, both via the single validateAssignmentCandidate validator).
+	// Callers that want the hard/soft override envelope must go through those.
 
 	const updated = await db
 		.updateTable('schedule_assignments')

@@ -175,15 +175,17 @@ export async function getStudentStatuses(
 					.execute()
 			: [];
 
-	// Conflicts: a student double-booked on a date (>1 assignment same day)
-	const perStudentDateCount = new Map<string, number>();
+	// Conflicts: a student OVER-booked on a date — their assignments that day sum to
+	// more than one full day of credit. Half-days (0.5 + 0.5 = 1) are legitimate and
+	// not a conflict; a full day plus anything is (L1, credit-aware).
+	const perStudentDateCredit = new Map<string, number>();
 	for (const a of assignments) {
 		const k = `${a.student_id}:${a.date}`;
-		perStudentDateCount.set(k, (perStudentDateCount.get(k) ?? 0) + 1);
+		perStudentDateCredit.set(k, (perStudentDateCredit.get(k) ?? 0) + creditOf(a.credit_value));
 	}
 	const conflictDatesByStudent = new Map<string, Set<string>>();
-	for (const [k, count] of perStudentDateCount) {
-		if (count > 1) {
+	for (const [k, credit] of perStudentDateCredit) {
+		if (credit > 1 + 1e-9) {
 			const [sid, date] = k.split(':');
 			if (!conflictDatesByStudent.has(sid)) conflictDatesByStudent.set(sid, new Set());
 			conflictDatesByStudent.get(sid)!.add(date);

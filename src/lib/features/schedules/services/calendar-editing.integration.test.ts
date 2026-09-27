@@ -929,11 +929,13 @@ describe('Editing Service Integration Tests', () => {
 				date: futureDate2
 			});
 
-			// Try to change assignment1 to same date as assignment2
+			// Moving assignment1 onto assignment2's day now over-books the day rather
+			// than hard-failing (L1 — same-day half-days are allowed). The calendar move
+			// path does not block on soft codes, so it proceeds and surfaces the warning.
 			const result = await changeAssignmentDate(db, assignment1.id, futureDate2);
 
-			expect(result.valid).toBe(false);
-			expect(result.errors.some((e) => e.includes('already has an assignment'))).toBe(true);
+			expect(result.valid).toBe(true);
+			expect(result.soft.some((v) => v.code === 'day_overbooked')).toBe(true);
 		});
 	});
 
