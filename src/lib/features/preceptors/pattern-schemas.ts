@@ -112,6 +112,10 @@ const basePatternFields = {
 	reason: z.string().max(500).optional(),
 	/** Preference level for available days: preferred vs. in-a-pinch (H8). */
 	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
+	/** Which part of the day this pattern grants: full / morning / afternoon (L1). */
+	session: z.enum(['full', 'am', 'pm']).optional(),
+	/** Credit each materialised day is worth; defaults to the session's default (L1). */
+	credit_value: z.number().positive().max(10).optional(),
 	enabled: z.boolean().default(true)
 };
 
@@ -190,6 +194,8 @@ export const updatePatternSchema = z.object({
 	config: patternConfigSchema.optional(),
 	reason: z.string().max(500).optional(),
 	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
+	session: z.enum(['full', 'am', 'pm']).optional(),
+	credit_value: z.number().positive().max(10).optional(),
 	enabled: z.boolean().optional()
 }).refine(
 	(data) => {
@@ -230,6 +236,10 @@ export const generatedDateSchema = z.object({
 	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
 	/** Free-text note carried from the source pattern's `reason` (H6). */
 	notes: z.string().max(500).optional(),
+	/** Session this day grants, carried from the pattern (L1). */
+	session: z.enum(['full', 'am', 'pm']).optional(),
+	/** Credit each materialised day is worth, carried from the pattern (L1). */
+	credit_value: z.number().positive().max(10).optional(),
 	source_pattern_id: cuid2Schema.optional(),
 	source_pattern_type: patternTypeSchema.optional()
 });

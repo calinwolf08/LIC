@@ -460,6 +460,9 @@ export function applyPatternsBySpecificity(patterns: CreatePattern[]): Generated
 				// Carry the pattern's note through to the materialised day (H6). Kept for
 				// unavailable days too — "out for conference" is exactly when it helps.
 				notes: pattern.reason ?? undefined,
+				// Carry the half-day session + credit through to the materialised day (L1).
+				session: pattern.is_available ? (pattern.session ?? 'full') : undefined,
+				credit_value: pattern.is_available ? pattern.credit_value : undefined,
 				source_pattern_type: pattern.pattern_type
 			});
 		}

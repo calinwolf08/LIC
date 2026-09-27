@@ -388,6 +388,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('reason', TEXT)
 		.addColumn('preference', TEXT)
+		// Half-day session this pattern grants + the credit each materialised day is
+		// worth (L1). Mirrors preceptor_availability's session/credit_value.
+		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
 		.addColumn('specificity', INTEGER, (col) => col.notNull().defaultTo(0))
 		.addColumn('enabled', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))

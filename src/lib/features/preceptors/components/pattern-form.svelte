@@ -33,6 +33,11 @@
 	let patternType = $state<'weekly' | 'monthly' | 'block' | 'individual'>('weekly');
 	let isAvailable = $state(true);
 	let preference = $state<'' | 'preferred' | 'in_a_pinch'>('');
+	// Half-day session + credit (L1). AM/PM default to half a day; a full day to one.
+	// `creditTouched` stops the session picker from overwriting a hand-typed credit.
+	let session = $state<'full' | 'am' | 'pm'>('full');
+	let creditValue = $state(1);
+	let creditTouched = $state(false);
 	let selectedSiteId = $state<string>(sites.length === 1 ? sites[0].id : '');
 	let startDate = $state('');
 	let endDate = $state('');
@@ -64,6 +69,9 @@
 			patternType = editPattern.pattern_type;
 			isAvailable = editPattern.is_available;
 			preference = editPattern.preference ?? '';
+			session = (editPattern.session as 'full' | 'am' | 'pm' | undefined) ?? 'full';
+			creditValue = editPattern.credit_value ?? (session === 'full' ? 1 : 0.5);
+			creditTouched = true;
 			selectedSiteId = editPattern.site_id || (sites.length === 1 ? sites[0].id : '');
 			startDate = editPattern.date_range_start;
 			endDate = editPattern.date_range_end;
@@ -150,6 +158,8 @@
 			config,
 			reason: reason || undefined,
 			preference: isAvailable && preference ? preference : undefined,
+			session,
+			credit_value: session === 'full' && creditValue === 1 ? undefined : creditValue,
 			enabled: true
 		} as CreatePattern;
 	}
@@ -300,8 +310,47 @@
 			</div>
 		</div>
 
-		<!-- Preference (H8): only meaningful for available days -->
+		<!-- Session + credit (L1): only meaningful for available days -->
 		{#if isAvailable}
+			<div class="flex flex-wrap gap-4">
+				<div class="space-y-2">
+					<Label for="session-select">Session</Label>
+					<select
+						id="session-select"
+						data-testid="pattern-session"
+						value={session}
+						onchange={(e) => {
+							session = (e.currentTarget as HTMLSelectElement).value as 'full' | 'am' | 'pm';
+							if (!creditTouched) creditValue = session === 'full' ? 1 : 0.5;
+						}}
+						class="flex h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					>
+						<option value="full">Full day</option>
+						<option value="am">Morning (AM)</option>
+						<option value="pm">Afternoon (PM)</option>
+					</select>
+				</div>
+				<div class="space-y-2">
+					<Label for="credit-input">
+						Credit per day <span class="text-muted-foreground">(half day = 0.5)</span>
+					</Label>
+					<input
+						id="credit-input"
+						data-testid="pattern-credit"
+						type="number"
+						min="0.5"
+						max="10"
+						step="0.5"
+						value={creditValue}
+						oninput={(e) => {
+							creditValue = Number((e.currentTarget as HTMLInputElement).value);
+							creditTouched = true;
+						}}
+						class="flex h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					/>
+				</div>
+			</div>
+
 			<div class="space-y-2">
 				<Label for="preference-select">Preference (optional)</Label>
 				<select

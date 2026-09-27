@@ -36,6 +36,8 @@
 		config: any;
 		reason: string | null;
 		preference: string | null;
+		session: string;
+		credit_value: number;
 		enabled: number;
 		created_at: string;
 		updated_at: string;
@@ -122,6 +124,8 @@
 					config: p.config,
 					reason: p.reason || undefined,
 					preference: (p.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+					session: (p.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+					credit_value: p.credit_value ?? undefined,
 					enabled: typeof p.enabled === 'number' ? p.enabled === 1 : p.enabled
 				})) as CreatePattern[];
 
@@ -174,6 +178,9 @@
 			config: pattern.config,
 			reason: pattern.reason || null,
 			preference: pattern.preference || null,
+			session: pattern.session ?? 'full',
+			credit_value:
+				pattern.credit_value ?? (pattern.session && pattern.session !== 'full' ? 0.5 : 1),
 			enabled: pattern.enabled ? 1 : 0,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -201,6 +208,9 @@
 			config: pattern.config,
 			reason: pattern.reason || null,
 			preference: pattern.preference || null,
+			session: pattern.session ?? 'full',
+			credit_value:
+				pattern.credit_value ?? (pattern.session && pattern.session !== 'full' ? 0.5 : 1),
 			enabled: pattern.enabled ? 1 : 0,
 			updated_at: new Date().toISOString()
 		};
@@ -295,6 +305,8 @@
 						config: pattern.config,
 						reason: pattern.reason || undefined,
 						preference: (pattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+						session: (pattern.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+						credit_value: pattern.credit_value ?? undefined,
 						enabled: pattern.enabled === 1
 					};
 
@@ -323,6 +335,8 @@
 						config: pattern.config,
 						reason: pattern.reason || undefined,
 						preference: (pattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+						session: (pattern.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+						credit_value: pattern.credit_value ?? undefined,
 						enabled: pattern.enabled === 1
 					};
 
@@ -398,6 +412,8 @@
 			config: p.config,
 			reason: p.reason || undefined,
 			preference: (p.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+			session: (p.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+			credit_value: p.credit_value ?? undefined,
 			enabled: p.enabled === 1
 		} as CreatePattern;
 	}

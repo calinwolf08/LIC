@@ -206,6 +206,7 @@ export interface PreceptorAvailability {
 export interface PreceptorAvailabilityPatterns {
   config: string | null;
   created_at: Generated<string>;
+  credit_value: Generated<number>;
   date_range_end: string;
   date_range_start: string;
   enabled: Generated<number>;
@@ -215,6 +216,7 @@ export interface PreceptorAvailabilityPatterns {
   preceptor_id: string;
   preference: string | null;
   reason: string | null;
+  session: Generated<string>;
   site_id: string;
   specificity: Generated<number>;
   updated_at: Generated<string>;

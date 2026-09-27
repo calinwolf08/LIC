@@ -393,6 +393,30 @@ describe('applyPatternsBySpecificity', () => {
 		expect(jan6?.notes).toBe('Out for conference');
 	});
 
+	// L1: the pattern's half-day session + credit are carried onto each available day.
+	it('carries the pattern session + credit onto available generated days (L1)', () => {
+		const patterns: CreatePattern[] = [
+			{
+				pattern_type: 'weekly',
+				is_available: true,
+				specificity: 1,
+				date_range_start: '2025-01-01',
+				date_range_end: '2025-01-31',
+				config: { days_of_week: [1, 3, 5] },
+				session: 'am',
+				credit_value: 0.5,
+				enabled: true,
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
+			}
+		];
+
+		const result = applyPatternsBySpecificity(patterns);
+		const jan3 = result.find((d) => d.date === '2025-01-03');
+		expect(jan3?.session).toBe('am');
+		expect(jan3?.credit_value).toBe(0.5);
+	});
+
 	it('should handle individual overrides with highest specificity', () => {
 		const patterns: CreatePattern[] = [
 			{

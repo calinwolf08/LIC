@@ -6,6 +6,10 @@
 
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, PreceptorAvailability } from '$lib/db/types';
+import {
+	normalizeSession,
+	defaultCreditForSession
+} from '$lib/features/scheduling/services/session-slots';
 import type { CreateAvailabilityInput, UpdateAvailabilityInput, DateRangeInput, BulkAvailabilityInput } from '../availability-schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { preceptorExists } from './preceptor-service';
@@ -91,13 +95,18 @@ export async function setAvailability(
 	date: string,
 	isAvailable: boolean,
 	preference: string | null = null,
-	notes: string | null = null
+	notes: string | null = null,
+	session: string = 'full',
+	creditValue: number | null = null
 ): Promise<Selectable<PreceptorAvailability>> {
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, preceptorId);
 	if (!exists) {
 		throw new NotFoundError('Preceptor');
 	}
+
+	const slot = normalizeSession(session);
+	const credit = creditValue ?? defaultCreditForSession(slot);
 
 	// Check if availability already exists for this date and site
 	const existing = await db
@@ -119,6 +128,8 @@ export async function setAvailability(
 				preference: isAvailable ? preference : null,
 				// A note is kept regardless of availability (H6).
 				notes,
+				session: slot,
+				credit_value: credit,
 				updated_at: timestamp
 			})
 			.where('id', '=', existing.id)
@@ -144,6 +155,8 @@ export async function setAvailability(
 			is_available: isAvailable ? 1 : 0,
 			preference: isAvailable ? preference : null,
 			notes,
+			session: slot,
+			credit_value: credit,
 			created_at: timestamp,
 			updated_at: timestamp
 		};

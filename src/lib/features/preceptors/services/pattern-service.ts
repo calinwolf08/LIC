@@ -6,6 +6,10 @@
 
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, PreceptorAvailabilityPatterns } from '$lib/db/types';
+import {
+	normalizeSession,
+	defaultCreditForSession
+} from '$lib/features/scheduling/services/session-slots';
 import type {
 	CreatePattern,
 	UpdatePattern,
@@ -109,6 +113,8 @@ export async function createPattern(
 		config: data.config ? JSON.stringify(data.config) : null,
 		reason: data.reason || null,
 		preference: data.preference || null,
+		session: normalizeSession(data.session),
+		credit_value: data.credit_value ?? defaultCreditForSession(normalizeSession(data.session)),
 		enabled: data.enabled ? 1 : 0,
 		created_at: timestamp,
 		updated_at: timestamp
@@ -172,6 +178,14 @@ export async function updatePattern(
 
 	if (data.preference !== undefined) {
 		updateData.preference = data.preference || null;
+	}
+
+	if (data.session !== undefined) {
+		updateData.session = normalizeSession(data.session);
+	}
+
+	if (data.credit_value !== undefined) {
+		updateData.credit_value = data.credit_value;
 	}
 
 	if (data.enabled !== undefined) {
@@ -247,6 +261,8 @@ function dbPatternToCreatePattern(
 		config,
 		reason: dbPattern.reason || undefined,
 		preference: (dbPattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+		session: normalizeSession(dbPattern.session),
+		credit_value: dbPattern.credit_value ?? undefined,
 		enabled: dbPattern.enabled === 1
 	};
 }
@@ -353,7 +369,9 @@ export async function saveGeneratedDates(
 			generatedDate.date,
 			generatedDate.is_available,
 			generatedDate.preference ?? null,
-			generatedDate.notes ?? null
+			generatedDate.notes ?? null,
+			generatedDate.session ?? 'full',
+			generatedDate.credit_value ?? null
 		);
 	}
 
