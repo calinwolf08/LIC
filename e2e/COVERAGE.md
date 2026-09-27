@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **65** across 9 phases
+- Spec files: **66** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **50**; findings/decisions mapped: **47**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×49, `@stage2` ×17, `@tenant` ×1
+- Requirements mapped: **50**; findings/decisions mapped: **51**
+- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×50, `@stage2` ×17, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -72,6 +72,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/availability-notes.spec.ts` | @stage1 | R3.2 | CF-H6 |
 | 9 | — | `phase-9/availability-preference-consumption.spec.ts` | @stage1 @stage2 | R3.2 | CF-H8 |
 | 9 | — | `phase-9/availability-preference.spec.ts` | @stage1 | R3.2 | CF-H8 |
+| 9 | — | `phase-9/calendar-phase6.spec.ts` | @stage1 | R8.2 | CF-I3, CF-J1, CF-J2, CF-J3 |
 | 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
 | 9 | — | `phase-9/credit-value.spec.ts` | @stage1 | R4.4 | CF-M1 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
@@ -130,7 +131,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R7.3 | J3.3, J3.10, J4.4 |
 | R7.4 | assign-outside-availability.spec.ts, core-preceptor.spec.ts, J3.3, J4.4 |
 | R8.1 | J4.1 |
-| R8.2 | J4.1 |
+| R8.2 | calendar-phase6.spec.ts, J4.1 |
 | R8.3 | J4.1 |
 | R8.4 | J4.2 |
 | R8.5 | J4.3 |
@@ -160,6 +161,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-H6 | availability-notes.spec.ts |
 | CF-H8 | availability-preference-consumption.spec.ts, availability-preference.spec.ts |
 | CF-I1 | assign-outside-availability.spec.ts |
+| CF-I3 | calendar-phase6.spec.ts |
+| CF-J1 | calendar-phase6.spec.ts |
+| CF-J2 | calendar-phase6.spec.ts |
+| CF-J3 | calendar-phase6.spec.ts |
 | CF-M1 | credit-value.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
 | D5-1 | J5.3 |

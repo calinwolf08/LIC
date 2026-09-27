@@ -12,6 +12,7 @@
 	import ReassignModal from '$lib/features/schedules/components/reassign-modal.svelte';
 	import RegenerateDialog from '$lib/features/schedules/components/regenerate-dialog.svelte';
 	import ScheduleCalendarGrid from '$lib/features/schedules/components/schedule-calendar-grid.svelte';
+	import ScheduleBlockGrid from '$lib/features/schedules/components/schedule-block-grid.svelte';
 	import ScheduleColorLegend from '$lib/features/schedules/components/schedule-color-legend.svelte';
 	import { AssignmentDialog } from '$lib/features/schedules/components';
 	import ScheduleHealthPanel from '$lib/features/schedules/components/schedule-health-panel.svelte';
@@ -63,11 +64,14 @@
 
 	// View mode toggle — the calendar is the working surface, so it is the
 	// default; the choice is mirrored into the URL so it survives reload/sharing.
-	let viewMode = $state<'list' | 'calendar'>(
-		$page.url.searchParams.get('view') === 'list' ? 'list' : 'calendar'
+	let viewMode = $state<'list' | 'calendar' | 'grid'>(
+		(() => {
+			const v = $page.url.searchParams.get('view');
+			return v === 'list' ? 'list' : v === 'grid' ? 'grid' : 'calendar';
+		})()
 	);
 
-	function setViewMode(next: 'list' | 'calendar') {
+	function setViewMode(next: 'list' | 'calendar' | 'grid') {
 		viewMode = next;
 		const url = new URL($page.url);
 		url.searchParams.set('view', next);
@@ -101,6 +105,11 @@
 	let selectedStudent = $state<string>('');
 	let selectedPreceptor = $state<string>('');
 	let selectedClerkship = $state<string>('');
+
+	// Display-only overlays (J1). These change what is shown, never the data.
+	let showAssigned = $state(true);
+	let showAvailability = $state(false);
+	let availabilityDates = $state<Set<string>>(new Set());
 
 	// Calendar events
 	let events = $state<CalendarEvent[]>([]);
@@ -185,11 +194,49 @@
 		loadValidation();
 	});
 
+	// The events actually shown — the "Show assigned days" toggle hides them without
+	// touching the underlying data (J1, display-only).
+	let displayEvents = $derived(showAssigned ? events : []);
+
+	// Availability overlay (J1): a selected preceptor's available days for the range.
+	// Fetched only when the overlay is on and a single preceptor is chosen; otherwise
+	// empty (a schedule-wide availability overlay would be meaningless).
+	$effect(() => {
+		// Track deps explicitly so the overlay refetches when they change.
+		const on = showAvailability;
+		const preceptor = selectedPreceptor;
+		const s = startDate;
+		const e = endDate;
+		if (!on || !preceptor) {
+			availabilityDates = new Set();
+			return;
+		}
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await fetch(
+					`/api/preceptors/${preceptor}/availability?start_date=${s}&end_date=${e}`
+				);
+				const body = await res.json();
+				const rows: Array<{ date: string; is_available: number }> = body.data ?? [];
+				if (!cancelled)
+					availabilityDates = new Set(
+						rows.filter((r) => r.is_available === 1).map((r) => r.date)
+					);
+			} catch {
+				if (!cancelled) availabilityDates = new Set();
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	});
+
 	// Group events by date
 	let groupedEvents = $derived(() => {
 		const grouped = new Map<string, CalendarEvent[]>();
 
-		for (const event of events) {
+		for (const event of displayEvents) {
 			if (!grouped.has(event.date)) {
 				grouped.set(event.date, []);
 			}
@@ -275,9 +322,22 @@
 	// Create assignment
 	let showCreateAssignment = $state(false);
 	let createDate = $state('');
+	let createRangeStart = $state('');
+	let createRangeEnd = $state('');
 	function openCreateAssignment() {
 		createDate = '';
+		createRangeStart = '';
+		createRangeEnd = '';
 		showCreateAssignment = true;
+	}
+
+	// Range selection on the calendar (I3): first click anchors, second click opens
+	// the dialog in range mode across the span.
+	let rangeSelectMode = $state(false);
+	let rangeAnchor = $state<string | null>(null);
+	function toggleRangeSelect() {
+		rangeSelectMode = !rangeSelectMode;
+		rangeAnchor = null;
 	}
 	function handleAssignmentCreated() {
 		loadCalendar();
@@ -345,7 +405,7 @@
 	// Students present in the loaded range, for the colour legend (deduped by id).
 	let legendStudents = $derived.by(() => {
 		const byId = new Map<string, { id: string; name: string }>();
-		for (const event of events) {
+		for (const event of displayEvents) {
 			const id = event.assignment.student_id;
 			if (id && !byId.has(id)) {
 				byId.set(id, { id, name: event.assignment.student_name ?? 'Unknown' });
@@ -366,9 +426,10 @@
 		const rangeStart = data.activeSchedule?.startDate ?? startDate;
 		const rangeEnd = data.activeSchedule?.endDate ?? endDate;
 
-		// Build assignment map - collect all events per date
+		// Build assignment map - collect all events per date (honours the
+		// "Show assigned days" toggle, J1).
 		const assignmentMap = new Map<string, CalendarEvent[]>();
-		for (const event of events) {
+		for (const event of displayEvents) {
 			if (!assignmentMap.has(event.date)) {
 				assignmentMap.set(event.date, []);
 			}
@@ -445,9 +506,64 @@
 		return result;
 	});
 
+	// --- Block/grid view (J3): rows = students, cols = dates in range ---
+	let gridDates = $derived.by(() => {
+		const out: string[] = [];
+		const cur = parseUTCDate(startDate);
+		const end = parseUTCDate(endDate);
+		// Guard against a pathological range blowing up the DOM.
+		let guard = 0;
+		while (cur <= end && guard < 400) {
+			out.push(formatUTCDate(cur));
+			cur.setUTCDate(cur.getUTCDate() + 1);
+			guard++;
+		}
+		return out;
+	});
+
+	let gridCells = $derived.by(() => {
+		const map = new Map<string, { id: string; color: string; label: string }>();
+		for (const event of displayEvents) {
+			const sid = event.assignment.student_id;
+			if (!sid || !event.assignment.id) continue;
+			map.set(`${sid}:${event.date}`, {
+				id: String(event.assignment.id),
+				color: event.color,
+				label: event.assignment.clerkship_name ?? event.assignment.elective_name ?? 'Assigned'
+			});
+		}
+		return map;
+	});
+
+	// Rows: students present in the loaded range, or the single filtered student.
+	let gridStudents = $derived.by(() => {
+		const byId = new Map<string, { id: string; name: string }>();
+		for (const event of displayEvents) {
+			const id = event.assignment.student_id;
+			if (id && !byId.has(id)) byId.set(id, { id, name: event.assignment.student_name ?? 'Unknown' });
+		}
+		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+	});
+
 	// Handle day click in calendar grid: open the first assignment, or create
 	// a new assignment on an empty day.
 	function handleDayClick(day: CalendarDay) {
+		// Range-select mode (I3): pick a start, then an end → open the dialog in range mode.
+		if (rangeSelectMode) {
+			if (!rangeAnchor) {
+				rangeAnchor = day.date;
+				return;
+			}
+			const a = rangeAnchor;
+			const b = day.date;
+			createRangeStart = a <= b ? a : b;
+			createRangeEnd = a <= b ? b : a;
+			createDate = '';
+			rangeAnchor = null;
+			rangeSelectMode = false;
+			showCreateAssignment = true;
+			return;
+		}
 		if (day.assignments && day.assignments.length > 0) {
 			const event = events.find((e) => e.assignment.id === day.assignments[0].id);
 			if (event) {
@@ -677,17 +793,62 @@
 				</button>
 				<button
 					type="button"
-					class="rounded-r-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
-					'calendar'
+					class="border-l px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'calendar'
 						? 'bg-primary text-primary-foreground'
 						: 'hover:bg-muted'}"
 					onclick={() => setViewMode('calendar')}
 				>
 					Calendar
 				</button>
+				<button
+					type="button"
+					class="rounded-r-md border-l px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+					'grid'
+						? 'bg-primary text-primary-foreground'
+						: 'hover:bg-muted'}"
+					onclick={() => setViewMode('grid')}
+				>
+					Grid
+				</button>
 			</div>
 		</div>
 		<Button variant="outline" onclick={nextMonth}>Next Month &rarr;</Button>
+	</div>
+
+	<!-- Display overlays (J1): display-only toggles that change what is shown. -->
+	<div class="mb-4 flex flex-wrap items-center gap-4 text-sm" data-testid="display-toggles">
+		<label class="flex items-center gap-2">
+			<input type="checkbox" bind:checked={showAssigned} data-testid="toggle-assigned" />
+			Show assigned days
+		</label>
+		<label class="flex items-center gap-2">
+			<input type="checkbox" bind:checked={showAvailability} data-testid="toggle-availability" />
+			Show availability
+		</label>
+		{#if showAvailability && !selectedPreceptor}
+			<span class="text-xs text-muted-foreground" data-testid="availability-hint">
+				Pick a preceptor in Filters to overlay their available days.
+			</span>
+		{/if}
+		{#if viewMode === 'calendar'}
+			<button
+				type="button"
+				data-testid="toggle-range-select"
+				class="rounded-md border px-2 py-1 text-xs font-medium transition-colors {rangeSelectMode
+					? 'border-primary bg-primary text-primary-foreground'
+					: 'hover:bg-muted'}"
+				onclick={toggleRangeSelect}
+			>
+				{rangeSelectMode ? 'Selecting range…' : 'Select date range'}
+			</button>
+			{#if rangeSelectMode}
+				<span class="text-xs text-muted-foreground" data-testid="range-select-hint">
+					{rangeAnchor
+						? `Start ${rangeAnchor} — now click the last day.`
+						: 'Click the first day of the range.'}
+				</span>
+			{/if}
+		{/if}
 	</div>
 
 	<!-- Calendar View -->
@@ -708,6 +869,7 @@
 				mode="schedule"
 				colorBy="student"
 				blackoutDates={blackoutDateSet}
+				availabilityDates={showAvailability ? availabilityDates : undefined}
 				{violationDates}
 				{violationMessages}
 				onDayClick={handleDayClick}
@@ -718,73 +880,84 @@
 				<p class="text-muted-foreground">No data to display</p>
 			</Card>
 		{/if}
+	{:else if viewMode === 'grid'}
+		<!-- Block/grid view (J3): students as rows, dates as columns. -->
+		<ScheduleColorLegend students={legendStudents} />
+		<ScheduleBlockGrid
+			students={gridStudents}
+			dates={gridDates}
+			cells={gridCells}
+			onCellClick={openAssignmentById}
+		/>
 	{:else if groupedEvents().length === 0}
 		<Card class="p-8 text-center">
 			<p class="text-muted-foreground">No assignments found for this date range</p>
 		</Card>
 	{:else}
-		<!-- List View -->
-		<div class="space-y-4">
+		<!-- List View — a dense table under each date (J2), more legible than the
+		     old card list and closer to a spreadsheet. -->
+		<div class="space-y-6">
 			{#each groupedEvents() as { date, events }}
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold">{formatDateDisplay(date)}</h3>
-					<div class="space-y-3">
-						{#each events as event}
-							<div
-								class="rounded-lg border-l-4 p-4"
-								style="border-left-color: {event.color}; background-color: {event.color}10;"
-							>
-								<div class="flex flex-wrap items-start justify-between gap-2">
-									<div>
-										<p class="font-medium">
+				<Card class="overflow-hidden p-0" data-testid="list-date-group" data-date={date}>
+					<div class="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+						<h3 class="text-sm font-semibold">{formatDateDisplay(date)}</h3>
+						<span class="text-xs text-muted-foreground">{events.length} assignment{events.length === 1 ? '' : 's'}</span>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm" data-testid="list-table">
+							<thead>
+								<tr class="border-b text-left text-xs text-muted-foreground">
+									<th class="px-4 py-2 font-medium">Student</th>
+									<th class="px-4 py-2 font-medium">Clerkship</th>
+									<th class="px-4 py-2 font-medium">Preceptor</th>
+									<th class="px-4 py-2 font-medium">Status</th>
+									<th class="px-4 py-2 font-medium">Specialty</th>
+									<th class="px-4 py-2 text-right font-medium">Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each events as event}
+									<tr class="border-b last:border-b-0 hover:bg-muted/30" data-testid="list-row">
+										<td class="px-4 py-2">
+											<span
+												class="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
+												style="background-color: {event.color};"
+												aria-hidden="true"
+											></span>
 											<button
 												onclick={() => goto(`/students/${event.assignment.student_id}`)}
-												class="text-left text-primary hover:underline"
+												class="text-primary hover:underline">{event.assignment.student_name}</button
 											>
-												{event.assignment.student_name}
-											</button>
-											<span class="mx-1 text-muted-foreground">-</span>
+										</td>
+										<td class="px-4 py-2">
 											<button
 												onclick={() => goto(`/clerkships/${event.assignment.clerkship_id}`)}
-												class="text-left text-primary hover:underline"
+												class="text-primary hover:underline">{event.assignment.clerkship_name}</button
 											>
-												{event.assignment.clerkship_name}
-											</button>
-										</p>
-										<p class="mt-1 text-sm text-muted-foreground">
-											Preceptor:
+										</td>
+										<td class="px-4 py-2">
 											<button
-												onclick={() =>
-													goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
-												class="text-primary hover:underline"
+												onclick={() => goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
+												class="text-primary hover:underline">{event.assignment.preceptor_name}</button
 											>
-												{event.assignment.preceptor_name}
-											</button>
-										</p>
-										<div class="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
-											<span>Status: {event.assignment.status}</span>
-											<span>Specialty: {event.assignment.clerkship_specialty}</span>
-										</div>
-									</div>
-									<div class="flex flex-wrap gap-2">
-										<Button
-											size="sm"
-											variant="ghost"
-											onclick={() => goto(`/students/${event.assignment.student_id}/schedule`)}
-										>
-											View Schedule
-										</Button>
-										<Button
-											size="sm"
-											variant="outline"
-											onclick={() => handleEditClick(event.assignment)}
-										>
-											Edit
-										</Button>
-									</div>
-								</div>
-							</div>
-						{/each}
+										</td>
+										<td class="px-4 py-2 text-muted-foreground">{event.assignment.status}</td>
+										<td class="px-4 py-2 text-muted-foreground">
+											{event.assignment.clerkship_specialty ?? '—'}
+										</td>
+										<td class="px-4 py-2 text-right">
+											<Button
+												size="sm"
+												variant="outline"
+												onclick={() => handleEditClick(event.assignment)}
+											>
+												Edit
+											</Button>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
 					</div>
 				</Card>
 			{/each}
@@ -828,6 +1001,8 @@
 <AssignmentDialog
 	bind:open={showCreateAssignment}
 	date={createDate}
+	rangeStart={createRangeStart}
+	rangeEnd={createRangeEnd}
 	lockDate={!!createDate}
 	onSaved={handleAssignmentCreated}
 />

@@ -40,6 +40,9 @@
 		clerkshipId?: string;
 		siteId?: string;
 		date?: string;
+		/** Open in range mode with this span preselected (calendar range-select, I3). */
+		rangeStart?: string;
+		rangeEnd?: string;
 		lockStudent?: boolean;
 		lockPreceptor?: boolean;
 		lockClerkship?: boolean;
@@ -60,6 +63,8 @@
 		clerkshipId = '',
 		siteId = '',
 		date = '',
+		rangeStart = '',
+		rangeEnd = '',
 		lockStudent = false,
 		lockPreceptor = false,
 		lockClerkship = false,
@@ -136,13 +141,30 @@
 
 	let current = $derived(queue[currentIndex] ?? null);
 
+	/** Every YYYY-MM-DD from `from` to `to` inclusive (calendar range-select, I3). */
+	function expandRange(from: string, to: string): string[] {
+		const out: string[] = [];
+		const cur = new Date(`${from}T00:00:00.000Z`);
+		const last = new Date(`${to}T00:00:00.000Z`);
+		let guard = 0;
+		while (cur <= last && guard < 400) {
+			out.push(cur.toISOString().slice(0, 10));
+			cur.setUTCDate(cur.getUTCDate() + 1);
+			guard++;
+		}
+		return out;
+	}
+
 	function reset() {
 		student = studentId;
 		clerkship = clerkshipId;
 		preceptor = preceptorId;
 		site = siteId;
-		selectedDates = date ? [date] : [];
-		pickerMode = 'single';
+		// A calendar range-selection opens straight into range mode with the span
+		// preselected (I3); otherwise a single prefilled day, or nothing.
+		const hasRange = mode === 'create' && rangeStart && rangeEnd;
+		selectedDates = hasRange ? expandRange(rangeStart, rangeEnd) : date ? [date] : [];
+		pickerMode = hasRange ? 'range' : 'single';
 		locked = false;
 		note = '';
 		credit = 1;
@@ -159,7 +181,7 @@
 		capacityFollowUpOpen = false;
 		decisionMade = false;
 		dayCache = { key: '', map: new Map() };
-		visibleMonth = (date || '').slice(0, 7);
+		visibleMonth = (rangeStart || date || '').slice(0, 7);
 	}
 
 	async function loadRange() {

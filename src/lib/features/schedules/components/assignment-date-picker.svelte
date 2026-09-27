@@ -260,6 +260,11 @@
 			{/each}
 		</div>
 
+		<p class="text-xs text-muted-foreground" data-testid="range-mode-help">
+			<strong>Range</strong> fills every day between a start and end (optionally limited to chosen
+			weekdays). <strong>Individual days</strong> lets you pick specific, non-consecutive days.
+		</p>
+
 		{#if mode === 'range'}
 			<div class="space-y-1">
 				<Label class="text-xs text-muted-foreground">Days of week</Label>

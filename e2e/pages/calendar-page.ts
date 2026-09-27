@@ -36,15 +36,28 @@ export class CalendarPage {
 
 	// ---- view --------------------------------------------------------------
 
-	async setView(view: 'list' | 'calendar') {
-		await this.page
-			.getByRole('button', { name: view === 'list' ? 'List' : 'Calendar', exact: true })
-			.click();
+	async setView(view: 'list' | 'calendar' | 'grid') {
+		const label = view === 'list' ? 'List' : view === 'grid' ? 'Grid' : 'Calendar';
+		await this.page.getByRole('button', { name: label, exact: true }).click();
 		await expect(this.page).toHaveURL(new RegExp(`[?&]view=${view}`));
 	}
 
-	viewFromUrl(): 'list' | 'calendar' {
-		return new URL(this.page.url()).searchParams.get('view') === 'list' ? 'list' : 'calendar';
+	viewFromUrl(): 'list' | 'calendar' | 'grid' {
+		const v = new URL(this.page.url()).searchParams.get('view');
+		return v === 'list' ? 'list' : v === 'grid' ? 'grid' : 'calendar';
+	}
+
+	// ---- display toggles (J1) ----------------------------------------------
+
+	async toggleAssigned(on: boolean) {
+		const box = this.page.getByTestId('toggle-assigned');
+		if (on) await box.check();
+		else await box.uncheck();
+	}
+	async toggleAvailability(on: boolean) {
+		const box = this.page.getByTestId('toggle-availability');
+		if (on) await box.check();
+		else await box.uncheck();
 	}
 
 	async nextMonth() {

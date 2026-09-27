@@ -17,6 +17,12 @@
 		 */
 		colorBy?: 'clerkship' | 'student';
 		blackoutDates?: Set<string>;
+		/**
+		 * Display-only availability overlay (J1): dates to mark as available on the
+		 * schedule-wide calendar (e.g. a filtered preceptor's open days). Undefined
+		 * means no overlay.
+		 */
+		availabilityDates?: Set<string>;
 		/** Dates with validation conflicts (red corner marker). Optional message per date for the tooltip. */
 		violationDates?: Set<string>;
 		violationMessages?: Record<string, string[]>;
@@ -33,6 +39,7 @@
 		mode = 'student',
 		colorBy = 'clerkship',
 		blackoutDates = new Set(),
+		availabilityDates = undefined,
 		violationDates = new Set(),
 		violationMessages = {},
 		onDayClick,
@@ -172,6 +179,15 @@
 										class="absolute right-0.5 top-0.5 z-10 h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-900"
 										title={(violationMessages[day.date] ?? ['Scheduling conflict']).join('\n')}
 										aria-label="Scheduling conflict"
+									></span>
+								{/if}
+
+								{#if availabilityDates?.has(day.date) && day.isCurrentMonth}
+									<span
+										data-testid="cal-availability-{day.date}"
+										class="absolute bottom-0.5 left-0.5 z-10 h-2 w-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-gray-900"
+										title="Preceptor available"
+										aria-label="Preceptor available"
 									></span>
 								{/if}
 
