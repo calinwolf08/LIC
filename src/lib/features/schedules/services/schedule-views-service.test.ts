@@ -145,6 +145,7 @@ await db.schema
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	// Preceptor availability table
@@ -158,6 +159,8 @@ await db.schema
 		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 
 	// Junction tables — getStudentScheduleData scopes the student and the

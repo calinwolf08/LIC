@@ -237,6 +237,7 @@ await db.schema
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	await db.schema
@@ -267,6 +268,8 @@ await db.schema
 		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 }
 
@@ -929,13 +932,13 @@ describe('Editing Service Integration Tests', () => {
 				date: futureDate2
 			});
 
-			// Moving assignment1 onto assignment2's day now over-books the day rather
+			// Moving assignment1 onto assignment2's day now overlaps that session rather
 			// than hard-failing (L1 — same-day half-days are allowed). The calendar move
 			// path does not block on soft codes, so it proceeds and surfaces the warning.
 			const result = await changeAssignmentDate(db, assignment1.id, futureDate2);
 
 			expect(result.valid).toBe(true);
-			expect(result.soft.some((v) => v.code === 'day_overbooked')).toBe(true);
+			expect(result.soft.some((v) => v.code === 'session_clash')).toBe(true);
 		});
 	});
 

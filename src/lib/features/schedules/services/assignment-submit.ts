@@ -8,10 +8,11 @@
 
 import type { OverrideSideEffect } from './assignment-service';
 import type { DayState } from '$lib/features/scheduling/services/assignment-day-state';
+import { sessionClashes, type SessionSlot } from '$lib/features/scheduling/services/session-slots';
 
 /** Soft categories the dialog can raise a conversation about. */
 export type OverrideCategory =
-	| 'day_overbooked'
+	| 'session_clash'
 	| 'preceptor_unavailable'
 	| 'preceptor_capacity'
 	| 'blackout_date'
@@ -58,7 +59,7 @@ export interface FlagAnalysis {
 }
 
 const CATEGORY_ORDER: OverrideCategory[] = [
-	'day_overbooked',
+	'session_clash',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -78,11 +79,11 @@ export function analyseSelection(
 	dayStates: DayState[],
 	selectionWide: SelectionWideFlags = {},
 	/**
-	 * Credit each new day is worth (M1). A day is over-booked only when the
-	 * student's existing credit that day plus this credit exceeds one full day, so
-	 * half-days (0.5 + 0.5 = 1) submit cleanly (L1).
+	 * The session each new day occupies (L1). A day clashes only when this session
+	 * overlaps one the student already has that day (AM+AM, PM+PM, full+anything);
+	 * a morning + afternoon pair submits cleanly. Credit is not capped.
 	 */
-	creditValue = 1
+	session: SessionSlot = 'full'
 ): FlagAnalysis {
 	const byDate = new Map(dayStates.map((d) => [d.date, d]));
 	const blockedDates: string[] = [];
@@ -101,14 +102,14 @@ export function analyseSelection(
 	for (const date of [...selectedDates].sort()) {
 		const day = byDate.get(date);
 		// Same-day assignments are allowed (half-days), so a busy day is no longer a
-		// hard block. It becomes an over-book warning only when the day's total credit
-		// would exceed one full day — 0.5 + 0.5 passes, 1 + anything is flagged.
+		// hard block. It becomes a clash warning only when the new session overlaps a
+		// session the student already has that day — AM + PM passes, AM + AM does not.
 		submittableDates.push(date);
 		if (!day) continue;
 
-		const booked = day.studentBookedCredit ?? (day.studentBusy ? 1 : 0);
-		if (booked > 0 && booked + creditValue > 1 + 1e-9) {
-			bucket('day_overbooked').dates.push(date);
+		const existingSessions = day.studentSessions ?? (day.studentBusy ? ['full' as SessionSlot] : []);
+		if (sessionClashes(existingSessions, session)) {
+			bucket('session_clash').dates.push(date);
 		}
 
 		if (day.state === 'unavailable') bucket('preceptor_unavailable').dates.push(date);
@@ -148,6 +149,8 @@ export interface AssignmentSelectionInput {
 	note?: string;
 	/** Days of requirement credit each created day is worth (default 1.0; M1/F4). */
 	creditValue?: number;
+	/** The session each created day occupies (default 'full'; L1). */
+	session?: SessionSlot;
 }
 
 export interface SubmitPayload {
@@ -163,6 +166,8 @@ export interface SubmitPayload {
 	side_effects?: OverrideSideEffect[];
 	/** Days of requirement credit each created day is worth; omitted when 1.0 (M1/F4). */
 	credit_value?: number;
+	/** The session each created day occupies; omitted when 'full' (L1). */
+	session?: SessionSlot;
 }
 
 /**
@@ -192,16 +197,18 @@ export function buildSubmitPayload(
 		// Only send a non-default credit; the server defaults to 1.0.
 		...(selection.creditValue !== undefined && selection.creditValue !== 1
 			? { credit_value: selection.creditValue }
-			: {})
+			: {}),
+		// Only send a non-default session; the server defaults to 'full'.
+		...(selection.session && selection.session !== 'full' ? { session: selection.session } : {})
 	};
 }
 
 /** Human copy for each override conversation. */
 export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: string }> = {
-	day_overbooked: {
-		title: 'More than a full day booked',
+	session_clash: {
+		title: 'Overlapping session',
 		describe:
-			'The student already has assignments on these days and this brings the total above one full day. Half-days (0.5 + 0.5) are fine; confirm if you intend to over-book.'
+			'The student already has an assignment in the same session on these days (two mornings, two afternoons, or a full day overlapping another). A morning + afternoon pair is fine; confirm if you intend to overlap.'
 	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',

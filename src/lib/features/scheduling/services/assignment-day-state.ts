@@ -9,6 +9,7 @@
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { getScheduleRange } from '$lib/api/schedule-context';
+import { normalizeSession, type SessionSlot } from './session-slots';
 
 export type DayAvailabilityState = 'available' | 'unavailable' | 'unset' | 'blackout';
 
@@ -28,13 +29,18 @@ export interface DayState {
 	preceptorAtCapacity: boolean;
 	/** The student already has an assignment (of any kind) on this day. */
 	studentBusy: boolean;
-	/**
-	 * Sum of the student's existing credit on this day (excluding `excludeId`).
-	 * Lets the picker/dialog decide, credit-aware, whether adding another
-	 * assignment would over-book the day — half-days (0.5 + 0.5) fit, a full day
-	 * plus anything does not (L1).
-	 */
+	/** Sum of the student's existing credit on this day (excluding `excludeId`). */
 	studentBookedCredit: number;
+	/**
+	 * The sessions the student already occupies on this day (excluding `excludeId`).
+	 * Lets the dialog flag a real session clash (AM+AM, PM+PM, full+anything) while
+	 * a morning + afternoon pair passes (L1).
+	 */
+	studentSessions: SessionSlot[];
+	/** The preceptor's available session that day (for prefilling the dialog), or null. */
+	availableSession: SessionSlot | null;
+	/** The preceptor's default credit that day (for prefilling the dialog), or null. */
+	availableCredit: number | null;
 	/** Strictly before today — today itself is not past. */
 	isPast: boolean;
 }
@@ -88,7 +94,12 @@ export async function getDayStates(
 	// Preceptor availability (site-scoped). With a site selected we look only at
 	// that site's rows; without one, the preceptor counts as available if they
 	// are available at *any* of their sites that day.
-	let availabilityRows: { date: string; is_available: number }[] = [];
+	let availabilityRows: {
+		date: string;
+		is_available: number;
+		session: string;
+		credit_value: number;
+	}[] = [];
 	let maxStudents = 0;
 	let bookingRows: { id: string | null; date: string; student_id: string; student_name: string }[] =
 		[];
@@ -96,7 +107,7 @@ export async function getDayStates(
 	if (query.preceptorId) {
 		let availQuery = db
 			.selectFrom('preceptor_availability')
-			.select(['date', 'is_available'])
+			.select(['date', 'is_available', 'session', 'credit_value'])
 			.where('preceptor_id', '=', query.preceptorId)
 			.where('date', '>=', query.from)
 			.where('date', '<=', query.to);
@@ -138,10 +149,11 @@ export async function getDayStates(
 	const blackouts = new Set(blackoutRows.map((b) => b.date));
 
 	const studentCreditByDate = new Map<string, number>();
+	const studentSessionsByDate = new Map<string, SessionSlot[]>();
 	if (query.studentId) {
 		let busyQuery = db
 			.selectFrom('schedule_assignments')
-			.select(['date', 'credit_value'])
+			.select(['date', 'credit_value', 'session'])
 			.where('student_id', '=', query.studentId)
 			.where('date', '>=', query.from)
 			.where('date', '<=', query.to);
@@ -151,15 +163,30 @@ export async function getDayStates(
 		for (const r of rows) {
 			const credit = typeof r.credit_value === 'number' && r.credit_value > 0 ? r.credit_value : 1;
 			studentCreditByDate.set(r.date, (studentCreditByDate.get(r.date) ?? 0) + credit);
+			const list = studentSessionsByDate.get(r.date) ?? [];
+			list.push(normalizeSession(r.session));
+			studentSessionsByDate.set(r.date, list);
 		}
 	}
 
-	// date -> is any explicit availability row present, and is any of them "available"
+	// date -> is any explicit availability row present, is any "available", and the
+	// (first available) row's default session + credit for prefilling the dialog.
 	const availableOn = new Set<string>();
 	const anyRowOn = new Set<string>();
+	const availSessionByDate = new Map<string, SessionSlot>();
+	const availCreditByDate = new Map<string, number>();
 	for (const row of availabilityRows) {
 		anyRowOn.add(row.date);
-		if (row.is_available === 1) availableOn.add(row.date);
+		if (row.is_available === 1) {
+			availableOn.add(row.date);
+			if (!availSessionByDate.has(row.date)) {
+				availSessionByDate.set(row.date, normalizeSession(row.session));
+				availCreditByDate.set(
+					row.date,
+					typeof row.credit_value === 'number' && row.credit_value > 0 ? row.credit_value : 1
+				);
+			}
+		}
 	}
 
 	const bookingsByDate = new Map<string, DayBooking[]>();
@@ -191,6 +218,9 @@ export async function getDayStates(
 			preceptorAtCapacity: !!query.preceptorId && preceptorBookings.length >= maxStudents,
 			studentBusy: (studentCreditByDate.get(date) ?? 0) > 0,
 			studentBookedCredit: studentCreditByDate.get(date) ?? 0,
+			studentSessions: studentSessionsByDate.get(date) ?? [],
+			availableSession: availSessionByDate.get(date) ?? null,
+			availableCredit: availCreditByDate.get(date) ?? null,
 			isPast: date < today
 		};
 	});

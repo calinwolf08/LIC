@@ -257,7 +257,7 @@ describe('validateSchedule', () => {
 		expect(r.violations.some((v) => v.code === 'student_double_booked')).toBe(false);
 	});
 
-	// --- day_overbooked (L1: same-day half-days) ---------------------------
+	// --- session_clash (L1: half-day sessions) -----------------------------
 	const PREC2 = 'prec-2';
 	async function onboardAndAddSecondPreceptor(db: Kysely<DB>) {
 		const ts = new Date().toISOString();
@@ -294,7 +294,7 @@ describe('validateSchedule', () => {
 		id: string,
 		date: string,
 		preceptorId: string,
-		credit: number
+		session: string
 	) {
 		const ts = new Date().toISOString();
 		await db
@@ -306,31 +306,31 @@ describe('validateSchedule', () => {
 				clerkship_id: CLERK,
 				date,
 				status: 'scheduled',
-				credit_value: credit,
+				session,
 				created_at: ts,
 				updated_at: ts
 			})
 			.execute();
 	}
 
-	it('flags one day_overbooked per over-booked student-day, referencing every day', async () => {
+	it('flags one session_clash per clashing student-day, referencing every day', async () => {
 		await onboardAndAddSecondPreceptor(db);
 		// Two full days on one date (distinct preceptors, so capacity does not fire).
-		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 1);
-		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 1);
+		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 'full');
+		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 'full');
 		const r = await validateSchedule(db, SCHED);
-		expect(r.counts['day_overbooked']).toBe(1);
-		const finding = r.byStudent[STU]?.find((v) => v.code === 'day_overbooked');
+		expect(r.counts['session_clash']).toBe(1);
+		const finding = r.byStudent[STU]?.find((v) => v.code === 'session_clash');
 		expect(finding?.assignment_ids.slice().sort()).toEqual(['a1', 'a2']);
-		expect(r.byDate['2025-03-03']?.some((v) => v.code === 'day_overbooked')).toBe(true);
+		expect(r.byDate['2025-03-03']?.some((v) => v.code === 'session_clash')).toBe(true);
 	});
 
-	it('does not flag two half-days that sum to one full day', async () => {
+	it('does not flag a morning + afternoon on the same day (AM + PM)', async () => {
 		await onboardAndAddSecondPreceptor(db);
-		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 0.5);
-		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 0.5);
+		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 'am');
+		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 'pm');
 		const r = await validateSchedule(db, SCHED);
-		expect(r.counts['day_overbooked']).toBeUndefined();
+		expect(r.counts['session_clash']).toBeUndefined();
 	});
 });
 

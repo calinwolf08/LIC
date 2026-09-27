@@ -191,12 +191,14 @@ export interface HealthSystems {
 
 export interface PreceptorAvailability {
   created_at: Generated<string>;
+  credit_value: Generated<number>;
   date: string;
   id: string | null;
   is_available: Generated<number>;
   notes: string | null;
   preceptor_id: string;
   preference: string | null;
+  session: Generated<string>;
   site_id: string;
   updated_at: Generated<string>;
 }
@@ -296,6 +298,7 @@ export interface ScheduleAssignments {
   override_note: string | null;
   preceptor_id: string;
   schedule_id: string | null;
+  session: Generated<string>;
   site_id: string | null;
   source: Generated<string>;
   status: Generated<string>;

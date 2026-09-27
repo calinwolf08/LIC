@@ -174,6 +174,12 @@ export class AssignmentDialog {
 		await expect(input).toBeVisible();
 		await input.fill(String(value));
 	}
+	/** Set the session slot (L1): 'full' | 'am' | 'pm'. */
+	async setSession(session: 'full' | 'am' | 'pm') {
+		const select = this.page.getByTestId('ad-session');
+		await expect(select).toBeVisible();
+		await select.selectOption(session);
+	}
 
 	// ---- read-outs ---------------------------------------------------------
 

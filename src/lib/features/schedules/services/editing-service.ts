@@ -19,6 +19,7 @@ import {
 	type AssignmentCandidate,
 	type Violation
 } from '$lib/features/scheduling/services/assignment-validation';
+import { normalizeSession } from '$lib/features/scheduling/services/session-slots';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:schedules:editing');
@@ -67,7 +68,10 @@ async function evaluateEdit(
 	db: Kysely<DB>,
 	current: Selectable<ScheduleAssignments>,
 	changes: Partial<
-		Pick<AssignmentCandidate, 'preceptor_id' | 'clerkship_id' | 'site_id' | 'date' | 'elective_id'>
+		Pick<
+			AssignmentCandidate,
+			'preceptor_id' | 'clerkship_id' | 'site_id' | 'date' | 'elective_id' | 'session'
+		>
 	>,
 	opts: EditOptions
 ): Promise<{ hard: Violation[]; soft: Violation[]; blocked: boolean; persistedCodes: string[] }> {
@@ -80,9 +84,10 @@ async function evaluateEdit(
 		// core clerkship day against the clerkship and leaves elective days alone (P7-a).
 		elective_id: changes.elective_id !== undefined ? changes.elective_id : current.elective_id,
 		date: changes.date ?? current.date,
-		// The day-overbook check sums the other same-day rows' credit plus this one's;
-		// use the row's real credit (default 1) rather than assuming a full day.
 		credit_value: current.credit_value,
+		// The session-clash check compares against the other same-day rows; use the
+		// (possibly changed) session, falling back to the row's stored session.
+		session: normalizeSession(changes.session ?? current.session),
 		excludeId: current.id ?? undefined
 	};
 	const v = await validateAssignmentCandidate(db, current.schedule_id ?? '', candidate, {
@@ -193,6 +198,7 @@ export async function updateAssignmentChecked(
 		date?: string;
 		status?: string;
 		credit_value?: number;
+		session?: string;
 	},
 	opts: EditOptions = {}
 ): Promise<EditResult> {
@@ -209,7 +215,8 @@ export async function updateAssignmentChecked(
 			clerkship_id: changes.clerkship_id,
 			site_id: changes.site_id,
 			elective_id: changes.elective_id,
-			date: changes.date
+			date: changes.date,
+			session: changes.session !== undefined ? normalizeSession(changes.session) : undefined
 		},
 		{ ...opts, blockOnSoft: true }
 	);
@@ -241,6 +248,7 @@ export async function updateAssignmentChecked(
 			...(changes.credit_value !== undefined
 				? { credit_value: normalizeCredit(changes.credit_value) }
 				: {}),
+			...(changes.session !== undefined ? { session: normalizeSession(changes.session) } : {}),
 			override_codes: JSON.stringify(persistedCodes),
 			override_note: persistedCodes.length > 0 ? (opts.overrideNote ?? null) : null,
 			updated_at: new Date().toISOString()

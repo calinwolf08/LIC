@@ -10,6 +10,7 @@
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { CapacityChecker } from '../capacity/capacity-checker';
+import { normalizeSession, sessionsOverlap, type SessionSlot } from './session-slots';
 
 export type ViolationCode =
 	/**
@@ -21,12 +22,12 @@ export type ViolationCode =
 	 */
 	| 'student_double_booked'
 	/**
-	 * A student's assignments on one day sum to more than a full day of credit
-	 * (e.g. two full-day assignments, or a full day plus a half). Soft: allowed
-	 * with an override so half-days (0.5 + 0.5 = one day) pass cleanly while a
-	 * genuine over-book is flagged for review.
+	 * A student's assignments on one day occupy the same session — two mornings,
+	 * two afternoons, or a full day overlapping anything. Soft: allowed with an
+	 * override, so a morning + afternoon pair (AM + PM) passes cleanly while a real
+	 * time clash is flagged. Credit per day is NOT capped (L1 follow-up).
 	 */
-	| 'day_overbooked'
+	| 'session_clash'
 	| 'preceptor_unavailable'
 	| 'blackout_date'
 	| 'preceptor_capacity'
@@ -69,19 +70,18 @@ export interface AssignmentCandidate {
 	 */
 	elective_id?: string | null;
 	/**
-	 * The fraction of a day this assignment occupies (M1). Defaults to a full day
-	 * (1). Used for the `day_overbooked` check: a student's same-day credit must
-	 * not exceed one full day without an override, so 0.5 + 0.5 half-days pass.
+	 * Days of requirement credit this assignment is worth (M1). Uncapped; defaults
+	 * from the availability slot's session but is overridable per assignment.
 	 */
 	credit_value?: number;
+	/**
+	 * Which part of the day this assignment occupies (L1). Two assignments clash
+	 * only when their sessions overlap; AM + PM never clash.
+	 */
+	session?: SessionSlot;
 	/** Existing assignment id to exclude from conflict checks (edits). */
 	excludeId?: string;
 }
-
-/** One full day of credit. A student's same-day credit above this is over-booked. */
-export const FULL_DAY_CREDIT = 1;
-/** Float tolerance so 0.5 + 0.5 = 1 is not flagged as over-booked. */
-const CREDIT_EPSILON = 1e-9;
 
 /** Clamp a credit value to a sane positive number, defaulting to a full day. */
 export function candidateCredit(value: number | null | undefined): number {
@@ -93,7 +93,7 @@ export function candidateCredit(value: number | null | undefined): number {
  * `override_codes` so the schedule-health panel can list them for review.
  */
 export const OVERRIDABLE_CODES = [
-	'day_overbooked',
+	'session_clash',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -116,7 +116,7 @@ export function isOverrideCode(code: string): code is OverrideCode {
 
 /** Human labels for override codes, for the review list and confirm copy. */
 export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
-	day_overbooked: 'More than a full day booked',
+	session_clash: 'Another assignment in the same session',
 	preceptor_unavailable: 'Preceptor not available',
 	preceptor_capacity: 'Preceptor over capacity',
 	blackout_date: 'Blackout date',
@@ -137,8 +137,8 @@ export interface CandidateValidation {
 
 /**
  * The only hard block is a missing entity. Same-day capacity used to be hard
- * (`student_double_booked`); it is now the overridable, credit-aware
- * `day_overbooked` soft code so half-days are possible (L1).
+ * (`student_double_booked`); it is now the overridable `session_clash` soft code,
+ * and credit per day is uncapped, so half-days (AM + PM) are possible (L1).
  */
 export const HARD_CODES: ReadonlySet<ViolationCode> = new Set(['entity_missing']);
 
@@ -348,25 +348,27 @@ export async function validateAssignmentCandidate(
 
 	const soft: Violation[] = [];
 
-	// Same-day capacity (soft, credit-aware). A student may hold more than one
-	// assignment per day — e.g. a morning and afternoon half-day — so this is no
-	// longer a hard block. We over-book only when the day's total credit exceeds
-	// one full day, so 0.5 + 0.5 passes cleanly while 1 + anything is flagged. NOT
-	// scoped to the schedule on purpose: a student is one physical person per
+	// Same-day session clash (soft). A student may hold more than one assignment per
+	// day — a morning and an afternoon are fine — so this is not a hard block, and
+	// credit is not capped. We flag only when the new session overlaps one already
+	// on the day (two mornings, two afternoons, or a full day overlapping anything).
+	// NOT scoped to the schedule on purpose: a student is one physical person per
 	// calendar day across every schedule.
 	let sameDayQuery = db
 		.selectFrom('schedule_assignments')
-		.select('credit_value')
+		.select('session')
 		.where('student_id', '=', candidate.student_id)
 		.where('date', '=', candidate.date);
 	if (candidate.excludeId) sameDayQuery = sameDayQuery.where('id', '!=', candidate.excludeId);
 	const sameDayRows = await sameDayQuery.execute();
-	const existingCredit = sameDayRows.reduce((sum, r) => sum + candidateCredit(r.credit_value), 0);
-	const totalCredit = existingCredit + candidateCredit(candidate.credit_value);
-	if (sameDayRows.length > 0 && totalCredit > FULL_DAY_CREDIT + CREDIT_EPSILON) {
+	const candidateSession = normalizeSession(candidate.session);
+	const clashingSession = sameDayRows
+		.map((r) => normalizeSession(r.session))
+		.find((s) => sessionsOverlap(s, candidateSession));
+	if (clashingSession) {
 		soft.push({
-			code: 'day_overbooked',
-			message: `Student already has ${existingCredit} day(s) booked on ${candidate.date}; this brings the total to ${totalCredit}`,
+			code: 'session_clash',
+			message: `Student already has a ${clashingSession === 'full' ? 'full-day' : clashingSession.toUpperCase()} assignment on ${candidate.date} that overlaps this ${candidateSession === 'full' ? 'full day' : candidateSession.toUpperCase()}`,
 			entity_refs: { student_id: candidate.student_id }
 		});
 	}

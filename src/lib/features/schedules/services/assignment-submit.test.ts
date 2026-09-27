@@ -11,14 +11,22 @@ function day(date: string, overrides: Partial<DayState> = {}): DayState {
 		preceptorAtCapacity: false,
 		studentBusy: false,
 		studentBookedCredit: 0,
+		studentSessions: [],
+		availableSession: null,
+		availableCredit: null,
 		isPast: false,
 		...overrides
 	};
 }
 
-/** A day the student already has a full day booked on (for over-book cases). */
+/** A day the student already has a full-day assignment on (for session-clash cases). */
 function booked(date: string, overrides: Partial<DayState> = {}): DayState {
-	return day(date, { studentBusy: true, studentBookedCredit: 1, ...overrides });
+	return day(date, {
+		studentBusy: true,
+		studentBookedCredit: 1,
+		studentSessions: ['full'],
+		...overrides
+	});
 }
 
 const selection = {
@@ -39,29 +47,39 @@ describe('analyseSelection', () => {
 		expect(r.categories).toEqual([]);
 	});
 
-	it('flags an already-booked day as over-booked — submittable, overridable (half-days, L1)', () => {
+	it('flags a full-day clash as session_clash — submittable, overridable (L1)', () => {
 		const r = analyseSelection(
 			['2030-03-05', '2030-03-06'],
 			[booked('2030-03-05'), day('2030-03-06')],
 			{},
-			1
+			'full'
 		);
 		// No longer a hard block: both days submit, the booked one carries the warning.
 		expect(r.blockedDates).toEqual([]);
 		expect(r.submittableDates).toEqual(['2030-03-05', '2030-03-06']);
-		expect(r.categories.map((c) => c.category)).toEqual(['day_overbooked']);
+		expect(r.categories.map((c) => c.category)).toEqual(['session_clash']);
 		expect(r.categories[0].dates).toEqual(['2030-03-05']);
 	});
 
-	it('lets two half-days on one day pass cleanly (0.5 + 0.5 = one full day)', () => {
+	it('lets an afternoon pass cleanly when the student already has a morning (AM + PM)', () => {
 		const r = analyseSelection(
 			['2030-03-05'],
-			[day('2030-03-05', { studentBusy: true, studentBookedCredit: 0.5 })],
+			[day('2030-03-05', { studentBusy: true, studentBookedCredit: 0.5, studentSessions: ['am'] })],
 			{},
-			0.5
+			'pm'
 		);
 		expect(r.submittableDates).toEqual(['2030-03-05']);
 		expect(r.categories).toEqual([]);
+	});
+
+	it('flags a second morning as a session clash (AM + AM)', () => {
+		const r = analyseSelection(
+			['2030-03-05'],
+			[day('2030-03-05', { studentBusy: true, studentBookedCredit: 0.5, studentSessions: ['am'] })],
+			{},
+			'am'
+		);
+		expect(r.categories.map((c) => c.category)).toEqual(['session_clash']);
 	});
 
 	it('groups flagged days by category', () => {
@@ -105,12 +123,12 @@ describe('analyseSelection', () => {
 		expect(r.categories[0].dates).toEqual([]);
 	});
 
-	it('keeps selection-wide categories on an over-booked (still submittable) day', () => {
-		const r = analyseSelection(['2030-03-05'], [booked('2030-03-05')], { overRequired: true }, 1);
-		// The day is submittable now, so both the over-book warning and the
+	it('keeps selection-wide categories on a clashing (still submittable) day', () => {
+		const r = analyseSelection(['2030-03-05'], [booked('2030-03-05')], { overRequired: true }, 'full');
+		// The day is submittable now, so both the session-clash warning and the
 		// selection-wide over-required category apply.
 		expect(r.submittableDates).toEqual(['2030-03-05']);
-		expect(r.categories.map((c) => c.category)).toEqual(['day_overbooked', 'over_required_days']);
+		expect(r.categories.map((c) => c.category)).toEqual(['session_clash', 'over_required_days']);
 	});
 
 	it('sorts the selection and reports categories in conversation order', () => {

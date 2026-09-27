@@ -32,7 +32,9 @@ export const updateAssignmentSchema = z
 		date: dateStringSchema.optional(),
 		status: z.string().optional(),
 		// Days of requirement credit this day is worth (M1/F4).
-		credit_value: z.number().positive().max(10).optional()
+		credit_value: z.number().positive().max(10).optional(),
+		// Which part of the day this occupies (L1).
+		session: z.enum(['full', 'am', 'pm']).optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {
 		message: 'At least one field must be provided for update'

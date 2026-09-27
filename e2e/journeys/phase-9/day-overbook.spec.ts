@@ -1,18 +1,19 @@
 // @coverage @finding(CF-L1) @req(R7)
 /**
- * CF-L1 — Same-day assignments + conflict visibility.
+ * CF-L1 — Half-day sessions + same-day session-clash visibility.
  *
- * Client feedback: a student may need more than one assignment on a day (a
- * morning and an afternoon half-day), so same-day booking must be possible — but
- * the app must still catch a genuine over-book (more than one full day) and make
- * it visible, overridable rather than silently blocked.
+ * Client feedback: a student may earn more than one day of credit on a date — e.g.
+ * a morning of one clerkship plus an afternoon of another — so same-day booking is
+ * allowed and credit is uncapped. The app flags only a true session clash (two
+ * mornings, two afternoons, or a full day overlapping anything); a morning +
+ * afternoon pair is fine.
  *
  * The journey, as a Basic user:
- *  - creates two half-days (0.5 + 0.5) on one date → clean, no over-book warning,
+ *  - creates a morning (AM) and an afternoon (PM) on one date → clean, no clash,
  *    no conflict surfaced;
- *  - adds a second FULL day on another date that already has one → the dialog
- *    warns ("more than a full day"), the coordinator overrides, and the student's
- *    conflict panel then lists that day;
+ *  - adds a second FULL day on another date that already has one → the dialog warns
+ *    (overlapping session), the coordinator overrides, and the student's conflict
+ *    panel then lists that day;
  *  - removes one of the two → the conflict clears.
  */
 
@@ -22,9 +23,9 @@ import type { DB } from '../../../src/lib/db/types';
 import { AssignmentDialog, CalendarPage } from '../../pages';
 import { populatedSandbox } from '../phase-3/helpers';
 
-/** Every soft code we don't care about here — accepted so the test isolates over-book. */
+/** Every soft code we don't care about here — accepted so the test isolates the clash. */
 const OVERRIDES = [
-	'day_overbooked',
+	'session_clash',
 	'preceptor_capacity',
 	'preceptor_unavailable',
 	'not_onboarded',
@@ -49,8 +50,8 @@ function futureWeekdays(count: number, startAt: number): string[] {
 	return out;
 }
 
-test.describe('CF-L1 same-day assignments and over-book visibility', { tag: ['@stage1'] }, () => {
-	test('half-days are clean; a second full day over-books, warns, and shows as a conflict', async ({
+test.describe('CF-L1 half-day sessions and session-clash visibility', { tag: ['@stage1'] }, () => {
+	test('AM + PM is clean; a second full day clashes, warns, and shows as a conflict', async ({
 		asAdmin,
 		sandbox,
 		db
@@ -81,21 +82,22 @@ test.describe('CF-L1 same-day assignments and over-book visibility', { tag: ['@s
 		const site = roster.sites.find((s) => s.name === 'Metro General Hospital')!;
 		const [d1, d2] = futureWeekdays(2, 12);
 
-		const post = (date: string, credit: number) =>
+		const post = (date: string, session: string, credit: number) =>
 			api.post('/api/schedules/assignments', {
 				student_id: sid,
 				preceptor_id: amanda.id,
 				clerkship_id: fm.id,
 				site_id: site.id,
 				date,
+				session,
 				credit_value: credit,
 				override_codes: OVERRIDES
 			});
 
-		// --- Half-day #1 on d1 (0.5) via API -----------------------------------
-		expect((await post(d1, 0.5)).ok).toBe(true);
+		// --- Morning (AM) on d1 via API ----------------------------------------
+		expect((await post(d1, 'am', 0.5)).ok).toBe(true);
 
-		// --- Half-day #2 on d1 (0.5) via the real dialog: must be clean ---------
+		// --- Afternoon (PM) on d1 via the real dialog: must be clean -----------
 		const cal = new CalendarPage(asAdmin);
 		await cal.goto();
 		const dialog = new AssignmentDialog(asAdmin);
@@ -105,41 +107,41 @@ test.describe('CF-L1 same-day assignments and over-book visibility', { tag: ['@s
 		await dialog.selectPreceptor('Dr. Amanda Smith');
 		await dialog.selectSite('Metro General Hospital');
 		await dialog.pickDay(d1);
-		await dialog.setCredit(0.5);
-		// 0.5 + 0.5 = one full day → NOT over-booked (capacity may still be flagged).
-		await expect(dialog.overrideSummary()).not.toContainText(/full day/i);
+		await dialog.setSession('pm');
+		// AM already booked + this PM = no session clash.
+		await expect(dialog.overrideSummary()).not.toContainText(/overlapping session/i);
 		await dialog.submitAndExpectCreated();
 
-		// d1 now holds two half-days summing to one day: no conflict for the student.
-		const afterHalves = await api.get<{
-			byStudent: Record<string, Array<{ date: string; code: string }>>;
-		}>('/api/schedules/validation');
+		// d1 holds a morning + an afternoon: no session clash for the student.
+		const afterHalves = await api.get<{ byStudent: Record<string, Array<{ date: string; code: string }>> }>(
+			'/api/schedules/validation'
+		);
 		const d1Conflicts = (afterHalves.data?.byStudent?.[sid!] ?? []).filter(
-			(v) => v.date === d1 && v.code === 'day_overbooked'
+			(v) => v.date === d1 && v.code === 'session_clash'
 		);
 		expect(d1Conflicts).toEqual([]);
 
-		// --- Full day #1 on d2 (1.0) via API -----------------------------------
-		expect((await post(d2, 1)).ok).toBe(true);
+		// --- Full day #1 on d2 via API -----------------------------------------
+		expect((await post(d2, 'full', 1)).ok).toBe(true);
 
-		// --- Full day #2 on d2 (1.0) via the dialog: MUST warn about over-book --
+		// --- Full day #2 on d2 via the dialog: MUST warn about the session clash --
 		await dialog.open();
 		await dialog.selectStudent(`L1 Student ${stamp}`);
 		await dialog.selectClerkship('Family Medicine');
 		await dialog.selectPreceptor('Dr. Amanda Smith');
 		await dialog.selectSite('Metro General Hospital');
 		await dialog.pickDay(d2);
-		await dialog.setCredit(1);
-		await expect(dialog.overrideSummary()).toContainText(/full day/i);
+		await dialog.setSession('full');
+		await expect(dialog.overrideSummary()).toContainText(/overlapping session/i);
 		await dialog.submitAndExpectCreated();
 
-		// --- The student's conflict panel lists the over-booked day ------------
+		// --- The student's conflict panel lists the clashing day ---------------
 		await asAdmin.goto(`/students/${sid}`);
 		const panel = asAdmin.getByTestId('student-conflicts');
 		await expect(panel).toBeVisible({ timeout: 15000 });
-		await expect(asAdmin.getByTestId(`student-conflict-day_overbooked-${d2}`)).toBeVisible();
-		// d1 (the clean half-day pair) is NOT flagged as over-booked.
-		await expect(asAdmin.getByTestId(`student-conflict-day_overbooked-${d1}`)).toHaveCount(0);
+		await expect(asAdmin.getByTestId(`student-conflict-session_clash-${d2}`)).toBeVisible();
+		// d1 (the clean AM + PM pair) is NOT flagged.
+		await expect(asAdmin.getByTestId(`student-conflict-session_clash-${d1}`)).toHaveCount(0);
 
 		// --- Remove one of the two on d2 → the conflict clears -----------------
 		const d2Rows = await kysely
@@ -153,7 +155,7 @@ test.describe('CF-L1 same-day assignments and over-book visibility', { tag: ['@s
 		expect(del.ok).toBe(true);
 
 		await asAdmin.goto(`/students/${sid}`);
-		await expect(asAdmin.getByTestId(`student-conflict-day_overbooked-${d2}`)).toHaveCount(0, {
+		await expect(asAdmin.getByTestId(`student-conflict-session_clash-${d2}`)).toHaveCount(0, {
 			timeout: 15000
 		});
 	});

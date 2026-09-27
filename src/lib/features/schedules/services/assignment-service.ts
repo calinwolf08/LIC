@@ -25,6 +25,7 @@ import {
 	type AssignmentCandidate,
 	type Violation
 } from '$lib/features/scheduling/services/assignment-validation';
+import { normalizeSession } from '$lib/features/scheduling/services/session-slots';
 
 const log = createServerLogger('service:schedules:assignment');
 
@@ -56,6 +57,8 @@ export interface NewAssignmentRow {
 	override_note?: string | null;
 	/** Days of requirement credit this row is worth (default 1.0; M1/F4). */
 	credit_value?: number;
+	/** Which part of the day this row occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
+	session?: string;
 }
 
 /** Map a normalized row onto the full insertable column set, with defaults. */
@@ -76,6 +79,7 @@ function toInsertable(row: NewAssignmentRow, timestamp: string): Insertable<Sche
 		override_note:
 			(row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
 		credit_value: normalizeCredit(row.credit_value),
+		session: normalizeSession(row.session),
 		created_at: timestamp,
 		updated_at: timestamp
 	};
@@ -130,6 +134,8 @@ export interface ManualAssignmentInput {
 	override_note?: string | null;
 	/** Days of requirement credit this day is worth (default 1.0; M1/F4). */
 	credit_value?: number;
+	/** Which part of the day this occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
+	session?: string;
 }
 
 /**
@@ -207,7 +213,8 @@ export async function createManualAssignment(
 		site_id: input.site_id ?? null,
 		elective_id: input.elective_id ?? null,
 		date: input.date,
-		credit_value: input.credit_value
+		credit_value: input.credit_value,
+		session: normalizeSession(input.session)
 	};
 	const result = await validateAssignmentCandidate(db, scheduleId, candidate, {
 		today: opts.today,
@@ -249,7 +256,8 @@ export async function createManualAssignment(
 			locked: input.locked,
 			override_codes: persistedCodes,
 			override_note: input.override_note,
-			credit_value: input.credit_value
+			credit_value: input.credit_value,
+			session: normalizeSession(input.session)
 		}
 	]);
 
@@ -282,6 +290,8 @@ export interface BulkManualInput {
 	override_note?: string | null;
 	/** Days of requirement credit each created day is worth (default 1.0; M1/F4). */
 	credit_value?: number;
+	/** The session each created day occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
+	session?: string;
 }
 
 export interface BulkManualDateResult {
@@ -355,7 +365,8 @@ export async function createManualAssignmentsBulk(
 					locked: input.locked,
 					override_codes: input.override_codes,
 					override_note: input.override_note,
-					credit_value: input.credit_value
+					credit_value: input.credit_value,
+					session: input.session
 				},
 				opts
 			);

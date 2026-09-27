@@ -11,6 +11,7 @@
 
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
+import { normalizeSession, sessionsOverlap, type SessionSlot } from './session-slots';
 
 export interface RequirementCounts {
 	required: number;
@@ -130,7 +131,7 @@ export async function getStudentStatuses(
 		studentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['student_id', 'clerkship_id', 'elective_id', 'date', 'credit_value'])
+					.select(['student_id', 'clerkship_id', 'elective_id', 'date', 'credit_value', 'session'])
 					// Scope to THIS schedule — the students and clerkships above are
 					// already schedule-scoped, and a student may belong to more than one
 					// schedule with overlapping dates; counting the other schedules' days
@@ -175,17 +176,20 @@ export async function getStudentStatuses(
 					.execute()
 			: [];
 
-	// Conflicts: a student OVER-booked on a date — their assignments that day sum to
-	// more than one full day of credit. Half-days (0.5 + 0.5 = 1) are legitimate and
-	// not a conflict; a full day plus anything is (L1, credit-aware).
-	const perStudentDateCredit = new Map<string, number>();
+	// Conflicts: a student with an overlapping SESSION on a date — two mornings, two
+	// afternoons, or a full day overlapping anything. A morning + afternoon pair is
+	// legitimate and not a conflict, and credit per day is uncapped (L1).
+	const perStudentDateSessions = new Map<string, SessionSlot[]>();
 	for (const a of assignments) {
 		const k = `${a.student_id}:${a.date}`;
-		perStudentDateCredit.set(k, (perStudentDateCredit.get(k) ?? 0) + creditOf(a.credit_value));
+		const list = perStudentDateSessions.get(k) ?? [];
+		list.push(normalizeSession(a.session));
+		perStudentDateSessions.set(k, list);
 	}
 	const conflictDatesByStudent = new Map<string, Set<string>>();
-	for (const [k, credit] of perStudentDateCredit) {
-		if (credit > 1 + 1e-9) {
+	for (const [k, sessions] of perStudentDateSessions) {
+		const clashes = sessions.some((s, i) => sessions.some((t, j) => i !== j && sessionsOverlap(s, t)));
+		if (clashes) {
 			const [sid, date] = k.split(':');
 			if (!conflictDatesByStudent.has(sid)) conflictDatesByStudent.set(sid, new Set());
 			conflictDatesByStudent.get(sid)!.add(date);

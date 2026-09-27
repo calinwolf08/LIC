@@ -368,6 +368,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('preference', TEXT)
 		.addColumn('notes', TEXT)
+		// Half-day sessions (L1): the slot's time of day and its default credit. AM/PM
+		// slots default to half a day; the coordinator can toggle a slot to a full day.
+		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();
@@ -598,6 +602,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('override_codes', TEXT, (col) => col.notNull().defaultTo('[]'))
 		.addColumn('override_note', TEXT)
 		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
+		// Half-day session (L1): 'full' | 'am' | 'pm'. Two assignments clash only when
+		// their sessions overlap (AM+AM, PM+PM, full+anything); AM+PM is fine.
+		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	// ------------------------------------------------------ schedule scoping

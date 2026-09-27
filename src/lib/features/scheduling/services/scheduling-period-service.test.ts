@@ -110,6 +110,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('schedule_id', 'text')
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 

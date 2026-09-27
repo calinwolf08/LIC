@@ -18,6 +18,11 @@
 	import AssignmentContextPanel from './assignment-context-panel.svelte';
 	import type { EligibilityOption } from '$lib/features/scheduling/services/assignment-eligibility';
 	import type { DayState } from '$lib/features/scheduling/services/assignment-day-state';
+	import {
+		SESSION_LABEL,
+		normalizeSession,
+		type SessionSlot
+	} from '$lib/features/scheduling/services/session-slots';
 	import type { RequirementImpact } from '$lib/features/scheduling/services/requirement-preview';
 	import type { OverrideSideEffect } from '../services/assignment-service';
 	import {
@@ -90,6 +95,9 @@
 	let locked = $state(false);
 	let note = $state('');
 	let credit = $state(1);
+	let session = $state<SessionSlot>('full');
+	/** True once the user changes session/credit by hand, so availability prefill stops overriding them. */
+	let sessionTouched = $state(false);
 	let clearedNotice = $state<string | null>(null);
 
 	// ---- loaded data --------------------------------------------------------
@@ -168,6 +176,8 @@
 		locked = false;
 		note = '';
 		credit = 1;
+		session = 'full';
+		sessionTouched = false;
 		clearedNotice = null;
 		originalDate = '';
 		serverSoftCodes = [];
@@ -233,6 +243,8 @@
 			originalDate = body.data.date;
 			locked = body.data.locked === 1;
 			credit = body.data.credit_value ?? 1;
+			session = normalizeSession(body.data.session);
+			sessionTouched = true; // an existing assignment's session is authoritative
 			visibleMonth = body.data.date.slice(0, 7);
 		} catch {
 			/* leave the prefill in place */
@@ -441,8 +453,21 @@
 	});
 
 	let liveAnalysis = $derived(
-		analyseSelection(selectedDates, [...dayStates.values()], selectionWide, credit)
+		analyseSelection(selectedDates, [...dayStates.values()], selectionWide, session)
 	);
+
+	// Prefill session + credit from the preceptor's availability for the first
+	// selected day, until the coordinator changes them by hand (L1). Half-day slots
+	// default to 0.5 credit; a full day to 1 — both overridable.
+	$effect(() => {
+		if (mode !== 'create' || sessionTouched) return;
+		const first = selectedDates[0];
+		if (!first) return;
+		const day = dayStates.get(first);
+		if (!day || !day.availableSession) return;
+		session = day.availableSession;
+		credit = day.availableCredit ?? credit;
+	});
 
 	let canSubmit = $derived(
 		!submitting &&
@@ -573,7 +598,8 @@
 				electiveId: electiveId || null,
 				locked: canLock && locked,
 				note,
-				creditValue: credit
+				creditValue: credit,
+				session
 			},
 			analysis!,
 			acceptedCodes,
@@ -646,6 +672,7 @@
 						override_codes: acceptedCodes,
 						override_note: note || null,
 						credit_value: credit,
+						session,
 						...(canLock ? { locked } : {})
 					})
 				}
@@ -849,21 +876,47 @@
 					</div>
 				{/if}
 
-				<div class="space-y-1">
-					<Label for="ad-credit">
-						Credit per day
-						<span class="text-muted-foreground">(1 = a full day; 0.5 = a half day)</span>
-					</Label>
-					<input
-						id="ad-credit"
-						data-testid="ad-credit"
-						type="number"
-						min="0.5"
-						max="10"
-						step="0.5"
-						bind:value={credit}
-						class="border-input bg-background focus-visible:ring-ring flex h-9 w-32 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
-					/>
+				<div class="flex flex-wrap gap-4">
+					<div class="space-y-1">
+						<Label for="ad-session">Session</Label>
+						<select
+							id="ad-session"
+							data-testid="ad-session"
+							value={session}
+							onchange={(e) => {
+								session = normalizeSession((e.currentTarget as HTMLSelectElement).value);
+								sessionTouched = true;
+								// Snap the credit to the new session's default unless the coordinator
+								// has already typed a custom credit.
+								credit = session === 'full' ? 1 : 0.5;
+							}}
+							class="border-input bg-background focus-visible:ring-ring flex h-9 w-40 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+						>
+							<option value="full">{SESSION_LABEL.full}</option>
+							<option value="am">{SESSION_LABEL.am}</option>
+							<option value="pm">{SESSION_LABEL.pm}</option>
+						</select>
+					</div>
+					<div class="space-y-1">
+						<Label for="ad-credit">
+							Credit per day
+							<span class="text-muted-foreground">(1 = a full day; 0.5 = a half day)</span>
+						</Label>
+						<input
+							id="ad-credit"
+							data-testid="ad-credit"
+							type="number"
+							min="0.5"
+							max="10"
+							step="0.5"
+							value={credit}
+							oninput={(e) => {
+								credit = Number((e.currentTarget as HTMLInputElement).value);
+								sessionTouched = true;
+							}}
+							class="border-input bg-background focus-visible:ring-ring flex h-9 w-32 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+						/>
+					</div>
 				</div>
 
 				{#if liveAnalysis.categories.length > 0}
