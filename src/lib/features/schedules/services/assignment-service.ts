@@ -25,7 +25,11 @@ import {
 	type AssignmentCandidate,
 	type Violation
 } from '$lib/features/scheduling/services/assignment-validation';
-import { normalizeSession } from '$lib/features/scheduling/services/session-slots';
+import {
+	normalizeSession,
+	sessionsOverlap,
+	defaultCreditForSession
+} from '$lib/features/scheduling/services/session-slots';
 
 const log = createServerLogger('service:schedules:assignment');
 
@@ -1040,6 +1044,14 @@ export interface GeneratedAssignmentInput {
 	overrideCodes?: string[];
 	/** Row status; defaults to 'scheduled'. Fallback rows may be 'pending_approval'. */
 	status?: string;
+	/**
+	 * Session this generated day occupies (L1). When omitted, it is derived from the
+	 * availability slot the (preceptor, date) fills, so a half-day slot yields a
+	 * half-day assignment worth its slot credit.
+	 */
+	session?: string;
+	/** Credit this generated day is worth (L1). When omitted, derived from the slot. */
+	creditValue?: number;
 }
 
 /**
@@ -1067,6 +1079,42 @@ export type SkippedGeneratedAssignment = GeneratedAssignmentInput & {
  * @returns the inserted rows plus the candidates skipped because their slot was
  *          already taken.
  */
+/**
+ * The available slot (session, credit, site) each generated (preceptor, date)
+ * fills, so generated assignments inherit their slot's session + credit (L1).
+ * Keyed "preceptorId:date". When a preceptor has both an AM and a PM slot that
+ * day, the first available row wins for the fallback — callers that need a
+ * specific session pass it explicitly on the input.
+ */
+async function lookupAvailabilitySlots(
+	db: Kysely<DB>,
+	assignments: GeneratedAssignmentInput[]
+): Promise<Map<string, { session: string; credit_value: number; site_id: string | null }>> {
+	const out = new Map<string, { session: string; credit_value: number; site_id: string | null }>();
+	const preceptorIds = [...new Set(assignments.map((a) => a.preceptorId))];
+	const dates = [...new Set(assignments.map((a) => a.date))];
+	if (preceptorIds.length === 0 || dates.length === 0) return out;
+	const rows = await db
+		.selectFrom('preceptor_availability')
+		.select(['preceptor_id', 'date', 'site_id', 'session', 'credit_value'])
+		.where('preceptor_id', 'in', preceptorIds)
+		.where('date', 'in', dates)
+		.where('is_available', '=', 1)
+		.execute();
+	for (const row of rows) {
+		const key = `${row.preceptor_id}:${row.date}`;
+		if (!out.has(key)) {
+			out.set(key, {
+				session: normalizeSession(row.session),
+				credit_value:
+					typeof row.credit_value === 'number' && row.credit_value > 0 ? row.credit_value : 1,
+				site_id: row.site_id
+			});
+		}
+	}
+	return out;
+}
+
 export async function insertGeneratedAssignments(
 	db: Kysely<DB>,
 	scheduleId: string | null,
@@ -1079,32 +1127,51 @@ export async function insertGeneratedAssignments(
 		return { inserted: [], skipped: [] };
 	}
 
-	// De-duplicate by (student, date) — a student is one place per day.
+	// Resolve each candidate's session up front (from the input, else the slot it
+	// fills), so de-duplication and occupancy are session-aware — a morning and an
+	// afternoon on one student-day can coexist (L1).
+	const slotInfo = await lookupAvailabilitySlots(db, assignments);
+	const sessionOf = (a: GeneratedAssignmentInput): string =>
+		normalizeSession(a.session ?? slotInfo.get(`${a.preceptorId}:${a.date}`)?.session);
+
+	// De-duplicate by (student, date, session) — a student may hold one AM and one
+	// PM (or a single full day) per date, but not two of the same session.
 	const byKey = new Map<string, GeneratedAssignmentInput>();
 	for (const a of assignments) {
-		byKey.set(`${a.studentId}:${a.date}`, a);
+		byKey.set(`${a.studentId}:${a.date}:${sessionOf(a)}`, a);
 	}
 	const deduped = [...byKey.values()];
 
-	// Skip slots already occupied (locked / manual / earlier rows). Reported, not
-	// dropped silently — each skip carries the id of the assignment that holds the
-	// slot so the caller can tell the user exactly what blocked the day (P-09).
+	// Skip slots already occupied by an overlapping session (locked / manual /
+	// earlier rows). Reported, not dropped silently — each skip carries the id of the
+	// assignment that holds the slot so the caller can tell the user what blocked the
+	// day (P-09).
 	const studentIds = [...new Set(deduped.map((a) => a.studentId))];
 	const existing =
 		studentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['id', 'student_id', 'date'])
+					.select(['id', 'student_id', 'date', 'session'])
 					.where('student_id', 'in', studentIds)
 					.execute()
 			: [];
-	const blockingId = new Map(existing.map((e) => [`${e.student_id}:${e.date}`, e.id]));
+	const existingByStudentDate = new Map<string, { id: string | null; session: string }[]>();
+	for (const e of existing) {
+		const k = `${e.student_id}:${e.date}`;
+		(existingByStudentDate.get(k) ?? existingByStudentDate.set(k, []).get(k)!).push({
+			id: e.id,
+			session: normalizeSession(e.session)
+		});
+	}
 
 	const toInsert: GeneratedAssignmentInput[] = [];
 	const skipped: SkippedGeneratedAssignment[] = [];
 	for (const a of deduped) {
-		const blockedBy = blockingId.get(`${a.studentId}:${a.date}`);
-		if (blockedBy !== undefined) skipped.push({ ...a, blockedBy });
+		const candidateSession = normalizeSession(sessionOf(a));
+		const clash = (existingByStudentDate.get(`${a.studentId}:${a.date}`) ?? []).find((e) =>
+			sessionsOverlap(normalizeSession(e.session), candidateSession)
+		);
+		if (clash?.id != null) skipped.push({ ...a, blockedBy: clash.id });
 		else toInsert.push(a);
 	}
 
@@ -1115,39 +1182,29 @@ export async function insertGeneratedAssignments(
 		return { inserted: [], skipped };
 	}
 
-	// Resolve site_id from availability for any row that did not carry one.
-	const needSite = toInsert.filter((a) => !a.siteId);
-	const siteLookup = new Map<string, string | null>();
-	if (needSite.length > 0) {
-		const preceptorIds = [...new Set(needSite.map((a) => a.preceptorId))];
-		const dates = [...new Set(needSite.map((a) => a.date))];
-		const availability = await db
-			.selectFrom('preceptor_availability')
-			.select(['preceptor_id', 'date', 'site_id'])
-			.where('preceptor_id', 'in', preceptorIds)
-			.where('date', 'in', dates)
-			.where('is_available', '=', 1)
-			.execute();
-		for (const row of availability) {
-			siteLookup.set(`${row.preceptor_id}:${row.date}`, row.site_id);
-		}
-	}
-
 	const inserted = await insertAssignments(
 		db,
-		toInsert.map((a) => ({
-			schedule_id: scheduleId,
-			student_id: a.studentId,
-			preceptor_id: a.preceptorId,
-			clerkship_id: a.clerkshipId,
-			elective_id: a.electiveId ?? null,
-			site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
-			date: a.date,
-			status: a.status ?? 'scheduled',
-			source: 'generated' as const,
-			override_codes: a.overrideCodes ?? [],
-			override_note: (a.overrideCodes?.length ?? 0) > 0 ? 'auto-generation bypass' : null
-		}))
+		toInsert.map((a) => {
+			const slot = slotInfo.get(`${a.preceptorId}:${a.date}`);
+			const session = normalizeSession(a.session ?? slot?.session);
+			return {
+				schedule_id: scheduleId,
+				student_id: a.studentId,
+				preceptor_id: a.preceptorId,
+				clerkship_id: a.clerkshipId,
+				elective_id: a.electiveId ?? null,
+				site_id: a.siteId ?? slot?.site_id ?? null,
+				date: a.date,
+				status: a.status ?? 'scheduled',
+				source: 'generated' as const,
+				override_codes: a.overrideCodes ?? [],
+				override_note: (a.overrideCodes?.length ?? 0) > 0 ? 'auto-generation bypass' : null,
+				// A generated day is worth its slot's credit (a half-day slot → 0.5), and
+				// carries the slot's session so AM/PM read correctly (L1).
+				credit_value: a.creditValue ?? slot?.credit_value ?? defaultCreditForSession(session),
+				session
+			};
+		})
 	);
 
 	log.info('Generated assignments inserted', {

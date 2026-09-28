@@ -210,6 +210,48 @@ describe('Phase 1b — elective_id and single insert', () => {
 		expect(skipped[0].blockedBy).toBe(manual.id);
 	});
 
+	it('generates an afternoon alongside a manual morning and inherits the slot credit (L1)', async () => {
+		const day = '2025-06-11';
+		// Manual morning already booked for the student.
+		await insertAssignments(db, [
+			{
+				schedule_id: SCHED,
+				student_id: STU,
+				preceptor_id: PREC,
+				clerkship_id: CLERK,
+				date: day,
+				source: 'manual',
+				session: 'am'
+			}
+		]);
+		// PREC2 has an afternoon (PM) availability slot worth half a day that day.
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: crypto.randomUUID(),
+				preceptor_id: PREC2,
+				site_id: SITE,
+				date: day,
+				is_available: 1,
+				session: 'pm',
+				credit_value: 0.5,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		const { inserted, skipped } = await insertGeneratedAssignments(db, SCHED, [
+			{ studentId: STU, preceptorId: PREC2, clerkshipId: CLERK, date: day }
+		]);
+		// AM + PM do not clash, so the generated afternoon is inserted, not skipped,
+		// and inherits the slot's session + half-day credit.
+		expect(skipped).toHaveLength(0);
+		expect(inserted).toHaveLength(1);
+		expect(inserted[0].session).toBe('pm');
+		expect(inserted[0].credit_value).toBe(0.5);
+	});
+
 	it('tracks per-elective progress separately from clerkship days (P-01)', async () => {
 		// 2 elective days + 1 plain clerkship day.
 		await insertAssignments(db, [
