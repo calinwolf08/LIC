@@ -494,7 +494,9 @@ export async function createPreceptorAvailability(
 	db: Kysely<DB>,
 	preceptorId: string,
 	siteId: string,
-	dates: string[]
+	dates: string[],
+	/** Session the slot occupies (L1). Defaults to a full day. AM/PM → half credit. */
+	session: 'full' | 'am' | 'pm' = 'full'
 ) {
 	const values = dates.map((date) => ({
 		id: nanoid(),
@@ -502,6 +504,8 @@ export async function createPreceptorAvailability(
 		site_id: siteId,
 		date,
 		is_available: 1, // SQLite boolean
+		session,
+		credit_value: session === 'full' ? 1 : 0.5,
 		created_at: new Date().toISOString(),
 	}));
 

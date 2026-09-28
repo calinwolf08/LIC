@@ -65,6 +65,12 @@ export interface StrategyContext {
      * is still available. Dates absent from the map are untagged (neutral).
      */
     preferenceByDate?: Record<string, 'preferred' | 'in_a_pinch' | null>;
+    /**
+     * Per-date session this preceptor's slot occupies (L1): 'full' | 'am' | 'pm'.
+     * The engine uses it to place a morning of one clerkship and an afternoon of
+     * another on the same student-day. Dates absent from the map default to 'full'.
+     */
+    sessionByDate?: Record<string, 'full' | 'am' | 'pm'>;
     currentAssignmentCount: number; // For load balancing
     maxStudentsPerDay: number;
     maxStudentsPerYear: number;

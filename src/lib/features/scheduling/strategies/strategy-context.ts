@@ -11,6 +11,7 @@ import type { Clerkship } from '$lib/features/clerkships/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
 import type { StrategyContext } from './base-strategy';
 import { getEligiblePreceptorIds } from '../eligibility/eligibility';
+import { normalizeSession } from '../services/session-slots';
 
 /**
  * Pending assignment from current scheduling batch
@@ -20,6 +21,8 @@ export interface PendingAssignment {
   preceptorId: string;
   clerkshipId: string;
   date: string;
+  /** Session this placement occupies (L1). Defaults to a full day when absent. */
+  session?: 'full' | 'am' | 'pm';
 }
 
 /**
@@ -151,28 +154,34 @@ export class StrategyContextBuilder {
 
     const blackoutSet = new Set(blackouts.map(b => b.date));
 
-    // Get dates where this student already has assignments in the database
-    // Use try-catch to handle cases where table doesn't exist (test environments)
-    let existingAssignmentSet = new Set<string>();
+    // Sessions the student already holds per date (DB + pending). A date is only
+    // excluded here when it is FULLY booked (a full-day slot, or both AM and PM); a
+    // day with one free half stays a candidate, and the engine's session-aware filter
+    // then decides per preceptor whether their slot fits the free half (L1).
+    const consumedByDate = new Map<string, Set<'full' | 'am' | 'pm'>>();
+    const addConsumed = (date: string, session: string | null | undefined) => {
+      const set = consumedByDate.get(date) ?? new Set<'full' | 'am' | 'pm'>();
+      set.add(normalizeSession(session));
+      consumedByDate.set(date, set);
+    };
     try {
       const existingAssignments = await this.db
         .selectFrom('schedule_assignments')
-        .select('date')
+        .select(['date', 'session'])
         .where('student_id', '=', student.id!)
         .execute();
-
-      existingAssignmentSet = new Set(existingAssignments.map(a => a.date));
-    } catch (error) {
+      for (const a of existingAssignments) addConsumed(a.date, a.session);
+    } catch {
       // Table doesn't exist or query failed - no existing assignments to filter
-      existingAssignmentSet = new Set();
     }
-
-    // Get dates where this student has pending assignments
-    const pendingAssignmentSet = new Set(
-      pendingAssignments
-        .filter(a => a.studentId === student.id)
-        .map(a => a.date)
-    );
+    for (const a of pendingAssignments) {
+      if (a.studentId === student.id) addConsumed(a.date, a.session);
+    }
+    const dayFullyBlocked = (date: string): boolean => {
+      const held = consumedByDate.get(date);
+      if (!held) return false;
+      return held.has('full') || (held.has('am') && held.has('pm'));
+    };
 
     // Generate date range using UTC to avoid timezone issues
     const start = startDate
@@ -187,10 +196,8 @@ export class StrategyContextBuilder {
 
     while (current <= end) {
       const dateStr = current.toISOString().split('T')[0];
-      // Exclude blackouts, existing assignments, and pending assignments
-      if (!blackoutSet.has(dateStr) &&
-          !existingAssignmentSet.has(dateStr) &&
-          !pendingAssignmentSet.has(dateStr)) {
+      // Exclude blackouts and days the student is already fully booked (session-aware).
+      if (!blackoutSet.has(dateStr) && !dayFullyBlocked(dateStr)) {
         dates.push(dateStr);
       }
       current.setUTCDate(current.getUTCDate() + 1);
@@ -241,16 +248,18 @@ export class StrategyContextBuilder {
       // Get preceptor availability with site info and preference (H8)
       const availability = await this.db
         .selectFrom('preceptor_availability')
-        .select(['date', 'site_id', 'preference'])
+        .select(['date', 'site_id', 'preference', 'session'])
         .where('preceptor_id', '=', preceptor.id)
         .where('is_available', '=', 1)
         .execute();
 
       const availabilityDates = availability.map(a => a.date);
       const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
+      const sessionByDate: Record<string, 'full' | 'am' | 'pm'> = {};
       for (const a of availability) {
         preferenceByDate[a.date] =
           (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
+        sessionByDate[a.date] = normalizeSession(a.session);
       }
 
       // Get current assignment count from database
@@ -296,6 +305,7 @@ export class StrategyContextBuilder {
         siteIds: preceptorSites.map(ps => ps.site_id),
         availability: availabilityDates,
         preferenceByDate,
+        sessionByDate,
         currentAssignmentCount: totalAssignmentCount,
         maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
         maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,

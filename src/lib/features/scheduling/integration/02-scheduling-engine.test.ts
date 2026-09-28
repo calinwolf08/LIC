@@ -392,6 +392,64 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		});
 	});
 
+	describe('Test 8: Half-day session packing (L1)', () => {
+		it('places a morning of one clerkship and an afternoon of another on the same day', async () => {
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Half-Day Clinic');
+			const day = '2025-01-06'; // Monday
+
+			// Two outpatient clerkships, one required day each.
+			const clerkА = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 1,
+			});
+			const clerkB = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 1 });
+			const [studentId] = await createTestStudents(db, 1);
+
+			// A dedicated preceptor per clerkship, each available only on `day`.
+			const [precA] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkА,
+			});
+			const [precB] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkB,
+			});
+			for (const p of [precA, precB]) {
+				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			}
+
+			// precA offers only a morning that day; precB only an afternoon.
+			await createPreceptorAvailability(db, precA, siteIds[0], [day], 'am');
+			await createPreceptorAvailability(db, precB, siteIds[0], [day], 'pm');
+
+			const result = await engine.schedule(studentId ? [studentId] : [], [clerkА, clerkB], {
+				startDate: day,
+				endDate: day,
+				dryRun: false,
+			});
+			expect(result.success).toBe(true);
+
+			// The student holds two assignments on the one day — a morning and an
+			// afternoon — each worth half a day of credit (L1).
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['clerkship_id', 'session', 'credit_value'])
+				.where('student_id', '=', studentId)
+				.where('date', '=', day)
+				.execute();
+			expect(rows).toHaveLength(2);
+			expect(rows).toHaveLength(2);
+			expect(rows.map((r) => r.session).sort()).toEqual(['am', 'pm']);
+			expect(rows.every((r) => r.credit_value === 0.5)).toBe(true);
+			// One per clerkship — the two clerkships share the day.
+			expect(new Set(rows.map((r) => r.clerkship_id))).toEqual(new Set([clerkА, clerkB]));
+		});
+	});
+
 	describe('Test 7: Capacity Enforcement', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup

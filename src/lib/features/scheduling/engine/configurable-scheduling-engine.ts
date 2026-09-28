@@ -18,6 +18,11 @@ import { getEligiblePreceptorIds } from '../eligibility/eligibility';
 import { AssignmentStrategy } from '$lib/features/scheduling-config/types';
 import { insertGeneratedAssignments } from '$lib/features/schedules/services/assignment-service';
 import {
+	normalizeSession,
+	sessionsOverlap,
+	type SessionSlot
+} from '../services/session-slots';
+import {
   ClerkshipSettingsService,
   type ClerkshipSettings,
 } from '$lib/features/clerkships/services/clerkship-settings.service';
@@ -78,6 +83,8 @@ export interface PendingAssignment {
   preceptorId: string;
   clerkshipId: string;
   date: string;
+  /** The session this placement occupies (L1). Defaults to a full day. */
+  session?: SessionSlot;
 }
 
 export class ConfigurableSchedulingEngine {
@@ -469,6 +476,68 @@ export class ConfigurableSchedulingEngine {
     }
   }
 
+  /** Sessions a student already holds per date, from pending assignments (L1). */
+  private consumedSessionsByDate(studentId: string): Map<string, Set<SessionSlot>> {
+    const map = new Map<string, Set<SessionSlot>>();
+    for (const a of this.pendingAssignments) {
+      if (a.studentId !== studentId) continue;
+      const set = map.get(a.date) ?? new Set<SessionSlot>();
+      set.add(normalizeSession(a.session));
+      map.set(a.date, set);
+    }
+    return map;
+  }
+
+  /**
+   * Filter a strategy context so a student can still take a non-overlapping session
+   * on a day they already have another (L1): each preceptor's available dates drop
+   * the days where their slot's session overlaps a session the student already holds,
+   * and availableDates drops only fully-booked days (a full slot, or both AM and PM).
+   * With all-full availability this reduces to the old "exclude used dates" behaviour.
+   */
+  private applySessionAwareAvailability(
+    context: {
+      availableDates: string[];
+      availablePreceptors: Array<{
+        id: string;
+        availability: string[];
+        sessionByDate?: Record<string, 'full' | 'am' | 'pm'>;
+      }>;
+    },
+    studentId: string
+  ): void {
+    const consumed = this.consumedSessionsByDate(studentId);
+    if (consumed.size === 0) return;
+    for (const p of context.availablePreceptors) {
+      p.availability = p.availability.filter((d) => {
+        const held = consumed.get(d);
+        if (!held) return true;
+        const slot = normalizeSession(p.sessionByDate?.[d]);
+        return ![...held].some((s) => sessionsOverlap(s, slot));
+      });
+    }
+    context.availableDates = context.availableDates.filter((d) => {
+      const held = consumed.get(d);
+      if (!held) return true;
+      return !(held.has('full') || (held.has('am') && held.has('pm')));
+    });
+  }
+
+  /** The session a placement occupies, from the chosen preceptor's slot that day (L1). */
+  private sessionForPlacement(
+    context: {
+      availablePreceptors: Array<{
+        id: string;
+        sessionByDate?: Record<string, 'full' | 'am' | 'pm'>;
+      }>;
+    },
+    preceptorId: string,
+    date: string
+  ): SessionSlot {
+    const p = context.availablePreceptors.find((x) => x.id === preceptorId);
+    return normalizeSession(p?.sessionByDate?.[date]);
+  }
+
   /**
    * Schedule non-elective days for a student within a clerkship
    *
@@ -500,15 +569,9 @@ export class ConfigurableSchedulingEngine {
         scheduleId: options.scheduleId,
       });
 
-      // Get dates already assigned to this student (to avoid conflicts with electives)
-      const studentAssignedDates = new Set(
-        this.pendingAssignments
-          .filter(a => a.studentId === student.id)
-          .map(a => a.date)
-      );
-
-      // Filter context.availableDates to exclude student's assigned dates
-      context.availableDates = context.availableDates.filter(date => !studentAssignedDates.has(date));
+      // Exclude days the student already holds — but session-aware, so a morning of
+      // one clerkship and an afternoon of another can share a date (L1).
+      this.applySessionAwareAvailability(context, student.id!);
 
       // Select strategy based on configuration
       const strategy = this.strategySelector.selectStrategy(config);
@@ -559,12 +622,14 @@ export class ConfigurableSchedulingEngine {
           // Add assignments to result and track as pending for future students
           assignmentsToProcess.forEach(assignment => {
             this.resultBuilder.addAssignment(assignment);
-            // Track pending assignment for capacity calculations
+            // Track pending assignment for capacity calculations, stamping the session
+            // its slot occupies so a later clerkship sees the day's remaining half (L1).
             this.pendingAssignments.push({
               studentId: assignment.studentId,
               preceptorId: assignment.preceptorId,
               clerkshipId: assignment.clerkshipId,
               date: assignment.date,
+              session: this.sessionForPlacement(context, assignment.preceptorId, assignment.date),
             });
           });
           acceptedDays = assignmentsToProcess.length;
@@ -659,16 +724,6 @@ export class ConfigurableSchedulingEngine {
         scheduleId: options.scheduleId,
       });
 
-      // Get dates already assigned to this student (to avoid conflicts with other electives)
-      const studentAssignedDates = new Set(
-        this.pendingAssignments
-          .filter(a => a.studentId === student.id)
-          .map(a => a.date)
-      );
-
-      // Filter context.availableDates to exclude student's assigned dates
-      context.availableDates = context.availableDates.filter(date => !studentAssignedDates.has(date));
-
       // For electives, load preceptors directly from elective associations (not from teams)
       if (elective.preceptorIds && elective.preceptorIds.length > 0) {
         const preceptorRecords = await this.db
@@ -677,26 +732,27 @@ export class ConfigurableSchedulingEngine {
           .where('id', 'in', elective.preceptorIds)
           .execute();
 
-        // Get availability for these preceptors (with preference for H8 weighting)
+        // Get availability for these preceptors (with preference for H8 weighting and
+        // session for half-day placement, L1).
         const availability = await this.db
           .selectFrom('preceptor_availability')
-          .select(['preceptor_id', 'date', 'site_id', 'preference'])
+          .select(['preceptor_id', 'date', 'site_id', 'preference', 'session'])
           .where('preceptor_id', 'in', elective.preceptorIds)
           .where('is_available', '=', 1)
           .execute();
 
-        // Build available preceptors list with their availability, excluding student's assigned dates
+        // Build available preceptors list with their availability + session map.
         context.availablePreceptors = preceptorRecords
           .filter((p): p is typeof p & { id: string } => p.id !== null)
           .map(preceptor => {
             const preceptorAvailability = availability.filter(a => a.preceptor_id === preceptor.id);
-            const availableDates = preceptorAvailability
-              .map(a => a.date)
-              .filter(date => !studentAssignedDates.has(date)); // Exclude dates student is already assigned
+            const availableDates = preceptorAvailability.map(a => a.date);
             const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
+            const sessionByDate: Record<string, 'full' | 'am' | 'pm'> = {};
             for (const a of preceptorAvailability) {
               preferenceByDate[a.date] =
                 (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
+              sessionByDate[a.date] = normalizeSession(a.session);
             }
 
             return {
@@ -707,6 +763,7 @@ export class ConfigurableSchedulingEngine {
               siteIds: [], // Sites determined by availability
               availability: availableDates,
               preferenceByDate,
+              sessionByDate,
               currentAssignmentCount: 0,
               // Use preceptor's max_students setting for daily capacity
               maxStudentsPerDay: preceptor.max_students ?? config.maxStudentsPerDay ?? 1,
@@ -716,6 +773,10 @@ export class ConfigurableSchedulingEngine {
       } else {
         context.availablePreceptors = [];
       }
+
+      // Exclude days the student already holds — session-aware, so an elective can take
+      // a free half of a day the student is otherwise partly booked on (L1).
+      this.applySessionAwareAvailability(context, student.id!);
 
       if (context.availablePreceptors.length === 0) {
         console.warn(`[Engine] No available preceptors for elective "${elective.name}"`);
@@ -788,6 +849,7 @@ export class ConfigurableSchedulingEngine {
               preceptorId: assignment.preceptorId,
               clerkshipId: assignment.clerkshipId,
               date: assignment.date,
+              session: this.sessionForPlacement(context, assignment.preceptorId, assignment.date),
             });
           });
           acceptedDays = electiveAssignments.length;
