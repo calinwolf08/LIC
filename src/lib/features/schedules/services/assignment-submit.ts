@@ -13,6 +13,7 @@ import { sessionClashes, type SessionSlot } from '$lib/features/scheduling/servi
 /** Soft categories the dialog can raise a conversation about. */
 export type OverrideCategory =
 	| 'session_clash'
+	| 'mutual_exclusion'
 	| 'preceptor_unavailable'
 	| 'preceptor_capacity'
 	| 'blackout_date'
@@ -47,6 +48,8 @@ export interface SelectionWideFlags {
 	outsideCorePreceptor?: boolean;
 	/** The day sits on an "in a pinch" availability while a preferred day was open. */
 	preferredDayAvailable?: boolean;
+	/** The student has a mutually-exclusive preceptor on this day (L2). */
+	mutualExclusion?: boolean;
 }
 
 export interface FlagAnalysis {
@@ -60,6 +63,7 @@ export interface FlagAnalysis {
 
 const CATEGORY_ORDER: OverrideCategory[] = [
 	'session_clash',
+	'mutual_exclusion',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -128,6 +132,7 @@ export function analyseSelection(
 
 	// Selection-wide categories only matter if something is actually submittable.
 	if (submittableDates.length > 0) {
+		if (selectionWide.mutualExclusion) bucket('mutual_exclusion');
 		if (selectionWide.notOnboarded) bucket('not_onboarded');
 		if (selectionWide.outsideCorePreceptor) bucket('outside_core_preceptor');
 		if (selectionWide.preferredDayAvailable) bucket('preferred_day_available');
@@ -209,6 +214,11 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 		title: 'Overlapping session',
 		describe:
 			'The student already has an assignment in the same session on these days (two mornings, two afternoons, or a full day overlapping another). A morning + afternoon pair is fine; confirm if you intend to overlap.'
+	},
+	mutual_exclusion: {
+		title: 'Preceptors marked not to share a day',
+		describe:
+			'This preceptor is marked not to supervise the same student on a day another already-assigned preceptor is on.'
 	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',

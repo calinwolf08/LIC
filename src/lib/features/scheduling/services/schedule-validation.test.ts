@@ -332,6 +332,36 @@ describe('validateSchedule', () => {
 		const r = await validateSchedule(db, SCHED);
 		expect(r.counts['session_clash']).toBeUndefined();
 	});
+
+	// --- mutual_exclusion (L2) ---------------------------------------------
+	async function addMutualExclusion(db: Kysely<DB>, x: string, y: string) {
+		const [a, b] = x <= y ? [x, y] : [y, x];
+		await db
+			.insertInto('preceptor_mutual_exclusions')
+			.values({ id: `me-${a}-${b}`, preceptor_a_id: a, preceptor_b_id: b, created_at: new Date().toISOString() })
+			.execute();
+	}
+
+	it('flags mutual_exclusion when two excluded preceptors share a student-day', async () => {
+		await onboardAndAddSecondPreceptor(db);
+		// AM + PM so there is no session clash; the two preceptors are mutually exclusive.
+		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 'am');
+		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 'pm');
+		await addMutualExclusion(db, PREC, PREC2);
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['mutual_exclusion']).toBe(1);
+		expect(r.counts['session_clash']).toBeUndefined();
+		const finding = r.byStudent[STU]?.find((v) => v.code === 'mutual_exclusion');
+		expect(finding?.assignment_ids.slice().sort()).toEqual(['a1', 'a2']);
+	});
+
+	it('does not flag mutual_exclusion without a rule', async () => {
+		await onboardAndAddSecondPreceptor(db);
+		await addAssignmentX(db, 'a1', '2025-03-03', PREC, 'am');
+		await addAssignmentX(db, 'a2', '2025-03-03', PREC2, 'pm');
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['mutual_exclusion']).toBeUndefined();
+	});
 });
 
 describe('getSetupChecklist', () => {

@@ -153,6 +153,27 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(true);
 	});
 
+	it('flags mutual_exclusion for two excluded preceptors on one day (L2)', async () => {
+		const ts = new Date().toISOString();
+		const PREC2 = 'prec-2';
+		await db
+			.insertInto('preceptors')
+			.values({ id: PREC2, name: 'Dr P2', email: 'p2@x.com', max_students: 1, created_at: ts, updated_at: ts })
+			.execute();
+		const [a, b] = PRECEPTOR <= PREC2 ? [PRECEPTOR, PREC2] : [PREC2, PRECEPTOR];
+		await db
+			.insertInto('preceptor_mutual_exclusions')
+			.values({ id: 'me1', preceptor_a_id: a, preceptor_b_id: b, created_at: ts })
+			.execute();
+
+		// Existing morning with PREC2; candidate is PRECEPTOR in the afternoon — no
+		// session clash (AM + PM), but the two preceptors are mutually exclusive.
+		await createManualAssignment(db, SCHEDULE, { ...base, preceptor_id: PREC2, date: MON, session: 'am' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON, session: 'pm' });
+		expect(r.soft.some((v) => v.code === 'mutual_exclusion')).toBe(true);
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
+	});
+
 	it('editing an assignment in place does not clash with itself (excludeId)', async () => {
 		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		expect(created.ok).toBe(true);

@@ -22,6 +22,7 @@ import {
 	sessionsOverlap,
 	type SessionSlot
 } from '../services/session-slots';
+import { mutualExclusionKey } from '../services/mutual-exclusion';
 import {
   ClerkshipSettingsService,
   type ClerkshipSettings,
@@ -101,6 +102,8 @@ export class ConfigurableSchedulingEngine {
   private electiveConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electivesByClerkship: Map<string, any[]> = new Map();
   private pendingAssignments: PendingAssignment[] = [];
+  /** Canonical "a:b" keys of mutually-exclusive preceptor pairs, loaded per run (L2). */
+  private mutualExclusions: Set<string> = new Set();
 
   constructor(private db: Kysely<DB>) {
     this.strategySelector = new StrategySelector();
@@ -138,6 +141,17 @@ export class ConfigurableSchedulingEngine {
     this.electiveConfigs.clear();
     this.electivesByClerkship.clear();
     this.pendingAssignments = [];
+
+    // Load mutual-exclusion pairs so generation can avoid placing two of them for a
+    // student on the same day (L2). Auto-gen is the paid tier, so this avoidance is
+    // inherently gated.
+    const exclusionRows = await this.db
+      .selectFrom('preceptor_mutual_exclusions')
+      .select(['preceptor_a_id', 'preceptor_b_id'])
+      .execute();
+    this.mutualExclusions = new Set(
+      exclusionRows.map((e) => mutualExclusionKey(e.preceptor_a_id, e.preceptor_b_id))
+    );
 
     // Phase 1: Load data
     console.log('[Engine] Loading students and clerkships...');
@@ -507,9 +521,34 @@ export class ConfigurableSchedulingEngine {
     studentId: string
   ): void {
     const consumed = this.consumedSessionsByDate(studentId);
-    if (consumed.size === 0) return;
+
+    // Preceptors the student already holds per date, for the mutual-exclusion filter (L2).
+    const placedPreceptorsByDate = new Map<string, Set<string>>();
+    if (this.mutualExclusions.size > 0) {
+      for (const a of this.pendingAssignments) {
+        if (a.studentId !== studentId) continue;
+        const set = placedPreceptorsByDate.get(a.date) ?? new Set<string>();
+        set.add(a.preceptorId);
+        placedPreceptorsByDate.set(a.date, set);
+      }
+    }
+    const excludedByRule = (preceptorId: string, date: string): boolean => {
+      if (this.mutualExclusions.size === 0) return false;
+      const placed = placedPreceptorsByDate.get(date);
+      if (!placed) return false;
+      for (const other of placed) {
+        if (other !== preceptorId && this.mutualExclusions.has(mutualExclusionKey(preceptorId, other)))
+          return true;
+      }
+      return false;
+    };
+
+    if (consumed.size === 0 && placedPreceptorsByDate.size === 0) return;
     for (const p of context.availablePreceptors) {
       p.availability = p.availability.filter((d) => {
+        // Drop a date where this preceptor is mutually exclusive with one the student
+        // already holds that day (L2).
+        if (excludedByRule(p.id, d)) return false;
         const held = consumed.get(d);
         if (!held) return true;
         const slot = normalizeSession(p.sessionByDate?.[d]);

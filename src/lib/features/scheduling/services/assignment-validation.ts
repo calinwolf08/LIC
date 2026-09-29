@@ -28,6 +28,12 @@ export type ViolationCode =
 	 * time clash is flagged. Credit per day is NOT capped (L1 follow-up).
 	 */
 	| 'session_clash'
+	/**
+	 * The student is assigned to two preceptors on the same day that are marked
+	 * mutually exclusive (L2). Soft: allowed with an override; the paid auto-gen
+	 * tier avoids the pairing.
+	 */
+	| 'mutual_exclusion'
 	| 'preceptor_unavailable'
 	| 'blackout_date'
 	| 'preceptor_capacity'
@@ -94,6 +100,7 @@ export function candidateCredit(value: number | null | undefined): number {
  */
 export const OVERRIDABLE_CODES = [
 	'session_clash',
+	'mutual_exclusion',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -117,6 +124,7 @@ export function isOverrideCode(code: string): code is OverrideCode {
 /** Human labels for override codes, for the review list and confirm copy. */
 export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
 	session_clash: 'Another assignment in the same session',
+	mutual_exclusion: 'Preceptors marked not to share a student-day',
 	preceptor_unavailable: 'Preceptor not available',
 	preceptor_capacity: 'Preceptor over capacity',
 	blackout_date: 'Blackout date',
@@ -356,7 +364,7 @@ export async function validateAssignmentCandidate(
 	// calendar day across every schedule.
 	let sameDayQuery = db
 		.selectFrom('schedule_assignments')
-		.select('session')
+		.select(['session', 'preceptor_id'])
 		.where('student_id', '=', candidate.student_id)
 		.where('date', '=', candidate.date);
 	if (candidate.excludeId) sameDayQuery = sameDayQuery.where('id', '!=', candidate.excludeId);
@@ -371,6 +379,40 @@ export async function validateAssignmentCandidate(
 			message: `Student already has a ${clashingSession === 'full' ? 'full-day' : clashingSession.toUpperCase()} assignment on ${candidate.date} that overlaps this ${candidateSession === 'full' ? 'full day' : candidateSession.toUpperCase()}`,
 			entity_refs: { student_id: candidate.student_id }
 		});
+	}
+
+	// Mutual exclusion (soft, L2): the student already has a preceptor that day who
+	// is marked not to share a student-day with this candidate's preceptor.
+	const sameDayPreceptorIds = [
+		...new Set(sameDayRows.map((r) => r.preceptor_id).filter((p) => p !== candidate.preceptor_id))
+	];
+	if (sameDayPreceptorIds.length > 0) {
+		const exclusions = await db
+			.selectFrom('preceptor_mutual_exclusions')
+			.select(['preceptor_a_id', 'preceptor_b_id'])
+			.where((eb) =>
+				eb.or([
+					eb('preceptor_a_id', '=', candidate.preceptor_id),
+					eb('preceptor_b_id', '=', candidate.preceptor_id)
+				])
+			)
+			.execute();
+		const excludedWith = new Set<string>();
+		for (const e of exclusions) {
+			excludedWith.add(e.preceptor_a_id === candidate.preceptor_id ? e.preceptor_b_id : e.preceptor_a_id);
+		}
+		const clashPreceptor = sameDayPreceptorIds.find((p) => excludedWith.has(p));
+		if (clashPreceptor) {
+			soft.push({
+				code: 'mutual_exclusion',
+				message: `This preceptor is marked not to share a day with another preceptor already assigned on ${candidate.date}`,
+				entity_refs: {
+					student_id: candidate.student_id,
+					preceptor_id: candidate.preceptor_id,
+					other_preceptor_id: clashPreceptor
+				}
+			});
+		}
 	}
 
 	// Outside schedule range (soft)

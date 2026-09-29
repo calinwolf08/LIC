@@ -450,6 +450,61 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		});
 	});
 
+	describe('Test 9: Mutual exclusion auto-avoidance (L2)', () => {
+		it('does not place two mutually-exclusive preceptors for a student on the same day', async () => {
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Exclusion Clinic');
+			const day = '2025-01-06'; // Monday — the only availability date below
+
+			const clerkA = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 1
+			});
+			const clerkB = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 1 });
+			const [studentId] = await createTestStudents(db, 1);
+			const [precA] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkA
+			});
+			const [precB] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkB
+			});
+			for (const p of [precA, precB]) {
+				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			}
+			// Both preceptors offer only a full day on the single shared date.
+			await createPreceptorAvailability(db, precA, siteIds[0], [day]);
+			await createPreceptorAvailability(db, precB, siteIds[0], [day]);
+
+			// Rule: precA and precB must not share a student-day.
+			const [a, b] = precA <= precB ? [precA, precB] : [precB, precA];
+			await db
+				.insertInto('preceptor_mutual_exclusions')
+				.values({ id: 'me-1', preceptor_a_id: a, preceptor_b_id: b, created_at: new Date().toISOString() })
+				.execute();
+
+			await engine.schedule(studentId ? [studentId] : [], [clerkA, clerkB], {
+				startDate: day,
+				endDate: day,
+				dryRun: false
+			});
+
+			// The student is placed for at most one of the two clerkships on `day` —
+			// the engine avoided pairing the mutually-exclusive preceptors.
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select('preceptor_id')
+				.where('student_id', '=', studentId)
+				.where('date', '=', day)
+				.execute();
+			expect(rows.length).toBe(1);
+		});
+	});
+
 	describe('Test 7: Capacity Enforcement', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup

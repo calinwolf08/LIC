@@ -83,7 +83,13 @@
 	 * panel, and advisory soft codes (onboarding, core-preceptor, preference) are
 	 * shown in their own sections, so they are excluded here.
 	 */
-	const CONFLICT_CODES = new Set(['session_clash', 'blackout_date', 'outside_schedule', 'entity_missing']);
+	const CONFLICT_CODES = new Set([
+		'session_clash',
+		'mutual_exclusion',
+		'blackout_date',
+		'outside_schedule',
+		'entity_missing'
+	]);
 	let conflicts = $state<StudentConflict[]>([]);
 	$effect(() => {
 		const studentId = data.studentId;

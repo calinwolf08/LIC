@@ -343,6 +343,13 @@ export interface StudentCorePreceptors {
   student_id: string;
 }
 
+export interface PreceptorMutualExclusions {
+  created_at: Generated<string>;
+  id: string | null;
+  preceptor_a_id: string;
+  preceptor_b_id: string;
+}
+
 export interface ScheduleSites {
   created_at: Generated<string>;
   id: string | null;
@@ -510,6 +517,7 @@ export interface DB {
   preceptor_capacity_rules: PreceptorCapacityRules;
   preceptor_fallbacks: PreceptorFallbacks;
   preceptor_sites: PreceptorSites;
+  preceptor_mutual_exclusions: PreceptorMutualExclusions;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;

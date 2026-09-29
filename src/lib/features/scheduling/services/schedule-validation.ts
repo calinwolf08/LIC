@@ -14,6 +14,7 @@ import {
 	type Violation
 } from './assignment-validation';
 import { normalizeSession, sessionsOverlap } from './session-slots';
+import { mutualExclusionKey } from './mutual-exclusion';
 
 export interface ScheduleViolation extends Violation {
 	assignment_id: string;
@@ -257,6 +258,42 @@ export async function validateSchedule(
 				student_id: first.student_id,
 				preceptor_id: first.preceptor_id
 			});
+		}
+	}
+
+	// Mutual exclusion (L2): ONE finding per (student, date) where two of the day's
+	// preceptors are marked not to share a student-day. Slot-scoped like the others.
+	const exclusionRows = await db
+		.selectFrom('preceptor_mutual_exclusions')
+		.select(['preceptor_a_id', 'preceptor_b_id'])
+		.where('preceptor_a_id', 'in', preceptorIds)
+		.where('preceptor_b_id', 'in', preceptorIds)
+		.execute();
+	if (exclusionRows.length > 0) {
+		const excluded = new Set(exclusionRows.map((e) => mutualExclusionKey(e.preceptor_a_id, e.preceptor_b_id)));
+		for (const [, slot] of studentDaySlots) {
+			if (slot.length < 2) continue;
+			let hit: (typeof slot)[number] | undefined;
+			outer: for (let i = 0; i < slot.length; i++) {
+				for (let j = i + 1; j < slot.length; j++) {
+					if (excluded.has(mutualExclusionKey(slot[i].preceptor_id, slot[j].preceptor_id))) {
+						hit = slot[i];
+						break outer;
+					}
+				}
+			}
+			if (hit) {
+				violations.push({
+					code: 'mutual_exclusion',
+					message: `Student has two preceptors marked not to share a day on ${hit.date}`,
+					entity_refs: { student_id: hit.student_id },
+					assignment_id: hit.id!,
+					assignment_ids: slot.map((a) => a.id!),
+					date: hit.date,
+					student_id: hit.student_id,
+					preceptor_id: hit.preceptor_id
+				});
+			}
 		}
 	}
 

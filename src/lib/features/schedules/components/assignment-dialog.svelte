@@ -449,7 +449,8 @@
 		overRequired: (impact?.exceedsBy ?? 0) > 0,
 		notOnboarded: serverSoftCodes.includes('not_onboarded'),
 		outsideCorePreceptor: serverSoftCodes.includes('outside_core_preceptor'),
-		preferredDayAvailable: serverSoftCodes.includes('preferred_day_available')
+		preferredDayAvailable: serverSoftCodes.includes('preferred_day_available'),
+		mutualExclusion: serverSoftCodes.includes('mutual_exclusion')
 	});
 
 	let liveAnalysis = $derived(

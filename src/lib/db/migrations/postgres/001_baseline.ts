@@ -578,6 +578,24 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addUniqueConstraint('student_core_preceptors_unique', ['student_id', 'preceptor_id'])
 		.execute();
 
+	// Pairwise mutual-exclusion rules between preceptors (L2). Stored canonically
+	// (preceptor_a_id < preceptor_b_id) so the rule is symmetric and unique.
+	await db.schema
+		.createTable('preceptor_mutual_exclusions')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('preceptor_a_id', TEXT, (col) =>
+			col.notNull().references('preceptors.id').onDelete('cascade')
+		)
+		.addColumn('preceptor_b_id', TEXT, (col) =>
+			col.notNull().references('preceptors.id').onDelete('cascade')
+		)
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.addUniqueConstraint('preceptor_mutual_exclusions_unique', [
+			'preceptor_a_id',
+			'preceptor_b_id'
+		])
+		.execute();
+
 	// ---------------------------------------------------------- assignments
 
 	// `site_id` has no foreign key on SQLite either — migration 010 added it with
