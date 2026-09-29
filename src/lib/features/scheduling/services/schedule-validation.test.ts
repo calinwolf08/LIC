@@ -362,6 +362,66 @@ describe('validateSchedule', () => {
 		const r = await validateSchedule(db, SCHED);
 		expect(r.counts['mutual_exclusion']).toBeUndefined();
 	});
+
+	// --- Block-week conflict (L3) ------------------------------------------------
+	const BLOCK = 'clerk-block';
+	async function addBlockClerkship(db: Kysely<DB>) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: BLOCK,
+				name: 'Inpatient',
+				clerkship_type: 'inpatient',
+				required_days: 5,
+				scheduling_kind: 'block',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		await db
+			.insertInto('schedule_clerkships')
+			.values({ id: 'sc-block', schedule_id: SCHED, clerkship_id: BLOCK, created_at: ts })
+			.execute();
+	}
+	async function addBlockAssignment(db: Kysely<DB>, id: string, date: string) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id,
+				student_id: STU,
+				preceptor_id: PREC,
+				clerkship_id: BLOCK,
+				date,
+				status: 'scheduled',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('flags a scattered day in a week consumed by a block, one finding per day', async () => {
+		await addBlockClerkship(db);
+		// Block on Mon 2025-01-06 consumes that whole week…
+		await addBlockAssignment(db, 'b1', '2025-01-06');
+		// …a scattered (outpatient) day on Wed 2025-01-08 conflicts.
+		await addAssignment(db, 's1', '2025-01-08');
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['block_week_conflict']).toBe(1);
+		const finding = r.byStudent[STU]?.find((v) => v.code === 'block_week_conflict');
+		expect(finding?.date).toBe('2025-01-08');
+		// The block day itself is not flagged as a conflict.
+		expect(r.byDate['2025-01-06']?.some((v) => v.code === 'block_week_conflict')).toBeFalsy();
+	});
+
+	it('does not flag a scattered day in a free week (partial-week boundary)', async () => {
+		await addBlockClerkship(db);
+		await addBlockAssignment(db, 'b1', '2025-01-06'); // week of 2025-01-06
+		await addAssignment(db, 's1', '2025-01-13'); // next Monday, different week
+		const r = await validateSchedule(db, SCHED);
+		expect(r.counts['block_week_conflict']).toBeUndefined();
+	});
 });
 
 describe('getSetupChecklist', () => {

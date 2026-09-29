@@ -505,6 +505,72 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		});
 	});
 
+	describe('Test 10: Block-week auto-avoidance (L3)', () => {
+		it('keeps a scattered clerkship out of a week consumed by an inpatient block', async () => {
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Block Clinic');
+			const blockMon = '2025-01-06'; // Monday — the block day
+			const scatterSameWeek = '2025-01-08'; // Wed, same week as the block
+			const scatterNextWeek = '2025-01-13'; // next Monday, a free week
+
+			// One block (inpatient) clerkship and one scattered (outpatient) clerkship,
+			// one required day each.
+			const clerkBlock = await createTestClerkship(db, 'Inpatient Medicine', {
+				clerkshipType: 'inpatient',
+				requiredDays: 1,
+				schedulingKind: 'block'
+			});
+			const clerkScatter = await createTestClerkship(db, 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 1,
+				schedulingKind: 'scattered'
+			});
+			const [studentId] = await createTestStudents(db, 1);
+			const [precBlock] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkBlock
+			});
+			const [precScatter] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkScatter
+			});
+			for (const p of [precBlock, precScatter]) {
+				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			}
+
+			// The block preceptor offers only the block Monday. The scattered preceptor
+			// offers a day in the block week AND a day the next week.
+			await createPreceptorAvailability(db, precBlock, siteIds[0], [blockMon]);
+			await createPreceptorAvailability(db, precScatter, siteIds[0], [
+				scatterSameWeek,
+				scatterNextWeek
+			]);
+
+			await engine.schedule(studentId ? [studentId] : [], [clerkBlock, clerkScatter], {
+				startDate: blockMon,
+				endDate: scatterNextWeek,
+				dryRun: false
+			});
+
+			// The block was placed on its Monday, and the scattered day landed in the
+			// free week — the engine avoided the week the block consumes.
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['clerkship_id', 'date'])
+				.where('student_id', '=', studentId)
+				.execute();
+			const blockRow = rows.find((r) => r.clerkship_id === clerkBlock);
+			const scatterRow = rows.find((r) => r.clerkship_id === clerkScatter);
+			expect(blockRow?.date).toBe(blockMon);
+			expect(scatterRow?.date).toBe(scatterNextWeek);
+			expect(scatterRow?.date).not.toBe(scatterSameWeek);
+		});
+	});
+
 	describe('Test 7: Capacity Enforcement', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup

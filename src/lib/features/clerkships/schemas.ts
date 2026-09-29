@@ -15,6 +15,15 @@ export const clerkshipTypeSchema = z.enum(['inpatient', 'outpatient'], {
 });
 
 /**
+ * How a clerkship is scheduled (client feedback L3): `block` (inpatient — whole
+ * weeks) or `scattered` (outpatient — individual days). Distinct from
+ * `clerkship_type`: it drives the block-week derivation, not the specialty label.
+ */
+export const schedulingKindSchema = z.enum(['block', 'scattered'], {
+	errorMap: () => ({ message: 'Scheduling kind must be either block or scattered' })
+});
+
+/**
  * Required days validation schema
  */
 export const requiredDaysSchema = positiveIntSchema;
@@ -29,6 +38,8 @@ export const createClerkshipSchema = z
 		required_days: requiredDaysSchema,
 		// Allowable-miss floor (E2). Null/absent = full required_days is the target.
 		min_required_days: z.number().int().min(1).nullish(),
+		// How the clerkship is scheduled (L3). Absent = 'scattered' (day-by-day).
+		scheduling_kind: schedulingKindSchema.optional(),
 		description: z.string().optional()
 	})
 	.refine((d) => d.min_required_days == null || d.min_required_days <= d.required_days, {
@@ -48,6 +59,8 @@ export const updateClerkshipSchema = z
 		// payload they are cross-checked here; a min-only update is checked against
 		// the stored required_days in the service.
 		min_required_days: z.number().int().min(1).nullish(),
+		// How the clerkship is scheduled (L3).
+		scheduling_kind: schedulingKindSchema.optional(),
 		description: z.string().optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {

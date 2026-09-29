@@ -16,6 +16,7 @@
 		student_double_booked: 'Double-booked students',
 		session_clash: 'Overlapping sessions',
 		mutual_exclusion: 'Mutually-exclusive preceptors',
+		block_week_conflict: 'Outpatient day in a block week',
 		preceptor_unavailable: 'Preceptor unavailable',
 		blackout_date: 'On a blackout date',
 		preceptor_capacity: 'Preceptor over capacity',

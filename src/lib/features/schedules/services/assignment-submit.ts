@@ -14,6 +14,7 @@ import { sessionClashes, type SessionSlot } from '$lib/features/scheduling/servi
 export type OverrideCategory =
 	| 'session_clash'
 	| 'mutual_exclusion'
+	| 'block_week_conflict'
 	| 'preceptor_unavailable'
 	| 'preceptor_capacity'
 	| 'blackout_date'
@@ -50,6 +51,8 @@ export interface SelectionWideFlags {
 	preferredDayAvailable?: boolean;
 	/** The student has a mutually-exclusive preceptor on this day (L2). */
 	mutualExclusion?: boolean;
+	/** The selection lands in a week consumed by an inpatient block (L3). */
+	blockWeekConflict?: boolean;
 }
 
 export interface FlagAnalysis {
@@ -64,6 +67,7 @@ export interface FlagAnalysis {
 const CATEGORY_ORDER: OverrideCategory[] = [
 	'session_clash',
 	'mutual_exclusion',
+	'block_week_conflict',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -133,6 +137,7 @@ export function analyseSelection(
 	// Selection-wide categories only matter if something is actually submittable.
 	if (submittableDates.length > 0) {
 		if (selectionWide.mutualExclusion) bucket('mutual_exclusion');
+		if (selectionWide.blockWeekConflict) bucket('block_week_conflict');
 		if (selectionWide.notOnboarded) bucket('not_onboarded');
 		if (selectionWide.outsideCorePreceptor) bucket('outside_core_preceptor');
 		if (selectionWide.preferredDayAvailable) bucket('preferred_day_available');
@@ -219,6 +224,11 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 		title: 'Preceptors marked not to share a day',
 		describe:
 			'This preceptor is marked not to supervise the same student on a day another already-assigned preceptor is on.'
+	},
+	block_week_conflict: {
+		title: 'Week used by an inpatient block',
+		describe:
+			'An inpatient block occupies the whole week, so this outpatient day overlaps a week the student is already on a block (or a block is being added to a week that already has outpatient days).'
 	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',

@@ -15,6 +15,7 @@ import {
 } from './assignment-validation';
 import { normalizeSession, sessionsOverlap } from './session-slots';
 import { mutualExclusionKey } from './mutual-exclusion';
+import { normalizeSchedulingKind, weekKey } from './scheduling-kind';
 
 export interface ScheduleViolation extends Violation {
 	assignment_id: string;
@@ -94,7 +95,11 @@ export async function validateSchedule(
 				.select(['id', 'max_students', 'health_system_id'])
 				.where('id', 'in', preceptorIds)
 				.execute(),
-			db.selectFrom('clerkships').select('id').where('id', 'in', clerkshipIds).execute(),
+			db
+				.selectFrom('clerkships')
+				.select(['id', 'scheduling_kind'])
+				.where('id', 'in', clerkshipIds)
+				.execute(),
 			db
 				.selectFrom('preceptor_availability')
 				.select(['preceptor_id', 'date', 'is_available', 'preference'])
@@ -294,6 +299,42 @@ export async function validateSchedule(
 					preceptor_id: hit.preceptor_id
 				});
 			}
+		}
+	}
+
+	// Block-week conflict (L3): block (inpatient) clerkships occupy whole weeks, so
+	// a scattered (outpatient) day can't share a week a block already consumes. For
+	// each student, derive the weeks consumed by block assignments, then flag every
+	// scattered day (including standalone-elective days, which have no clerkship)
+	// that lands in one — one finding per offending day so it can be moved.
+	const clerkshipKind = new Map<string, 'block' | 'scattered'>();
+	for (const c of clerkships) clerkshipKind.set(c.id!, normalizeSchedulingKind(c.scheduling_kind));
+	const kindOf = (clerkshipId: string | null): 'block' | 'scattered' =>
+		clerkshipId ? (clerkshipKind.get(clerkshipId) ?? 'scattered') : 'scattered';
+
+	const assignmentsByStudent = new Map<string, typeof assignments>();
+	for (const a of assignments) {
+		(assignmentsByStudent.get(a.student_id) ?? assignmentsByStudent.set(a.student_id, []).get(a.student_id)!).push(a);
+	}
+	for (const [, studentAssignments] of assignmentsByStudent) {
+		const blockWeeks = new Set<string>();
+		for (const a of studentAssignments) {
+			if (kindOf(a.clerkship_id) === 'block') blockWeeks.add(weekKey(a.date));
+		}
+		if (blockWeeks.size === 0) continue;
+		for (const a of studentAssignments) {
+			if (kindOf(a.clerkship_id) === 'block') continue;
+			if (!blockWeeks.has(weekKey(a.date))) continue;
+			violations.push({
+				code: 'block_week_conflict',
+				message: `Outpatient day on ${a.date} falls in a week used by an inpatient block`,
+				entity_refs: { student_id: a.student_id },
+				assignment_id: a.id!,
+				assignment_ids: [a.id!],
+				date: a.date,
+				student_id: a.student_id,
+				preceptor_id: a.preceptor_id
+			});
 		}
 	}
 

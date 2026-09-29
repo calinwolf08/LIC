@@ -24,6 +24,11 @@ import {
 } from '../services/session-slots';
 import { mutualExclusionKey } from '../services/mutual-exclusion';
 import {
+	normalizeSchedulingKind,
+	weekKey,
+	type SchedulingKind
+} from '../services/scheduling-kind';
+import {
   ClerkshipSettingsService,
   type ClerkshipSettings,
 } from '$lib/features/clerkships/services/clerkship-settings.service';
@@ -102,6 +107,8 @@ export class ConfigurableSchedulingEngine {
   private electiveConfigs: Map<string, ResolvedRequirementConfiguration> = new Map();
   private electivesByClerkship: Map<string, any[]> = new Map();
   private pendingAssignments: PendingAssignment[] = [];
+  /** clerkshipId -> scheduling kind (block|scattered), loaded per run (L3). */
+  private clerkshipKinds: Map<string, SchedulingKind> = new Map();
   /** Canonical "a:b" keys of mutually-exclusive preceptor pairs, loaded per run (L2). */
   private mutualExclusions: Set<string> = new Set();
 
@@ -157,6 +164,16 @@ export class ConfigurableSchedulingEngine {
     console.log('[Engine] Loading students and clerkships...');
     const students = await this.loadStudents(studentIds);
     const clerkships = await this.loadClerkships(clerkshipIds);
+
+    // Scheduling kind per clerkship (L3) so generation can keep block (inpatient)
+    // weeks clear of scattered (outpatient) days. Auto-gen is the paid tier, so
+    // this avoidance is inherently gated.
+    this.clerkshipKinds = new Map(
+      clerkships.map((c) => [
+        c.id!,
+        normalizeSchedulingKind((c as unknown as { scheduling_kind?: string }).scheduling_kind)
+      ])
+    );
 
     if (students.length === 0 || clerkships.length === 0) {
       return this.resultBuilder.build();
@@ -518,9 +535,25 @@ export class ConfigurableSchedulingEngine {
         sessionByDate?: Record<string, 'full' | 'am' | 'pm'>;
       }>;
     },
-    studentId: string
+    studentId: string,
+    currentKind: SchedulingKind = 'scattered'
   ): void {
     const consumed = this.consumedSessionsByDate(studentId);
+
+    // Block-week derivation (L3): blocks occupy whole weeks, so keep a scattered
+    // clerkship's days out of weeks the student already has a block in, and keep a
+    // block out of weeks that already hold scattered days. Weeks are derived from
+    // the pending placements' clerkship kinds.
+    const blockWeeks = new Set<string>();
+    const scatteredWeeks = new Set<string>();
+    for (const a of this.pendingAssignments) {
+      if (a.studentId !== studentId) continue;
+      const kind = this.clerkshipKinds.get(a.clerkshipId) ?? 'scattered';
+      (kind === 'block' ? blockWeeks : scatteredWeeks).add(weekKey(a.date));
+    }
+    const forbiddenWeeks = currentKind === 'scattered' ? blockWeeks : scatteredWeeks;
+    const inForbiddenWeek = (date: string): boolean =>
+      forbiddenWeeks.size > 0 && forbiddenWeeks.has(weekKey(date));
 
     // Preceptors the student already holds per date, for the mutual-exclusion filter (L2).
     const placedPreceptorsByDate = new Map<string, Set<string>>();
@@ -543,9 +576,12 @@ export class ConfigurableSchedulingEngine {
       return false;
     };
 
-    if (consumed.size === 0 && placedPreceptorsByDate.size === 0) return;
+    if (consumed.size === 0 && placedPreceptorsByDate.size === 0 && forbiddenWeeks.size === 0)
+      return;
     for (const p of context.availablePreceptors) {
       p.availability = p.availability.filter((d) => {
+        // Drop a date whose week is consumed by a conflicting scheduling kind (L3).
+        if (inForbiddenWeek(d)) return false;
         // Drop a date where this preceptor is mutually exclusive with one the student
         // already holds that day (L2).
         if (excludedByRule(p.id, d)) return false;
@@ -556,6 +592,7 @@ export class ConfigurableSchedulingEngine {
       });
     }
     context.availableDates = context.availableDates.filter((d) => {
+      if (inForbiddenWeek(d)) return false;
       const held = consumed.get(d);
       if (!held) return true;
       return !(held.has('full') || (held.has('am') && held.has('pm')));
@@ -609,8 +646,13 @@ export class ConfigurableSchedulingEngine {
       });
 
       // Exclude days the student already holds — but session-aware, so a morning of
-      // one clerkship and an afternoon of another can share a date (L1).
-      this.applySessionAwareAvailability(context, student.id!);
+      // one clerkship and an afternoon of another can share a date (L1) — and keep
+      // this clerkship's days out of weeks a conflicting scheduling kind consumes (L3).
+      this.applySessionAwareAvailability(
+        context,
+        student.id!,
+        this.clerkshipKinds.get(clerkship.id!) ?? 'scattered'
+      );
 
       // Select strategy based on configuration
       const strategy = this.strategySelector.selectStrategy(config);

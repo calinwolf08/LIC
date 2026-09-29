@@ -174,6 +174,64 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
 	});
 
+	it('flags a scattered day in a week consumed by an inpatient block (L3)', async () => {
+		const ts = new Date().toISOString();
+		const BLOCK = 'clerk-block';
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: BLOCK,
+				name: 'Inpatient Medicine',
+				clerkship_type: 'inpatient',
+				required_days: 5,
+				scheduling_kind: 'block',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// Student is on a block on MON — the whole week is consumed.
+		await createManualAssignment(db, SCHEDULE, {
+			...base,
+			clerkship_id: BLOCK,
+			date: MON
+		});
+		// A scattered (default) day later in the SAME week conflicts…
+		const same = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: WED });
+		expect(same.soft.some((v) => v.code === 'block_week_conflict')).toBe(true);
+		expect(same.valid).toBe(true); // overridable
+
+		// …but a scattered day in the NEXT week is clean.
+		const nextMon = isoPlusDays(dayOffset(MON) + 7);
+		const free = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: nextMon });
+		expect(free.soft.some((v) => v.code === 'block_week_conflict')).toBe(false);
+	});
+
+	it('flags adding a block to a week that already has scattered days (L3, reverse)', async () => {
+		const ts = new Date().toISOString();
+		const BLOCK = 'clerk-block';
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: BLOCK,
+				name: 'Inpatient Medicine',
+				clerkship_type: 'inpatient',
+				required_days: 5,
+				scheduling_kind: 'block',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// A scattered day already sits on MON.
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		// Adding a block later that week conflicts (the block would consume the week).
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			clerkship_id: BLOCK,
+			date: WED
+		});
+		expect(r.soft.some((v) => v.code === 'block_week_conflict')).toBe(true);
+	});
+
 	it('editing an assignment in place does not clash with itself (excludeId)', async () => {
 		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		expect(created.ok).toBe(true);

@@ -86,6 +86,7 @@
 	const CONFLICT_CODES = new Set([
 		'session_clash',
 		'mutual_exclusion',
+		'block_week_conflict',
 		'blackout_date',
 		'outside_schedule',
 		'entity_missing'

@@ -84,6 +84,7 @@ export interface Clerkships {
   min_required_days: number | null;
   name: string;
   required_days: number;
+  scheduling_kind: Generated<string>;
   specialty: string | null;
   updated_at: Generated<string>;
 }

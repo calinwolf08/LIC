@@ -43,6 +43,7 @@ const HS = 'hs-parity';
 const SITE = 'site-ok';
 const SITE_BAD = 'site-bad';
 const CLERK = 'clerk-parity';
+const CLERK_BLOCK = 'clerk-parity-block';
 const STU = 'stu-onboarded';
 const STU2 = 'stu-not-onboarded';
 const STU3 = 'stu-occupant';
@@ -77,6 +78,7 @@ async function insertAssignment(
 		preceptor_id: string;
 		date: string;
 		site_id?: string | null;
+		clerkship_id?: string;
 	}
 ): Promise<void> {
 	await db
@@ -86,7 +88,7 @@ async function insertAssignment(
 			schedule_id: SCHED,
 			student_id: row.student_id,
 			preceptor_id: row.preceptor_id,
-			clerkship_id: CLERK,
+			clerkship_id: row.clerkship_id ?? CLERK,
 			site_id: row.site_id ?? SITE,
 			date: row.date,
 			source: 'manual',
@@ -141,6 +143,19 @@ describe('one-validator parity across every mutation path', () => {
 		await db
 			.insertInto('clerkship_sites')
 			.values({ clerkship_id: CLERK, site_id: SITE, created_at: TS })
+			.execute();
+		// A block (inpatient) clerkship for the block-week-conflict scenario (L3).
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: CLERK_BLOCK,
+				name: 'Inpatient',
+				clerkship_type: 'inpatient',
+				required_days: 5,
+				scheduling_kind: 'block',
+				created_at: TS,
+				updated_at: TS
+			})
 			.execute();
 
 		for (const id of [STU, STU2, STU3]) {
@@ -356,6 +371,28 @@ describe('one-validator parity across every mutation path', () => {
 			},
 			expected: ['session_clash']
 		});
+
+			// STU is on an inpatient block on 2026-11-10 -> the whole week is consumed, so
+			// a scattered (outpatient) day on 2026-11-11 (same week) trips block_week_conflict
+			// identically on both paths (L3).
+			await insertAssignment(db, {
+				id: 'occ-block',
+				student_id: STU,
+				preceptor_id: PREC2,
+				clerkship_id: CLERK_BLOCK,
+				date: '2026-11-10'
+			});
+			scenarios.push({
+				name: 'block_week_conflict',
+				cand: {
+					student_id: STU,
+					preceptor_id: PREC,
+					clerkship_id: CLERK,
+					site_id: SITE,
+					date: '2026-11-11'
+				},
+				expected: ['block_week_conflict']
+			});
 
 		const validator = new ProposalValidator(db, SCHED, new Set());
 		for (const { name, cand, expected } of scenarios) {

@@ -84,6 +84,7 @@ export async function createClerkship(
 		clerkship_type: data.clerkship_type,
 		required_days: data.required_days,
 		min_required_days: data.min_required_days ?? null,
+		scheduling_kind: data.scheduling_kind ?? 'scattered',
 		description: data.description || null,
 		created_at: timestamp,
 		updated_at: timestamp

@@ -11,6 +11,7 @@ import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { CapacityChecker } from '../capacity/capacity-checker';
 import { normalizeSession, sessionsOverlap, type SessionSlot } from './session-slots';
+import { normalizeSchedulingKind, weekKey } from './scheduling-kind';
 
 export type ViolationCode =
 	/**
@@ -34,6 +35,14 @@ export type ViolationCode =
 	 * tier avoids the pairing.
 	 */
 	| 'mutual_exclusion'
+	/**
+	 * A scattered (outpatient) day lands in a week already consumed by a block
+	 * (inpatient) clerkship for the same student — or a block is added to a week
+	 * that already holds scattered days (L3). Blocks occupy whole weeks, so the two
+	 * can't share one. Soft: allowed with an override; the gated auto-placer avoids
+	 * consumed weeks.
+	 */
+	| 'block_week_conflict'
 	| 'preceptor_unavailable'
 	| 'blackout_date'
 	| 'preceptor_capacity'
@@ -101,6 +110,7 @@ export function candidateCredit(value: number | null | undefined): number {
 export const OVERRIDABLE_CODES = [
 	'session_clash',
 	'mutual_exclusion',
+	'block_week_conflict',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
@@ -125,6 +135,7 @@ export function isOverrideCode(code: string): code is OverrideCode {
 export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
 	session_clash: 'Another assignment in the same session',
 	mutual_exclusion: 'Preceptors marked not to share a student-day',
+	block_week_conflict: 'Week already used by an inpatient block',
 	preceptor_unavailable: 'Preceptor not available',
 	preceptor_capacity: 'Preceptor over capacity',
 	blackout_date: 'Blackout date',
@@ -340,7 +351,7 @@ export async function validateAssignmentCandidate(
 		candidate.clerkship_id
 			? db
 					.selectFrom('clerkships')
-					.select(['id', 'required_days'])
+					.select(['id', 'required_days', 'scheduling_kind'])
 					.where('id', '=', candidate.clerkship_id)
 					.executeTakeFirst()
 			: Promise.resolve(undefined)
@@ -411,6 +422,45 @@ export async function validateAssignmentCandidate(
 					preceptor_id: candidate.preceptor_id,
 					other_preceptor_id: clashPreceptor
 				}
+			});
+		}
+	}
+
+	// Block-week conflict (soft, L3). Block (inpatient) clerkships occupy whole
+	// weeks; a scattered (outpatient) day can't share a week a block already
+	// consumes, and adding a block to a week that holds scattered days conflicts too.
+	// A standalone-elective day (no clerkship) is treated as scattered.
+	{
+		const candidateKind = candidate.clerkship_id
+			? normalizeSchedulingKind(clerkship?.scheduling_kind)
+			: 'scattered';
+		const weekStart = weekKey(candidate.date);
+		const weekEnd = new Date(`${weekStart}T00:00:00Z`);
+		weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+		const weekEndStr = weekEnd.toISOString().slice(0, 10);
+		let weekQuery = db
+			.selectFrom('schedule_assignments as sa')
+			.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+			.select(['sa.id as id', 'c.scheduling_kind as scheduling_kind'])
+			.where('sa.student_id', '=', candidate.student_id)
+			.where('sa.date', '>=', weekStart)
+			.where('sa.date', '<=', weekEndStr);
+		if (candidate.excludeId) weekQuery = weekQuery.where('sa.id', '!=', candidate.excludeId);
+		const weekRows = await weekQuery.execute();
+		const weekKinds = weekRows.map((r) => normalizeSchedulingKind(r.scheduling_kind));
+		const hasBlock = weekKinds.includes('block');
+		const hasScattered = weekKinds.includes('scattered');
+		if (candidateKind === 'scattered' && hasBlock) {
+			soft.push({
+				code: 'block_week_conflict',
+				message: `The week of ${candidate.date} is already used by an inpatient block, which occupies the whole week`,
+				entity_refs: { student_id: candidate.student_id }
+			});
+		} else if (candidateKind === 'block' && hasScattered) {
+			soft.push({
+				code: 'block_week_conflict',
+				message: `This inpatient block occupies the whole week of ${candidate.date}, which already has outpatient days`,
+				entity_refs: { student_id: candidate.student_id }
 			});
 		}
 	}

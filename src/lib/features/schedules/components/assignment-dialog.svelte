@@ -450,7 +450,8 @@
 		notOnboarded: serverSoftCodes.includes('not_onboarded'),
 		outsideCorePreceptor: serverSoftCodes.includes('outside_core_preceptor'),
 		preferredDayAvailable: serverSoftCodes.includes('preferred_day_available'),
-		mutualExclusion: serverSoftCodes.includes('mutual_exclusion')
+		mutualExclusion: serverSoftCodes.includes('mutual_exclusion'),
+		blockWeekConflict: serverSoftCodes.includes('block_week_conflict')
 	});
 
 	let liveAnalysis = $derived(

@@ -91,6 +91,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('required_days', INTEGER, (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('min_required_days', INTEGER)
+		.addColumn('scheduling_kind', TEXT, (col) =>
+			col.notNull().defaultTo('scattered').check(sql`scheduling_kind IN ('block', 'scattered')`)
+		)
 		.addColumn('description', TEXT)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
