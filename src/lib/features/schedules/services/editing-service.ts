@@ -7,7 +7,7 @@
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { UpdateAssignmentInput } from '../schemas.js';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, ValidationError } from '$lib/api/errors';
 import {
 	getAssignmentById,
 	updateAssignment as updateAssignmentBase,
@@ -77,7 +77,7 @@ async function evaluateEdit(
 ): Promise<{ hard: Violation[]; soft: Violation[]; blocked: boolean; persistedCodes: string[] }> {
 	const candidate: AssignmentCandidate = {
 		student_id: current.student_id,
-		preceptor_id: changes.preceptor_id ?? current.preceptor_id,
+		preceptor_id: changes.preceptor_id ?? current.preceptor_id ?? '',
 		clerkship_id: changes.clerkship_id ?? current.clerkship_id,
 		site_id: changes.site_id !== undefined ? changes.site_id : current.site_id,
 		// The effective elective of the merged day, so over_required_days measures a
@@ -88,6 +88,8 @@ async function evaluateEdit(
 		// The session-clash check compares against the other same-day rows; use the
 		// (possibly changed) session, falling back to the row's stored session.
 		session: normalizeSession(changes.session ?? current.session),
+		// A non-clinical day (free_day / exam) skips the clinical checks (M2/M3).
+		kind: (current.kind as 'clinical' | 'free_day' | 'exam' | undefined) ?? 'clinical',
 		excludeId: current.id ?? undefined
 	};
 	const v = await validateAssignmentCandidate(db, current.schedule_id ?? '', candidate, {
@@ -323,10 +325,18 @@ export async function swapAssignments(
 		throw new NotFoundError('Assignment');
 	}
 
+	// A swap moves preceptors between two days; a non-clinical day (free_day / exam)
+	// has no preceptor to swap (M2/M3).
+	if (!assignment1.preceptor_id || !assignment2.preceptor_id) {
+		throw new ValidationError('Only clinical assignments can be swapped');
+	}
+	const preceptor1 = assignment1.preceptor_id;
+	const preceptor2 = assignment2.preceptor_id;
+
 	// Validate both sides of the swap through the single validator.
 	const [eval1, eval2] = await Promise.all([
-		evaluateEdit(db, assignment1, { preceptor_id: assignment2.preceptor_id }, opts),
-		evaluateEdit(db, assignment2, { preceptor_id: assignment1.preceptor_id }, opts)
+		evaluateEdit(db, assignment1, { preceptor_id: preceptor2 }, opts),
+		evaluateEdit(db, assignment2, { preceptor_id: preceptor1 }, opts)
 	]);
 
 	const hard = [...eval1.hard, ...eval2.hard];
@@ -350,8 +360,8 @@ export async function swapAssignments(
 
 	// Swap preceptors (both sides validated before either is written).
 	const [updated1, updated2] = await Promise.all([
-		updateAssignmentBase(db, assignmentId1, { preceptor_id: assignment2.preceptor_id }, true),
-		updateAssignmentBase(db, assignmentId2, { preceptor_id: assignment1.preceptor_id }, true)
+		updateAssignmentBase(db, assignmentId1, { preceptor_id: preceptor2 }, true),
+		updateAssignmentBase(db, assignmentId2, { preceptor_id: preceptor1 }, true)
 	]);
 	await Promise.all([
 		persistOverrideCodes(db, assignmentId1, eval1.persistedCodes, opts.overrideNote),

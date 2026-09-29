@@ -230,6 +230,7 @@ await db.schema
 		.addColumn('elective_id', 'text')
 		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))

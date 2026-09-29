@@ -178,7 +178,7 @@ async function generatePreceptorScheduleWorksheet(
 	// Group assignments by preceptor
 	const byPreceptor = new Map<string, EnrichedAssignment[]>();
 	for (const assignment of assignments) {
-		const key = assignment.preceptor_id;
+		const key = assignment.preceptor_id ?? '';
 		if (!byPreceptor.has(key)) {
 			byPreceptor.set(key, []);
 		}

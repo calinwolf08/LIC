@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **71** across 9 phases
+- Spec files: **74** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **51**; findings/decisions mapped: **54**
-- Tags: `@long` ×7, `@smoke` ×2, `@stage1` ×54, `@stage2` ×18, `@tenant` ×1
+- Requirements mapped: **52**; findings/decisions mapped: **57**
+- Tags: `@long` ×7, `@smoke` ×2, `@stage1` ×57, `@stage2` ×18, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -79,9 +79,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
 | 9 | — | `phase-9/credit-value.spec.ts` | @stage1 | R4.4 | CF-M1 |
 | 9 | — | `phase-9/day-overbook.spec.ts` | @stage1 | R7 | CF-L1 |
+| 9 | — | `phase-9/exam-assignment.spec.ts` | @stage1 | R8 | CF-M3 |
+| 9 | — | `phase-9/free-day.spec.ts` | @stage1 | R8 | CF-M2 |
 | 9 | — | `phase-9/mutual-exclusion.spec.ts` | @stage1 | R7 | CF-L2 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
 | 9 | — | `phase-9/preceptor-phone-type.spec.ts` | @stage1 | — | CF-F1 |
+| 9 | — | `phase-9/quarters.spec.ts` | @stage1 | R8 | CF-M4 |
 | 9 | — | `phase-9/schedule-end-before-start.spec.ts` | @stage1 | R1.3 | CF-C1 |
 | 9 | — | `phase-9/signup-invalid-email.spec.ts` | @stage1 | — | CF-A1 |
 | 9 | — | `phase-9/standalone-elective.spec.ts` | @stage1 | R4.4 | CF-E3 |
@@ -136,6 +139,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
 | R7.4 | assign-outside-availability.spec.ts, core-preceptor.spec.ts, J3.3, J4.4 |
+| R8 | exam-assignment.spec.ts, free-day.spec.ts, quarters.spec.ts |
 | R8.1 | J4.1 |
 | R8.2 | calendar-phase6.spec.ts, J4.1 |
 | R8.3 | J4.1 |
@@ -175,6 +179,9 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-L2 | mutual-exclusion.spec.ts |
 | CF-L3 | block-vs-scattered.spec.ts |
 | CF-M1 | credit-value.spec.ts |
+| CF-M2 | free-day.spec.ts |
+| CF-M3 | exam-assignment.spec.ts |
+| CF-M4 | quarters.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
 | D5-1 | J5.3 |
 | D7-1 | J7.1 |

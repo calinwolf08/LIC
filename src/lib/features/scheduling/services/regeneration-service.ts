@@ -60,7 +60,7 @@ export async function planRegeneration(
 	const { cutoff, strategy } = opts;
 	const rows = await db
 		.selectFrom('schedule_assignments')
-		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date', 'locked'])
+		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date', 'locked', 'kind'])
 		.where('schedule_id', '=', scheduleId)
 		.execute();
 
@@ -73,6 +73,13 @@ export async function planRegeneration(
 
 	for (const row of rows) {
 		if (!row.id) continue;
+		// Non-clinical days (free_day / exam) are placed by hand and never regenerated;
+		// always preserve them (M2/M3).
+		if (row.kind !== 'clinical') {
+			keepIds.push(row.id);
+			preservedLocked++;
+			continue;
+		}
 		const isPast = row.date < cutoff;
 		const isLocked = Boolean(row.locked);
 
@@ -105,7 +112,7 @@ export async function planRegeneration(
 			scheduleId,
 			{
 				student_id: row.student_id,
-				preceptor_id: row.preceptor_id,
+				preceptor_id: row.preceptor_id ?? '',
 				clerkship_id: row.clerkship_id,
 				site_id: row.site_id,
 				date: row.date,
@@ -273,6 +280,12 @@ export async function identifyAffectedAssignments(
 	const preservableAssignments: Selectable<ScheduleAssignments>[] = [];
 
 	for (const assignment of futureAssignments) {
+		// Non-clinical days (free_day / exam) have no preceptor, so preceptor
+		// availability never affects them — always preservable (M2/M3).
+		if (!assignment.preceptor_id) {
+			preservableAssignments.push(assignment);
+			continue;
+		}
 		// Check if preceptor is unavailable
 		if (unavailablePreceptorIds.has(assignment.preceptor_id)) {
 			affectedAssignments.push(assignment);
@@ -384,7 +397,7 @@ export function applyMinimalChangeStrategy(
 		if (!assignment.clerkship_id) continue;
 		const preservedAssignment: Assignment = {
 			studentId: assignment.student_id,
-			preceptorId: assignment.preceptor_id,
+			preceptorId: assignment.preceptor_id ?? '',
 			clerkshipId: assignment.clerkship_id,
 			date: assignment.date
 		};
@@ -405,10 +418,11 @@ export function applyMinimalChangeStrategy(
 		}
 		context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
 
-		if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
-			context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
+		const preservedPreceptorId = assignment.preceptor_id ?? '';
+		if (!context.assignmentsByPreceptor.has(preservedPreceptorId)) {
+			context.assignmentsByPreceptor.set(preservedPreceptorId, []);
 		}
-		context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
+		context.assignmentsByPreceptor.get(preservedPreceptorId)!.push(preservedAssignment);
 
 		// Decrement student requirement for this clerkship
 		const studentReqs = context.studentRequirements.get(assignment.student_id);
@@ -746,7 +760,7 @@ export async function prepareCompletionContext(
 		if (!assignment.clerkship_id) continue;
 		const preservedAssignment: Assignment = {
 			studentId: assignment.student_id,
-			preceptorId: assignment.preceptor_id,
+			preceptorId: assignment.preceptor_id ?? '',
 			clerkshipId: assignment.clerkship_id,
 			date: assignment.date
 		};
@@ -765,10 +779,11 @@ export async function prepareCompletionContext(
 		}
 		context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
 
-		if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
-			context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
+		const preservedPreceptorId = assignment.preceptor_id ?? '';
+		if (!context.assignmentsByPreceptor.has(preservedPreceptorId)) {
+			context.assignmentsByPreceptor.set(preservedPreceptorId, []);
 		}
-		context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
+		context.assignmentsByPreceptor.get(preservedPreceptorId)!.push(preservedAssignment);
 	}
 
 	// Identify students with unmet requirements

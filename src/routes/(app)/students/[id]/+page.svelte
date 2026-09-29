@@ -495,12 +495,24 @@
 						</thead>
 						<tbody>
 							{#each assignments as a (a.id)}
-								<tr class="border-t">
+								<tr class="border-t" data-testid={a.kind !== 'clinical' ? `student-assignment-${a.kind}-${a.date}` : undefined}>
 									<td class="px-3 py-2">{a.date}</td>
 									<td class="px-3 py-2">
-										<a href="/clerkships/{a.clerkshipId}" class="text-primary hover:underline"
-											>{a.clerkshipName}</a
-										>
+										{#if a.kind === 'free_day'}
+											<span
+												class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800"
+												>Free day</span
+											>
+										{:else if a.kind === 'exam'}
+											<span
+												class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+												>Exam</span
+											>
+										{:else}
+											<a href="/clerkships/{a.clerkshipId}" class="text-primary hover:underline"
+												>{a.clerkshipName}</a
+											>
+										{/if}
 										{#if a.electiveName}
 											<span
 												class="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-800"
@@ -520,9 +532,13 @@
 										{/if}
 									</td>
 									<td class="px-3 py-2">
-										<a href="/preceptors/{a.preceptorId}" class="text-primary hover:underline"
-											>{a.preceptorName}</a
-										>
+										{#if a.kind === 'clinical'}
+											<a href="/preceptors/{a.preceptorId}" class="text-primary hover:underline"
+												>{a.preceptorName}</a
+											>
+										{:else}
+											<span class="text-muted-foreground">—</span>
+										{/if}
 									</td>
 									<td class="px-3 py-2 text-muted-foreground">{a.siteName ?? '—'}</td>
 									<td class="px-3 py-2 text-right whitespace-nowrap">

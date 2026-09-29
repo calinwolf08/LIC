@@ -158,6 +158,8 @@ export interface StudentAssignment {
 	electiveName?: string;
 	/** Accepted soft-violation codes persisted on the row. */
 	overrideCodes: string[];
+	/** The kind of day (M2/M3): 'clinical' | 'free_day' | 'exam'. */
+	kind: string;
 }
 
 /**

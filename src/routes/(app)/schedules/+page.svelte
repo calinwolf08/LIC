@@ -61,6 +61,72 @@
 		editEnd = schedule.end_date;
 		editError = null;
 		showEdit = true;
+		void loadQuarters(schedule.id);
+	}
+
+	// ---- Quarters (M4) ------------------------------------------------------
+	let quarters = $state<{ id?: string; name: string; start_date: string; end_date: string }[]>([]);
+	let savingQuarters = $state(false);
+
+	async function loadQuarters(scheduleId: string) {
+		quarters = [];
+		try {
+			const r = await fetch(`/api/scheduling-periods/${scheduleId}/quarters`);
+			const b = await r.json();
+			if (b?.success) {
+				quarters = (b.data.quarters ?? []).map(
+					(q: { id: string; name: string; start_date: string; end_date: string }) => ({
+						id: q.id,
+						name: q.name,
+						start_date: q.start_date,
+						end_date: q.end_date
+					})
+				);
+			}
+		} catch {
+			// non-fatal — the editor just starts empty
+		}
+	}
+
+	function addQuarter() {
+		quarters = [...quarters, { name: '', start_date: editStart, end_date: editEnd }];
+	}
+
+	function removeQuarter(index: number) {
+		quarters = quarters.filter((_, i) => i !== index);
+	}
+
+	async function saveQuarters() {
+		if (!editId) return;
+		savingQuarters = true;
+		try {
+			const payload = quarters
+				.filter((q) => q.name && q.start_date && q.end_date)
+				.map((q) => ({ name: q.name, start_date: q.start_date, end_date: q.end_date }));
+			const r = await fetch(`/api/scheduling-periods/${editId}/quarters`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ quarters: payload })
+			});
+			const b = await r.json();
+			if (r.ok && b.success) {
+				quarters = (b.data.quarters ?? []).map(
+					(q: { id: string; name: string; start_date: string; end_date: string }) => ({
+						id: q.id,
+						name: q.name,
+						start_date: q.start_date,
+						end_date: q.end_date
+					})
+				);
+				toast.success('Quarters saved');
+			} else {
+				toast.error(b.error?.message ?? 'Failed to save quarters');
+			}
+		} catch {
+			toast.error('Network error saving quarters');
+		} finally {
+			savingQuarters = false;
+		}
 	}
 
 	async function saveEdit() {
@@ -236,6 +302,41 @@
 					<Label for="edit-end">End date</Label>
 					<Input id="edit-end" type="date" bind:value={editEnd} />
 				</div>
+			</div>
+
+			<!-- Quarters (M4) -->
+			<div class="space-y-2 border-t pt-4" data-testid="quarters-editor">
+				<div class="flex items-center justify-between">
+					<Label>Quarters <span class="text-muted-foreground">(optional)</span></Label>
+					<Button size="sm" variant="outline" onclick={addQuarter} data-testid="add-quarter"
+						>Add quarter</Button
+					>
+				</div>
+				<p class="text-xs text-muted-foreground">
+					Optional date ranges (e.g. Q1–Q4) that display alongside the schedule.
+				</p>
+				{#each quarters as q, i (i)}
+					<div class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2" data-testid="quarter-row">
+						<Input placeholder="Q1" bind:value={q.name} data-testid="quarter-name" />
+						<Input type="date" bind:value={q.start_date} data-testid="quarter-start" />
+						<Input type="date" bind:value={q.end_date} data-testid="quarter-end" />
+						<Button
+							size="sm"
+							variant="ghost"
+							onclick={() => removeQuarter(i)}
+							data-testid="remove-quarter">✕</Button
+						>
+					</div>
+				{/each}
+				<Button
+					size="sm"
+					variant="secondary"
+					onclick={saveQuarters}
+					disabled={savingQuarters}
+					data-testid="save-quarters"
+				>
+					{savingQuarters ? 'Saving…' : 'Save quarters'}
+				</Button>
 			</div>
 		</div>
 		<Dialog.Footer>

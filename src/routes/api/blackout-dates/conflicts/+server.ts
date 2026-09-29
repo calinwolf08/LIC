@@ -80,8 +80,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				id: a.id,
 				studentId: a.studentId,
 				studentName: a.studentName,
-				preceptorId: a.preceptorId,
-				preceptorName: a.preceptorName,
+				preceptorId: a.preceptorId ?? '',
+				preceptorName: a.preceptorName ?? '',
 				clerkshipId: a.clerkshipId ?? '',
 				clerkshipName: a.clerkshipName ?? 'Elective'
 			}))

@@ -296,10 +296,11 @@ export interface ScheduleAssignments {
   date: string;
   elective_id: string | null;
   id: string | null;
+  kind: Generated<string>;
   locked: Generated<number>;
   override_codes: Generated<string>;
   override_note: string | null;
-  preceptor_id: string;
+  preceptor_id: string | null;
   schedule_id: string | null;
   session: Generated<string>;
   site_id: string | null;
@@ -363,6 +364,15 @@ export interface ScheduleStudents {
   id: string | null;
   schedule_id: string;
   student_id: string;
+}
+
+export interface ScheduleQuarters {
+  created_at: Generated<string>;
+  end_date: string;
+  id: string | null;
+  name: string;
+  schedule_id: string;
+  start_date: string;
 }
 
 export interface ScheduleTeams {
@@ -528,6 +538,7 @@ export interface DB {
   schedule_health_systems: ScheduleHealthSystems;
   schedule_preceptors: SchedulePreceptors;
   schedule_sites: ScheduleSites;
+  schedule_quarters: ScheduleQuarters;
   schedule_students: ScheduleStudents;
   schedule_teams: ScheduleTeams;
   scheduling_periods: SchedulingPeriods;

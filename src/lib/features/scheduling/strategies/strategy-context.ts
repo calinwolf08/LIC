@@ -115,6 +115,8 @@ export class StrategyContextBuilder {
 
     // Add DB assignments to the map
     for (const assignment of dbAssignments) {
+      // Non-clinical days (free_day / exam) have no preceptor to occupy (M2/M3).
+      if (!assignment.preceptor_id) continue;
       if (!result.has(assignment.preceptor_id)) {
         result.set(assignment.preceptor_id, new Map());
       }
@@ -363,11 +365,14 @@ export class StrategyContextBuilder {
     const assignments = await this.db
       .selectFrom('schedule_assignments')
       .select(['student_id', 'preceptor_id', 'date'])
+      // Non-clinical days (free_day / exam) have no preceptor and don't factor into
+      // scheduling occupancy (M2/M3).
+      .where('preceptor_id', 'is not', null)
       .execute();
 
     return assignments.map(a => ({
       studentId: a.student_id,
-      preceptorId: a.preceptor_id,
+      preceptorId: a.preceptor_id as string,
       date: a.date,
     }));
   }

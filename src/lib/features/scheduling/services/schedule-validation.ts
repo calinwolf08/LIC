@@ -75,7 +75,8 @@ export async function validateSchedule(
 			'site_id',
 			'date',
 			'credit_value',
-			'session'
+			'session',
+			'kind'
 		])
 		.where('student_id', 'in', studentIds)
 		.execute();
@@ -84,8 +85,16 @@ export async function validateSchedule(
 		return { violations: [], byDate: {}, byStudent: {}, byPreceptor: {}, counts: {} };
 	}
 
-	const preceptorIds = [...new Set(assignments.map((a) => a.preceptor_id))];
-	const clerkshipIds = [...new Set(assignments.map((a) => a.clerkship_id))];
+	// Non-clinical days (free_day / exam) have no preceptor or clerkship, so they are
+	// excluded from every preceptor/clerkship-keyed query and grouping below. They
+	// still participate in the session-clash slot logic (a free day + a clinical day
+	// on one date is a double-book).
+	const preceptorIds = [
+		...new Set(assignments.map((a) => a.preceptor_id).filter((p): p is string => p !== null))
+	];
+	const clerkshipIds = [
+		...new Set(assignments.map((a) => a.clerkship_id).filter((c): c is string => c !== null))
+	];
 
 	// Batch-load the context inputs
 	const [preceptors, clerkships, availability, blackouts, clerkshipSites, onboarding] =
@@ -199,6 +208,7 @@ export async function validateSchedule(
 	// each slot so a single capacity finding can reference them all.
 	const slotAssignments = new Map<string, typeof assignments>();
 	for (const a of assignments) {
+		if (a.preceptor_id === null) continue; // non-clinical days have no preceptor slot
 		const k = `${a.preceptor_id}:${a.date}`;
 		(slotAssignments.get(k) ?? slotAssignments.set(k, []).get(k)!).push(a);
 	}
@@ -213,10 +223,14 @@ export async function validateSchedule(
 
 	// Per-assignment findings (capacity is slot-scoped and handled separately below).
 	for (const a of assignments) {
+		// Non-clinical days (free_day / exam) have no preceptor/clerkship/site to
+		// validate; their only whole-schedule concern is the session clash handled
+		// by the slot logic below (M2/M3).
+		if (a.kind !== 'clinical') continue;
 		const res = validateCandidateWithContext(
 			{
 				student_id: a.student_id,
-				preceptor_id: a.preceptor_id,
+				preceptor_id: a.preceptor_id ?? '',
 				clerkship_id: a.clerkship_id,
 				site_id: a.site_id,
 				date: a.date,
@@ -233,7 +247,7 @@ export async function validateSchedule(
 				assignment_ids: [a.id!],
 				date: a.date,
 				student_id: a.student_id,
-				preceptor_id: a.preceptor_id
+				preceptor_id: a.preceptor_id ?? ''
 			});
 		}
 	}
@@ -261,7 +275,7 @@ export async function validateSchedule(
 				assignment_ids: slot.map((a) => a.id!),
 				date: first.date,
 				student_id: first.student_id,
-				preceptor_id: first.preceptor_id
+				preceptor_id: first.preceptor_id ?? ''
 			});
 		}
 	}
@@ -281,7 +295,10 @@ export async function validateSchedule(
 			let hit: (typeof slot)[number] | undefined;
 			outer: for (let i = 0; i < slot.length; i++) {
 				for (let j = i + 1; j < slot.length; j++) {
-					if (excluded.has(mutualExclusionKey(slot[i].preceptor_id, slot[j].preceptor_id))) {
+					const pi = slot[i].preceptor_id;
+					const pj = slot[j].preceptor_id;
+					if (!pi || !pj) continue; // non-clinical days have no preceptor
+					if (excluded.has(mutualExclusionKey(pi, pj))) {
 						hit = slot[i];
 						break outer;
 					}
@@ -296,7 +313,7 @@ export async function validateSchedule(
 					assignment_ids: slot.map((a) => a.id!),
 					date: hit.date,
 					student_id: hit.student_id,
-					preceptor_id: hit.preceptor_id
+					preceptor_id: hit.preceptor_id ?? ''
 				});
 			}
 		}
@@ -323,6 +340,9 @@ export async function validateSchedule(
 		}
 		if (blockWeeks.size === 0) continue;
 		for (const a of studentAssignments) {
+			// A non-clinical day (free_day / exam) is not an outpatient clerkship day, so
+			// it never conflicts with a block week (M2/M3).
+			if (a.kind !== 'clinical') continue;
 			if (kindOf(a.clerkship_id) === 'block') continue;
 			if (!blockWeeks.has(weekKey(a.date))) continue;
 			violations.push({
@@ -333,7 +353,7 @@ export async function validateSchedule(
 				assignment_ids: [a.id!],
 				date: a.date,
 				student_id: a.student_id,
-				preceptor_id: a.preceptor_id
+				preceptor_id: a.preceptor_id ?? ''
 			});
 		}
 	}
@@ -342,17 +362,18 @@ export async function validateSchedule(
 	// assignment — so four double-booked days read as 4, not 8.
 	for (const [, slot] of slotAssignments) {
 		const first = slot[0];
-		const max = preceptorMaxStudents.get(first.preceptor_id) ?? 1;
+		const firstPreceptor = first.preceptor_id ?? '';
+		const max = preceptorMaxStudents.get(firstPreceptor) ?? 1;
 		if (slot.length > max) {
 			violations.push({
 				code: 'preceptor_capacity',
 				message: 'Preceptor is over capacity for this date',
-				entity_refs: { preceptor_id: first.preceptor_id },
+				entity_refs: { preceptor_id: firstPreceptor },
 				assignment_id: first.id!,
 				assignment_ids: slot.map((a) => a.id!),
 				date: first.date,
 				student_id: first.student_id,
-				preceptor_id: first.preceptor_id
+				preceptor_id: firstPreceptor
 			});
 		}
 	}

@@ -96,6 +96,9 @@
 	let note = $state('');
 	let credit = $state(1);
 	let session = $state<SessionSlot>('full');
+	/** Assignment type (M2/M3). A non-clinical day hides the clinical pickers. */
+	let assignmentKind = $state<'clinical' | 'free_day' | 'exam'>('clinical');
+	let isClinical = $derived(assignmentKind === 'clinical');
 	/** True once the user changes session/credit by hand, so availability prefill stops overriding them. */
 	let sessionTouched = $state(false);
 	let clearedNotice = $state<string | null>(null);
@@ -386,7 +389,8 @@
 	 * know about (onboarding, site rules).
 	 */
 	$effect(() => {
-		if (!open || !student || !clerkship || !preceptor || !site || selectedDates.length === 0) {
+		const clinicalReady = !!clerkship && !!preceptor && !!site;
+		if (!open || !student || selectedDates.length === 0 || (isClinical && !clinicalReady)) {
 			serverSoftCodes = [];
 			hardErrors = [];
 			probing = false;
@@ -401,9 +405,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					student_id: student,
-					preceptor_id: preceptor,
-					clerkship_id: clerkship,
-					site_id: site,
+					// A non-clinical day carries no preceptor/clerkship/site (M2/M3).
+					...(isClinical
+						? { preceptor_id: preceptor, clerkship_id: clerkship, site_id: site }
+						: { kind: assignmentKind }),
 					date: probe,
 					dry_run: true,
 					...(mode === 'edit' && assignmentId ? { excludeId: assignmentId } : {})
@@ -475,9 +480,8 @@
 		!submitting &&
 			!probing &&
 			!!student &&
-			!!clerkship &&
-			!!preceptor &&
-			!!site &&
+			// A non-clinical day (free_day / exam) needs no clerkship/preceptor/site (M2/M3).
+			(!isClinical || (!!clerkship && !!preceptor && !!site)) &&
 			selectedDates.length > 0 &&
 			liveAnalysis.submittableDates.length > 0
 	);
@@ -601,7 +605,8 @@
 				locked: canLock && locked,
 				note,
 				creditValue: credit,
-				session
+				session,
+				kind: assignmentKind
 			},
 			analysis!,
 			acceptedCodes,
@@ -751,68 +756,92 @@
 					</div>
 				{/if}
 
-				<div class="space-y-1">
-					<Label for="ad-clerkship">Clerkship</Label>
-					<select
-						id="ad-clerkship"
-						bind:value={clerkship}
-						disabled={lockClerkship}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
-					>
-						<option value="">Select a clerkship…</option>
-						{#each options.clerkships as c (c.id)}
-							<option value={c.id} disabled={!c.eligible}>{optionLabel(c)}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="space-y-1">
-					<Label for="ad-preceptor">Preceptor</Label>
-					<select
-						id="ad-preceptor"
-						bind:value={preceptor}
-						disabled={lockPreceptor}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
-					>
-						<option value="">Select a preceptor…</option>
-						{#each options.preceptors as p (p.id)}
-							<option value={p.id} disabled={!p.eligible}>{optionLabel(p)}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="space-y-1">
-					<Label for="ad-site">Site <span class="text-destructive">*</span></Label>
-					<select
-						id="ad-site"
-						bind:value={site}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					>
-						<option value="">Select a site…</option>
-						{#each options.sites as s (s.id)}
-							<option value={s.id} disabled={!s.eligible}>{optionLabel(s)}</option>
-						{/each}
-					</select>
-				</div>
-
-				{#if options.electives.length > 0}
+				{#if mode === 'create'}
 					<div class="space-y-1">
-						<Label for="ad-elective">Elective <span class="text-muted-foreground">(optional)</span></Label>
+						<Label for="ad-kind">Type</Label>
 						<select
-							id="ad-elective"
-							bind:value={electiveId}
+							id="ad-kind"
+							data-testid="ad-kind"
+							bind:value={assignmentKind}
 							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 						>
-							<option value="">No elective (counts as clerkship day)</option>
-							{#each options.electives as e (e.id)}
-								<option value={e.id}>
-									{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays === 1
-										? ''
-										: 's'})
-								</option>
+							<option value="clinical">Clinical</option>
+							<option value="free_day">Free day</option>
+							<option value="exam">Exam</option>
+						</select>
+						{#if !isClinical}
+							<p class="text-xs text-muted-foreground">
+								A {assignmentKind === 'exam' ? 'exam' : 'free'} day takes up the student's day but has no
+								preceptor, clerkship or site and doesn't count toward clinical requirements.
+							</p>
+						{/if}
+					</div>
+				{/if}
+
+				{#if isClinical}
+					<div class="space-y-1">
+						<Label for="ad-clerkship">Clerkship</Label>
+						<select
+							id="ad-clerkship"
+							bind:value={clerkship}
+							disabled={lockClerkship}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+						>
+							<option value="">Select a clerkship…</option>
+							{#each options.clerkships as c (c.id)}
+								<option value={c.id} disabled={!c.eligible}>{optionLabel(c)}</option>
 							{/each}
 						</select>
 					</div>
+
+					<div class="space-y-1">
+						<Label for="ad-preceptor">Preceptor</Label>
+						<select
+							id="ad-preceptor"
+							bind:value={preceptor}
+							disabled={lockPreceptor}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+						>
+							<option value="">Select a preceptor…</option>
+							{#each options.preceptors as p (p.id)}
+								<option value={p.id} disabled={!p.eligible}>{optionLabel(p)}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="space-y-1">
+						<Label for="ad-site">Site <span class="text-destructive">*</span></Label>
+						<select
+							id="ad-site"
+							bind:value={site}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">Select a site…</option>
+							{#each options.sites as s (s.id)}
+								<option value={s.id} disabled={!s.eligible}>{optionLabel(s)}</option>
+							{/each}
+						</select>
+					</div>
+
+					{#if options.electives.length > 0}
+						<div class="space-y-1">
+							<Label for="ad-elective">Elective <span class="text-muted-foreground">(optional)</span></Label>
+							<select
+								id="ad-elective"
+								bind:value={electiveId}
+								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+							>
+								<option value="">No elective (counts as clerkship day)</option>
+								{#each options.electives as e (e.id)}
+									<option value={e.id}>
+										{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays === 1
+											? ''
+											: 's'})
+									</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
 				{/if}
 
 				{#if clearedNotice}

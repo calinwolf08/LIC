@@ -100,7 +100,8 @@ export async function getStudentScheduleData(
 	// when a preceptor works at multiple sites
 	const assignments = await db
 		.selectFrom('schedule_assignments as sa')
-		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
+		// leftJoin so non-clinical days (free_day / exam, no preceptor — M2/M3) still appear.
+		.leftJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		// leftJoin so standalone-elective days (no clerkship, E3) still appear.
 		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
@@ -119,6 +120,7 @@ export async function getStudentScheduleData(
 			'sa.locked',
 			'sa.elective_id',
 			'sa.override_codes',
+			'sa.kind',
 			'e.name as elective_name'
 		])
 		// Scope to THIS schedule — a student can belong to more than one schedule
@@ -170,7 +172,7 @@ export async function getStudentScheduleData(
 
 	// Enrich assignments with site info
 	const enrichedAssignments = assignments.map((a) => {
-		const site = preceptorSiteMap.get(a.preceptor_id);
+		const site = a.preceptor_id ? preceptorSiteMap.get(a.preceptor_id) : undefined;
 		return {
 			...a,
 			site_id: site?.site_id ?? null,
@@ -193,14 +195,17 @@ export async function getStudentScheduleData(
 		const siteMap = new Map<string, { id: string; name: string }>();
 
 		for (const a of clerkshipAssignments) {
-			if (!preceptorMap.has(a.preceptor_id)) {
-				preceptorMap.set(a.preceptor_id, {
-					id: a.preceptor_id,
-					name: a.preceptor_name,
+			// clerkshipAssignments are clinical (they have a clerkship_id), so a
+			// preceptor is always present; coalesce only to satisfy the nullable type.
+			const pid = a.preceptor_id ?? '';
+			if (!preceptorMap.has(pid)) {
+				preceptorMap.set(pid, {
+					id: pid,
+					name: a.preceptor_name ?? '',
 					daysAssigned: 0
 				});
 			}
-			preceptorMap.get(a.preceptor_id)!.daysAssigned++;
+			preceptorMap.get(pid)!.daysAssigned++;
 
 			if (a.site_id && a.site_name && !siteMap.has(a.site_id)) {
 				siteMap.set(a.site_id, { id: a.site_id, name: a.site_name });
@@ -234,8 +239,8 @@ export async function getStudentScheduleData(
 			id: a.id as string,
 			clerkshipId: a.clerkship_id,
 			clerkshipName: a.clerkship_name,
-			preceptorId: a.preceptor_id,
-			preceptorName: a.preceptor_name,
+			preceptorId: a.preceptor_id ?? '',
+			preceptorName: a.preceptor_name ?? '',
 			studentId: student.id as string,
 			studentName: student.name,
 			color: getClerkshipColor(a.clerkship_specialty ?? 'General'),
@@ -253,8 +258,8 @@ export async function getStudentScheduleData(
 		clerkshipId: a.clerkship_id ?? '',
 		clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
-		preceptorId: a.preceptor_id,
-		preceptorName: a.preceptor_name,
+		preceptorId: a.preceptor_id ?? '',
+		preceptorName: a.preceptor_name ?? '',
 		siteId: a.site_id ?? undefined,
 		siteName: a.site_name || undefined,
 		healthSystemId: a.health_system_id ?? undefined,
@@ -266,7 +271,8 @@ export async function getStudentScheduleData(
 		locked: Boolean(a.locked),
 		electiveId: a.elective_id ?? undefined,
 		electiveName: a.elective_name ?? undefined,
-		overrideCodes: parseCodes(a.override_codes)
+		overrideCodes: parseCodes(a.override_codes),
+		kind: (a as { kind?: string }).kind ?? 'clinical'
 	}));
 
 	log.info('Student schedule data fetched', {
@@ -381,6 +387,7 @@ export async function getPreceptorScheduleData(
 			'sa.locked',
 			'sa.elective_id',
 			'sa.override_codes',
+			'sa.kind',
 			'e.name as elective_name'
 		])
 		.where('sa.preceptor_id', '=', preceptorId)

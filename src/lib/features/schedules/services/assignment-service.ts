@@ -47,7 +47,8 @@ const log = createServerLogger('service:schedules:assignment');
 export interface NewAssignmentRow {
 	schedule_id: string | null;
 	student_id: string;
-	preceptor_id: string;
+	/** Null for a non-clinical day (free_day / exam), which has no preceptor (M2/M3). */
+	preceptor_id: string | null;
 	/** Null for a standalone-elective day, which has no parent clerkship (E3). */
 	clerkship_id: string | null;
 	elective_id?: string | null;
@@ -63,6 +64,8 @@ export interface NewAssignmentRow {
 	credit_value?: number;
 	/** Which part of the day this row occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
 	session?: string;
+	/** The kind of day: 'clinical' | 'free_day' | 'exam' (default 'clinical'; M2/M3). */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 /** Map a normalized row onto the full insertable column set, with defaults. */
@@ -84,6 +87,7 @@ function toInsertable(row: NewAssignmentRow, timestamp: string): Insertable<Sche
 			(row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
 		credit_value: normalizeCredit(row.credit_value),
 		session: normalizeSession(row.session),
+		kind: row.kind ?? 'clinical',
 		created_at: timestamp,
 		updated_at: timestamp
 	};
@@ -124,8 +128,9 @@ export async function insertAssignments(
 
 export interface ManualAssignmentInput {
 	student_id: string;
-	preceptor_id: string;
-	/** Null for a standalone-elective day (no parent clerkship, E3). */
+	/** Null for a non-clinical day (free_day / exam), which has no preceptor (M2/M3). */
+	preceptor_id: string | null;
+	/** Null for a standalone-elective day (no parent clerkship, E3) or a non-clinical day. */
 	clerkship_id: string | null;
 	site_id?: string | null;
 	/** Elective this day satisfies, if any. Must belong to the clerkship (P-01). */
@@ -140,6 +145,8 @@ export interface ManualAssignmentInput {
 	credit_value?: number;
 	/** Which part of the day this occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
 	session?: string;
+	/** The kind of day: 'clinical' | 'free_day' | 'exam' (default 'clinical'; M2/M3). */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 /**
@@ -201,8 +208,12 @@ export async function createManualAssignment(
 	input: ManualAssignmentInput,
 	opts: ManualCreateOptions = {}
 ): Promise<ManualCreateResult> {
-	// A day must belong to a clerkship or a (standalone) elective — never neither.
-	if (!input.clerkship_id && !input.elective_id) {
+	const kind = input.kind ?? 'clinical';
+	const isClinical = kind === 'clinical';
+
+	// A clinical day must belong to a clerkship or a (standalone) elective — never
+	// neither. A non-clinical day (free_day / exam) has none of these (M2/M3).
+	if (isClinical && !input.clerkship_id && !input.elective_id) {
 		return {
 			ok: false,
 			hard: [{ code: 'entity_missing', message: 'A clerkship or elective is required' }],
@@ -212,13 +223,15 @@ export async function createManualAssignment(
 
 	const candidate: AssignmentCandidate = {
 		student_id: input.student_id,
-		preceptor_id: input.preceptor_id,
-		clerkship_id: input.clerkship_id,
-		site_id: input.site_id ?? null,
-		elective_id: input.elective_id ?? null,
+		// A non-clinical day carries no preceptor/clerkship/site/elective.
+		preceptor_id: isClinical ? (input.preceptor_id ?? '') : '',
+		clerkship_id: isClinical ? input.clerkship_id : null,
+		site_id: isClinical ? (input.site_id ?? null) : null,
+		elective_id: isClinical ? (input.elective_id ?? null) : null,
 		date: input.date,
 		credit_value: input.credit_value,
-		session: normalizeSession(input.session)
+		session: normalizeSession(input.session),
+		kind
 	};
 	const result = await validateAssignmentCandidate(db, scheduleId, candidate, {
 		today: opts.today,
@@ -226,8 +239,8 @@ export async function createManualAssignment(
 	});
 
 	// An elective must belong to the assignment's clerkship (P-01). This is a hard
-	// block, not overridable.
-	if (input.elective_id) {
+	// block, not overridable. Non-clinical days carry no elective.
+	if (isClinical && input.elective_id) {
 		const electiveViolation = await checkElectiveBelongsToClerkship(
 			db,
 			input.elective_id,
@@ -251,17 +264,19 @@ export async function createManualAssignment(
 		{
 			schedule_id: scheduleId,
 			student_id: input.student_id,
-			preceptor_id: input.preceptor_id,
-			clerkship_id: input.clerkship_id,
-			elective_id: input.elective_id ?? null,
-			site_id: input.site_id ?? null,
+			// A non-clinical day (free_day / exam) carries no preceptor/clerkship/site/elective.
+			preceptor_id: isClinical ? input.preceptor_id : null,
+			clerkship_id: isClinical ? input.clerkship_id : null,
+			elective_id: isClinical ? (input.elective_id ?? null) : null,
+			site_id: isClinical ? (input.site_id ?? null) : null,
 			date: input.date,
 			source: 'manual',
 			locked: input.locked,
 			override_codes: persistedCodes,
 			override_note: input.override_note,
 			credit_value: input.credit_value,
-			session: normalizeSession(input.session)
+			session: normalizeSession(input.session),
+			kind
 		}
 	]);
 
@@ -275,8 +290,9 @@ export async function createManualAssignment(
 
 export interface BulkManualInput {
 	student_id: string;
-	preceptor_id: string;
-	/** Null for standalone-elective days (no parent clerkship, E3). */
+	/** Null for non-clinical days (free_day / exam), which have no preceptor (M2/M3). */
+	preceptor_id: string | null;
+	/** Null for standalone-elective days (no parent clerkship, E3) or non-clinical days. */
 	clerkship_id: string | null;
 	site_id?: string | null;
 	/** Elective these days satisfy, if any. Must belong to the clerkship (P-01). */
@@ -296,6 +312,8 @@ export interface BulkManualInput {
 	credit_value?: number;
 	/** The session each created day occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
 	session?: string;
+	/** The kind of day: 'clinical' | 'free_day' | 'exam' (default 'clinical'; M2/M3). */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 export interface BulkManualDateResult {
@@ -370,7 +388,8 @@ export async function createManualAssignmentsBulk(
 					override_codes: input.override_codes,
 					override_note: input.override_note,
 					credit_value: input.credit_value,
-					session: input.session
+					session: input.session,
+					kind: input.kind
 				},
 				opts
 			);
@@ -592,8 +611,8 @@ export async function listOverrides(
 				studentName: r.student_name,
 				clerkshipId: r.clerkship_id ?? '',
 				clerkshipName: r.clerkship_name ?? 'Elective',
-				preceptorId: r.preceptor_id,
-				preceptorName: r.preceptor_name,
+				preceptorId: r.preceptor_id ?? '',
+				preceptorName: r.preceptor_name ?? '—',
 				codes,
 				note: r.override_note,
 				createdAt: r.created_at,

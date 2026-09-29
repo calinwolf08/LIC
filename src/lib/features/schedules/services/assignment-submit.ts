@@ -150,7 +150,9 @@ export function analyseSelection(
 
 export interface AssignmentSelectionInput {
 	studentId: string;
+	/** Empty for a non-clinical day (free_day / exam), which has no preceptor (M2/M3). */
 	preceptorId: string;
+	/** Empty for a non-clinical day. */
 	clerkshipId: string;
 	siteId?: string | null;
 	/** Elective this day satisfies, if any (P-01). */
@@ -161,12 +163,14 @@ export interface AssignmentSelectionInput {
 	creditValue?: number;
 	/** The session each created day occupies (default 'full'; L1). */
 	session?: SessionSlot;
+	/** The kind of day (default 'clinical'; M2/M3). Non-clinical omits the clinical fields. */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 export interface SubmitPayload {
 	student_id: string;
-	preceptor_id: string;
-	clerkship_id: string;
+	preceptor_id: string | null;
+	clerkship_id: string | null;
 	site_id: string | null;
 	elective_id?: string | null;
 	dates: string[];
@@ -178,6 +182,8 @@ export interface SubmitPayload {
 	credit_value?: number;
 	/** The session each created day occupies; omitted when 'full' (L1). */
 	session?: SessionSlot;
+	/** The kind of day; omitted when 'clinical' (M2/M3). */
+	kind?: 'free_day' | 'exam';
 }
 
 /**
@@ -192,13 +198,17 @@ export function buildSubmitPayload(
 ): SubmitPayload {
 	const flagged = new Set(analysis.categories.map((c) => c.category));
 	const codes = [...new Set(accepted)].filter((c) => flagged.has(c));
+	const kind = selection.kind ?? 'clinical';
+	const isClinical = kind === 'clinical';
 
 	return {
 		student_id: selection.studentId,
-		preceptor_id: selection.preceptorId,
-		clerkship_id: selection.clerkshipId,
-		site_id: selection.siteId || null,
-		...(selection.electiveId ? { elective_id: selection.electiveId } : {}),
+		// A non-clinical day (free_day / exam) carries no preceptor/clerkship/site/elective.
+		preceptor_id: isClinical ? selection.preceptorId : null,
+		clerkship_id: isClinical ? selection.clerkshipId : null,
+		site_id: isClinical ? selection.siteId || null : null,
+		...(isClinical && selection.electiveId ? { elective_id: selection.electiveId } : {}),
+		...(isClinical ? {} : { kind: kind as 'free_day' | 'exam' }),
 		dates: analysis.submittableDates,
 		locked: !!selection.locked,
 		override_codes: codes,

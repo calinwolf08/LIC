@@ -142,6 +142,33 @@ describe('getStudentStatuses', () => {
 		expect(status.overall.completed).toBe(0);
 	});
 
+	// M2/M3: a non-clinical day (free_day / exam) has no clerkship and never counts
+	// toward any clinical requirement.
+	it('does not count a non-clinical free day toward any clerkship requirement', async () => {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id: 'sa-free',
+				student_id: STU,
+				preceptor_id: null,
+				clerkship_id: null,
+				schedule_id: SCHED,
+				date: '2025-05-01',
+				status: 'scheduled',
+				kind: 'free_day',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const medicine = status.per_clerkship.find((c) => c.clerkship_id === CLERK)!;
+		expect(medicine.completed).toBe(0);
+		expect(medicine.scheduled).toBe(0);
+		expect(status.overall.completed).toBe(0);
+	});
+
 	it('reports all-unscheduled with no assignments (state=none)', async () => {
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
 		expect(status.overall).toMatchObject({

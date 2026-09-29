@@ -465,8 +465,8 @@
 						clerkshipId: event.assignment.clerkship_id ?? '',
 						clerkshipName:
 							event.assignment.clerkship_name ?? event.assignment.elective_name ?? 'Elective',
-						preceptorId: event.assignment.preceptor_id,
-						preceptorName: event.assignment.preceptor_name,
+						preceptorId: event.assignment.preceptor_id ?? '',
+						preceptorName: event.assignment.preceptor_name ?? '',
 						studentId: event.assignment.student_id,
 						studentName: event.assignment.student_name,
 						color: event.color,

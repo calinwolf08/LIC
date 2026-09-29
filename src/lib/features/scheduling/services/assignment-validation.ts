@@ -94,6 +94,13 @@ export interface AssignmentCandidate {
 	 * only when their sessions overlap; AM + PM never clash.
 	 */
 	session?: SessionSlot;
+	/**
+	 * The kind of day (M2/M3). A non-clinical day (`free_day` / `exam`) has no
+	 * preceptor/clerkship/site, so it skips every clinical check; it still occupies
+	 * the day, so a session clash with another assignment is flagged. Defaults to
+	 * 'clinical'.
+	 */
+	kind?: 'clinical' | 'free_day' | 'exam';
 	/** Existing assignment id to exclude from conflict checks (edits). */
 	excludeId?: string;
 }
@@ -336,17 +343,24 @@ export async function validateAssignmentCandidate(
 		.where('id', '=', scheduleId)
 		.executeTakeFirst();
 
+	// A non-clinical day (free_day / exam) has no preceptor/clerkship/site to look
+	// up or validate (M2/M3); only the student must exist and the day must not
+	// clash with another the student holds.
+	const isClinical = (candidate.kind ?? 'clinical') === 'clinical';
+
 	const [student, preceptor, clerkship] = await Promise.all([
 		db
 			.selectFrom('students')
 			.select('id')
 			.where('id', '=', candidate.student_id)
 			.executeTakeFirst(),
-		db
-			.selectFrom('preceptors')
-			.select(['id', 'max_students', 'health_system_id'])
-			.where('id', '=', candidate.preceptor_id)
-			.executeTakeFirst(),
+		isClinical && candidate.preceptor_id
+			? db
+					.selectFrom('preceptors')
+					.select(['id', 'max_students', 'health_system_id'])
+					.where('id', '=', candidate.preceptor_id)
+					.executeTakeFirst()
+			: Promise.resolve(undefined),
 		// A standalone-elective day has no clerkship (E3), so there's nothing to look up.
 		candidate.clerkship_id
 			? db
@@ -359,7 +373,8 @@ export async function validateAssignmentCandidate(
 
 	const hard: Violation[] = [];
 	if (!student) hard.push({ code: 'entity_missing', message: 'Student not found' });
-	if (!preceptor) hard.push({ code: 'entity_missing', message: 'Preceptor not found' });
+	if (isClinical && !preceptor)
+		hard.push({ code: 'entity_missing', message: 'Preceptor not found' });
 	// Only a day that claims a clerkship must have one that exists.
 	if (candidate.clerkship_id && !clerkship)
 		hard.push({ code: 'entity_missing', message: 'Clerkship not found' });
@@ -392,10 +407,35 @@ export async function validateAssignmentCandidate(
 		});
 	}
 
+	// A non-clinical day (free_day / exam) has no preceptor/clerkship/site, so it
+	// skips every clinical check. Beyond the session clash above, only the schedule
+	// range and blackout dates apply — both soft/overridable (M2/M3).
+	if (!isClinical) {
+		if (period && (candidate.date < period.start_date || candidate.date > period.end_date)) {
+			soft.push({
+				code: 'outside_schedule',
+				message: `${candidate.date} is outside the schedule's date range`
+			});
+		}
+		const blackoutNc = await db
+			.selectFrom('blackout_dates')
+			.select('id')
+			.where('schedule_id', '=', scheduleId)
+			.where('date', '=', candidate.date)
+			.executeTakeFirst();
+		if (blackoutNc)
+			soft.push({ code: 'blackout_date', message: `${candidate.date} is a blackout date` });
+		return { valid: hard.length === 0, hard, soft };
+	}
+
 	// Mutual exclusion (soft, L2): the student already has a preceptor that day who
 	// is marked not to share a student-day with this candidate's preceptor.
 	const sameDayPreceptorIds = [
-		...new Set(sameDayRows.map((r) => r.preceptor_id).filter((p) => p !== candidate.preceptor_id))
+		...new Set(
+			sameDayRows
+				.map((r) => r.preceptor_id)
+				.filter((p): p is string => p !== null && p !== candidate.preceptor_id)
+		)
 	];
 	if (sameDayPreceptorIds.length > 0) {
 		const exclusions = await db

@@ -232,6 +232,49 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.soft.some((v) => v.code === 'block_week_conflict')).toBe(true);
 	});
 
+	it('validates a non-clinical free day with no preceptor/clerkship (M2)', async () => {
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: '',
+			clerkship_id: null,
+			date: MON,
+			kind: 'free_day'
+		});
+		expect(r.valid).toBe(true);
+		expect(r.hard).toHaveLength(0);
+		// No preceptor/clerkship/site checks run for a non-clinical day.
+		expect(r.soft.some((v) => v.code === 'entity_missing')).toBe(false);
+		expect(r.soft.some((v) => v.code === 'not_onboarded')).toBe(false);
+	});
+
+	it('flags an exam that overlaps an existing assignment as a session clash (M3)', async () => {
+		// A clinical full day is already booked on MON.
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		// An exam on the same day occupies the whole day → overlapping session (soft).
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: '',
+			clerkship_id: null,
+			date: MON,
+			kind: 'exam'
+		});
+		expect(r.hard).toEqual([]);
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(true);
+	});
+
+	it('lets a non-clinical AM sit beside a clinical PM with no clash (M2)', async () => {
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON, session: 'pm' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: '',
+			clerkship_id: null,
+			date: MON,
+			session: 'am',
+			kind: 'free_day'
+		});
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
+	});
+
 	it('editing an assignment in place does not clash with itself (excludeId)', async () => {
 		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		expect(created.ok).toBe(true);

@@ -73,13 +73,19 @@ const sideEffectSchema = z.discriminatedUnion('kind', [
 
 const baseSchema = z.object({
 	student_id: z.string().min(1),
-	preceptor_id: z.string().min(1),
+	// The kind of day (M2/M3). A non-clinical day (free_day / exam) needs no
+	// preceptor/clerkship/site — those are enforced only for a clinical day below.
+	kind: z.enum(['clinical', 'free_day', 'exam']).optional(),
+	// Required for a clinical day (enforced in the handler); absent for a
+	// non-clinical day.
+	preceptor_id: z.string().min(1).nullish(),
 	// Optional: a standalone-elective day has no clerkship (E3). When absent, the
-	// handler requires a standalone `elective_id` instead.
+	// handler requires a standalone `elective_id` instead (clinical only).
 	clerkship_id: z.string().min(1).nullish(),
-	// Site is required on create (a client-only rule is not a rule): preceptor
-	// availability is site-scoped and the mark-available side effect needs it.
-	site_id: z.string().min(1, 'Select a site'),
+	// Required for a clinical day (a client-only rule is not a rule): preceptor
+	// availability is site-scoped and the mark-available side effect needs it. A
+	// non-clinical day has no site.
+	site_id: z.string().min(1).nullish(),
 	// Optional elective this day satisfies; validated against the clerkship in the
 	// service (P-01).
 	elective_id: z.string().min(1).nullish(),
@@ -116,14 +122,16 @@ async function guardCreatePayload(
 	scheduleId: string,
 	input: {
 		student_id: string;
-		preceptor_id: string;
+		preceptor_id?: string | null;
 		clerkship_id?: string | null;
 		site_id?: string | null;
 		side_effects?: OverrideSideEffect[];
 	}
 ): Promise<void> {
 	await assertEntityInSchedule(db, scheduleId, 'student', input.student_id);
-	await assertEntityInSchedule(db, scheduleId, 'preceptor', input.preceptor_id);
+	// A non-clinical day (free_day / exam) has no preceptor to check (M2/M3).
+	if (input.preceptor_id)
+		await assertEntityInSchedule(db, scheduleId, 'preceptor', input.preceptor_id);
 	// A standalone-elective day (E3) has no clerkship to check.
 	if (input.clerkship_id)
 		await assertEntityInSchedule(db, scheduleId, 'clerkship', input.clerkship_id);
@@ -167,6 +175,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		if (isDateList || isRange) {
 			const input = isDateList ? datesSchema.parse(body) : bulkSchema.parse(body);
+			const kind = input.kind ?? 'clinical';
+			if (kind === 'clinical' && !input.preceptor_id) return errorResponse('Select a preceptor', 400);
+			if (kind === 'clinical' && !input.site_id) return errorResponse('Select a site', 400);
 			await guardCreatePayload(scheduleId, input as unknown as Parameters<typeof guardCreatePayload>[1]);
 			const previewDate = isDateList
 				? (input as z.infer<typeof datesSchema>).dates[0]
@@ -178,11 +189,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					scheduleId,
 					{
 						student_id: input.student_id,
-						preceptor_id: input.preceptor_id,
+						preceptor_id: input.preceptor_id ?? '',
 						clerkship_id: input.clerkship_id ?? null,
 						site_id: input.site_id ?? null,
 						elective_id: input.elective_id ?? null,
-						date: previewDate
+						date: previewDate,
+						kind
 					},
 					{ checkCreateTimeCodes: true }
 				);
@@ -198,9 +210,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					scheduleId,
 					{
 						...input,
+						preceptor_id: input.preceptor_id ?? null,
 						clerkship_id: input.clerkship_id ?? null,
 						elective_id: input.elective_id ?? null,
-						locked: mayLock ? input.locked : false
+						locked: mayLock ? input.locked : false,
+						kind
 					},
 					{ force: input.force }
 				);
@@ -209,15 +223,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const input = singleSchema.parse(body);
+		const kind = input.kind ?? 'clinical';
+		if (kind === 'clinical' && !input.preceptor_id) return errorResponse('Select a preceptor', 400);
+		if (kind === 'clinical' && !input.site_id) return errorResponse('Select a site', 400);
 		await guardCreatePayload(scheduleId, input as unknown as Parameters<typeof guardCreatePayload>[1]);
 		const candidate = {
 			student_id: input.student_id,
-			preceptor_id: input.preceptor_id,
+			preceptor_id: input.preceptor_id ?? '',
 			clerkship_id: input.clerkship_id ?? null,
 			site_id: input.site_id ?? null,
 			elective_id: input.elective_id ?? null,
 			date: input.date,
 			session: input.session,
+			kind,
 			excludeId: input.excludeId
 		};
 
@@ -239,12 +257,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				scheduleId,
 				{
 					...candidate,
+					preceptor_id: input.preceptor_id ?? null,
 					elective_id: input.elective_id ?? null,
 					locked: mayLock ? input.locked : false,
 					override_codes: input.override_codes,
 					override_note: input.override_note,
 					credit_value: input.credit_value,
-					session: input.session
+					session: input.session,
+					kind
 				},
 				{ force: input.force }
 			);

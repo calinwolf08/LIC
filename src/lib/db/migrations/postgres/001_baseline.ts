@@ -609,8 +609,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('student_id', TEXT, (col) =>
 			col.notNull().references('students.id').onDelete('cascade')
 		)
+		// Nullable: a non-clinical day (free_day / exam) has no preceptor (M2/M3).
 		.addColumn('preceptor_id', TEXT, (col) =>
-			col.notNull().references('preceptors.id').onDelete('restrict')
+			col.references('preceptors.id').onDelete('restrict')
 		)
 		// Nullable: a standalone-elective day has no clerkship (E3).
 		.addColumn('clerkship_id', TEXT, (col) => col.references('clerkships.id').onDelete('restrict'))
@@ -630,6 +631,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		// Half-day session (L1): 'full' | 'am' | 'pm'. Two assignments clash only when
 		// their sessions overlap (AM+AM, PM+PM, full+anything); AM+PM is fine.
 		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
+		// Assignment kind (M2/M3): 'clinical' | 'free_day' | 'exam'. Non-clinical days
+		// occupy the student's day but need no preceptor/clerkship/site and never count
+		// toward clinical requirements.
+		.addColumn('kind', TEXT, (col) =>
+			col.notNull().defaultTo('clinical').check(sql`kind IN ('clinical', 'free_day', 'exam')`)
+		)
 		.execute();
 
 	// ------------------------------------------------------ schedule scoping
@@ -721,6 +728,19 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addUniqueConstraint('schedule_teams_unique', ['schedule_id', 'team_id'])
+		.execute();
+
+	// Optional quarter date ranges per schedule (M4).
+	await db.schema
+		.createTable('schedule_quarters')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('schedule_id', TEXT, (col) =>
+			col.notNull().references('scheduling_periods.id').onDelete('cascade')
+		)
+		.addColumn('name', TEXT, (col) => col.notNull())
+		.addColumn('start_date', TEXT, (col) => col.notNull())
+		.addColumn('end_date', TEXT, (col) => col.notNull())
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();
 
 	// ------------------------------------------------------------- indexes
@@ -820,6 +840,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_schedule_students_schedule', 'schedule_students', ['schedule_id']);
 	await index('idx_schedule_students_student', 'schedule_students', ['student_id']);
 	await index('idx_schedule_teams_schedule', 'schedule_teams', ['schedule_id']);
+	await index('idx_schedule_quarters_schedule', 'schedule_quarters', ['schedule_id']);
 
 	// Partial unique index: at most one active schedule. Postgres and SQLite
 	// both support `WHERE` on an index; this is what enforces the invariant.
