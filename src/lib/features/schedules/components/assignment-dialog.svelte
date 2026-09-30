@@ -293,7 +293,10 @@
 	 * forced to click the only option (create mode only; edit prefills its own).
 	 */
 	function autoSelectLoneSite() {
-		if (mode === 'edit' || site) return;
+		// Runs whenever no site is chosen — including after a reassign clears a now-invalid
+		// site in edit mode — so the coordinator is never left with an empty required site
+		// when the chosen preceptor has exactly one (finding #1).
+		if (site) return;
 		const eligible = options.sites.filter((s) => s.eligible);
 		if (eligible.length === 1) site = eligible[0].id;
 	}

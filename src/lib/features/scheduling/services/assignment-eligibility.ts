@@ -160,19 +160,19 @@ export async function getEligibleOptions(
 	});
 
 	const preceptors: EligibilityOption[] = preceptorRows.map((p) => {
+		// A preceptor is gated only by whether they teach the selected clerkship — NOT
+		// by the currently-selected site. Gating by site deadlocked reassignment: on an
+		// edit, the loaded site disabled every preceptor at another site, so the user
+		// could not switch preceptors without first clearing the site (itself gated by
+		// the current preceptor). The preceptor↔site relationship is enforced on the
+		// SITE dropdown instead, and the dialog clears/auto-selects the site when the
+		// preceptor changes (finding #1).
 		if (
 			selectedClerkship &&
 			restricts(preceptorClerkships, p.id) &&
 			!clerkshipPreceptors.get(selectedClerkship)?.has(p.id)
 		) {
 			return mark(p, `Not set up to teach ${clerkshipName ?? 'the selected clerkship'}`);
-		}
-		if (
-			selectedSite &&
-			restricts(preceptorSites, p.id) &&
-			!preceptorSites.get(p.id)!.has(selectedSite)
-		) {
-			return mark(p, `Does not work at ${siteName ?? 'the selected site'}`);
 		}
 		return ok(p);
 	});

@@ -105,6 +105,21 @@ async function eligibleSiteFor(
 	return site!.id;
 }
 
+/** Pick the first enabled, non-placeholder site option in the dialog. */
+async function pickAnySite(page: Parameters<typeof apiOf>[0]) {
+	const siteSelect = page.locator('#ad-site');
+	await expect(siteSelect).toBeVisible();
+	const options = siteSelect.locator('option');
+	for (let i = 0; i < (await options.count()); i++) {
+		const value = await options.nth(i).getAttribute('value');
+		if (value && !(await options.nth(i).isDisabled())) {
+			await siteSelect.selectOption(value);
+			return;
+		}
+	}
+	throw new Error('no enabled site option');
+}
+
 /** Two weekdays in the same calendar month (earlier first), so the edit-dialog
  * picker (opened on the later day's month) can reach the earlier one. */
 function twoWeekdaysSameMonth(startAt: number): [string, string] {
@@ -162,6 +177,54 @@ test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, (
 		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByTestId('student-conflicts')).toBeVisible({ timeout: 15000 });
 		await expect(asAdmin.getByTestId(`student-conflict-mutual_exclusion-${dAmanda}`)).toBeVisible();
+	});
+
+	test('reassigning to a preceptor at a different site is not blocked, and re-validates (finding #1)', async ({
+		asAdmin,
+		sandbox
+	}) => {
+		test.setTimeout(200000);
+		const roster = await populatedSandbox(asAdmin, `EDIT-REASSIGN ${Date.now()}`);
+		sandbox.register(roster.sandbox);
+		const api = apiOf(asAdmin);
+
+		const amanda = roster.preceptors.find((p) => p.name === 'Dr. Amanda Smith')!;
+		const fm = roster.clerkships.find((c) => c.name === 'Family Medicine')!;
+		const sid = await makeStudent(api, roster.sandbox.id, `ERA ${Date.now()}`);
+
+		const d1 = futureWeekday(9);
+		const amandaSite = await eligibleSiteFor(api, fm.id, amanda.id);
+		// A single Family Medicine day with Amanda at Amanda's site.
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: amanda.id,
+					clerkship_id: fm.id,
+					site_id: amandaSite,
+					date: d1,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+
+		await openEditForDate(asAdmin, sid, d1, 'Dr. Amanda Smith');
+		const dialog = new AssignmentDialog(asAdmin);
+		// The whole point of the fix: James is selectable even though the loaded site is
+		// Amanda's (which James does not serve). Before the fix this option was disabled.
+		await expect(asAdmin.locator('#ad-preceptor option', { hasText: 'Dr. James Brown' })).not.toBeDisabled();
+		await dialog.selectPreceptor('Dr. James Brown');
+		// The stale site was cleared; choose one James serves and save.
+		await pickAnySite(asAdmin);
+		await dialog.submit();
+		await expect(asAdmin.getByText(/assignment updated/i)).toBeVisible({ timeout: 15000 });
+
+		// The reassignment persisted: the day is now James's.
+		const rows = await api.get<{ assignments?: { preceptorName: string; date: string }[] }>(
+			`/api/students/${sid}/schedule`
+		);
+		const moved = (rows.data?.assignments ?? []).find((a) => a.date === d1);
+		expect(moved?.preceptorName).toBe('Dr. James Brown');
 	});
 
 	test('moving a scattered day into a block week warns and records a conflict (L3)', async ({
