@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **79** across 9 phases
+- Spec files: **80** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **54**; findings/decisions mapped: **59**
-- Tags: `@long` ×10, `@smoke` ×2, `@stage1` ×59, `@stage2` ×21, `@tenant` ×1
+- Requirements mapped: **54**; findings/decisions mapped: **60**
+- Tags: `@long` ×11, `@smoke` ×2, `@stage1` ×59, `@stage2` ×22, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -84,6 +84,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/entity-deletion.spec.ts` | @long @stage2 | R2 | CF-DEL |
 | 9 | — | `phase-9/exam-assignment.spec.ts` | @stage1 | R8 | CF-M3 |
 | 9 | — | `phase-9/free-day.spec.ts` | @stage1 | R8 | CF-M2 |
+| 9 | — | `phase-9/generate-ui.spec.ts` | @long @stage2 | R3.1 | CF-GEN-UI |
 | 9 | — | `phase-9/multi-student-generation.spec.ts` | @long @stage2 | R7 | CF-L1 |
 | 9 | — | `phase-9/mutual-exclusion.spec.ts` | @stage1 | R7 | CF-L2 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
@@ -121,7 +122,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R2.1 | J2.3, J2.5, J2.6, J3.7 |
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
-| R3.1 | J2.2, J3.1, J5.1 |
+| R3.1 | generate-ui.spec.ts, J2.2, J3.1, J5.1 |
 | R3.2 | availability-empty-pattern.spec.ts, availability-notes.spec.ts, availability-preference-consumption.spec.ts, availability-preference.spec.ts, J2.2 |
 | R3.3 | availability-empty-pattern.spec.ts, J2.2, J2.7 |
 | R3.4 | J2.2, J2.7, J3.9, J4.5 |
@@ -175,6 +176,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-G1 | team-single-member.spec.ts |
 | CF-G3 | team-serveable.spec.ts |
 | CF-G4 | team-serveable.spec.ts |
+| CF-GEN-UI | generate-ui.spec.ts |
 | CF-H1 | availability-empty-pattern.spec.ts |
 | CF-H6 | availability-notes.spec.ts |
 | CF-H8 | availability-preference-consumption.spec.ts, availability-preference.spec.ts |

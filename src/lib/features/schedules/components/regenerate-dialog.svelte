@@ -162,7 +162,9 @@
 
 	<!-- Dialog -->
 	<div class="fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
-		<Card class="p-6">
+		<!-- Cap the height and scroll internally so the footer actions stay reachable on
+		     short viewports (the content is taller than a laptop screen in full mode). -->
+		<Card class="max-h-[90vh] overflow-y-auto p-6">
 			<h2 class="mb-4 text-xl font-semibold">Regenerate Schedule</h2>
 
 			<!-- Warning - only show for full mode -->

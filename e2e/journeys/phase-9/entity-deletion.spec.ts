@@ -61,7 +61,9 @@ async function confirmDelete(page: Page, name: string) {
 	await expect(row).toBeVisible({ timeout: 15000 });
 	await row.getByRole('button', { name: /^delete$/i }).click();
 	// The confirm dialog is a plain overlay (not role=dialog); anchor on its heading.
-	await expect(page.getByRole('heading', { name: /^delete (student|preceptor|clerkship)$/i })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: /^delete (student|preceptor|clerkship|elective)$/i })
+	).toBeVisible();
 	// The dialog's confirm button is the last "Delete" in the DOM (rendered after the list).
 	await page.getByRole('button', { name: /^delete$/i }).last().click();
 }
@@ -189,5 +191,63 @@ test.describe('CF-DEL entity deletion', { tag: ['@stage2', '@long'] }, () => {
 		await asAdmin.goto('/clerkships');
 		await confirmDelete(asAdmin, clerkshipName);
 		await expect(rowFor(asAdmin, clerkshipName)).toHaveCount(0, { timeout: 15000 });
+	});
+
+	test('elective delete: blocked while a day is tied to it, clean once nothing uses it', async ({
+		asAdmin,
+		sandbox
+	}) => {
+		test.setTimeout(200000);
+		const roster = await populatedSandbox(asAdmin, `CF-DEL elective ${Date.now()}`);
+		sandbox.register(roster.sandbox);
+		const api = apiOf(asAdmin);
+		const stamp = `${Date.now()}${Math.floor(Math.random() * 100000)}`;
+
+		const im = roster.clerkships.find((c) => c.name === 'Internal Medicine')!;
+		const student = roster.students[0];
+		const amanda = roster.preceptors.find((p) => p.name === 'Dr. Amanda Smith')!;
+		const site = roster.sites[0];
+		expect(im && student && amanda && site).toBeTruthy();
+
+		// Create two electives on Internal Medicine via the config API.
+		const mkElective = async (name: string) => {
+			const res = await api.post<{ id?: string }>(
+				`/api/scheduling-config/electives?clerkshipId=${im.id}`,
+				{ name, minimumDays: 2, isRequired: false }
+			);
+			expect(res.ok, `elective ${name} created`).toBe(true);
+			return res.data!.id!;
+		};
+		const usedName = `Used Elective ${stamp}`;
+		const freeName = `Free Elective ${stamp}`;
+		const usedId = await mkElective(usedName);
+		await mkElective(freeName);
+
+		// Tie one clinical day to the "used" elective.
+		const created = await api.post('/api/schedules/assignments', {
+			student_id: student.id,
+			preceptor_id: amanda.id,
+			clerkship_id: im.id,
+			site_id: site.id,
+			elective_id: usedId,
+			date: futureWeekday(9),
+			override_codes: SAFETY
+		});
+		expect(created.ok, 'elective assignment created').toBe(true);
+
+		// The electives manager lives under the clerkship's Electives tab.
+		const electivesTab = `/clerkships/${im.id}?tab=electives`;
+
+		// Blocked: the used elective refuses deletion and stays in the list.
+		await asAdmin.goto(electivesTab);
+		await confirmDelete(asAdmin, usedName);
+		await expect(asAdmin.getByText(/existing assignments/i)).toBeVisible({ timeout: 15000 });
+		await asAdmin.getByRole('button', { name: /^cancel$/i }).last().click();
+		await expect(rowFor(asAdmin, usedName)).toBeVisible();
+
+		// Clean: the unused elective deletes and drops out of the list.
+		await asAdmin.goto(electivesTab);
+		await confirmDelete(asAdmin, freeName);
+		await expect(rowFor(asAdmin, freeName)).toHaveCount(0, { timeout: 15000 });
 	});
 });
