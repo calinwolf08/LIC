@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **78** across 9 phases
+- Spec files: **79** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **53**; findings/decisions mapped: **58**
-- Tags: `@long` ×9, `@smoke` ×2, `@stage1` ×59, `@stage2` ×20, `@tenant` ×1
+- Requirements mapped: **54**; findings/decisions mapped: **59**
+- Tags: `@long` ×10, `@smoke` ×2, `@stage1` ×59, `@stage2` ×21, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -81,6 +81,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/credit-value.spec.ts` | @stage1 | R4.4 | CF-M1 |
 | 9 | — | `phase-9/day-overbook.spec.ts` | @stage1 | R7 | CF-L1 |
 | 9 | — | `phase-9/edit-revalidation.spec.ts` | @stage1 | R7 | CF-L2, CF-L3 |
+| 9 | — | `phase-9/entity-deletion.spec.ts` | @long @stage2 | R2 | CF-DEL |
 | 9 | — | `phase-9/exam-assignment.spec.ts` | @stage1 | R8 | CF-M3 |
 | 9 | — | `phase-9/free-day.spec.ts` | @stage1 | R8 | CF-M2 |
 | 9 | — | `phase-9/multi-student-generation.spec.ts` | @long @stage2 | R7 | CF-L1 |
@@ -116,6 +117,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R1.1 | J1.1, J1.4 |
 | R1.2 | J1.1, J1.4, wizard-activates-schedule.spec.ts |
 | R1.3 | J1.2, J1.3, J7.1, J7.2, J7.7, schedule-end-before-start.spec.ts, wizard-activates-schedule.spec.ts, wizard-clarity.spec.ts |
+| R2 | entity-deletion.spec.ts |
 | R2.1 | J2.3, J2.5, J2.6, J3.7 |
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
@@ -165,6 +167,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-C4 | wizard-clarity.spec.ts |
 | CF-C5 | wizard-clarity.spec.ts |
 | CF-D2 | wizard-clarity.spec.ts |
+| CF-DEL | entity-deletion.spec.ts |
 | CF-E2 | allowed-missed-days.spec.ts |
 | CF-E3 | standalone-elective.spec.ts |
 | CF-F1 | preceptor-phone-type.spec.ts |
