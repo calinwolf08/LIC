@@ -326,4 +326,77 @@ test.describe('auto-generation honors scheduling constraints', { tag: ['@stage2'
 		expect(onDay.filter((r) => r.kind === 'clinical').length).toBe(0);
 		expect(onDay.some((r) => r.kind === 'free_day')).toBe(true);
 	});
+
+	test('regeneration preserves a student\'s non-clinical days', async ({ asAdmin, sandbox, db }) => {
+		test.setTimeout(180000);
+		const kysely = db as Kysely<DB>;
+		const api = apiOf(asAdmin);
+		const stamp = Date.now();
+		const clinicalDay = futureWeekday(8);
+		const freeDay = futureWeekday(10);
+		const end = futureWeekday(20);
+
+		const sb = await createSandboxSchedule(asAdmin, { name: `AG-REGEN ${stamp}`, start: clinicalDay, end });
+		sandbox.register(sb);
+		const hsId = (await api.post<{ id: string }>('/api/health-systems', { name: `HS ${stamp}` })).data!.id;
+		const siteId = (
+			await api.post<{ id: string }>('/api/sites', { name: `Site ${stamp}`, health_system_id: hsId })
+		).data!.id;
+		const clerkA = (
+			await api.post<{ id: string }>('/api/clerkships', {
+				name: `A ${stamp}`,
+				required_days: 1,
+				clerkship_type: 'outpatient'
+			})
+		).data!.id;
+		const precA = (
+			await api.post<{ id: string }>('/api/preceptors', {
+				name: `Dr A ${stamp}`,
+				email: `a_${stamp}@x.com`,
+				max_students: 5,
+				health_system_id: hsId,
+				site_ids: [siteId]
+			})
+		).data!.id;
+		const studentId = (
+			await api.post<{ id: string }>('/api/students', { name: `S ${stamp}`, email: `s_${stamp}@x.com` })
+		).data!.id;
+
+		const ts = new Date().toISOString();
+		await kysely.insertInto('clerkship_sites').values({ clerkship_id: clerkA, site_id: siteId, created_at: ts }).execute();
+		await kysely
+			.insertInto('student_health_system_onboarding')
+			.values({ id: crypto.randomUUID(), student_id: studentId, health_system_id: hsId, is_completed: 1, created_at: ts, updated_at: ts })
+			.execute();
+		await kysely
+			.insertInto('preceptor_availability')
+			.values({ id: crypto.randomUUID(), preceptor_id: precA, site_id: siteId, date: clinicalDay, is_available: 1, session: 'full', credit_value: 1, created_at: ts, updated_at: ts })
+			.execute();
+
+		// First generation places the clinical day.
+		expect((await api.post('/api/schedules/generate', { startDate: clinicalDay, endDate: end, strategy: 'full-reoptimize' })).ok).toBe(true);
+		const afterGen = (await assignmentsForSchedule(kysely, sb.id)).filter((r) => r.student_id === studentId);
+		expect(afterGen.some((r) => r.kind === 'clinical' && r.date === clinicalDay)).toBe(true);
+
+		// The coordinator hand-adds a free day on a different date.
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: studentId,
+					kind: 'free_day',
+					date: freeDay,
+					override_codes: ['outside_schedule', 'blackout_date', 'session_clash']
+				})
+			).ok
+		).toBe(true);
+
+		// A full re-optimize (which deletes and rebuilds future clinical days) must NOT
+		// touch the hand-placed free day.
+		expect((await api.post('/api/schedules/generate', { startDate: clinicalDay, endDate: end, strategy: 'full-reoptimize' })).ok).toBe(true);
+		const afterRegen = (await assignmentsForSchedule(kysely, sb.id)).filter((r) => r.student_id === studentId);
+		// The free day survived the regeneration…
+		expect(afterRegen.some((r) => r.kind === 'free_day' && r.date === freeDay)).toBe(true);
+		// …and the clinical requirement is still met.
+		expect(afterRegen.some((r) => r.kind === 'clinical')).toBe(true);
+	});
 });
