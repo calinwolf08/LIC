@@ -57,24 +57,46 @@ test.describe('CF-K1 send schedule', { tag: ['@stage1'] }, () => {
 		expect(studentA && studentB && studentA.id !== studentB.id).toBeTruthy();
 
 		const day = futureWeekday(9);
-		// Student A with Amanda; Student B with James — same day, different preceptors.
-		for (const [student, preceptor] of [
-			[studentA, amanda],
-			[studentB, james]
-		] as const) {
-			expect(
-				(
-					await api.post('/api/schedules/assignments', {
-						student_id: student.id,
-						preceptor_id: preceptor.id,
-						clerkship_id: fm.id,
-						site_id: site.id,
-						date: day,
-						override_codes: SAFETY
-					})
-				).ok
-			).toBe(true);
-		}
+		const day2 = futureWeekday(11);
+		// Student A: an AM half-day with Amanda (L1) on `day`, plus a free day (M2) on
+		// `day2`. Student B: a full day with James on `day`. This lets the preview prove
+		// session rendering and that a non-clinical day surfaces only in the student's
+		// own view, never a preceptor's.
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: studentA.id,
+					preceptor_id: amanda.id,
+					clerkship_id: fm.id,
+					site_id: site.id,
+					date: day,
+					session: 'am',
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: studentA.id,
+					kind: 'free_day',
+					date: day2,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: studentB.id,
+					preceptor_id: james.id,
+					clerkship_id: fm.id,
+					site_id: site.id,
+					date: day,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
 
 		// --- Open the send dialog and select recipients ----------------------------
 		const cal = new CalendarPage(asAdmin);
@@ -86,12 +108,24 @@ test.describe('CF-K1 send schedule', { tag: ['@stage1'] }, () => {
 		await dialog.getByTestId(`recipient-preceptor-${amanda.id}`).check();
 		await dialog.getByTestId(`recipient-student-${studentA.id}`).check();
 
-		// --- Preview: Amanda sees only her own student (FERPA minimum-necessary) ---
+		// --- Preview: Amanda sees only her own student (FERPA minimum-necessary),
+		// with the half-day session rendered and NO non-clinical day (that's private
+		// to the student). Student A's own view carries their free day. --------------
 		await dialog.getByTestId('preview-recipients').click();
 		const amandaPreview = dialog.getByTestId(`recipient-preview-preceptor-${amanda.id}`);
 		await expect(amandaPreview).toBeVisible({ timeout: 15000 });
 		await expect(amandaPreview).toContainText(studentA.name);
 		await expect(amandaPreview).not.toContainText(studentB.name);
+		// L1 integration: the AM half-day is shown as such.
+		await expect(amandaPreview).toContainText(/AM/);
+		// M2 integration: the student's free day (day2) never appears in a preceptor view.
+		await expect(amandaPreview).not.toContainText(day2);
+
+		const studentPreview = dialog.getByTestId(`recipient-preview-student-${studentA.id}`);
+		await expect(studentPreview).toBeVisible();
+		// The student sees their own free day.
+		await expect(studentPreview).toContainText(day2);
+		await expect(studentPreview).toContainText(/free day/i);
 
 		// --- Send: confirmation lists the recipients -------------------------------
 		await dialog.getByTestId('send-recipients').click();

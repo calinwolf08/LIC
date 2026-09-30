@@ -125,9 +125,29 @@ test.describe('CF-L2 preceptor mutual exclusion', { tag: ['@stage1'] }, () => {
 		await expect(dialog.overrideSummary()).toContainText(/not to share a day/i);
 		await dialog.submitAndExpectCreated();
 
-		// --- The student's conflict panel lists the mutual-exclusion conflict ---
+		// --- Negative: the rule is per-DAY, not global. Put the same excluded
+		// preceptor (James) on a DIFFERENT, otherwise-empty day. Amanda is not there,
+		// so the pair does not share that day and it must NOT be a mutual-exclusion
+		// conflict — the rule is applied only where it actually bites. ---------------
+		const d2 = futureWeekday(17);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: james.id,
+					clerkship_id: fm.id,
+					site_id: site.id,
+					date: d2,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+
+		// --- Conflict panel: d1 (shared day) is a mutual-exclusion conflict; d2
+		// (James alone) is not. ------------------------------------------------------
 		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByTestId('student-conflicts')).toBeVisible({ timeout: 15000 });
 		await expect(asAdmin.getByTestId(`student-conflict-mutual_exclusion-${d1}`)).toBeVisible();
+		await expect(asAdmin.getByTestId(`student-conflict-mutual_exclusion-${d2}`)).toHaveCount(0);
 	});
 });

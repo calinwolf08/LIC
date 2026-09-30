@@ -59,6 +59,7 @@ test.describe('CF-L3 block vs scattered clerkship weeks', { tag: ['@stage1'] }, 
 
 		const amanda = roster.preceptors.find((p) => p.name === 'Dr. Amanda Smith')!;
 		const peds = roster.clerkships.find((c) => c.name === 'Pediatrics')!;
+		const fm = roster.clerkships.find((c) => c.name === 'Family Medicine')!;
 		const anySite = roster.sites[0]!;
 
 		// --- Mark Pediatrics as a block (inpatient) clerkship via the API ---------
@@ -130,11 +131,44 @@ test.describe('CF-L3 block vs scattered clerkship weeks', { tag: ['@stage1'] }, 
 		await expect(dialog.overrideSummary()).toContainText(/inpatient block/i);
 		await dialog.submitAndExpectCreated();
 
-		// --- The student's conflict panel lists the block-week conflict -----------
+		// --- Negative: an outpatient day in a FREE week (no block that week) is clean.
+		// The block only consumes its own week, so a Family Medicine day the following
+		// week must NOT be a block-week conflict. ------------------------------------
+		const freeWeekDay = addDays(blockMon, 9); // next week's Wednesday
+		const freeCreate = await api.post<{ soft?: { code: string }[] }>(
+			'/api/schedules/assignments',
+			{
+				student_id: sid,
+				preceptor_id: amanda.id,
+				clerkship_id: fm.id,
+				site_id: anySite.id,
+				date: freeWeekDay,
+				dry_run: true
+			}
+		);
+		expect((freeCreate.data?.soft ?? []).some((v) => v.code === 'block_week_conflict')).toBe(false);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: amanda.id,
+					clerkship_id: fm.id,
+					site_id: anySite.id,
+					date: freeWeekDay,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+
+		// --- Conflict panel: the same-week outpatient day is a block-week conflict;
+		// the free-week day is not. --------------------------------------------------
 		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByTestId('student-conflicts')).toBeVisible({ timeout: 15000 });
 		await expect(
 			asAdmin.getByTestId(`student-conflict-block_week_conflict-${sameWeekWed}`)
 		).toBeVisible();
+		await expect(
+			asAdmin.getByTestId(`student-conflict-block_week_conflict-${freeWeekDay}`)
+		).toHaveCount(0);
 	});
 });

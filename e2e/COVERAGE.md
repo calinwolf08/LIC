@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **75** across 9 phases
+- Spec files: **76** across 9 phases
 - Journeys: **46**
 - Requirements mapped: **53**; findings/decisions mapped: **58**
-- Tags: `@long` ×7, `@smoke` ×2, `@stage1` ×58, `@stage2` ×18, `@tenant` ×1
+- Tags: `@long` ×8, `@smoke` ×2, `@stage1` ×58, `@stage2` ×19, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -68,6 +68,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 7 | J7.6 | `phase-7/volume.spec.ts` | @long @stage2 | — | F-30 |
 | 9 | — | `phase-9/allowed-missed-days.spec.ts` | @stage1 | R4.4 | CF-E2 |
 | 9 | — | `phase-9/assign-outside-availability.spec.ts` | @stage1 | R3.6, R7.4 | CF-I1 |
+| 9 | — | `phase-9/autogen-constraints.spec.ts` | @long @stage2 | R7, R8 | CF-L2, CF-L3, CF-M2 |
 | 9 | — | `phase-9/autogen-sessions.spec.ts` | @long @stage2 | R7 | CF-L1 |
 | 9 | — | `phase-9/availability-empty-pattern.spec.ts` | @stage1 | R3.2, R3.3 | CF-H1 |
 | 9 | — | `phase-9/availability-notes.spec.ts` | @stage1 | R3.2 | CF-H6 |
@@ -135,12 +136,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R6.5 | J3.1, J3.5 |
 | R6.6 | J3.1, J3.5, J3.6 |
 | R6.7 | J3.1, J3.8 |
-| R7 | autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, mutual-exclusion.spec.ts |
+| R7 | autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, mutual-exclusion.spec.ts |
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
 | R7.4 | assign-outside-availability.spec.ts, core-preceptor.spec.ts, J3.3, J4.4 |
-| R8 | exam-assignment.spec.ts, free-day.spec.ts, quarters.spec.ts |
+| R8 | autogen-constraints.spec.ts, exam-assignment.spec.ts, free-day.spec.ts, quarters.spec.ts |
 | R8.1 | J4.1 |
 | R8.2 | calendar-phase6.spec.ts, J4.1 |
 | R8.3 | J4.1 |
@@ -179,10 +180,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-J3 | calendar-phase6.spec.ts |
 | CF-K1 | send-schedule.spec.ts |
 | CF-L1 | autogen-sessions.spec.ts, availability-session.spec.ts, day-overbook.spec.ts |
-| CF-L2 | mutual-exclusion.spec.ts |
-| CF-L3 | block-vs-scattered.spec.ts |
+| CF-L2 | autogen-constraints.spec.ts, mutual-exclusion.spec.ts |
+| CF-L3 | autogen-constraints.spec.ts, block-vs-scattered.spec.ts |
 | CF-M1 | credit-value.spec.ts |
-| CF-M2 | free-day.spec.ts |
+| CF-M2 | autogen-constraints.spec.ts, free-day.spec.ts |
 | CF-M3 | exam-assignment.spec.ts |
 | CF-M4 | quarters.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
