@@ -366,6 +366,16 @@ export interface ScheduleStudents {
   student_id: string;
 }
 
+export interface ScheduleDistributions {
+  created_at: Generated<string>;
+  day_count: Generated<number>;
+  id: string | null;
+  recipient_id: string;
+  recipient_type: string;
+  schedule_id: string;
+  sender_user_id: string;
+}
+
 export interface ScheduleQuarters {
   created_at: Generated<string>;
   end_date: string;
@@ -538,6 +548,7 @@ export interface DB {
   schedule_health_systems: ScheduleHealthSystems;
   schedule_preceptors: SchedulePreceptors;
   schedule_sites: ScheduleSites;
+  schedule_distributions: ScheduleDistributions;
   schedule_quarters: ScheduleQuarters;
   schedule_students: ScheduleStudents;
   schedule_teams: ScheduleTeams;

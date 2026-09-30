@@ -730,6 +730,22 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addUniqueConstraint('schedule_teams_unique', ['schedule_id', 'team_id'])
 		.execute();
 
+	// Distribution audit log (K1): one row per (send, recipient), ids + counts only.
+	await db.schema
+		.createTable('schedule_distributions')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('schedule_id', TEXT, (col) =>
+			col.notNull().references('scheduling_periods.id').onDelete('cascade')
+		)
+		.addColumn('sender_user_id', TEXT, (col) => col.notNull())
+		.addColumn('recipient_type', TEXT, (col) =>
+			col.notNull().check(sql`recipient_type IN ('preceptor', 'student', 'site')`)
+		)
+		.addColumn('recipient_id', TEXT, (col) => col.notNull())
+		.addColumn('day_count', INTEGER, (col) => col.notNull().defaultTo(0))
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.execute();
+
 	// Optional quarter date ranges per schedule (M4).
 	await db.schema
 		.createTable('schedule_quarters')
@@ -841,6 +857,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_schedule_students_student', 'schedule_students', ['student_id']);
 	await index('idx_schedule_teams_schedule', 'schedule_teams', ['schedule_id']);
 	await index('idx_schedule_quarters_schedule', 'schedule_quarters', ['schedule_id']);
+	await index('idx_schedule_distributions_schedule', 'schedule_distributions', ['schedule_id']);
 
 	// Partial unique index: at most one active schedule. Postgres and SQLite
 	// both support `WHERE` on an index; this is what enforces the invariant.

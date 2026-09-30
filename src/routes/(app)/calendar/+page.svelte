@@ -16,6 +16,7 @@
 	import ScheduleColorLegend from '$lib/features/schedules/components/schedule-color-legend.svelte';
 	import { AssignmentDialog } from '$lib/features/schedules/components';
 	import ScheduleHealthPanel from '$lib/features/schedules/components/schedule-health-panel.svelte';
+	import SendScheduleDialog from '$lib/features/schedules/components/send-schedule-dialog.svelte';
 	import { BlackoutDateManager } from '$lib/features/blackout-dates/components';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -362,6 +363,9 @@
 	// Export to Excel
 	let isExporting = $state(false);
 
+	// Send schedule (K1)
+	let sendScheduleOpen = $state(false);
+
 	async function handleExport() {
 		isExporting = true;
 
@@ -643,6 +647,7 @@
 			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
 				{isExporting ? 'Exporting...' : 'Export to Excel'}
 			</Button>
+			<Button variant="outline" onclick={() => (sendScheduleOpen = true)}>Send schedule</Button>
 			<Button onclick={openCreateAssignment}>Add assignment</Button>
 			{#if hasAutogen}
 				<Button variant="outline" onclick={() => goto('/generate/results')}>Schedule Results</Button
@@ -1006,3 +1011,5 @@
 	lockDate={!!createDate}
 	onSaved={handleAssignmentCreated}
 />
+
+<SendScheduleDialog bind:open={sendScheduleOpen} />
