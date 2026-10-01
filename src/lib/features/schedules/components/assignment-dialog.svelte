@@ -1000,6 +1000,7 @@
 				<Button
 					variant="destructive"
 					class="mr-auto"
+					data-testid="ad-remove"
 					disabled={submitting}
 					onclick={() => requestRemove(false)}
 				>

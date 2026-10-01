@@ -59,7 +59,10 @@ export class StudentSchedulePage {
 		return this.page.locator('tr', { hasText: date }).filter({ hasText: preceptorName });
 	}
 
-	async openEditForDate(date: string, preceptorName: string) {
+	/** Navigate to `studentId`, open the list, and click Edit on the (date,
+	 * preceptor) row. Navigating here makes the call safe from any starting page. */
+	async openEditForDate(studentId: string, date: string, preceptorName: string) {
+		await this.goto(studentId);
 		await this.openScheduleList();
 		const row = this.row(date, preceptorName);
 		await expect(row).toBeVisible({ timeout: 15000 });

@@ -194,6 +194,105 @@ export function strategyWorld(strategy: 'continuous_single' | 'daily_rotation'):
 }
 
 /**
+ * A roomy world for manual planning: one clerkship with a high day requirement (so
+ * a long hand-build never trips over-required), one preceptor available on every
+ * weekday of the first three weeks (full-day slots), two onboarded students. The
+ * journeys drive the assignment dialog across its modes, sessions and day-types.
+ */
+export function manualWorld(): WorldSpec {
+	// Weekday offsets from the anchor Monday across three weeks (Mon–Fri each).
+	const weekdayOffsets = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18];
+	return {
+		name: 'Manual planning',
+		healthSystems: ['Metro'],
+		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', requiredDays: 10, sites: ['Clinic'] }
+		],
+		preceptors: [
+			{
+				name: 'Dr. FM',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+			}
+		],
+		students: [
+			{ name: 'Student 1', onboardedAt: ['Metro'] },
+			{ name: 'Student 2', onboardedAt: ['Metro'] }
+		]
+	};
+}
+
+/**
+ * Two mutually-exclusive preceptors who both teach one clerkship and are both
+ * available on the same weekdays, one onboarded student. For edit/reassign/remove
+ * journeys that introduce and then resolve an L2 mutual-exclusion conflict.
+ */
+export function mutualExclusionWorld(): WorldSpec {
+	const weekdayOffsets = [0, 1, 2, 3, 4, 7, 8, 9];
+	return {
+		name: 'Mutual exclusion',
+		healthSystems: ['Metro'],
+		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', requiredDays: 3, sites: ['Clinic'] }
+		],
+		preceptors: [
+			{
+				name: 'Dr. A',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+			},
+			{
+				name: 'Dr. B',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+			}
+		],
+		mutualExclusions: [['Dr. A', 'Dr. B']],
+		students: [{ name: 'Student 1', onboardedAt: ['Metro'] }]
+	};
+}
+
+/**
+ * Two sites, two clerkships each restricted to one site and taught by one
+ * preceptor who works only at that site. Drives the dialog's clerkship↔preceptor↔
+ * site eligibility annotations (which options are disabled, and why).
+ */
+export function eligibilityWorld(): WorldSpec {
+	return {
+		name: 'Eligibility',
+		healthSystems: ['Metro'],
+		sites: [
+			{ name: 'North', healthSystem: 'Metro' },
+			{ name: 'South', healthSystem: 'Metro' }
+		],
+		clerkships: [
+			{ name: 'Pediatrics', type: 'outpatient', requiredDays: 2, sites: ['North'] },
+			{ name: 'Surgery', type: 'inpatient', requiredDays: 2, sites: ['South'] }
+		],
+		preceptors: [
+			{
+				name: 'Dr. Lee',
+				sites: ['North'],
+				teaches: ['Pediatrics'],
+				availability: [{ day: 0, site: 'North' }]
+			},
+			{
+				name: 'Dr. Patel',
+				sites: ['South'],
+				teaches: ['Surgery'],
+				availability: [{ day: 0, site: 'South' }]
+			}
+		],
+		students: [{ name: 'Student 1', onboardedAt: ['Metro'] }]
+	};
+}
+
+/**
  * A schedule that spans from the past into the future, for smart (minimal-change)
  * regeneration. One clerkship needing 3 days, one preceptor available on a past day
  * and several future days. The journey sets `start` to a past Monday, hand-places a

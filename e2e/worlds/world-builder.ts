@@ -151,6 +151,17 @@ export interface World {
 		student: Record<string, string>;
 		elective: Record<string, string>;
 	};
+	/** Display names as they appear in the UI (hs/site/clerkship/elective are
+	 * stamped for global uniqueness; preceptor/student use their spec name). Use
+	 * these when selecting options by label in a dropdown. */
+	labels: {
+		hs: Record<string, string>;
+		site: Record<string, string>;
+		clerkship: Record<string, string>;
+		preceptor: Record<string, string>;
+		student: Record<string, string>;
+		elective: Record<string, string>;
+	};
 	/** Resolve a spec date (absolute `date` or `day` offset) to YYYY-MM-DD. */
 	date(spec: { date?: string; day?: number }): string;
 }
@@ -185,31 +196,44 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 		student: {},
 		elective: {}
 	};
+	const labels: World['labels'] = {
+		hs: {},
+		site: {},
+		clerkship: {},
+		preceptor: {},
+		student: {},
+		elective: {}
+	};
 
 	// Health systems
 	for (const name of spec.healthSystems) {
-		const r = await api.post<{ id: string }>('/api/health-systems', { name: `${name} ${stamp}` });
+		const display = `${name} ${stamp}`;
+		const r = await api.post<{ id: string }>('/api/health-systems', { name: display });
 		if (!r.ok || !r.data?.id) throw new Error(`world: health system ${name} failed (${r.status})`);
 		ids.hs[name] = r.data.id;
+		labels.hs[name] = display;
 	}
 
 	// Sites
 	for (const s of spec.sites) {
 		const hsId = ids.hs[s.healthSystem];
 		if (!hsId) throw new Error(`world: site ${s.name} references unknown HS ${s.healthSystem}`);
+		const display = `${s.name} ${stamp}`;
 		const r = await api.post<{ id: string }>('/api/sites', {
-			name: `${s.name} ${stamp}`,
+			name: display,
 			health_system_id: hsId
 		});
 		if (!r.ok || !r.data?.id) throw new Error(`world: site ${s.name} failed (${r.status})`);
 		ids.site[s.name] = r.data.id;
+		labels.site[s.name] = display;
 	}
 
 	// Clerkships (+ clerkship_sites + electives)
 	const ts = new Date().toISOString();
 	for (const c of spec.clerkships) {
+		const display = `${c.name} ${stamp}`;
 		const r = await api.post<{ id: string }>('/api/clerkships', {
-			name: `${c.name} ${stamp}`,
+			name: display,
 			required_days: c.requiredDays,
 			clerkship_type: c.type ?? 'outpatient',
 			...(c.minRequiredDays != null ? { min_required_days: c.minRequiredDays } : {}),
@@ -217,6 +241,7 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 		});
 		if (!r.ok || !r.data?.id) throw new Error(`world: clerkship ${c.name} failed (${r.status})`);
 		ids.clerkship[c.name] = r.data.id;
+		labels.clerkship[c.name] = display;
 
 		if (c.sites?.length) {
 			await db
@@ -238,12 +263,14 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 				.execute();
 		}
 		for (const e of c.electives ?? []) {
+			const display = `${e.name} ${stamp}`;
 			const er = await api.post<{ id: string }>(
 				`/api/scheduling-config/electives?clerkshipId=${r.data.id}`,
-				{ name: `${e.name} ${stamp}`, minimumDays: e.minimumDays, isRequired: e.required ?? false }
+				{ name: display, minimumDays: e.minimumDays, isRequired: e.required ?? false }
 			);
 			if (!er.ok || !er.data?.id) throw new Error(`world: elective ${e.name} failed (${er.status})`);
 			ids.elective[e.name] = er.data.id;
+			labels.elective[e.name] = display;
 		}
 	}
 
@@ -261,6 +288,7 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 		});
 		if (!r.ok || !r.data?.id) throw new Error(`world: preceptor ${p.name} failed (${r.status})`);
 		ids.preceptor[p.name] = r.data.id;
+		labels.preceptor[p.name] = p.name;
 
 		for (const clerkName of p.teaches ?? []) {
 			let teamId = teamByClerkship.get(clerkName);
@@ -294,6 +322,7 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 		});
 		if (!r.ok || !r.data?.id) throw new Error(`world: student ${s.name} failed (${r.status})`);
 		ids.student[s.name] = r.data.id;
+		labels.student[s.name] = s.name;
 
 		for (const hsName of s.onboardedAt ?? []) {
 			await db
@@ -375,7 +404,7 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 			.execute();
 	}
 
-	return { spec, sandbox, scheduleId, anchor, start, end, api, db, ids, date: resolveDate };
+	return { spec, sandbox, scheduleId, anchor, start, end, api, db, ids, labels, date: resolveDate };
 }
 
 // ---- small resolvers -------------------------------------------------------

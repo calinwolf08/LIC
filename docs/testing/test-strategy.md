@@ -71,15 +71,15 @@ signal.
 
 Phase 1 (auto-generation) is complete.
 
-### Manual planning (phase-10, planned — Phase 2)
+### Manual planning (phase-10, driven through the assignment dialog)
 
-- **MP-1 Build-a-cohort by hand** — one long dialog session hitting every soft code
-  (override each), the hard block (refusal), non-clinical kinds, and batch day-modes
-  (single/range/individual), asserting the conflict panel + validation after each.
-- **MP-2 Edit/reassign/remove under load** — introduce then resolve each soft code
-  via edits, asserting re-validation; reassign across sites/preceptors.
-- **MP-3 Eligibility narrowing** — drive the dialog's clerkship↔preceptor↔site
-  gating through every combination.
+| ID | World | Proves |
+|----|-------|--------|
+| MP-1 | `manualWorld` | a hand build across batch modes (range with weekday filter, individual days), non-clinical day-types (free day + exam), and an overridden session clash — validation clean after each legit batch, one conflict only where deliberately created. |
+| MP-2 | `mutualExclusionWorld` | edit / reassign / remove: introduce an L2 mutual-exclusion conflict (AM+PM, no session clash), resolve it by removing a day, reassign a day across preceptors, and remove it — conflict surfaces track every change. |
+| MP-3 | `eligibilityWorld` | the dialog's clerkship↔preceptor↔site eligibility annotations disable impossible combinations (with reasons) as the coordinator picks. |
+
+Phase 2 (manual planning) is complete.
 
 ## What stays at unit/integration level (deliberately not e2e)
 

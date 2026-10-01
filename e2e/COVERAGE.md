@@ -9,12 +9,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **89** across 10 phases
+- Spec files: **92** across 10 phases
 - Journeys: **46**
 - Requirements mapped: **55**; findings/decisions mapped: **62**
 - Constraints covered: **14/14** ✅
-- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7
-- Tags: `@long` ×20, `@smoke` ×2, `@stage1` ×59, `@stage2` ×31, `@tenant` ×1
+- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7, MP-1, MP-2, MP-3
+- Tags: `@long` ×23, `@smoke` ×2, `@stage1` ×59, `@stage2` ×34, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -33,6 +33,9 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 10 | — | `phase-10/ag-shortfall.spec.ts` | @long @stage2 | R3.1, R7 | — |
 | 10 | — | `phase-10/ag-smart.spec.ts` | @long @stage2 | R3.1 | CF-M2 |
 | 10 | — | `phase-10/ag-strategies.spec.ts` | @long @stage2 | R3.1, R5 | — |
+| 10 | — | `phase-10/mp-build-cohort.spec.ts` | @long @stage2 | R6.1, R6.2, R6.3 | CF-M2, CF-M3 |
+| 10 | — | `phase-10/mp-edit-reassign-remove.spec.ts` | @long @stage2 | R6.5, R6.6 | CF-L2 |
+| 10 | — | `phase-10/mp-eligibility.spec.ts` | @long @stage2 | R6.1, R6.4 | — |
 | 2 | J2.7 | `phase-2/availability-editing.spec.ts` | @stage1 | R3.3, R3.4 | P8-d |
 | 2 | J2.4 | `phase-2/clerkship-config.spec.ts` | @stage1 | R4.1, R4.2, R4.3, R4.4 | — |
 | 2 | J2.5, J2.6 | `phase-2/drill-through-and-lists.spec.ts` | @stage1 | R2.1, R2.2, R2.3, R10.x | — |
@@ -146,12 +149,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R5 | ag-strategies.spec.ts, generation-settings-ui.spec.ts |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
-| R6.1 | J3.1, J3.2 |
-| R6.2 | J3.1, J3.2 |
-| R6.3 | J3.1 |
-| R6.4 | J3.1, J7.5 |
-| R6.5 | J3.1, J3.5 |
-| R6.6 | J3.1, J3.5, J3.6 |
+| R6.1 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-eligibility.spec.ts |
+| R6.2 | J3.1, J3.2, mp-build-cohort.spec.ts |
+| R6.3 | J3.1, mp-build-cohort.spec.ts |
+| R6.4 | J3.1, J7.5, mp-eligibility.spec.ts |
+| R6.5 | J3.1, J3.5, mp-edit-reassign-remove.spec.ts |
+| R6.6 | J3.1, J3.5, J3.6, mp-edit-reassign-remove.spec.ts |
 | R6.7 | J3.1, J3.8 |
 | R7 | ag-bypass.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, edit-revalidation.spec.ts, multi-student-generation.spec.ts, mutual-exclusion.spec.ts |
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
@@ -200,11 +203,11 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-J3 | calendar-phase6.spec.ts |
 | CF-K1 | send-schedule.spec.ts |
 | CF-L1 | autogen-sessions.spec.ts, availability-session.spec.ts, day-overbook.spec.ts, multi-student-generation.spec.ts |
-| CF-L2 | autogen-constraints.spec.ts, edit-revalidation.spec.ts, mutual-exclusion.spec.ts |
+| CF-L2 | autogen-constraints.spec.ts, edit-revalidation.spec.ts, mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
 | CF-L3 | autogen-constraints.spec.ts, block-vs-scattered.spec.ts, edit-revalidation.spec.ts |
 | CF-M1 | credit-value.spec.ts |
-| CF-M2 | ag-completion.spec.ts, ag-smart.spec.ts, autogen-constraints.spec.ts, free-day.spec.ts |
-| CF-M3 | exam-assignment.spec.ts |
+| CF-M2 | ag-completion.spec.ts, ag-smart.spec.ts, autogen-constraints.spec.ts, free-day.spec.ts, mp-build-cohort.spec.ts |
+| CF-M3 | exam-assignment.spec.ts, mp-build-cohort.spec.ts |
 | CF-M4 | quarters.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
 | CF-SETTINGS-UI | generation-settings-ui.spec.ts |
@@ -241,8 +244,8 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 | Constraint | Journeys |
 | ---------- | -------- |
-| session_clash | ag-completion.spec.ts, ag-full-honor.spec.ts |
-| mutual_exclusion | mutual-exclusion.spec.ts |
+| session_clash | ag-completion.spec.ts, ag-full-honor.spec.ts, mp-build-cohort.spec.ts |
+| mutual_exclusion | mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
 | block_week_conflict | ag-date-matrix.spec.ts, ag-full-honor.spec.ts |
 | preceptor_capacity | ag-shortfall.spec.ts |
 | preceptor_unavailable | assign-outside-availability.spec.ts |

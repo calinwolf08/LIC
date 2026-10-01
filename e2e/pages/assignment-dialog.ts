@@ -181,6 +181,14 @@ export class AssignmentDialog {
 		await select.selectOption(session);
 	}
 
+	/** Set the assignment type (M2/M3): 'clinical' | 'free_day' | 'exam'. A
+	 * non-clinical kind hides the clerkship/preceptor/site pickers. */
+	async setKind(kind: 'clinical' | 'free_day' | 'exam') {
+		const select = this.page.getByTestId('ad-kind');
+		await expect(select).toBeVisible();
+		await select.selectOption(kind);
+	}
+
 	// ---- read-outs ---------------------------------------------------------
 
 	requirementStrip(): Locator {
@@ -260,12 +268,19 @@ export class AssignmentDialog {
 
 	/** Edit mode: the Remove button, then the confirm dialog. */
 	async remove() {
-		await this.page.getByRole('button', { name: /^remove$/i }).click();
+		// Prefer the dialog's own Remove (testid) so we don't match the confirm
+		// dialog's buttons under strict mode.
+		const removeBtn = this.page.getByTestId('ad-remove');
+		if (await removeBtn.isVisible().catch(() => false)) await removeBtn.click();
+		else await this.page.getByRole('button', { name: /^remove$/i }).first().click();
+		// A confirm dialog only appears for special cases (e.g. removing a past day,
+		// "Remove anyway"). Match those explicitly — never the dialog's own "Remove"
+		// (ad-remove), which would otherwise self-match and hang as it detaches.
 		const confirm = this.page
 			.getByRole('dialog')
 			.last()
 			.getByRole('button', {
-				name: /^(remove|delete|confirm)/i
+				name: /^(remove anyway|delete|confirm)/i
 			});
 		if (await confirm.isVisible().catch(() => false)) await confirm.click();
 	}
