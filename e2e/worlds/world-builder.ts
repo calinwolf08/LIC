@@ -89,6 +89,8 @@ export interface ClerkshipSpec {
 	requiredDays: number;
 	minRequiredDays?: number;
 	kind?: 'block' | 'scattered';
+	/** Force this clerkship's assignment strategy (clerkship config override). */
+	strategy?: 'continuous_single' | 'daily_rotation' | 'block_based' | 'team_continuity';
 	/** Site names this clerkship is allowed at (omit = unrestricted). */
 	sites?: string[];
 	electives?: ElectiveSpec[];
@@ -224,6 +226,15 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 					site_id: siteId(ids, siteName),
 					created_at: ts
 				})))
+				.execute();
+		}
+		if (c.strategy) {
+			// The clerkship-create API inserts a config row in `inherit` mode (global
+			// defaults win). Flip it to `override` so the engine honors the strategy.
+			await db
+				.updateTable('clerkship_configurations')
+				.set({ override_mode: 'override', override_assignment_strategy: c.strategy })
+				.where('clerkship_id', '=', r.data.id)
 				.execute();
 		}
 		for (const e of c.electives ?? []) {

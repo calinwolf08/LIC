@@ -153,3 +153,70 @@ export function shortfallWorld(): WorldSpec {
 		]
 	};
 }
+
+/**
+ * One clerkship needing 2 days, taught by TWO preceptors who are BOTH available on
+ * the same two days, one onboarded student. The clerkship's strategy is forced so
+ * the two strategies produce distinguishable shapes:
+ *   - continuous_single → both days land on the SAME preceptor,
+ *   - daily_rotation    → the two days spread across DIFFERENT preceptors.
+ */
+export function strategyWorld(strategy: 'continuous_single' | 'daily_rotation'): WorldSpec {
+	return {
+		name: `Strategy ${strategy}`,
+		healthSystems: ['Metro'],
+		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', requiredDays: 2, sites: ['Clinic'], strategy }
+		],
+		preceptors: [
+			{
+				name: 'Dr. One',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				availability: [
+					{ day: 0, site: 'Clinic' },
+					{ day: 1, site: 'Clinic' }
+				]
+			},
+			{
+				name: 'Dr. Two',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				availability: [
+					{ day: 0, site: 'Clinic' },
+					{ day: 1, site: 'Clinic' }
+				]
+			}
+		],
+		students: [{ name: 'Alice', onboardedAt: ['Metro'] }]
+	};
+}
+
+/**
+ * A schedule that spans from the past into the future, for smart (minimal-change)
+ * regeneration. One clerkship needing 3 days, one preceptor available on a past day
+ * and several future days. The journey sets `start` to a past Monday, hand-places a
+ * PAST day and a LOCKED future day, then regenerates from today — both must survive.
+ */
+export function smartWorld(): WorldSpec {
+	return {
+		name: 'Smart regen',
+		healthSystems: ['Metro'],
+		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', requiredDays: 3, sites: ['Clinic'] }
+		],
+		preceptors: [
+			{
+				name: 'Dr. FM',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				// day 0 = past Monday (anchor is set to a past Monday by the journey);
+				// 21/22/23/28/29 are future weekdays for the locked day + regeneration.
+				availability: [0, 21, 22, 23, 28, 29].map((day) => ({ day, site: 'Clinic' }))
+			}
+		],
+		students: [{ name: 'Alice', onboardedAt: ['Metro'] }]
+	};
+}

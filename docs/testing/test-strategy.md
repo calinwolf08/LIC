@@ -65,10 +65,11 @@ signal.
 | AG-2 | `onboardingGapWorld` | the dialog's per-constraint **bypass** stamps an accepted override (conflict→override) end to end. |
 | AG-3 | `completionWorld` | **completion** mode fills only the missing day, preserves a locked clinical day and a non-clinical free day, never double-books the free day. |
 | AG-4 | `shortfallWorld` | an oversubscribed world places within capacity, never over-books, and the results page + validator report the shortfall honestly. |
+| AG-5 | `strategyWorld` | the configured assignment strategy drives placement: continuous_single keeps one preceptor across the rotation; daily_rotation spreads the days across preceptors. |
 | AG-6 | `blockScatterWorld(1)` × 3 anchors | L3 holds across calendar alignments (guards the date-sensitive class of bug that hid the original L3 defect). |
+| AG-7 | `smartWorld` | smart (minimal-change) regeneration preserves past + locked days and generates only the remaining future gap. |
 
-AG-5 (strategy variants: continuous / daily-rotation / block-based via the settings
-form) is planned next.
+Phase 1 (auto-generation) is complete.
 
 ### Manual planning (phase-10, planned — Phase 2)
 
