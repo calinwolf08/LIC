@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **80** across 9 phases
+- Spec files: **81** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **54**; findings/decisions mapped: **60**
-- Tags: `@long` ×11, `@smoke` ×2, `@stage1` ×59, `@stage2` ×22, `@tenant` ×1
+- Requirements mapped: **54**; findings/decisions mapped: **61**
+- Tags: `@long` ×12, `@smoke` ×2, `@stage1` ×59, `@stage2` ×23, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -76,6 +76,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/availability-preference.spec.ts` | @stage1 | R3.2 | CF-H8 |
 | 9 | — | `phase-9/availability-session.spec.ts` | @stage1 | R7 | CF-L1 |
 | 9 | — | `phase-9/block-vs-scattered.spec.ts` | @stage1 | R7 | CF-L3 |
+| 9 | — | `phase-9/calendar-export-ui.spec.ts` | @long @stage2 | R8.5 | CF-EXPORT-UI |
 | 9 | — | `phase-9/calendar-phase6.spec.ts` | @stage1 | R8.2 | CF-I3, CF-J1, CF-J2, CF-J3 |
 | 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
 | 9 | — | `phase-9/credit-value.spec.ts` | @stage1 | R4.4 | CF-M1 |
@@ -151,7 +152,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R8.2 | calendar-phase6.spec.ts, J4.1 |
 | R8.3 | J4.1 |
 | R8.4 | J4.2 |
-| R8.5 | J4.3 |
+| R8.5 | calendar-export-ui.spec.ts, J4.3 |
 | R9 | send-schedule.spec.ts |
 | R9.1 | J4.5 |
 | R9.2 | J4.5 |
@@ -171,6 +172,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-DEL | entity-deletion.spec.ts |
 | CF-E2 | allowed-missed-days.spec.ts |
 | CF-E3 | standalone-elective.spec.ts |
+| CF-EXPORT-UI | calendar-export-ui.spec.ts |
 | CF-F1 | preceptor-phone-type.spec.ts |
 | CF-F5 | core-preceptor.spec.ts |
 | CF-G1 | team-single-member.spec.ts |
@@ -225,5 +227,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Guard
 
-No `test.only` / `test.skip` / `test.fixme` in `e2e/journeys` ✅
+> ⚠️ Focused/skipped tests detected:
+> - e2e/journeys/phase-9/autogen-constraints.spec.ts: test.fixme
+> - e2e/journeys/phase-9/generate-ui.spec.ts: test.fixme
 
