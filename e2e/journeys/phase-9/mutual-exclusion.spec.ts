@@ -1,3 +1,4 @@
+// @coverage @constraint(mutual_exclusion)
 // @coverage @finding(CF-L2) @req(R7)
 /**
  * CF-L2 — Preceptor mutual exclusion.

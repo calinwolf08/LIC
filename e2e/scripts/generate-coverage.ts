@@ -15,6 +15,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { REQUIRED_CONSTRAINTS } from '../coverage-catalog';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const JOURNEYS = join(ROOT, 'e2e', 'journeys');
@@ -27,6 +28,8 @@ interface SpecInfo {
 	tags: string[];
 	reqs: string[];
 	findings: string[];
+	constraints: string[];
+	scenarios: string[];
 }
 
 function walk(dir: string): string[] {
@@ -43,8 +46,8 @@ function uniqSort(xs: string[]): string[] {
 	return [...new Set(xs)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-/** Every `@req(X)` / `@finding(Y)` token anywhere in the file. */
-function annotations(src: string, kind: 'req' | 'finding'): string[] {
+/** Every `@req(X)` / `@finding(Y)` / `@constraint(Z)` / `@scenario(S)` token. */
+function annotations(src: string, kind: 'req' | 'finding' | 'constraint' | 'scenario'): string[] {
 	const re = new RegExp(`@${kind}\\(([^)]+)\\)`, 'g');
 	const out: string[] = [];
 	let m: RegExpExecArray | null;
@@ -100,7 +103,9 @@ for (const abs of walk(JOURNEYS)
 		journeys,
 		tags,
 		reqs: uniqSort(annotations(src, 'req')),
-		findings: uniqSort(annotations(src, 'finding'))
+		findings: uniqSort(annotations(src, 'finding')),
+		constraints: uniqSort(annotations(src, 'constraint')),
+		scenarios: uniqSort(annotations(src, 'scenario'))
 	});
 }
 
@@ -108,6 +113,8 @@ for (const abs of walk(JOURNEYS)
 const journeyToSpec = new Map<string, string>();
 const reqToJourneys = new Map<string, Set<string>>();
 const findingToJourneys = new Map<string, Set<string>>();
+const constraintToJourneys = new Map<string, Set<string>>();
+const scenarioToSpec = new Map<string, string>();
 const tagCounts = new Map<string, number>();
 const allJourneys = new Set<string>();
 
@@ -122,7 +129,13 @@ for (const s of specs) {
 		(reqToJourneys.get(r) ?? reqToJourneys.set(r, new Set()).get(r)!).add(label);
 	for (const f of s.findings)
 		(findingToJourneys.get(f) ?? findingToJourneys.set(f, new Set()).get(f)!).add(label);
+	for (const c of s.constraints)
+		(constraintToJourneys.get(c) ?? constraintToJourneys.set(c, new Set()).get(c)!).add(label);
+	for (const sc of s.scenarios) if (!scenarioToSpec.has(sc)) scenarioToSpec.set(sc, s.file);
 }
+
+// Required constraints with no covering journey (the coverage gap gate).
+const uncoveredConstraints = REQUIRED_CONSTRAINTS.filter((c) => !constraintToJourneys.has(c));
 
 // ---- Render --------------------------------------------------------------
 const lines: string[] = [];
@@ -146,6 +159,13 @@ lines.push(`- Journeys: **${allJourneys.size}**`);
 lines.push(
 	`- Requirements mapped: **${reqToJourneys.size}**; findings/decisions mapped: **${findingToJourneys.size}**`
 );
+lines.push(
+	`- Constraints covered: **${constraintToJourneys.size}/${REQUIRED_CONSTRAINTS.length}**${
+		uncoveredConstraints.length ? ` — ⚠️ gaps: ${uncoveredConstraints.join(', ')}` : ' ✅'
+	}`
+);
+if (scenarioToSpec.size)
+	lines.push(`- Scenarios: ${uniqSort([...scenarioToSpec.keys()]).join(', ')}`);
 lines.push(
 	`- Tags: ${uniqSort([...tagCounts.keys()])
 		.map((t) => `\`${t}\` ×${tagCounts.get(t)}`)
@@ -184,8 +204,22 @@ for (const f of uniqSort([...findingToJourneys.keys()])) {
 }
 lines.push('');
 
+lines.push('## Constraint → journeys');
+lines.push('');
+lines.push('| Constraint | Journeys |');
+lines.push('| ---------- | -------- |');
+for (const c of REQUIRED_CONSTRAINTS) {
+	const js = constraintToJourneys.get(c);
+	lines.push(`| ${c} | ${js ? uniqSort([...js]).join(', ') : '— ⚠️ UNCOVERED'} |`);
+}
+lines.push('');
+
 lines.push('## Guard');
 lines.push('');
+if (uncoveredConstraints.length) {
+	lines.push(`> ⚠️ Uncovered required constraints: ${uncoveredConstraints.join(', ')}`);
+	lines.push('');
+}
 if (guardHits.length) {
 	lines.push('> ⚠️ Focused/skipped tests detected:');
 	for (const h of guardHits) lines.push(`> - ${h}`);
@@ -210,6 +244,12 @@ if (check) {
 	}
 	if (guardHits.length) {
 		console.error('Focused/skipped tests present:\n' + guardHits.join('\n'));
+		process.exit(1);
+	}
+	if (uncoveredConstraints.length) {
+		console.error(
+			'Required constraints with no covering journey:\n  ' + uncoveredConstraints.join(', ')
+		);
 		process.exit(1);
 	}
 	console.log('e2e/COVERAGE.md is up to date.');

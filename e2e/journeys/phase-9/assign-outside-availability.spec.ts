@@ -1,3 +1,4 @@
+// @coverage @constraint(preceptor_unavailable)
 // @coverage @finding(CF-I1) @req(R3.6) @req(R7.4)
 /**
  * CF-I1 — Assigning a preceptor on a day outside their availability is allowed

@@ -1,3 +1,4 @@
+// @coverage @constraint(blackout_date)
 // @coverage @req(R8.4)
 // @coverage @finding(P4-d) @finding(P4-e)
 /**

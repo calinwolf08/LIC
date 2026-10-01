@@ -1,3 +1,4 @@
+// @coverage @constraint(site_not_allowed)
 // @coverage @req(R1.3)
 // @coverage @finding(D7-3) @finding(D7-4)
 /**

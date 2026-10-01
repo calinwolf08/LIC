@@ -9,10 +9,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **82** across 9 phases
+- Spec files: **87** across 10 phases
 - Journeys: **46**
 - Requirements mapped: **55**; findings/decisions mapped: **62**
-- Tags: `@long` ×13, `@smoke` ×2, `@stage1` ×59, `@stage2` ×24, `@tenant` ×1
+- Constraints covered: **14/14** ✅
+- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-6
+- Tags: `@long` ×18, `@smoke` ×2, `@stage1` ×59, `@stage2` ×29, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -24,6 +26,11 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 1 | J1.2 | `phase-1/schedule-lifecycle.spec.ts` | @stage1 | R1.3 | P1-c |
 | 1 | J1.3 | `phase-1/schedule-scoping.spec.ts` | @stage1 @tenant | R1.3 | F-02, F-03, F-04, F-27 |
 | 1 | J1.4 | `phase-1/shell-and-gating.spec.ts` | @stage1 | G1, G7, R1.1, R1.2, R10.x | — |
+| 10 | — | `phase-10/ag-bypass.spec.ts` | @long @stage2 | R3.1, R7 | — |
+| 10 | — | `phase-10/ag-completion.spec.ts` | @long @stage2 | R3.1 | CF-M2 |
+| 10 | — | `phase-10/ag-date-matrix.spec.ts` | @long @stage2 | R3.1 | — |
+| 10 | — | `phase-10/ag-full-honor.spec.ts` | @long @stage2 | R3.1, R7, R8 | — |
+| 10 | — | `phase-10/ag-shortfall.spec.ts` | @long @stage2 | R3.1, R7 | — |
 | 2 | J2.7 | `phase-2/availability-editing.spec.ts` | @stage1 | R3.3, R3.4 | P8-d |
 | 2 | J2.4 | `phase-2/clerkship-config.spec.ts` | @stage1 | R4.1, R4.2, R4.3, R4.4 | — |
 | 2 | J2.5, J2.6 | `phase-2/drill-through-and-lists.spec.ts` | @stage1 | R2.1, R2.2, R2.3, R10.x | — |
@@ -124,7 +131,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R2.1 | J2.3, J2.5, J2.6, J3.7 |
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
-| R3.1 | generate-ui.spec.ts, J2.2, J3.1, J5.1 |
+| R3.1 | ag-bypass.spec.ts, ag-completion.spec.ts, ag-date-matrix.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, generate-ui.spec.ts, J2.2, J3.1, J5.1 |
 | R3.2 | availability-empty-pattern.spec.ts, availability-notes.spec.ts, availability-preference-consumption.spec.ts, availability-preference.spec.ts, J2.2 |
 | R3.3 | availability-empty-pattern.spec.ts, J2.2, J2.7 |
 | R3.4 | J2.2, J2.7, J3.9, J4.5 |
@@ -144,12 +151,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R6.5 | J3.1, J3.5 |
 | R6.6 | J3.1, J3.5, J3.6 |
 | R6.7 | J3.1, J3.8 |
-| R7 | autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, edit-revalidation.spec.ts, multi-student-generation.spec.ts, mutual-exclusion.spec.ts |
+| R7 | ag-bypass.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, edit-revalidation.spec.ts, multi-student-generation.spec.ts, mutual-exclusion.spec.ts |
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
 | R7.4 | assign-outside-availability.spec.ts, core-preceptor.spec.ts, J3.3, J4.4 |
-| R8 | autogen-constraints.spec.ts, exam-assignment.spec.ts, free-day.spec.ts, quarters.spec.ts |
+| R8 | ag-full-honor.spec.ts, autogen-constraints.spec.ts, exam-assignment.spec.ts, free-day.spec.ts, quarters.spec.ts |
 | R8.1 | J4.1 |
 | R8.2 | calendar-phase6.spec.ts, J4.1 |
 | R8.3 | J4.1 |
@@ -194,7 +201,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-L2 | autogen-constraints.spec.ts, edit-revalidation.spec.ts, mutual-exclusion.spec.ts |
 | CF-L3 | autogen-constraints.spec.ts, block-vs-scattered.spec.ts, edit-revalidation.spec.ts |
 | CF-M1 | credit-value.spec.ts |
-| CF-M2 | autogen-constraints.spec.ts, free-day.spec.ts |
+| CF-M2 | ag-completion.spec.ts, autogen-constraints.spec.ts, free-day.spec.ts |
 | CF-M3 | exam-assignment.spec.ts |
 | CF-M4 | quarters.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
@@ -227,6 +234,25 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | P8-c | J3.10 |
 | P8-d | J2.7 |
 | P8-e | J7.7 |
+
+## Constraint → journeys
+
+| Constraint | Journeys |
+| ---------- | -------- |
+| session_clash | ag-completion.spec.ts, ag-full-honor.spec.ts |
+| mutual_exclusion | mutual-exclusion.spec.ts |
+| block_week_conflict | ag-date-matrix.spec.ts, ag-full-honor.spec.ts |
+| preceptor_capacity | ag-shortfall.spec.ts |
+| preceptor_unavailable | assign-outside-availability.spec.ts |
+| not_onboarded | ag-bypass.spec.ts |
+| outside_core_preceptor | core-preceptor.spec.ts |
+| preferred_day_available | availability-preference-consumption.spec.ts |
+| over_required_days | J7.1 |
+| site_not_allowed | J7.2 |
+| blackout_date | J4.2 |
+| outside_schedule | J7.7 |
+| past_date | J7.3 |
+| entity_missing | J3.4 |
 
 ## Guard
 

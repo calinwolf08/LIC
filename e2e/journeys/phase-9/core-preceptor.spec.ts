@@ -1,3 +1,4 @@
+// @coverage @constraint(outside_core_preceptor)
 // @coverage @finding(CF-F5) @req(R7.4)
 /**
  * CF-F5 — Core preceptors: assigning a student to a preceptor outside their core

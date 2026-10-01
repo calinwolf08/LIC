@@ -1,3 +1,4 @@
+// @coverage @constraint(preferred_day_available)
 // @coverage @finding(CF-H8) @req(R3.2)
 /**
  * CF-H8 (consumption) — the availability preference field is actually *used*.
