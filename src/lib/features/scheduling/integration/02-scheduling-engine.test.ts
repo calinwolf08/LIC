@@ -571,6 +571,97 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		});
 	});
 
+	describe('Test 10b: Blackout dates are schedule-scoped', () => {
+		it('does not apply another schedule\'s blackout to this schedule\'s generation', async () => {
+			// Regression guard: strategy-context used to read ALL blackout_dates, so a
+			// blackout on a *different* schedule removed a candidate day here. That broke
+			// L3 in the real pipeline (a seeded Demo blackout landed on the only valid
+			// free-week day for a sandbox). Blackouts must be scoped to the schedule.
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Scoped Clinic');
+			const day = '2025-02-03'; // Monday
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 1
+			});
+			const [studentId] = await createTestStudents(db, 1);
+			const [preceptorId] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId
+			});
+			await createCapacityRule(db, preceptorId, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			await createPreceptorAvailability(db, preceptorId, siteIds[0], [day]);
+
+			const ts = new Date().toISOString();
+			// This schedule (A) owns the entities; schedule B is a separate schedule that
+			// has a blackout on exactly `day`.
+			await db.insertInto('scheduling_periods').values([
+				{ id: 'sched-A', name: 'A', start_date: day, end_date: day, created_at: ts, updated_at: ts },
+				{ id: 'sched-B', name: 'B', start_date: day, end_date: day, created_at: ts, updated_at: ts }
+			]).execute();
+			await db.insertInto('schedule_clerkships').values({ id: 'sc-A', schedule_id: 'sched-A', clerkship_id: clerkshipId, created_at: ts }).execute();
+			await db.insertInto('schedule_preceptors').values({ id: 'sp-A', schedule_id: 'sched-A', preceptor_id: preceptorId, created_at: ts }).execute();
+			await db.insertInto('schedule_sites').values({ id: 'ss-A', schedule_id: 'sched-A', site_id: siteIds[0], created_at: ts }).execute();
+			await db.insertInto('blackout_dates').values({ id: 'bo-B', schedule_id: 'sched-B', date: day, reason: 'Other schedule holiday', created_at: ts }).execute();
+
+			await engine.schedule([studentId], [clerkshipId], {
+				startDate: day,
+				endDate: day,
+				scheduleId: 'sched-A',
+				dryRun: false
+			});
+
+			// Schedule B's blackout must not have removed `day` from schedule A.
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['date'])
+				.where('student_id', '=', studentId)
+				.execute();
+			expect(rows.map((r) => r.date)).toEqual([day]);
+		});
+
+		it('still applies this schedule\'s own blackout', async () => {
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Own Blackout Clinic');
+			const day = '2025-02-10'; // Monday
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 1
+			});
+			const [studentId] = await createTestStudents(db, 1);
+			const [preceptorId] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId
+			});
+			await createCapacityRule(db, preceptorId, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			await createPreceptorAvailability(db, preceptorId, siteIds[0], [day]);
+
+			const ts = new Date().toISOString();
+			await db.insertInto('scheduling_periods').values({ id: 'sched-own', name: 'Own', start_date: day, end_date: day, created_at: ts, updated_at: ts }).execute();
+			await db.insertInto('schedule_clerkships').values({ id: 'sc-own', schedule_id: 'sched-own', clerkship_id: clerkshipId, created_at: ts }).execute();
+			await db.insertInto('schedule_preceptors').values({ id: 'sp-own', schedule_id: 'sched-own', preceptor_id: preceptorId, created_at: ts }).execute();
+			await db.insertInto('schedule_sites').values({ id: 'ss-own', schedule_id: 'sched-own', site_id: siteIds[0], created_at: ts }).execute();
+			await db.insertInto('blackout_dates').values({ id: 'bo-own', schedule_id: 'sched-own', date: day, reason: 'Own holiday', created_at: ts }).execute();
+
+			await engine.schedule([studentId], [clerkshipId], {
+				startDate: day,
+				endDate: day,
+				scheduleId: 'sched-own',
+				dryRun: false
+			});
+
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['date'])
+				.where('student_id', '=', studentId)
+				.execute();
+			// The only candidate day is blacked out for THIS schedule → nothing placed.
+			expect(rows).toHaveLength(0);
+		});
+	});
+
 	describe('Test 7: Capacity Enforcement', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup

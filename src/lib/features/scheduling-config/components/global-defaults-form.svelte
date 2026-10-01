@@ -215,6 +215,7 @@
 										<Label>Max Students Per Day</Label>
 										<Input
 											type="number"
+											data-testid="outpatient-max-per-day"
 											bind:value={outpatientDefaults.defaultMaxStudentsPerDay}
 											min="1"
 										/>
@@ -231,7 +232,11 @@
 								</div>
 
 								<div class="flex justify-end">
-									<Button onclick={saveOutpatientDefaults} disabled={saving}>
+									<Button
+										data-testid="save-outpatient-defaults"
+										onclick={saveOutpatientDefaults}
+										disabled={saving}
+									>
 										{saving ? 'Saving...' : 'Save Outpatient Defaults'}
 									</Button>
 								</div>

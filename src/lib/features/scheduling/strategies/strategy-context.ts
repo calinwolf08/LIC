@@ -60,7 +60,8 @@ export class StrategyContextBuilder {
       student,
       options.startDate,
       options.endDate,
-      pendingAssignments
+      pendingAssignments,
+      options.scheduleId
     );
 
     // Get available preceptors (with pending assignment counts)
@@ -146,13 +147,20 @@ export class StrategyContextBuilder {
     student: Student,
     startDate?: string,
     endDate?: string,
-    pendingAssignments: PendingAssignment[] = []
+    pendingAssignments: PendingAssignment[] = [],
+    scheduleId?: string
   ): Promise<string[]> {
-    // Get blackout dates
-    const blackouts = await this.db
-      .selectFrom('blackout_dates')
-      .select('date')
-      .execute();
+    // Get blackout dates. Blackouts are schedule-scoped (finding P4-d), so when a
+    // schedule is known, only this schedule's blackouts (and any global ones with no
+    // schedule_id) apply — otherwise another schedule's blackouts would wrongly
+    // remove candidate days from this schedule's generation.
+    let blackoutQuery = this.db.selectFrom('blackout_dates').select('date');
+    if (scheduleId) {
+      blackoutQuery = blackoutQuery.where((eb) =>
+        eb.or([eb('schedule_id', '=', scheduleId), eb('schedule_id', 'is', null)])
+      );
+    }
+    const blackouts = await blackoutQuery.execute();
 
     const blackoutSet = new Set(blackouts.map(b => b.date));
 

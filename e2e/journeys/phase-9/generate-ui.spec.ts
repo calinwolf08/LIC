@@ -132,17 +132,11 @@ test.describe('CF-GEN-UI generate via the real dialog button', { tag: ['@stage2'
 		expect(await results.getAttribute('data-complete')).toBe('true');
 	});
 
-	// KNOWN BUG (as of 2026-10-01): the full generation pipeline violates the L3
-	// block-week constraint. Root cause: the engine correctly forbids the block
-	// week and filters the scattered preceptor's availability to the free-week day,
-	// but strategy-context's `availableDates` ends up missing that same free-week
-	// day, so the main strategy can't place the scattered requirement and the
-	// FALLBACK gap-filler places it inside the block week (ignoring L3). The engine
-	// unit/integration test (02-scheduling-engine Test 10) passes with simpler data,
-	// but the real generate pipeline fails — the pre-existing API-level
-	// autogen-constraints "L3" test fails for the same reason. Marked fixme until
-	// the pipeline bug is fixed; this test is the UI-path regression guard for it.
-	test.fixme('full-mode Apply honors the L3 block-week constraint (UI passes gated options to the engine)', async ({
+	// Regression guard for the L3 block-week pipeline bug: a schedule-scoped blackout
+	// from another schedule used to leak into availableDates (strategy-context read
+	// blackouts unscoped), removing the only valid free-week day so the fallback put
+	// the scattered day in the block week. Fixed by scoping the blackout read.
+	test('full-mode Apply honors the L3 block-week constraint (UI passes gated options to the engine)', async ({
 		asAdmin,
 		sandbox,
 		db

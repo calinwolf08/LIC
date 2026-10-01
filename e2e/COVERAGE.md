@@ -9,10 +9,10 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **81** across 9 phases
+- Spec files: **82** across 9 phases
 - Journeys: **46**
-- Requirements mapped: **54**; findings/decisions mapped: **61**
-- Tags: `@long` ×12, `@smoke` ×2, `@stage1` ×59, `@stage2` ×23, `@tenant` ×1
+- Requirements mapped: **55**; findings/decisions mapped: **62**
+- Tags: `@long` ×13, `@smoke` ×2, `@stage1` ×59, `@stage2` ×24, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -86,6 +86,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 9 | — | `phase-9/exam-assignment.spec.ts` | @stage1 | R8 | CF-M3 |
 | 9 | — | `phase-9/free-day.spec.ts` | @stage1 | R8 | CF-M2 |
 | 9 | — | `phase-9/generate-ui.spec.ts` | @long @stage2 | R3.1 | CF-GEN-UI |
+| 9 | — | `phase-9/generation-settings-ui.spec.ts` | @long @stage2 | R5 | CF-SETTINGS-UI |
 | 9 | — | `phase-9/multi-student-generation.spec.ts` | @long @stage2 | R7 | CF-L1 |
 | 9 | — | `phase-9/mutual-exclusion.spec.ts` | @stage1 | R7 | CF-L2 |
 | 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
@@ -133,6 +134,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R4.2 | J2.4, J3.7, J7.1, J7.7 |
 | R4.3 | J2.4, J3.7, J7.7 |
 | R4.4 | allowed-missed-days.spec.ts, credit-value.spec.ts, J2.4, standalone-elective.spec.ts |
+| R5 | generation-settings-ui.spec.ts |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
 | R6.1 | J3.1, J3.2 |
@@ -196,6 +198,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-M3 | exam-assignment.spec.ts |
 | CF-M4 | quarters.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
+| CF-SETTINGS-UI | generation-settings-ui.spec.ts |
 | D5-1 | J5.3 |
 | D7-1 | J7.1 |
 | D7-2 | J7.4 |
@@ -227,7 +230,5 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Guard
 
-> ⚠️ Focused/skipped tests detected:
-> - e2e/journeys/phase-9/autogen-constraints.spec.ts: test.fixme
-> - e2e/journeys/phase-9/generate-ui.spec.ts: test.fixme
+No `test.only` / `test.skip` / `test.fixme` in `e2e/journeys` ✅
 
