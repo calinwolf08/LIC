@@ -1,18 +1,22 @@
-// @coverage @finding(CF-L2) @finding(CF-L3) @finding(CF-M2) @req(R7) @req(R8)
+// @coverage @finding(CF-L2) @finding(CF-M2) @req(R7) @req(R8)
 /**
- * Auto-generation honors the Phase 7/8 scheduling constraints.
+ * Engine-only auto-generation guarantees that the phase-10 AG mega-journeys do
+ * NOT cover (Phase 3 consolidation leaves only these here):
+ *   - L2: the engine never places two mutually-exclusive preceptors for a student
+ *     on a day. No AG world carries a mutual-exclusion rule, so this is the sole
+ *     coverage of the engine's L2 *auto-avoidance* (the manual-override side is
+ *     MP-2 / mutual-exclusion.spec.ts).
+ *   - full-reoptimize preserves a hand-placed non-clinical day: a full rebuild
+ *     deletes and regenerates future clinical days but must keep the coordinator's
+ *     free day. AG-3 proves this for *completion* mode; this proves it for the
+ *     destructive *full-reoptimize* mode, which no AG journey exercises over a
+ *     pre-placed free day.
  *
- * The manual side (dialog warnings + conflict panel) is covered by
- * mutual-exclusion / block-vs-scattered / free-day. This drives the REAL
- * `/api/schedules/generate` endpoint (the gated tier) to prove the engine
- * *applies* each constraint when it should:
- *   - L2: it never places two mutually-exclusive preceptors for a student on a day.
- *   - L3: it keeps a scattered (outpatient) clerkship out of a week an inpatient
- *     block consumes.
- *   - M2/M3: it won't place a clinical day on a date the student already holds a
- *     non-clinical (free/exam) day — the day is session-occupied.
- *
- * Each test stands up its own workable sandbox so the assertion is unambiguous.
+ * The L3 block-week and M2/M3 "no clinical on a non-clinical day" auto cases this
+ * file used to carry are now owned, end to end through the real Generate dialog, by
+ * AG-1 (block/scatter at scale) and AG-3 (completion preserves + never double-books
+ * the free day). Driven here through the REAL `/api/schedules/generate` endpoint;
+ * each test stands up its own workable sandbox so the assertion is unambiguous.
  */
 
 import { test, expect, apiOf, assignmentsForSchedule, fromToday } from '../../fixtures';
@@ -29,17 +33,13 @@ function futureWeekday(atLeast: number): string {
 		n++;
 	}
 }
-function mondayAtLeast(atLeast: number): string {
-	let n = atLeast;
-	for (;;) {
-		const d = fromToday(n);
-		if (new Date(`${d}T00:00:00Z`).getUTCDay() === 1) return d;
-		n++;
-	}
-}
-function addDays(date: string, days: number): string {
+/** The first weekday strictly after `date` — so two "future weekdays" never collide
+ * onto the same Monday when today's weekday makes their offsets line up. */
+function nextWeekday(date: string): string {
 	const d = new Date(`${date}T00:00:00Z`);
-	d.setUTCDate(d.getUTCDate() + days);
+	do {
+		d.setUTCDate(d.getUTCDate() + 1);
+	} while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
 	return d.toISOString().slice(0, 10);
 }
 
@@ -146,195 +146,15 @@ test.describe('auto-generation honors scheduling constraints', { tag: ['@stage2'
 		expect(onDay.length).toBe(1);
 	});
 
-	test('L3: the generator keeps a scattered clerkship out of a block week', async ({
-		asAdmin,
-		sandbox,
-		db
-	}) => {
-		test.setTimeout(180000);
-		const kysely = db as Kysely<DB>;
-		const api = apiOf(asAdmin);
-		const stamp = Date.now();
-		const blockMon = mondayAtLeast(8);
-		const sameWeekWed = addDays(blockMon, 2);
-		const nextMon = addDays(blockMon, 7);
-
-		const sb = await createSandboxSchedule(asAdmin, {
-			name: `AG-L3 ${stamp}`,
-			start: blockMon,
-			end: addDays(nextMon, 2)
-		});
-		sandbox.register(sb);
-		const hsId = (await api.post<{ id: string }>('/api/health-systems', { name: `HS ${stamp}` })).data!
-			.id;
-		// Two sites so each preceptor is eligible for exactly one clerkship (eligibility
-		// is clerkship-site ∩ preceptor-availability-site).
-		const siteBlock = (
-			await api.post<{ id: string }>('/api/sites', { name: `SiteB ${stamp}`, health_system_id: hsId })
-		).data!.id;
-		const siteScatter = (
-			await api.post<{ id: string }>('/api/sites', { name: `SiteS ${stamp}`, health_system_id: hsId })
-		).data!.id;
-
-		const clerkBlock = (
-			await api.post<{ id: string }>('/api/clerkships', {
-				name: `Block ${stamp}`,
-				required_days: 1,
-				clerkship_type: 'inpatient',
-				scheduling_kind: 'block'
-			})
-		).data!.id;
-		const clerkScatter = (
-			await api.post<{ id: string }>('/api/clerkships', {
-				name: `Scatter ${stamp}`,
-				required_days: 1,
-				clerkship_type: 'outpatient',
-				scheduling_kind: 'scattered'
-			})
-		).data!.id;
-		const precBlock = (
-			await api.post<{ id: string }>('/api/preceptors', {
-				name: `Dr Block ${stamp}`,
-				email: `blk_${stamp}@x.com`,
-				max_students: 5,
-				health_system_id: hsId,
-				site_ids: [siteBlock]
-			})
-		).data!.id;
-		const precScatter = (
-			await api.post<{ id: string }>('/api/preceptors', {
-				name: `Dr Scatter ${stamp}`,
-				email: `sct_${stamp}@x.com`,
-				max_students: 5,
-				health_system_id: hsId,
-				site_ids: [siteScatter]
-			})
-		).data!.id;
-		const studentId = (
-			await api.post<{ id: string }>('/api/students', { name: `S ${stamp}`, email: `s_${stamp}@x.com` })
-		).data!.id;
-
-		const ts = new Date().toISOString();
-		await kysely
-			.insertInto('clerkship_sites')
-			.values([
-				{ clerkship_id: clerkBlock, site_id: siteBlock, created_at: ts },
-				{ clerkship_id: clerkScatter, site_id: siteScatter, created_at: ts }
-			])
-			.execute();
-		await kysely
-			.insertInto('student_health_system_onboarding')
-			.values({
-				id: crypto.randomUUID(),
-				student_id: studentId,
-				health_system_id: hsId,
-				is_completed: 1,
-				created_at: ts,
-				updated_at: ts
-			})
-			.execute();
-		// Block preceptor only on blockMon (at its site); scatter preceptor in the block
-		// week AND the next (free) week (at its site).
-		await kysely
-			.insertInto('preceptor_availability')
-			.values([
-				{ id: crypto.randomUUID(), preceptor_id: precBlock, site_id: siteBlock, date: blockMon, is_available: 1, session: 'full', credit_value: 1, created_at: ts, updated_at: ts },
-				{ id: crypto.randomUUID(), preceptor_id: precScatter, site_id: siteScatter, date: sameWeekWed, is_available: 1, session: 'full', credit_value: 1, created_at: ts, updated_at: ts },
-				{ id: crypto.randomUUID(), preceptor_id: precScatter, site_id: siteScatter, date: nextMon, is_available: 1, session: 'full', credit_value: 1, created_at: ts, updated_at: ts }
-			])
-			.execute();
-
-		expect((await api.post('/api/schedules/generate', { startDate: blockMon, endDate: addDays(nextMon, 2), strategy: 'full-reoptimize' })).ok).toBe(true);
-
-		const rows = (await assignmentsForSchedule(kysely, sb.id)).filter((r) => r.student_id === studentId);
-		const block = rows.find((r) => r.clerkship_id === clerkBlock);
-		const scatter = rows.find((r) => r.clerkship_id === clerkScatter);
-		expect(block?.date).toBe(blockMon);
-		// The scattered day landed in the free week, never in the block's week.
-		expect(scatter?.date).toBe(nextMon);
-		expect(scatter?.date).not.toBe(sameWeekWed);
-	});
-
-	test('M2/M3: the generator will not place a clinical day on a student\'s free day', async ({
-		asAdmin,
-		sandbox,
-		db
-	}) => {
-		test.setTimeout(180000);
-		const kysely = db as Kysely<DB>;
-		const api = apiOf(asAdmin);
-		const stamp = Date.now();
-		const day = futureWeekday(8);
-		const end = futureWeekday(15);
-
-		const sb = await createSandboxSchedule(asAdmin, { name: `AG-NC ${stamp}`, start: day, end });
-		sandbox.register(sb);
-		const hsId = (await api.post<{ id: string }>('/api/health-systems', { name: `HS ${stamp}` })).data!
-			.id;
-		const siteId = (
-			await api.post<{ id: string }>('/api/sites', { name: `Site ${stamp}`, health_system_id: hsId })
-		).data!.id;
-		const clerkA = (
-			await api.post<{ id: string }>('/api/clerkships', {
-				name: `A ${stamp}`,
-				required_days: 1,
-				clerkship_type: 'outpatient'
-			})
-		).data!.id;
-		const precA = (
-			await api.post<{ id: string }>('/api/preceptors', {
-				name: `Dr A ${stamp}`,
-				email: `a_${stamp}@x.com`,
-				max_students: 5,
-				health_system_id: hsId,
-				site_ids: [siteId]
-			})
-		).data!.id;
-		const studentId = (
-			await api.post<{ id: string }>('/api/students', { name: `S ${stamp}`, email: `s_${stamp}@x.com` })
-		).data!.id;
-
-		const ts = new Date().toISOString();
-		await kysely.insertInto('clerkship_sites').values({ clerkship_id: clerkA, site_id: siteId, created_at: ts }).execute();
-		await kysely
-			.insertInto('student_health_system_onboarding')
-			.values({ id: crypto.randomUUID(), student_id: studentId, health_system_id: hsId, is_completed: 1, created_at: ts, updated_at: ts })
-			.execute();
-		// The preceptor is available only on `day`.
-		await kysely
-			.insertInto('preceptor_availability')
-			.values({ id: crypto.randomUUID(), preceptor_id: precA, site_id: siteId, date: day, is_available: 1, session: 'full', credit_value: 1, created_at: ts, updated_at: ts })
-			.execute();
-		// The student already has a full-day free day on `day` (occupies the whole day).
-		expect(
-			(
-				await api.post('/api/schedules/assignments', {
-					student_id: studentId,
-					kind: 'free_day',
-					date: day,
-					override_codes: ['outside_schedule', 'blackout_date', 'session_clash']
-				})
-			).ok
-		).toBe(true);
-
-		expect((await api.post('/api/schedules/generate', { startDate: day, endDate: end, strategy: 'completion' })).ok).toBe(true);
-
-		const onDay = (await assignmentsForSchedule(kysely, sb.id)).filter(
-			(r) => r.student_id === studentId && r.date === day
-		);
-		// Only the free day holds `day`; the generator placed no clinical row there.
-		expect(onDay.filter((r) => r.kind === 'clinical').length).toBe(0);
-		expect(onDay.some((r) => r.kind === 'free_day')).toBe(true);
-	});
-
 	test('regeneration preserves a student\'s non-clinical days', async ({ asAdmin, sandbox, db }) => {
 		test.setTimeout(180000);
 		const kysely = db as Kysely<DB>;
 		const api = apiOf(asAdmin);
 		const stamp = Date.now();
 		const clinicalDay = futureWeekday(8);
-		const freeDay = futureWeekday(10);
+		const freeDay = nextWeekday(clinicalDay); // always a distinct later weekday
 		const end = futureWeekday(20);
+		expect(freeDay).not.toBe(clinicalDay);
 
 		const sb = await createSandboxSchedule(asAdmin, { name: `AG-REGEN ${stamp}`, start: clinicalDay, end });
 		sandbox.register(sb);

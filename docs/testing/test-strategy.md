@@ -81,6 +81,40 @@ Phase 1 (auto-generation) is complete.
 
 Phase 2 (manual planning) is complete.
 
+## Two-tier structure & consolidation (Phase 3)
+
+The suite is deliberately two tiers:
+
+1. **Mega-journeys (`phase-10/`)** own the *combinatorial* coverage — realistic
+   cohorts, several constraints and actions in one flow, every surface cross-checked.
+   They are the primary coverage for auto-generation (AG-1…AG-7) and manual planning
+   (MP-1…MP-3).
+2. **Focused specs (`phase-9/` and the phased journeys)** each guard exactly *one*
+   engine guarantee or UI entry point that the mega-journeys deliberately do not
+   exercise. They stay because deleting them would lose real coverage, not because
+   they are redundant.
+
+Phase 3 removed the specs that the mega-journeys genuinely subsume (same behavior,
+same UI path, equal-or-stronger assertions). The ledger below is the record so a
+later reviewer can see *why* something was removed and *where* its coverage now
+lives — if a mega-journey that absorbed a case is ever weakened, this table says
+what it must keep proving.
+
+| Retired / slimmed | What it proved | Now owned by |
+|-------------------|----------------|--------------|
+| `phase-9/multi-student-generation.spec.ts` (retired) | multi-student full gen with 0 false conflicts; capacity/availability shortfall places what it can and reports unmet | **AG-1** (multi-student, exact placements, 0 conflicts, through the real dialog) + **AG-4** (shortfall within capacity, honest unmet on the results page) |
+| `phase-9/generate-ui.spec.ts` (retired) | the real Generate **button** runs the engine; full-mode L3 through the UI | **AG-1…AG-7** all click the real Apply button; **AG-1/AG-6** prove L3 through it; full-mode clear/replace semantics are **J5.2** (`phase-5/regenerate`) |
+| `phase-9/autogen-constraints.spec.ts` (slimmed 5→2) | L2 auto-avoid; L3 auto-avoid; M2/M3 no-clinical-on-free-day; full-reoptimize preserves non-clinical | L3 → **AG-1**; M2/M3 (completion) → **AG-3**. **Kept** here: L2 auto-avoidance (no AG world has a mutual-exclusion rule) and full-reoptimize-preserves-non-clinical (AG-3 only proves *completion* mode) |
+
+Focused specs intentionally **kept** because no mega-journey reproduces them:
+`autogen-sessions` / `availability-session` / `day-overbook` (AM+PM half-day packing
+and the "two half-days on one date is clean" guarantee), `block-vs-scattered` and
+`edit-revalidation` (the *manual* dialog warn→override→panel path for
+block_week_conflict, and L3-via-edit), `mutual-exclusion` (setting the rule through
+the preceptor-page **rule editor** UI), `generation-settings-ui` (the global-defaults
+**form**, not an API strategy override). None of these carry `@constraint`
+annotations, so the 14/14 constraint gate is unaffected by the retirements.
+
 ## What stays at unit/integration level (deliberately not e2e)
 
 Pure logic keeps fast, localized tests and is **referenced**, not duplicated, in
