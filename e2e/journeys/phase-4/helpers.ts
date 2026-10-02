@@ -23,6 +23,21 @@ export function futureWeekday(atLeast: number): string {
 }
 
 /**
+ * The first weekday strictly after `date`. Use this to derive a *distinct* second
+ * date instead of a second `futureWeekday(n+k)` call with a small `k`: two offset
+ * picks `futureWeekday(a)`/`futureWeekday(b)` collapse onto the same weekday when a
+ * weekend falls in `[a, b]` (e.g. offsets 8 and 9 both resolve to the next Monday on
+ * a Friday/Saturday), which silently breaks tests that assume two different dates.
+ */
+export function nextWeekday(date: string): string {
+	const d = new Date(`${date}T00:00:00Z`);
+	do {
+		d.setUTCDate(d.getUTCDate() + 1);
+	} while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+	return d.toISOString().slice(0, 10);
+}
+
+/**
  * The first weekday `atLeast` days out on which NONE of `studentIds` already has
  * an assignment on ANY schedule. The DB enforces a global UNIQUE(student_id,
  * date), so the seeded Demo rows must be avoided when placing sandbox rows.

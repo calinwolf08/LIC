@@ -22,6 +22,15 @@ function futureWeekday(atLeast: number): string {
 		n++;
 	}
 }
+/** The first weekday strictly after `date` — so two "future weekdays" never collide
+ * onto the same Monday when today's weekday makes their offsets line up. */
+function nextWeekday(date: string): string {
+	const d = new Date(`${date}T00:00:00Z`);
+	do {
+		d.setUTCDate(d.getUTCDate() + 1);
+	} while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+	return d.toISOString().slice(0, 10);
+}
 
 const SAFETY = [
 	'block_week_conflict',
@@ -57,7 +66,8 @@ test.describe('CF-K1 send schedule', { tag: ['@stage1'] }, () => {
 		expect(studentA && studentB && studentA.id !== studentB.id).toBeTruthy();
 
 		const day = futureWeekday(9);
-		const day2 = futureWeekday(11);
+		const day2 = nextWeekday(day); // always a distinct later weekday (never collides with `day`)
+		expect(day2).not.toBe(day);
 		// Student A: an AM half-day with Amanda (L1) on `day`, plus a free day (M2) on
 		// `day2`. Student B: a full day with James on `day`. This lets the preview prove
 		// session rendering and that a non-clinical day surfaces only in the student's

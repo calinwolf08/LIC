@@ -25,7 +25,7 @@
 import { test, expect, apiOf, type Page } from '../../fixtures';
 import { createSandboxSchedule } from '../../fixtures/sandbox';
 import { activeScheduleId } from '../../fixtures/api';
-import { futureWeekday, createAssignment } from '../phase-4/helpers';
+import { futureWeekday, nextWeekday, createAssignment } from '../phase-4/helpers';
 import type { Kysely } from 'kysely';
 import type { DB } from '../../../src/lib/db/types';
 
@@ -107,19 +107,23 @@ test.describe('J7.4 dependency-deletion chain', { tag: ['@long', '@stage1'] }, (
 			.execute();
 
 		// One core assignment and one elective assignment (the elective's dependent).
+		// The two dates must be distinct; derive the second from the first so a weekend
+		// between offsets 8 and 9 can never collapse them onto the same weekday.
+		const coreDate = futureWeekday(8);
+		const electiveDate = nextWeekday(coreDate);
 		const coreId = await createAssignment(asAdmin, {
 			student_id: studentId,
 			preceptor_id: preceptorId,
 			clerkship_id: clerkshipId,
 			site_id: siteId,
-			date: futureWeekday(8)
+			date: coreDate
 		});
 		const electiveAssignmentId = await createAssignment(asAdmin, {
 			student_id: studentId,
 			preceptor_id: preceptorId,
 			clerkship_id: clerkshipId,
 			site_id: siteId,
-			date: futureWeekday(9),
+			date: electiveDate,
 			// elective days ride on the create payload
 			...({ elective_id: electiveId } as Record<string, unknown>)
 		});
