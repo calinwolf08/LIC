@@ -331,6 +331,25 @@ export interface ScheduleHealthSystems {
   schedule_id: string;
 }
 
+export interface SchedulePlanPins {
+  clerkship_id: string | null;
+  created_at: Generated<string>;
+  credit_value: Generated<number>;
+  date: string;
+  elective_id: string | null;
+  id: string | null;
+  kind: Generated<string>;
+  override_codes: Generated<string>;
+  override_note: string | null;
+  preceptor_id: string | null;
+  schedule_id: string;
+  session: Generated<string>;
+  site_id: string | null;
+  student_id: string;
+  updated_at: Generated<string>;
+  user_id: string;
+}
+
 export interface SchedulePreceptors {
   created_at: Generated<string>;
   id: string | null;
@@ -546,6 +565,7 @@ export interface DB {
   schedule_clerkships: ScheduleClerkships;
   schedule_configurations: ScheduleConfigurations;
   schedule_health_systems: ScheduleHealthSystems;
+  schedule_plan_pins: SchedulePlanPins;
   schedule_preceptors: SchedulePreceptors;
   schedule_sites: ScheduleSites;
   schedule_distributions: ScheduleDistributions;

@@ -101,13 +101,30 @@ function emptyInputs(start: string, end: string): ValidationInputs {
 }
 
 /**
+ * Entities a caller knows will be referenced beyond the committed assignments — the
+ * manual planner passes the preceptors/clerkships/students its pins touch, so their
+ * context (availability, capacity, kind, mutual exclusions) is loaded even when no
+ * committed assignment uses them yet.
+ */
+export interface ExtraEntities {
+	preceptorIds?: string[];
+	clerkshipIds?: string[];
+	studentIds?: string[];
+}
+
+/**
  * Load the committed assignments for a schedule's students plus all the context the
  * rules consult (availability, onboarding, capacity, blackouts, clerkship kinds,
  * mutual exclusions). No rules are applied here — see `evaluateAssignments`.
+ *
+ * `extra` widens the entity sets so context covers entities only a hypothetical pin
+ * references (the planner dry-run); with no `extra` the result is exactly what the
+ * whole-schedule validator has always produced.
  */
 export async function loadValidationInputs(
 	db: Kysely<DB>,
-	scheduleId: string
+	scheduleId: string,
+	extra: ExtraEntities = {}
 ): Promise<ValidationInputs> {
 	const period = await db
 		.selectFrom('scheduling_periods')
@@ -117,13 +134,14 @@ export async function loadValidationInputs(
 	const rangeStart = period?.start_date ?? '0000-01-01';
 	const rangeEnd = period?.end_date ?? '9999-12-31';
 
-	// Students & clerkships in this schedule
+	// Students in this schedule, plus any the caller named (pins only reference
+	// schedule students, but unioning keeps the contract explicit).
 	const studentRows = await db
 		.selectFrom('schedule_students')
 		.select('student_id')
 		.where('schedule_id', '=', scheduleId)
 		.execute();
-	const studentIds = studentRows.map((r) => r.student_id);
+	const studentIds = [...new Set([...studentRows.map((r) => r.student_id), ...(extra.studentIds ?? [])])];
 
 	if (studentIds.length === 0) {
 		return emptyInputs(rangeStart, rangeEnd);
@@ -149,19 +167,22 @@ export async function loadValidationInputs(
 		.where('student_id', 'in', studentIds)
 		.execute();
 
-	if (assignments.length === 0) {
-		return emptyInputs(rangeStart, rangeEnd);
-	}
-
 	// Non-clinical days (free_day / exam) have no preceptor or clerkship, so they are
 	// excluded from every preceptor/clerkship-keyed query and grouping below. They
 	// still participate in the session-clash slot logic (a free day + a clinical day
-	// on one date is a double-book).
+	// on one date is a double-book). The caller's `extra` entities are unioned in so
+	// context covers pin-only preceptors/clerkships.
 	const preceptorIds = [
-		...new Set(assignments.map((a) => a.preceptor_id).filter((p): p is string => p !== null))
+		...new Set([
+			...assignments.map((a) => a.preceptor_id).filter((p): p is string => p !== null),
+			...(extra.preceptorIds ?? [])
+		])
 	];
 	const clerkshipIds = [
-		...new Set(assignments.map((a) => a.clerkship_id).filter((c): c is string => c !== null))
+		...new Set([
+			...assignments.map((a) => a.clerkship_id).filter((c): c is string => c !== null),
+			...(extra.clerkshipIds ?? [])
+		])
 	];
 
 	// Batch-load the context inputs
