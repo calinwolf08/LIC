@@ -19,6 +19,7 @@
 		date: string;
 		session: string;
 		kind: string;
+		override_codes: string;
 	};
 	type PinStatus = {
 		hard: { code: string }[];
@@ -122,6 +123,36 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	function acceptedOf(pin: Pin): string[] {
+		try {
+			const parsed = JSON.parse(pin.override_codes);
+			return Array.isArray(parsed) ? parsed.filter((c): c is string => typeof c === 'string') : [];
+		} catch {
+			return [];
+		}
+	}
+
+	/** Accept a soft code on a pin so it would commit despite the warning. */
+	async function acceptCode(pin: Pin, code: string) {
+		const override_codes = [...new Set([...acceptedOf(pin), code])];
+		await fetch(`/api/schedules/plan/pins/${pin.id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ override_codes })
+		});
+		await refresh();
+	}
+
+	/** Drop every accepted override on a pin (back to blocking on its soft codes). */
+	async function resetOverrides(pin: Pin) {
+		await fetch(`/api/schedules/plan/pins/${pin.id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ override_codes: [] })
+		});
+		await refresh();
 	}
 
 	async function removePin(id: string) {
@@ -360,39 +391,69 @@
 						<ul class="divide-y">
 							{#each pins as pin (pin.id)}
 								{@const st = pinStatus[pin.id]}
-								<li class="flex items-center justify-between gap-2 py-2 text-sm" data-testid="plan-pin-{pin.id}">
-									<div class="min-w-0">
-										<div class="truncate font-medium">
-											{nameOf(data.students, pin.student_id)} · {pin.date}
-											{#if pin.session !== 'full'}<span class="text-muted-foreground"> ({pin.session.toUpperCase()})</span>{/if}
+								{@const accepted = acceptedOf(pin)}
+								<li class="py-2 text-sm" data-testid="plan-pin-{pin.id}">
+									<div class="flex items-center justify-between gap-2">
+										<div class="min-w-0">
+											<div class="truncate font-medium">
+												{nameOf(data.students, pin.student_id)} · {pin.date}
+												{#if pin.session !== 'full'}<span class="text-muted-foreground"> ({pin.session.toUpperCase()})</span>{/if}
+											</div>
+											<div class="truncate text-xs text-muted-foreground">
+												{#if pin.kind === 'clinical'}
+													{nameOf(data.clerkships, pin.clerkship_id)} · {nameOf(data.preceptors, pin.preceptor_id)} · {nameOf(data.sites, pin.site_id)}
+												{:else}
+													{pin.kind === 'free_day' ? 'Free day' : 'Exam'}
+												{/if}
+											</div>
 										</div>
-										<div class="truncate text-xs text-muted-foreground">
-											{#if pin.kind === 'clinical'}
-												{nameOf(data.clerkships, pin.clerkship_id)} · {nameOf(data.preceptors, pin.preceptor_id)} · {nameOf(data.sites, pin.site_id)}
+										<div class="flex shrink-0 items-center gap-2">
+											{#if !st || st.committable}
+												<Badge variant="secondary" data-testid="plan-pin-status-{pin.id}">OK</Badge>
+											{:else if st.hard.length > 0}
+												<Badge variant="destructive" data-testid="plan-pin-status-{pin.id}">Blocked</Badge>
 											{:else}
-												{pin.kind === 'free_day' ? 'Free day' : 'Exam'}
+												<Badge variant="outline" data-testid="plan-pin-status-{pin.id}">
+													{st.unresolved.length} to resolve
+												</Badge>
+											{/if}
+											<Button
+												variant="ghost"
+												size="sm"
+												onclick={() => removePin(pin.id)}
+												data-testid="plan-pin-remove-{pin.id}">Remove</Button
+											>
+										</div>
+									</div>
+
+									{#if st && (st.unresolved.length > 0 || accepted.length > 0 || st.hard.length > 0)}
+										<div class="mt-1 flex flex-wrap items-center gap-1" data-testid="plan-pin-overrides-{pin.id}">
+											{#each st.hard as v (v.code)}
+												<Badge variant="destructive" class="text-xs">Can’t override: {codeLabel(v.code)}</Badge>
+											{/each}
+											{#each st.unresolved as code (code)}
+												<button
+													type="button"
+													class="rounded-md border border-amber-400 px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300"
+													onclick={() => acceptCode(pin, code)}
+													data-testid="plan-pin-accept-{pin.id}-{code}"
+												>
+													Accept: {codeLabel(code)}
+												</button>
+											{/each}
+											{#each accepted as code (code)}
+												<Badge variant="secondary" class="text-xs">Accepted: {codeLabel(code)}</Badge>
+											{/each}
+											{#if accepted.length > 0}
+												<button
+													type="button"
+													class="text-xs text-muted-foreground underline"
+													onclick={() => resetOverrides(pin)}
+													data-testid="plan-pin-reset-{pin.id}">Reset</button
+												>
 											{/if}
 										</div>
-									</div>
-									<div class="flex shrink-0 items-center gap-2">
-										{#if st?.committable}
-											<Badge variant="secondary" data-testid="plan-pin-status-{pin.id}">OK</Badge>
-										{:else if st && st.hard.length > 0}
-											<Badge variant="destructive" data-testid="plan-pin-status-{pin.id}">Blocked</Badge>
-										{:else if st && st.unresolved.length > 0}
-											<Badge variant="outline" data-testid="plan-pin-status-{pin.id}">
-												{st.unresolved.length} to resolve
-											</Badge>
-										{:else}
-											<Badge variant="secondary" data-testid="plan-pin-status-{pin.id}">OK</Badge>
-										{/if}
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => removePin(pin.id)}
-											data-testid="plan-pin-remove-{pin.id}">Remove</Button
-										>
-									</div>
+									{/if}
 								</li>
 							{/each}
 						</ul>

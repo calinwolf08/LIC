@@ -52,6 +52,16 @@ test.describe('CF-PLAN-UI manual planner workspace', { tag: ['@stage2', '@long']
 		await expect(asAdmin.getByTestId('plan-conflict-count')).not.toHaveText('0');
 		await expect(asAdmin.getByTestId('plan-conflict-session_clash')).toBeVisible();
 
+		// --- Override acceptance: both clashing pins go from "to resolve" to OK ---
+		const pinIds = await rows().evaluateAll((els) =>
+			els.map((e) => e.getAttribute('data-testid')!.replace('plan-pin-', ''))
+		);
+		for (const id of pinIds) {
+			await expect(asAdmin.getByTestId(`plan-pin-status-${id}`)).toHaveText(/to resolve/i);
+			await asAdmin.getByTestId(`plan-pin-accept-${id}-session_clash`).click();
+			await expect(asAdmin.getByTestId(`plan-pin-status-${id}`)).toHaveText('OK');
+		}
+
 		// Nothing was written to the real schedule — the planner is a draft layer.
 		const committed = await (db as Kysely<DB>)
 			.selectFrom('schedule_assignments')
