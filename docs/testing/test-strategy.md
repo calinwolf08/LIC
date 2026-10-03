@@ -79,10 +79,23 @@ Phase 1 (auto-generation) is complete.
 | MP-2 | `mutualExclusionWorld` | edit / reassign / remove: introduce an L2 mutual-exclusion conflict (AM+PM, no session clash), resolve it by removing a day, reassign a day across preceptors, and remove it — conflict surfaces track every change. |
 | MP-3 | `eligibilityWorld` | the dialog's clerkship↔preceptor↔site eligibility annotations disable impossible combinations (with reasons) as the coordinator picks. |
 | MP-4 | `planWorld` | the manual **Planner** (L4): build a multi-student draft, override a staged soft conflict (session_clash) so it becomes committable, leave another (mutual_exclusion) unresolved, commit in one action — the committable pins persist (overrides recorded), the unresolved one is skipped and stays in the draft, and the committed-schedule validator matches what actually committed. |
+| MP-5 | `manualWorld` | planner build modes & non-clinical (happy path): Add-button gating, the past-date floor on the date field, **range** mode with weekday chips toggled off, **individual** adds, **AM+PM half-days** on one date staying clean, **free day / exam** pins hiding the clinical pickers and rendering distinctly, removing a pin, then a clean one-button commit that leaves a conflict-free schedule. |
+| MP-6 | `plannerConflictWorld` | planner conflict matrix (unhappy path): one plan trips **every** conflict the dry-run surfaces — not_onboarded, preceptor_unavailable, site_not_allowed, preceptor_capacity, block_week_conflict, blackout_date — each shown in the panel and marking its pin "to resolve". The coordinator accepts the overrides, resets one and removes another, then commits: the committable pins persist (overrides recorded), the reset pin is skipped and kept, and the committed-schedule validator shows only what actually committed. |
 
-Phase 2 (manual planning) is complete. MP-4 covers the Planner (L4): a draft pin
+Phase 2 (manual planning) is complete. MP-4–6 cover the Planner (L4): a draft pin
 layer (`schedule_plan_pins`) whose dry-run reuses the same `evaluateAssignments`
-as commit, and a batch commit through the same validator as manual create.
+as commit, every add-form affordance, every surfaceable conflict with its override,
+and a batch commit through the same validator as manual create.
+
+**Dry-run vs commit — create-time codes.** The planner dry-run
+(`evaluateAssignments`) applies the whole-schedule rules but NOT the *create-time*
+codes (`past_date`, `over_required_days`), which only the commit path
+(`createManualAssignment`, `checkCreateTimeCodes`) enforces. So a pin on a past date
+or one that over-fills a requirement reads "OK" in the dry-run yet is skipped (with a
+reason) at commit. `past_date` is mitigated in the UI by flooring the date field at
+today; `over_required_days` is left to the commit report. The planner e2e worlds keep
+`requiredDays` generous so this asymmetry doesn't confound the committed-count
+assertions — it is deliberate, documented behaviour, not a gap the tests paper over.
 
 ## Two-tier structure & consolidation (Phase 3)
 

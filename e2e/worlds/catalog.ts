@@ -347,3 +347,44 @@ export function planWorld(): WorldSpec {
 		]
 	};
 }
+
+/**
+ * MP-6 planner conflict matrix: a world rigged so hand-staged pins can raise every
+ * conflict type the planner dry-run surfaces — not_onboarded, preceptor_unavailable
+ * (the test adds the is_available=0 row), site_not_allowed, preceptor_capacity, and
+ * block_week_conflict — plus clean pins. requiredDays is generous so no pin trips the
+ * create-time over_required_days code at commit.
+ */
+export function plannerConflictWorld(): WorldSpec {
+	const offs = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25];
+	const avail = (name: string, teaches: string[], maxStudents?: number) => ({
+		name,
+		sites: ['Clinic'],
+		teaches,
+		maxStudents,
+		availability: offs.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+	});
+	return {
+		name: 'Planner conflicts',
+		healthSystems: ['Metro'],
+		sites: [
+			{ name: 'Clinic', healthSystem: 'Metro' },
+			{ name: 'Annex', healthSystem: 'Metro' } // NOT in Family Medicine's allowed sites
+		],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', kind: 'scattered', requiredDays: 30, sites: ['Clinic'] },
+			{ name: 'Inpatient', type: 'inpatient', kind: 'block', requiredDays: 30, sites: ['Clinic'] }
+		],
+		preceptors: [
+			avail('Dr. Cap', ['Family Medicine'], 1), // capacity 1 → over-capacity with 2 students
+			avail('Dr. Busy', ['Family Medicine']), // the test marks one date unavailable
+			avail('Dr. Block', ['Inpatient'])
+		],
+		students: [
+			{ name: 'Student 1', onboardedAt: ['Metro'] },
+			{ name: 'Student 2', onboardedAt: ['Metro'] },
+			{ name: 'Unonboarded' } // no onboarding → not_onboarded
+		],
+		blackouts: [{ day: 28 }] // a pin on this date raises blackout_date
+	};
+}

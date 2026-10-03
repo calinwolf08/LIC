@@ -394,7 +394,9 @@
 							>
 						{/each}
 					</div>
-					<p class="text-xs text-muted-foreground">{formDates().length} day(s) selected</p>
+					<p class="text-xs text-muted-foreground" data-testid="plan-dates-count">
+						{formDates().length} day(s) selected
+					</p>
 				{/if}
 
 				{#if error}

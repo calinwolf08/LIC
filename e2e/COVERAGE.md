@@ -9,12 +9,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **92** across 10 phases
+- Spec files: **94** across 10 phases
 - Journeys: **46**
 - Requirements mapped: **55**; findings/decisions mapped: **62**
 - Constraints covered: **14/14** ✅
-- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7, MP-1, MP-2, MP-3, MP-4
-- Tags: `@long` ×23, `@smoke` ×2, `@stage1` ×59, `@stage2` ×34, `@tenant` ×1
+- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7, MP-1, MP-2, MP-3, MP-4, MP-5, MP-6
+- Tags: `@long` ×25, `@smoke` ×2, `@stage1` ×59, `@stage2` ×36, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -34,7 +34,9 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 10 | — | `phase-10/ag-smart.spec.ts` | @long @stage2 | R3.1 | CF-M2 |
 | 10 | — | `phase-10/ag-strategies.spec.ts` | @long @stage2 | R3.1, R5 | — |
 | 10 | — | `phase-10/mp-build-cohort.spec.ts` | @long @stage2 | R6.1, R6.2, R6.3 | CF-M2, CF-M3 |
+| 10 | — | `phase-10/mp-build-modes.spec.ts` | @long @stage2 | R6.1, R6.2, R6.3 | CF-M2, CF-M3 |
 | 10 | — | `phase-10/mp-commit.spec.ts` | @long @stage2 | R6.1, R6.5 | CF-L2 |
+| 10 | — | `phase-10/mp-conflicts.spec.ts` | @long @stage2 | R6.1, R7 | CF-L1, CF-L2, CF-L3 |
 | 10 | — | `phase-10/mp-edit-reassign-remove.spec.ts` | @long @stage2 | R6.5, R6.6 | CF-L2 |
 | 10 | — | `phase-10/mp-eligibility.spec.ts` | @long @stage2 | R6.1, R6.4 | — |
 | 2 | J2.7 | `phase-2/availability-editing.spec.ts` | @stage1 | R3.3, R3.4 | P8-d |
@@ -149,14 +151,14 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R5 | ag-strategies.spec.ts, generation-settings-ui.spec.ts |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
-| R6.1 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-commit.spec.ts, mp-eligibility.spec.ts, plan-workspace-ui.spec.ts |
-| R6.2 | J3.1, J3.2, mp-build-cohort.spec.ts, plan-workspace-ui.spec.ts |
-| R6.3 | J3.1, mp-build-cohort.spec.ts |
+| R6.1 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, mp-commit.spec.ts, mp-conflicts.spec.ts, mp-eligibility.spec.ts, plan-workspace-ui.spec.ts |
+| R6.2 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, plan-workspace-ui.spec.ts |
+| R6.3 | J3.1, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
 | R6.4 | J3.1, J7.5, mp-eligibility.spec.ts |
 | R6.5 | J3.1, J3.5, mp-commit.spec.ts, mp-edit-reassign-remove.spec.ts |
 | R6.6 | J3.1, J3.5, J3.6, mp-edit-reassign-remove.spec.ts |
 | R6.7 | J3.1, J3.8 |
-| R7 | ag-bypass.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, edit-revalidation.spec.ts, mutual-exclusion.spec.ts |
+| R7 | ag-bypass.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, edit-revalidation.spec.ts, mp-conflicts.spec.ts, mutual-exclusion.spec.ts |
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
@@ -201,12 +203,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | CF-J2 | calendar-phase6.spec.ts |
 | CF-J3 | calendar-phase6.spec.ts |
 | CF-K1 | send-schedule.spec.ts |
-| CF-L1 | autogen-sessions.spec.ts, availability-session.spec.ts, day-overbook.spec.ts |
-| CF-L2 | autogen-constraints.spec.ts, edit-revalidation.spec.ts, mp-commit.spec.ts, mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
-| CF-L3 | block-vs-scattered.spec.ts, edit-revalidation.spec.ts |
+| CF-L1 | autogen-sessions.spec.ts, availability-session.spec.ts, day-overbook.spec.ts, mp-conflicts.spec.ts |
+| CF-L2 | autogen-constraints.spec.ts, edit-revalidation.spec.ts, mp-commit.spec.ts, mp-conflicts.spec.ts, mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
+| CF-L3 | block-vs-scattered.spec.ts, edit-revalidation.spec.ts, mp-conflicts.spec.ts |
 | CF-M1 | credit-value.spec.ts |
-| CF-M2 | ag-completion.spec.ts, ag-smart.spec.ts, autogen-constraints.spec.ts, free-day.spec.ts, mp-build-cohort.spec.ts |
-| CF-M3 | exam-assignment.spec.ts, mp-build-cohort.spec.ts |
+| CF-M2 | ag-completion.spec.ts, ag-smart.spec.ts, autogen-constraints.spec.ts, free-day.spec.ts, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
+| CF-M3 | exam-assignment.spec.ts, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
 | CF-M4 | quarters.spec.ts |
 | CF-N1 | page-context-and-metric-labels.spec.ts |
 | CF-PLAN-UI | plan-workspace-ui.spec.ts |
@@ -246,15 +248,15 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | ---------- | -------- |
 | session_clash | ag-completion.spec.ts, ag-full-honor.spec.ts, mp-build-cohort.spec.ts |
 | mutual_exclusion | mp-commit.spec.ts, mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
-| block_week_conflict | ag-date-matrix.spec.ts, ag-full-honor.spec.ts |
-| preceptor_capacity | ag-shortfall.spec.ts |
-| preceptor_unavailable | assign-outside-availability.spec.ts |
-| not_onboarded | ag-bypass.spec.ts |
+| block_week_conflict | ag-date-matrix.spec.ts, ag-full-honor.spec.ts, mp-conflicts.spec.ts |
+| preceptor_capacity | ag-shortfall.spec.ts, mp-conflicts.spec.ts |
+| preceptor_unavailable | assign-outside-availability.spec.ts, mp-conflicts.spec.ts |
+| not_onboarded | ag-bypass.spec.ts, mp-conflicts.spec.ts |
 | outside_core_preceptor | core-preceptor.spec.ts |
 | preferred_day_available | availability-preference-consumption.spec.ts |
 | over_required_days | J7.1 |
-| site_not_allowed | J7.2 |
-| blackout_date | J4.2 |
+| site_not_allowed | J7.2, mp-conflicts.spec.ts |
+| blackout_date | J4.2, mp-conflicts.spec.ts |
 | outside_schedule | J7.7 |
 | past_date | J7.3 |
 | entity_missing | J3.4 |
