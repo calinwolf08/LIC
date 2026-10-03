@@ -48,6 +48,20 @@
 	let violationCount = $state(0);
 	let loading = $state(false);
 	let error = $state('');
+	let committing = $state(false);
+	let commitResult = $state<{ committed: number; skipped: number } | null>(null);
+
+	const committableCount = $derived(pins.filter((p) => pinStatus[p.id]?.committable).length);
+
+	// Don't let the coordinator stage a past date: commit runs a create-time past_date
+	// check the dry-run doesn't, so a past pin would read OK then be skipped. The floor
+	// is the later of today and the schedule start.
+	const todayISO = new Date().toISOString().slice(0, 10);
+	const minDate = $derived(
+		data.activeSchedule && data.activeSchedule.startDate > todayISO
+			? data.activeSchedule.startDate
+			: todayISO
+	);
 
 	const WEEKDAYS = [
 		{ v: 1, l: 'Mon' },
@@ -162,7 +176,26 @@
 
 	async function clearPlan() {
 		await fetch('/api/schedules/plan/pins', { method: 'DELETE' });
+		commitResult = null;
 		await refresh();
+	}
+
+	/** Turn committable pins into real assignments; skipped pins stay in the draft. */
+	async function commitPlan() {
+		committing = true;
+		error = '';
+		try {
+			const res = await fetch('/api/schedules/plan/commit', { method: 'POST' });
+			const body = await res.json();
+			if (!res.ok) {
+				error = body?.error?.message ?? 'Could not commit the plan';
+				return;
+			}
+			commitResult = { committed: body.data.committed, skipped: body.data.skipped };
+			await refresh();
+		} finally {
+			committing = false;
+		}
 	}
 
 	function toggleWeekday(v: number) {
@@ -186,7 +219,16 @@
 			</p>
 		</div>
 		{#if pins.length > 0}
-			<Button variant="outline" onclick={clearPlan} data-testid="plan-clear">Clear plan</Button>
+			<div class="flex gap-2">
+				<Button variant="outline" onclick={clearPlan} data-testid="plan-clear">Clear plan</Button>
+				<Button
+					onclick={commitPlan}
+					disabled={committing || committableCount === 0}
+					data-testid="plan-commit"
+				>
+					Commit {committableCount} assignment{committableCount === 1 ? '' : 's'}
+				</Button>
+			</div>
 		{/if}
 	</div>
 
@@ -195,6 +237,14 @@
 			<p class="text-sm">Activate a schedule to start planning.</p>
 		</Card>
 	{:else}
+		{#if commitResult}
+			<div class="mb-4 rounded-md border bg-muted/40 p-3 text-sm" data-testid="plan-commit-result">
+				Committed {commitResult.committed} assignment{commitResult.committed === 1 ? '' : 's'}.{commitResult.skipped >
+				0
+					? ` ${commitResult.skipped} pin${commitResult.skipped === 1 ? '' : 's'} still need attention below.`
+					: ' The plan is clear.'}
+			</div>
+		{/if}
 		<div class="grid gap-6 lg:grid-cols-[360px_1fr]">
 			<!-- ---- Add to plan ---------------------------------------------- -->
 			<Card class="space-y-3 p-4" data-testid="plan-form">
@@ -312,7 +362,7 @@
 				{#if dateMode === 'single'}
 					<Input
 						type="date"
-						min={data.activeSchedule?.startDate}
+						min={minDate}
 						max={data.activeSchedule?.endDate}
 						bind:value={singleDate}
 						data-testid="plan-date"
@@ -321,14 +371,14 @@
 					<div class="flex gap-2">
 						<Input
 							type="date"
-							min={data.activeSchedule?.startDate}
+							min={minDate}
 							max={data.activeSchedule?.endDate}
 							bind:value={rangeStart}
 							data-testid="plan-range-start"
 						/>
 						<Input
 							type="date"
-							min={data.activeSchedule?.startDate}
+							min={minDate}
 							max={data.activeSchedule?.endDate}
 							bind:value={rangeEnd}
 							data-testid="plan-range-end"

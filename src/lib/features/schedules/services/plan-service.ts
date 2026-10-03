@@ -20,7 +20,8 @@ import {
 	type ScheduleViolation,
 	type ScheduleValidationResult
 } from '$lib/features/scheduling/services/schedule-validation';
-import { HARD_CODES } from '$lib/features/scheduling/services/assignment-validation';
+import { HARD_CODES, type Violation } from '$lib/features/scheduling/services/assignment-validation';
+import { createManualAssignment } from '$lib/features/schedules/services/assignment-service';
 
 /** Synthetic assignment id a pin carries into the evaluator, so a violation can be
  * attributed back to the pin (committed rows keep their raw uuid). */
@@ -294,4 +295,73 @@ export async function evaluatePlan(
 	}
 
 	return { ...result, pins, pinStatus };
+}
+
+/** Outcome of committing one pin. */
+export interface PinCommitResult {
+	pinId: string;
+	created: boolean;
+	/** Why it was skipped (absent when created). */
+	reason?: 'hard' | 'soft';
+	/** The blocking codes, for the UI to explain the skip. */
+	codes: string[];
+}
+
+export interface CommitResult {
+	committed: number;
+	skipped: number;
+	results: PinCommitResult[];
+}
+
+/**
+ * Turn the draft into real assignments. Every pin runs through the SAME validator as
+ * manual create (createManualAssignment), so a pin that read "committable" in the dry
+ * run persists and one with an unresolved hard/soft conflict is skipped with a reason
+ * — a partial success, never all-or-nothing. Created pins are removed from the draft;
+ * skipped pins stay so the coordinator can fix them. All in one transaction: the
+ * inserts and the matching pin deletions commit together, and each pin is validated
+ * against the rows committed earlier in the same batch (true commit-parity).
+ */
+export async function commitPlan(
+	db: Kysely<DB>,
+	scheduleId: string,
+	userId: string
+): Promise<CommitResult> {
+	const pins = await listPins(db, scheduleId, userId);
+	if (pins.length === 0) return { committed: 0, skipped: 0, results: [] };
+
+	return db.transaction().execute(async (trx) => {
+		const results: PinCommitResult[] = [];
+		let committed = 0;
+		let skipped = 0;
+
+		for (const pin of pins) {
+			const res = await createManualAssignment(trx, scheduleId, {
+				student_id: pin.student_id,
+				preceptor_id: pin.preceptor_id,
+				clerkship_id: pin.clerkship_id,
+				site_id: pin.site_id,
+				elective_id: pin.elective_id,
+				date: pin.date,
+				session: pin.session as 'full' | 'am' | 'pm',
+				kind: pin.kind as PlanKind,
+				credit_value: pin.credit_value,
+				override_codes: parseOverrideCodes(pin.override_codes),
+				override_note: pin.override_note
+			});
+
+			if (res.ok) {
+				committed++;
+				results.push({ pinId: pin.id, created: true, codes: [] });
+				await trx.deleteFrom('schedule_plan_pins').where('id', '=', pin.id).execute();
+			} else {
+				skipped++;
+				const reason: 'hard' | 'soft' = res.hard.length > 0 ? 'hard' : 'soft';
+				const codes = [...res.hard, ...res.soft].map((v: Violation) => v.code);
+				results.push({ pinId: pin.id, created: false, reason, codes });
+			}
+		}
+
+		return { committed, skipped, results };
+	});
 }

@@ -3,4 +3,5 @@ export { HealthPanel } from './health-panel';
 export { CalendarPage, type CalendarFilters } from './calendar-page';
 export { GeneratePage, type RegenMode } from './generate-page';
 export { StudentSchedulePage } from './student-schedule-page';
+export { PlanPage, type PinForm } from './plan-page';
 export { EntityTabs, ConfirmDialog, expectToast } from './shared';

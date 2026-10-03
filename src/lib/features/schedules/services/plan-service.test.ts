@@ -8,7 +8,8 @@ import {
 	updatePin,
 	deletePin,
 	clearPins,
-	evaluatePlan
+	evaluatePlan,
+	commitPlan
 } from './plan-service';
 
 const SCHED = 'sched-1';
@@ -23,9 +24,28 @@ const SITE = 'site-1';
 const U1 = 'user-1';
 const U2 = 'user-2';
 
-const D1 = '2025-03-03'; // Mon, in range
-const D2 = '2025-03-04'; // Tue
-const D3 = '2025-03-05'; // Wed
+// Future weekdays (commit runs create-time checks, so past dates would be skipped by
+// past_date). Three distinct weekdays a few days out, all inside RANGE below.
+function futureWeekdays(count: number, startAt = 3): string[] {
+	const out: string[] = [];
+	let n = startAt;
+	while (out.length < count) {
+		const d = new Date();
+		d.setUTCDate(d.getUTCDate() + n);
+		const dow = d.getUTCDay();
+		if (dow !== 0 && dow !== 6) out.push(d.toISOString().slice(0, 10));
+		n++;
+	}
+	return out;
+}
+function datePlus(days: number): string {
+	const d = new Date();
+	d.setUTCDate(d.getUTCDate() + days);
+	return d.toISOString().slice(0, 10);
+}
+const [D1, D2, D3] = futureWeekdays(3);
+const RANGE_START = datePlus(-1);
+const RANGE_END = datePlus(60);
 
 async function seed(db: Kysely<DB>) {
 	const ts = new Date().toISOString();
@@ -35,8 +55,8 @@ async function seed(db: Kysely<DB>) {
 			.values({
 				id,
 				name: id,
-				start_date: '2025-01-01',
-				end_date: '2025-12-31',
+				start_date: RANGE_START,
+				end_date: RANGE_END,
 				created_at: ts,
 				updated_at: ts
 			})
@@ -225,5 +245,85 @@ describe('evaluatePlan (dry run)', () => {
 		await addPins(db, SCHED, U1, { student_id: STU2, preceptor_id: P1, clerkship_id: CLERK, site_id: SITE, dates: [D3] });
 		const res = await evaluatePlan(db, SCHED, U1);
 		expect(res.counts['preceptor_capacity']).toBe(1);
+	});
+});
+
+describe('commitPlan', () => {
+	let db: Kysely<DB>;
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	const committed = () =>
+		db.selectFrom('schedule_assignments').selectAll().where('schedule_id', '=', SCHED).execute();
+
+	it('persists clean pins and clears them from the draft', async () => {
+		await addPins(db, SCHED, U1, { ...clinicalPin, dates: [D1, D2] });
+		const res = await commitPlan(db, SCHED, U1);
+		expect(res.committed).toBe(2);
+		expect(res.skipped).toBe(0);
+		expect((await committed()).map((a) => a.date).sort()).toEqual([D1, D2]);
+		// Committed pins leave the draft.
+		expect(await listPins(db, SCHED, U1)).toHaveLength(0);
+	});
+
+	it('skips a pin with an unresolved soft conflict, keeping it in the draft', async () => {
+		// Commit a clean pin on D1, then a second full-day pin on D1 for the same
+		// student clashes — and is not accepted, so it is skipped.
+		await addPins(db, SCHED, U1, { ...clinicalPin, dates: [D1] });
+		await commitPlan(db, SCHED, U1);
+
+		const [clash] = await addPins(db, SCHED, U1, {
+			student_id: STU,
+			preceptor_id: P2,
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: [D1]
+		});
+		const res = await commitPlan(db, SCHED, U1);
+		expect(res.committed).toBe(0);
+		expect(res.skipped).toBe(1);
+		expect(res.results[0]).toMatchObject({ pinId: clash.id, created: false, reason: 'soft' });
+		expect(res.results[0].codes).toContain('session_clash');
+		// The skipped pin is still in the draft for the coordinator to fix.
+		expect((await listPins(db, SCHED, U1)).map((p) => p.id)).toEqual([clash.id]);
+		// Only the first (clean) assignment exists.
+		expect(await committed()).toHaveLength(1);
+	});
+
+	it('commits a conflicting pin once its soft code is accepted', async () => {
+		await addPins(db, SCHED, U1, { ...clinicalPin, dates: [D1] });
+		await commitPlan(db, SCHED, U1);
+		await addPins(db, SCHED, U1, {
+			student_id: STU,
+			preceptor_id: P2,
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: [D1],
+			override_codes: ['session_clash']
+		});
+		const res = await commitPlan(db, SCHED, U1);
+		expect(res.committed).toBe(1);
+		expect(await committed()).toHaveLength(2);
+		// The accepted override is recorded on the row.
+		const rows = await committed();
+		const second = rows.find((r) => r.date === D1 && r.preceptor_id === P2);
+		expect(JSON.parse(second!.override_codes)).toContain('session_clash');
+	});
+
+	it('commits the committable pins and leaves the rest in a mixed batch', async () => {
+		// Clean pin on D2 + an unaccepted clash pair on D1 (second one skipped).
+		await addPins(db, SCHED, U1, { ...clinicalPin, dates: [D2] });
+		await addPins(db, SCHED, U1, { student_id: STU, preceptor_id: P2, clerkship_id: CLERK, site_id: SITE, dates: [D1] });
+		await addPins(db, SCHED, U1, { student_id: STU, preceptor_id: P2, clerkship_id: CLERK, site_id: SITE, dates: [D1] });
+		const res = await commitPlan(db, SCHED, U1);
+		// D2 commits; the first D1 commits; the second D1 clashes with it → skipped.
+		expect(res.committed).toBe(2);
+		expect(res.skipped).toBe(1);
+		expect((await listPins(db, SCHED, U1))).toHaveLength(1); // the skipped one remains
 	});
 });

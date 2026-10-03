@@ -319,3 +319,31 @@ export function smartWorld(): WorldSpec {
 		students: [{ name: 'Alice', onboardedAt: ['Metro'] }]
 	};
 }
+
+/**
+ * MP-4 planner world: two students and two mutually-exclusive preceptors sharing one
+ * clinic, with generous availability. Enough structure to build a multi-student plan,
+ * override a mutual-exclusion warning, leave a session clash unresolved, and commit
+ * the committable pins in one action.
+ */
+export function planWorld(): WorldSpec {
+	const weekdayOffsets = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11];
+	const avail = (name: string) => ({
+		name,
+		sites: ['Clinic'],
+		teaches: ['Family Medicine'],
+		availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+	});
+	return {
+		name: 'Planner',
+		healthSystems: ['Metro'],
+		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
+		clerkships: [{ name: 'Family Medicine', type: 'outpatient', requiredDays: 5, sites: ['Clinic'] }],
+		preceptors: [avail('Dr. A'), avail('Dr. B')],
+		mutualExclusions: [['Dr. A', 'Dr. B']],
+		students: [
+			{ name: 'Student 1', onboardedAt: ['Metro'] },
+			{ name: 'Student 2', onboardedAt: ['Metro'] }
+		]
+	};
+}

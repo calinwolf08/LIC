@@ -78,8 +78,11 @@ Phase 1 (auto-generation) is complete.
 | MP-1 | `manualWorld` | a hand build across batch modes (range with weekday filter, individual days), non-clinical day-types (free day + exam), and an overridden session clash — validation clean after each legit batch, one conflict only where deliberately created. |
 | MP-2 | `mutualExclusionWorld` | edit / reassign / remove: introduce an L2 mutual-exclusion conflict (AM+PM, no session clash), resolve it by removing a day, reassign a day across preceptors, and remove it — conflict surfaces track every change. |
 | MP-3 | `eligibilityWorld` | the dialog's clerkship↔preceptor↔site eligibility annotations disable impossible combinations (with reasons) as the coordinator picks. |
+| MP-4 | `planWorld` | the manual **Planner** (L4): build a multi-student draft, override a staged soft conflict (session_clash) so it becomes committable, leave another (mutual_exclusion) unresolved, commit in one action — the committable pins persist (overrides recorded), the unresolved one is skipped and stays in the draft, and the committed-schedule validator matches what actually committed. |
 
-Phase 2 (manual planning) is complete.
+Phase 2 (manual planning) is complete. MP-4 covers the Planner (L4): a draft pin
+layer (`schedule_plan_pins`) whose dry-run reuses the same `evaluateAssignments`
+as commit, and a batch commit through the same validator as manual create.
 
 ## Two-tier structure & consolidation (Phase 3)
 
