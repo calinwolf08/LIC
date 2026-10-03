@@ -228,11 +228,114 @@ export function pinToValidationAssignment(pin: PlanPin): ValidationAssignment {
 		preceptor_id: pin.preceptor_id,
 		clerkship_id: pin.clerkship_id,
 		site_id: pin.site_id,
+		elective_id: pin.elective_id,
 		date: pin.date,
 		credit_value: pin.credit_value,
 		session: pin.session,
 		kind: pin.kind
 	};
+}
+
+/**
+ * The create-time soft codes the whole-schedule evaluator omits (it powers the
+ * dashboard/calendar health, which must not flag historical rows), but which the
+ * commit path enforces. Computing them here keeps the planner's preview faithful to
+ * what commit will do:
+ *   - past_date: the pin's date is before today.
+ *   - over_required_days: this pin takes the student past the clerkship's required
+ *     days. Counted exactly as commit does — core (non-elective) clinical days only —
+ *     over committed rows first, then the pins in order (mirroring the sequential
+ *     commit), so the pins beyond the limit are the ones flagged.
+ */
+async function createTimeViolations(
+	db: Kysely<DB>,
+	committed: ValidationAssignment[],
+	pins: PlanPin[]
+): Promise<ScheduleViolation[]> {
+	const today = new Date().toISOString().split('T')[0];
+	const out: ScheduleViolation[] = [];
+
+	const asViolation = (
+		code: 'past_date' | 'over_required_days',
+		message: string,
+		pin: PlanPin
+	): ScheduleViolation => {
+		const id = pinAssignmentId(pin.id);
+		return {
+			code,
+			message,
+			entity_refs: { student_id: pin.student_id },
+			assignment_id: id,
+			assignment_ids: [id],
+			date: pin.date,
+			student_id: pin.student_id,
+			preceptor_id: pin.preceptor_id ?? ''
+		};
+	};
+
+	for (const pin of pins) {
+		if (pin.date < today) out.push(asViolation('past_date', `${pin.date} has already passed`, pin));
+	}
+
+	// over_required_days needs each clerkship's required_days.
+	const isCore = (a: { kind: string; clerkship_id: string | null; elective_id: string | null }) =>
+		a.kind === 'clinical' && !!a.clerkship_id && !a.elective_id;
+	const clerkshipIds = [
+		...new Set(
+			[...committed, ...pins].filter(isCore).map((a) => a.clerkship_id as string)
+		)
+	];
+	if (clerkshipIds.length > 0) {
+		const reqRows = await db
+			.selectFrom('clerkships')
+			.select(['id', 'required_days'])
+			.where('id', 'in', clerkshipIds)
+			.execute();
+		const requiredById = new Map(reqRows.map((r) => [r.id as string, r.required_days]));
+
+		// Committed core days per (student, clerkship) — the starting count.
+		const running = new Map<string, number>();
+		for (const a of committed) {
+			if (!isCore(a)) continue;
+			const k = `${a.student_id}|${a.clerkship_id}`;
+			running.set(k, (running.get(k) ?? 0) + 1);
+		}
+		// Walk pins in draft order, flagging each one that pushes past the requirement.
+		for (const pin of pins) {
+			if (!isCore(pin)) continue;
+			const required = requiredById.get(pin.clerkship_id as string) ?? 0;
+			if (required <= 0) continue;
+			const k = `${pin.student_id}|${pin.clerkship_id}`;
+			const next = (running.get(k) ?? 0) + 1;
+			running.set(k, next);
+			if (next > required) {
+				out.push(
+					asViolation(
+						'over_required_days',
+						`More days than the ${required} required for the clerkship`,
+						pin
+					)
+				);
+			}
+		}
+	}
+
+	return out;
+}
+
+/** Re-index a flat violation list into the ScheduleValidationResult shape. */
+function indexViolations(violations: ScheduleViolation[]): ScheduleValidationResult {
+	const byDate: Record<string, ScheduleViolation[]> = {};
+	const byStudent: Record<string, ScheduleViolation[]> = {};
+	const byPreceptor: Record<string, ScheduleViolation[]> = {};
+	const counts: Record<string, number> = {};
+	for (const v of violations) {
+		(byDate[v.date] ??= []).push(v);
+		(byStudent[v.student_id] ??= []).push(v);
+		(byPreceptor[v.preceptor_id] ??= []).push(v);
+		counts[v.code] = (counts[v.code] ?? 0) + 1;
+	}
+	return { violations, byDate, byStudent, byPreceptor, counts };
 }
 
 /** Per-pin conflict summary for the planner UI. */
@@ -273,10 +376,15 @@ export async function evaluatePlan(
 	});
 
 	const pinAssignments = pins.map(pinToValidationAssignment);
-	const result = evaluateAssignments({
+	const base = evaluateAssignments({
 		...inputs,
 		assignments: [...inputs.assignments, ...pinAssignments]
 	});
+
+	// Augment the whole-schedule result with the create-time codes commit enforces,
+	// so the preview shows exactly what will (and won't) commit.
+	const extra = await createTimeViolations(db, inputs.assignments, pins);
+	const result = indexViolations([...base.violations, ...extra]);
 
 	const pinStatus: Record<string, PinStatus> = {};
 	for (const pin of pins) {

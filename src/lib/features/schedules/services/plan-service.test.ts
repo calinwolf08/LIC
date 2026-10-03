@@ -246,6 +246,36 @@ describe('evaluatePlan (dry run)', () => {
 		const res = await evaluatePlan(db, SCHED, U1);
 		expect(res.counts['preceptor_capacity']).toBe(1);
 	});
+
+	// --- create-time codes the preview mirrors so it matches commit ---
+
+	it('flags over_required_days for the pin that exceeds the clerkship requirement', async () => {
+		// CLERK requires 5 days; stage 6 distinct days → only the 6th is over.
+		const days = futureWeekdays(6);
+		const pins = await addPins(db, SCHED, U1, {
+			student_id: STU,
+			preceptor_id: P2, // capacity 5: distinct days, so no capacity/clash noise
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: days
+		});
+		const res = await evaluatePlan(db, SCHED, U1);
+		expect(res.counts['over_required_days']).toBe(1);
+		const flagged = pins.filter((p) => res.pinStatus[p.id].unresolved.includes('over_required_days'));
+		expect(flagged).toHaveLength(1);
+		expect(res.pinStatus[flagged[0].id].committable).toBe(false);
+		// Accepting the override makes it committable (parity with commit).
+		expect(res.pinStatus[pins[0].id].committable).toBe(true);
+	});
+
+	it('flags past_date for a pin before today', async () => {
+		const yesterday = datePlus(-1); // >= schedule start, < today → isolates past_date
+		const [pin] = await addPins(db, SCHED, U1, { ...clinicalPin, preceptor_id: P2, dates: [yesterday] });
+		const res = await evaluatePlan(db, SCHED, U1);
+		expect(res.counts['past_date']).toBe(1);
+		expect(res.pinStatus[pin.id].unresolved).toContain('past_date');
+		expect(res.pinStatus[pin.id].committable).toBe(false);
+	});
 });
 
 describe('commitPlan', () => {

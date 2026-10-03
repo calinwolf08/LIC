@@ -56,6 +56,7 @@ export interface ValidationAssignment {
 	preceptor_id: string | null;
 	clerkship_id: string | null;
 	site_id: string | null;
+	elective_id: string | null;
 	date: string;
 	credit_value: number;
 	session: string;
@@ -159,6 +160,7 @@ export async function loadValidationInputs(
 			'preceptor_id',
 			'clerkship_id',
 			'site_id',
+			'elective_id',
 			'date',
 			'credit_value',
 			'session',

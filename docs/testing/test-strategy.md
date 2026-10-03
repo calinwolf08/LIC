@@ -87,15 +87,17 @@ layer (`schedule_plan_pins`) whose dry-run reuses the same `evaluateAssignments`
 as commit, every add-form affordance, every surfaceable conflict with its override,
 and a batch commit through the same validator as manual create.
 
-**Dry-run vs commit — create-time codes.** The planner dry-run
-(`evaluateAssignments`) applies the whole-schedule rules but NOT the *create-time*
-codes (`past_date`, `over_required_days`), which only the commit path
-(`createManualAssignment`, `checkCreateTimeCodes`) enforces. So a pin on a past date
-or one that over-fills a requirement reads "OK" in the dry-run yet is skipped (with a
-reason) at commit. `past_date` is mitigated in the UI by flooring the date field at
-today; `over_required_days` is left to the commit report. The planner e2e worlds keep
-`requiredDays` generous so this asymmetry doesn't confound the committed-count
-assertions — it is deliberate, documented behaviour, not a gap the tests paper over.
+**Dry-run vs commit — create-time codes (preview parity).** The whole-schedule
+evaluator (`evaluateAssignments`) deliberately omits the *create-time* codes
+(`past_date`, `over_required_days`) so the dashboard/calendar health isn't flooded
+with "already happened" / finished-rotation noise. The planner, however, must preview
+exactly what commit will do, so `evaluatePlan` recomputes those two codes for the
+draft (over committed rows + pins in order, counting core non-elective days as commit
+does) and folds them into the per-pin status and the conflict panel. A pin past the
+requirement or in the past therefore reads "to resolve" (and its soft override works)
+rather than a falsely-green "OK", and the Commit button's count matches what will
+persist. `past_date` is additionally prevented up front by the date field's today
+floor. Proven by `plan-service` unit tests and the `CF-PLAN-PARITY` journey.
 
 ## Two-tier structure & consolidation (Phase 3)
 
