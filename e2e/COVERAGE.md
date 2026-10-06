@@ -9,10 +9,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **48** across 8 phases
+- Spec files: **95** across 10 phases
 - Journeys: **46**
-- Requirements mapped: **49**; findings/decisions mapped: **28**
-- Tags: `@long` ×6, `@smoke` ×2, `@stage1` ×32, `@stage2` ×16, `@tenant` ×1
+- Requirements mapped: **55**; findings/decisions mapped: **63**
+- Constraints covered: **14/14** ✅
+- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7, MP-1, MP-2, MP-3, MP-4, MP-5, MP-6
+- Tags: `@long` ×26, `@smoke` ×2, `@stage1` ×59, `@stage2` ×37, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -24,6 +26,19 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 1 | J1.2 | `phase-1/schedule-lifecycle.spec.ts` | @stage1 | R1.3 | P1-c |
 | 1 | J1.3 | `phase-1/schedule-scoping.spec.ts` | @stage1 @tenant | R1.3 | F-02, F-03, F-04, F-27 |
 | 1 | J1.4 | `phase-1/shell-and-gating.spec.ts` | @stage1 | G1, G7, R1.1, R1.2, R10.x | — |
+| 10 | — | `phase-10/ag-bypass.spec.ts` | @long @stage2 | R3.1, R7 | — |
+| 10 | — | `phase-10/ag-completion.spec.ts` | @long @stage2 | R3.1 | CF-M2 |
+| 10 | — | `phase-10/ag-date-matrix.spec.ts` | @long @stage2 | R3.1 | — |
+| 10 | — | `phase-10/ag-full-honor.spec.ts` | @long @stage2 | R3.1, R7, R8 | — |
+| 10 | — | `phase-10/ag-shortfall.spec.ts` | @long @stage2 | R3.1, R7 | — |
+| 10 | — | `phase-10/ag-smart.spec.ts` | @long @stage2 | R3.1 | CF-M2 |
+| 10 | — | `phase-10/ag-strategies.spec.ts` | @long @stage2 | R3.1, R5 | — |
+| 10 | — | `phase-10/mp-build-cohort.spec.ts` | @long @stage2 | R6.1, R6.2, R6.3 | CF-M2, CF-M3 |
+| 10 | — | `phase-10/mp-build-modes.spec.ts` | @long @stage2 | R6.1, R6.2, R6.3 | CF-M2, CF-M3 |
+| 10 | — | `phase-10/mp-commit.spec.ts` | @long @stage2 | R6.1, R6.5 | CF-L2 |
+| 10 | — | `phase-10/mp-conflicts.spec.ts` | @long @stage2 | R6.1, R7 | CF-L1, CF-L2, CF-L3 |
+| 10 | — | `phase-10/mp-edit-reassign-remove.spec.ts` | @long @stage2 | R6.5, R6.6 | CF-L2 |
+| 10 | — | `phase-10/mp-eligibility.spec.ts` | @long @stage2 | R6.1, R6.4 | — |
 | 2 | J2.7 | `phase-2/availability-editing.spec.ts` | @stage1 | R3.3, R3.4 | P8-d |
 | 2 | J2.4 | `phase-2/clerkship-config.spec.ts` | @stage1 | R4.1, R4.2, R4.3, R4.4 | — |
 | 2 | J2.5, J2.6 | `phase-2/drill-through-and-lists.spec.ts` | @stage1 | R2.1, R2.2, R2.3, R10.x | — |
@@ -66,6 +81,40 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 7 | J7.3 | `phase-7/time-boundaries.spec.ts` | @long @stage2 | — | F-22 |
 | 7 | J7.5 | `phase-7/two-tabs.spec.ts` | @long @stage2 | R6.4 | — |
 | 7 | J7.6 | `phase-7/volume.spec.ts` | @long @stage2 | — | F-30 |
+| 9 | — | `phase-9/allowed-missed-days.spec.ts` | @stage1 | R4.4 | CF-E2 |
+| 9 | — | `phase-9/assign-outside-availability.spec.ts` | @stage1 | R3.6, R7.4 | CF-I1 |
+| 9 | — | `phase-9/autogen-constraints.spec.ts` | @long @stage2 | R7, R8 | CF-L2, CF-M2 |
+| 9 | — | `phase-9/autogen-sessions.spec.ts` | @long @stage2 | R7 | CF-L1 |
+| 9 | — | `phase-9/availability-empty-pattern.spec.ts` | @stage1 | R3.2, R3.3 | CF-H1 |
+| 9 | — | `phase-9/availability-notes.spec.ts` | @stage1 | R3.2 | CF-H6 |
+| 9 | — | `phase-9/availability-preference-consumption.spec.ts` | @stage1 @stage2 | R3.2 | CF-H8 |
+| 9 | — | `phase-9/availability-preference.spec.ts` | @stage1 | R3.2 | CF-H8 |
+| 9 | — | `phase-9/availability-session.spec.ts` | @stage1 | R7 | CF-L1 |
+| 9 | — | `phase-9/block-vs-scattered.spec.ts` | @stage1 | R7 | CF-L3 |
+| 9 | — | `phase-9/calendar-export-ui.spec.ts` | @long @stage2 | R8.5 | CF-EXPORT-UI |
+| 9 | — | `phase-9/calendar-phase6.spec.ts` | @stage1 | R8.2 | CF-I3, CF-J1, CF-J2, CF-J3 |
+| 9 | — | `phase-9/core-preceptor.spec.ts` | @stage1 | R7.4 | CF-F5 |
+| 9 | — | `phase-9/credit-value.spec.ts` | @stage1 | R4.4 | CF-M1 |
+| 9 | — | `phase-9/day-overbook.spec.ts` | @stage1 | R7 | CF-L1 |
+| 9 | — | `phase-9/edit-revalidation.spec.ts` | @stage1 | R7 | CF-L2, CF-L3 |
+| 9 | — | `phase-9/entity-deletion.spec.ts` | @long @stage2 | R2 | CF-DEL |
+| 9 | — | `phase-9/exam-assignment.spec.ts` | @stage1 | R8 | CF-M3 |
+| 9 | — | `phase-9/free-day.spec.ts` | @stage1 | R8 | CF-M2 |
+| 9 | — | `phase-9/generation-settings-ui.spec.ts` | @long @stage2 | R5 | CF-SETTINGS-UI |
+| 9 | — | `phase-9/mutual-exclusion.spec.ts` | @stage1 | R7 | CF-L2 |
+| 9 | — | `phase-9/page-context-and-metric-labels.spec.ts` | @stage1 | R10.1 | CF-N1 |
+| 9 | — | `phase-9/plan-preview-parity.spec.ts` | @long @stage2 | R6.1 | CF-PLAN-PARITY |
+| 9 | — | `phase-9/plan-workspace-ui.spec.ts` | @long @stage2 | R6.1, R6.2 | CF-PLAN-UI |
+| 9 | — | `phase-9/preceptor-phone-type.spec.ts` | @stage1 | — | CF-F1 |
+| 9 | — | `phase-9/quarters.spec.ts` | @stage1 | R8 | CF-M4 |
+| 9 | — | `phase-9/schedule-end-before-start.spec.ts` | @stage1 | R1.3 | CF-C1 |
+| 9 | — | `phase-9/send-schedule.spec.ts` | @stage1 | R9 | CF-K1 |
+| 9 | — | `phase-9/signup-invalid-email.spec.ts` | @stage1 | — | CF-A1 |
+| 9 | — | `phase-9/standalone-elective.spec.ts` | @stage1 | R4.4 | CF-E3 |
+| 9 | — | `phase-9/team-serveable.spec.ts` | @stage1 | — | CF-G3, CF-G4 |
+| 9 | — | `phase-9/team-single-member.spec.ts` | @stage1 | — | CF-G1 |
+| 9 | — | `phase-9/wizard-activates-schedule.spec.ts` | @stage1 | R1.2, R1.3 | CF-B1 |
+| 9 | — | `phase-9/wizard-clarity.spec.ts` | @stage1 | R1.3 | CF-C4, CF-C5, CF-D2 |
 
 ## Requirement → journeys
 
@@ -84,47 +133,88 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | G11 | J5.6, J6.3 |
 | G12 | J6.1 |
 | R1.1 | J1.1, J1.4 |
-| R1.2 | J1.1, J1.4 |
-| R1.3 | J1.2, J1.3, J7.1, J7.2, J7.7 |
+| R1.2 | J1.1, J1.4, wizard-activates-schedule.spec.ts |
+| R1.3 | J1.2, J1.3, J7.1, J7.2, J7.7, schedule-end-before-start.spec.ts, wizard-activates-schedule.spec.ts, wizard-clarity.spec.ts |
+| R2 | entity-deletion.spec.ts |
 | R2.1 | J2.3, J2.5, J2.6, J3.7 |
 | R2.2 | J2.3, J2.5, J2.6 |
 | R2.3 | J2.3, J2.5, J2.6 |
-| R3.1 | J2.2, J3.1, J5.1 |
-| R3.2 | J2.2 |
-| R3.3 | J2.2, J2.7 |
+| R3.1 | ag-bypass.spec.ts, ag-completion.spec.ts, ag-date-matrix.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, ag-smart.spec.ts, ag-strategies.spec.ts, J2.2, J3.1, J5.1 |
+| R3.2 | availability-empty-pattern.spec.ts, availability-notes.spec.ts, availability-preference-consumption.spec.ts, availability-preference.spec.ts, J2.2 |
+| R3.3 | availability-empty-pattern.spec.ts, J2.2, J2.7 |
 | R3.4 | J2.2, J2.7, J3.9, J4.5 |
 | R3.5 | J2.2, J3.9 |
-| R3.6 | J2.2 |
+| R3.6 | assign-outside-availability.spec.ts, J2.2 |
 | R4.1 | J2.4, J5.5 |
 | R4.2 | J2.4, J3.7, J7.1, J7.7 |
 | R4.3 | J2.4, J3.7, J7.7 |
-| R4.4 | J2.4 |
+| R4.4 | allowed-missed-days.spec.ts, credit-value.spec.ts, J2.4, standalone-elective.spec.ts |
+| R5 | ag-strategies.spec.ts, generation-settings-ui.spec.ts |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
-| R6.1 | J3.1, J3.2 |
-| R6.2 | J3.1, J3.2 |
-| R6.3 | J3.1 |
-| R6.4 | J3.1, J7.5 |
-| R6.5 | J3.1, J3.5 |
-| R6.6 | J3.1, J3.5, J3.6 |
+| R6.1 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, mp-commit.spec.ts, mp-conflicts.spec.ts, mp-eligibility.spec.ts, plan-preview-parity.spec.ts, plan-workspace-ui.spec.ts |
+| R6.2 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, plan-workspace-ui.spec.ts |
+| R6.3 | J3.1, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
+| R6.4 | J3.1, J7.5, mp-eligibility.spec.ts |
+| R6.5 | J3.1, J3.5, mp-commit.spec.ts, mp-edit-reassign-remove.spec.ts |
+| R6.6 | J3.1, J3.5, J3.6, mp-edit-reassign-remove.spec.ts |
 | R6.7 | J3.1, J3.8 |
+| R7 | ag-bypass.spec.ts, ag-full-honor.spec.ts, ag-shortfall.spec.ts, autogen-constraints.spec.ts, autogen-sessions.spec.ts, availability-session.spec.ts, block-vs-scattered.spec.ts, day-overbook.spec.ts, edit-revalidation.spec.ts, mp-conflicts.spec.ts, mutual-exclusion.spec.ts |
 | R7.1 | J3.3, J3.4, J3.10, J4.4, J6.4 |
 | R7.2 | J3.3, J3.4, J3.10, J4.4 |
 | R7.3 | J3.3, J3.10, J4.4 |
-| R7.4 | J3.3, J4.4 |
+| R7.4 | assign-outside-availability.spec.ts, core-preceptor.spec.ts, J3.3, J4.4 |
+| R8 | ag-full-honor.spec.ts, autogen-constraints.spec.ts, exam-assignment.spec.ts, free-day.spec.ts, quarters.spec.ts |
 | R8.1 | J4.1 |
-| R8.2 | J4.1 |
+| R8.2 | calendar-phase6.spec.ts, J4.1 |
 | R8.3 | J4.1 |
 | R8.4 | J4.2 |
-| R8.5 | J4.3 |
+| R8.5 | calendar-export-ui.spec.ts, J4.3 |
+| R9 | send-schedule.spec.ts |
 | R9.1 | J4.5 |
 | R9.2 | J4.5 |
+| R10.1 | page-context-and-metric-labels.spec.ts |
 | R10.x | entity-tab-deeplink.spec.ts, J1.4, J1.5, J2.5, J2.6 |
 
 ## Finding / decision → journeys
 
 | Finding / decision | Journeys |
 | ------------------ | -------- |
+| CF-A1 | signup-invalid-email.spec.ts |
+| CF-B1 | wizard-activates-schedule.spec.ts |
+| CF-C1 | schedule-end-before-start.spec.ts |
+| CF-C4 | wizard-clarity.spec.ts |
+| CF-C5 | wizard-clarity.spec.ts |
+| CF-D2 | wizard-clarity.spec.ts |
+| CF-DEL | entity-deletion.spec.ts |
+| CF-E2 | allowed-missed-days.spec.ts |
+| CF-E3 | standalone-elective.spec.ts |
+| CF-EXPORT-UI | calendar-export-ui.spec.ts |
+| CF-F1 | preceptor-phone-type.spec.ts |
+| CF-F5 | core-preceptor.spec.ts |
+| CF-G1 | team-single-member.spec.ts |
+| CF-G3 | team-serveable.spec.ts |
+| CF-G4 | team-serveable.spec.ts |
+| CF-H1 | availability-empty-pattern.spec.ts |
+| CF-H6 | availability-notes.spec.ts |
+| CF-H8 | availability-preference-consumption.spec.ts, availability-preference.spec.ts |
+| CF-I1 | assign-outside-availability.spec.ts |
+| CF-I3 | calendar-phase6.spec.ts |
+| CF-J1 | calendar-phase6.spec.ts |
+| CF-J2 | calendar-phase6.spec.ts |
+| CF-J3 | calendar-phase6.spec.ts |
+| CF-K1 | send-schedule.spec.ts |
+| CF-L1 | autogen-sessions.spec.ts, availability-session.spec.ts, day-overbook.spec.ts, mp-conflicts.spec.ts |
+| CF-L2 | autogen-constraints.spec.ts, edit-revalidation.spec.ts, mp-commit.spec.ts, mp-conflicts.spec.ts, mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
+| CF-L3 | block-vs-scattered.spec.ts, edit-revalidation.spec.ts, mp-conflicts.spec.ts |
+| CF-M1 | credit-value.spec.ts |
+| CF-M2 | ag-completion.spec.ts, ag-smart.spec.ts, autogen-constraints.spec.ts, free-day.spec.ts, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
+| CF-M3 | exam-assignment.spec.ts, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
+| CF-M4 | quarters.spec.ts |
+| CF-N1 | page-context-and-metric-labels.spec.ts |
+| CF-PLAN-PARITY | plan-preview-parity.spec.ts |
+| CF-PLAN-UI | plan-workspace-ui.spec.ts |
+| CF-SETTINGS-UI | generation-settings-ui.spec.ts |
 | D5-1 | J5.3 |
 | D7-1 | J7.1 |
 | D7-2 | J7.4 |
@@ -153,6 +243,25 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | P8-c | J3.10 |
 | P8-d | J2.7 |
 | P8-e | J7.7 |
+
+## Constraint → journeys
+
+| Constraint | Journeys |
+| ---------- | -------- |
+| session_clash | ag-completion.spec.ts, ag-full-honor.spec.ts, mp-build-cohort.spec.ts |
+| mutual_exclusion | mp-commit.spec.ts, mp-edit-reassign-remove.spec.ts, mutual-exclusion.spec.ts |
+| block_week_conflict | ag-date-matrix.spec.ts, ag-full-honor.spec.ts, mp-conflicts.spec.ts |
+| preceptor_capacity | ag-shortfall.spec.ts, mp-conflicts.spec.ts |
+| preceptor_unavailable | assign-outside-availability.spec.ts, mp-conflicts.spec.ts |
+| not_onboarded | ag-bypass.spec.ts, mp-conflicts.spec.ts |
+| outside_core_preceptor | core-preceptor.spec.ts |
+| preferred_day_available | availability-preference-consumption.spec.ts |
+| over_required_days | J7.1, plan-preview-parity.spec.ts |
+| site_not_allowed | J7.2, mp-conflicts.spec.ts |
+| blackout_date | J4.2, mp-conflicts.spec.ts |
+| outside_schedule | J7.7 |
+| past_date | J7.3 |
+| entity_missing | J3.4 |
 
 ## Guard
 

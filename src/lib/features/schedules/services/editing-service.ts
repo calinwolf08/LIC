@@ -7,17 +7,19 @@
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleAssignments } from '$lib/db/types';
 import type { UpdateAssignmentInput } from '../schemas.js';
-import { NotFoundError } from '$lib/api/errors';
+import { NotFoundError, ValidationError } from '$lib/api/errors';
 import {
 	getAssignmentById,
 	updateAssignment as updateAssignmentBase,
-	checkElectiveBelongsToClerkship
+	checkElectiveBelongsToClerkship,
+	normalizeCredit
 } from './assignment-service.js';
 import {
 	validateAssignmentCandidate,
 	type AssignmentCandidate,
 	type Violation
 } from '$lib/features/scheduling/services/assignment-validation';
+import { normalizeSession } from '$lib/features/scheduling/services/session-slots';
 import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:schedules:editing');
@@ -66,19 +68,28 @@ async function evaluateEdit(
 	db: Kysely<DB>,
 	current: Selectable<ScheduleAssignments>,
 	changes: Partial<
-		Pick<AssignmentCandidate, 'preceptor_id' | 'clerkship_id' | 'site_id' | 'date' | 'elective_id'>
+		Pick<
+			AssignmentCandidate,
+			'preceptor_id' | 'clerkship_id' | 'site_id' | 'date' | 'elective_id' | 'session'
+		>
 	>,
 	opts: EditOptions
 ): Promise<{ hard: Violation[]; soft: Violation[]; blocked: boolean; persistedCodes: string[] }> {
 	const candidate: AssignmentCandidate = {
 		student_id: current.student_id,
-		preceptor_id: changes.preceptor_id ?? current.preceptor_id,
+		preceptor_id: changes.preceptor_id ?? current.preceptor_id ?? '',
 		clerkship_id: changes.clerkship_id ?? current.clerkship_id,
 		site_id: changes.site_id !== undefined ? changes.site_id : current.site_id,
 		// The effective elective of the merged day, so over_required_days measures a
 		// core clerkship day against the clerkship and leaves elective days alone (P7-a).
 		elective_id: changes.elective_id !== undefined ? changes.elective_id : current.elective_id,
 		date: changes.date ?? current.date,
+		credit_value: current.credit_value,
+		// The session-clash check compares against the other same-day rows; use the
+		// (possibly changed) session, falling back to the row's stored session.
+		session: normalizeSession(changes.session ?? current.session),
+		// A non-clinical day (free_day / exam) skips the clinical checks (M2/M3).
+		kind: (current.kind as 'clinical' | 'free_day' | 'exam' | undefined) ?? 'clinical',
 		excludeId: current.id ?? undefined
 	};
 	const v = await validateAssignmentCandidate(db, current.schedule_id ?? '', candidate, {
@@ -188,6 +199,8 @@ export async function updateAssignmentChecked(
 		elective_id?: string | null;
 		date?: string;
 		status?: string;
+		credit_value?: number;
+		session?: string;
 	},
 	opts: EditOptions = {}
 ): Promise<EditResult> {
@@ -204,7 +217,8 @@ export async function updateAssignmentChecked(
 			clerkship_id: changes.clerkship_id,
 			site_id: changes.site_id,
 			elective_id: changes.elective_id,
-			date: changes.date
+			date: changes.date,
+			session: changes.session !== undefined ? normalizeSession(changes.session) : undefined
 		},
 		{ ...opts, blockOnSoft: true }
 	);
@@ -233,6 +247,10 @@ export async function updateAssignmentChecked(
 			...(changes.elective_id !== undefined ? { elective_id: changes.elective_id } : {}),
 			...(changes.date !== undefined ? { date: changes.date } : {}),
 			...(changes.status !== undefined ? { status: changes.status } : {}),
+			...(changes.credit_value !== undefined
+				? { credit_value: normalizeCredit(changes.credit_value) }
+				: {}),
+			...(changes.session !== undefined ? { session: normalizeSession(changes.session) } : {}),
 			override_codes: JSON.stringify(persistedCodes),
 			override_note: persistedCodes.length > 0 ? (opts.overrideNote ?? null) : null,
 			updated_at: new Date().toISOString()
@@ -307,10 +325,18 @@ export async function swapAssignments(
 		throw new NotFoundError('Assignment');
 	}
 
+	// A swap moves preceptors between two days; a non-clinical day (free_day / exam)
+	// has no preceptor to swap (M2/M3).
+	if (!assignment1.preceptor_id || !assignment2.preceptor_id) {
+		throw new ValidationError('Only clinical assignments can be swapped');
+	}
+	const preceptor1 = assignment1.preceptor_id;
+	const preceptor2 = assignment2.preceptor_id;
+
 	// Validate both sides of the swap through the single validator.
 	const [eval1, eval2] = await Promise.all([
-		evaluateEdit(db, assignment1, { preceptor_id: assignment2.preceptor_id }, opts),
-		evaluateEdit(db, assignment2, { preceptor_id: assignment1.preceptor_id }, opts)
+		evaluateEdit(db, assignment1, { preceptor_id: preceptor2 }, opts),
+		evaluateEdit(db, assignment2, { preceptor_id: preceptor1 }, opts)
 	]);
 
 	const hard = [...eval1.hard, ...eval2.hard];
@@ -334,8 +360,8 @@ export async function swapAssignments(
 
 	// Swap preceptors (both sides validated before either is written).
 	const [updated1, updated2] = await Promise.all([
-		updateAssignmentBase(db, assignmentId1, { preceptor_id: assignment2.preceptor_id }, true),
-		updateAssignmentBase(db, assignmentId2, { preceptor_id: assignment1.preceptor_id }, true)
+		updateAssignmentBase(db, assignmentId1, { preceptor_id: preceptor2 }, true),
+		updateAssignmentBase(db, assignmentId2, { preceptor_id: preceptor1 }, true)
 	]);
 	await Promise.all([
 		persistOverrideCodes(db, assignmentId1, eval1.persistedCodes, opts.overrideNote),

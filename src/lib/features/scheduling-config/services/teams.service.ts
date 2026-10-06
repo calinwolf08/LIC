@@ -519,16 +519,13 @@ export class TeamService {
         return Result.failure(ServiceErrors.conflict('One or more preceptors not found'));
       }
 
-      // Check same health system if required
-      if (input.requireSameHealthSystem) {
-        const healthSystems = new Set(preceptors.map(p => p.health_system_id));
-        const hasNull = preceptors.some(p => p.health_system_id === null);
-        if (healthSystems.size > 1 || hasNull) {
-          return Result.failure(
-            ServiceErrors.conflict('All team members must be in the same health system')
-          );
-        }
-      }
+      // Same-health-system is a soft, overrideable guide, not a hard block: a
+      // team is a coverage group and members from different (or unset) health
+      // systems may still be valid. A one-member team, or members without a
+      // health system, always passes. A genuine multi-health-system mismatch is
+      // surfaced as a warning by the team-validation preview
+      // (/api/preceptors/teams/validate), so team creation is never blocked here.
+      // (Full warning-with-override persistence lands in the Phase 3 team redesign.)
 
       // Check same site if required (via preceptor_sites junction table)
       if (input.requireSameSite) {

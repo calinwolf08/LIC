@@ -65,6 +65,56 @@
 		return [...byHealthSystem.values()];
 	});
 
+	// ---- Scheduling conflicts (L1) -------------------------------------------
+	/**
+	 * This student's whole-schedule conflicts (over-booked days and any other
+	 * findings that reference the student), from the shared validation payload.
+	 * Refetched whenever the loaded page data changes (e.g. after removing a day).
+	 */
+	interface StudentConflict {
+		date: string;
+		code: string;
+		message: string;
+	}
+	/**
+	 * Student-day conflicts worth flagging on the student: an over-booked day (more
+	 * than one full day of credit, L1), a blackout day, or a day outside the
+	 * schedule range. Preceptor-side issues (capacity) live on the preceptor/health
+	 * panel, and advisory soft codes (onboarding, core-preceptor, preference) are
+	 * shown in their own sections, so they are excluded here.
+	 */
+	const CONFLICT_CODES = new Set([
+		'session_clash',
+		'mutual_exclusion',
+		'block_week_conflict',
+		'blackout_date',
+		'outside_schedule',
+		'entity_missing'
+	]);
+	let conflicts = $state<StudentConflict[]>([]);
+	$effect(() => {
+		const studentId = data.studentId;
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await fetch('/api/schedules/validation');
+				if (!res.ok) return;
+				const body = await res.json();
+				const rows = (body?.data?.byStudent?.[studentId] ?? []) as StudentConflict[];
+				if (!cancelled)
+					conflicts = rows
+						.filter((r) => CONFLICT_CODES.has(r.code))
+						.map((r) => ({ date: r.date, code: r.code, message: r.message }))
+						.sort((a, b) => a.date.localeCompare(b.date));
+			} catch {
+				/* validation is advisory; a fetch failure just leaves the panel empty */
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	});
+
 	// ---- Schedule tab view ---------------------------------------------------
 	let scheduleView = $state<'calendar' | 'list'>('calendar');
 
@@ -166,6 +216,33 @@
 			toast.error('Failed to update onboarding');
 		}
 	}
+
+	// ---- Core preceptors (F5) ----
+	let corePreceptorIds = $state<string[]>([...(data.corePreceptorIds ?? [])]);
+	let savingCore = $state(false);
+	function toggleCore(id: string) {
+		corePreceptorIds = corePreceptorIds.includes(id)
+			? corePreceptorIds.filter((x) => x !== id)
+			: [...corePreceptorIds, id];
+	}
+	async function saveCorePreceptors() {
+		savingCore = true;
+		try {
+			const res = await fetch(`/api/students/${data.studentId}/core-preceptors`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ preceptor_ids: corePreceptorIds })
+			});
+			if (!res.ok) throw new Error('Failed to save core preceptors');
+			toast.success('Core preceptors saved');
+			await invalidateAll();
+		} catch (err) {
+			console.error('Failed to save core preceptors:', err);
+			toast.error('Failed to save core preceptors');
+		} finally {
+			savingCore = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -174,6 +251,7 @@
 
 <div class="container mx-auto max-w-6xl p-6">
 	<PageHeader
+		entityType="Student"
 		title={data.student.name}
 		description={data.student.email}
 		breadcrumbs={[{ label: 'Students', href: '/students' }, { label: data.student.name }]}
@@ -207,7 +285,27 @@
 	{/snippet}
 
 	{#if activeTab === 'overview'}
-		{#if status && status.conflict_count > 0}
+		{#if conflicts.length > 0}
+			<div
+				class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+				data-testid="student-conflicts"
+			>
+				<p class="font-semibold">
+					{conflicts.length} scheduling conflict{conflicts.length > 1 ? 's' : ''} to review
+				</p>
+				<ul class="mt-2 space-y-1">
+					{#each conflicts as c (c.date + c.code)}
+						<li
+							data-testid="student-conflict-{c.code}-{c.date}"
+							data-date={c.date}
+							data-code={c.code}
+						>
+							<strong>{c.date}</strong> — {c.message}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{:else if status && status.conflict_count > 0}
 			<div class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
 				This student has {status.conflict_count} scheduling conflict{status.conflict_count > 1 ? 's' : ''}.
 			</div>
@@ -224,6 +322,35 @@
 			/>
 		</Card>
 
+		<!-- Core preceptors (F5) -->
+		<Card class="mb-6 p-6" data-testid="core-preceptors">
+			<h3 class="text-lg font-semibold">Core preceptors</h3>
+			<p class="mt-1 mb-3 text-sm text-muted-foreground">
+				This student's continuity preceptors. Assigning the student to a preceptor outside this set
+				shows a warning you can override.
+			</p>
+			{#if data.preceptors.length === 0}
+				<p class="text-sm text-muted-foreground">No preceptors in this schedule yet.</p>
+			{:else}
+				<div class="max-h-48 space-y-1 overflow-y-auto">
+					{#each data.preceptors as p (p.id)}
+						<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50">
+							<input
+								type="checkbox"
+								checked={corePreceptorIds.includes(p.id)}
+								onchange={() => toggleCore(p.id)}
+								class="h-4 w-4 rounded border-gray-300"
+							/>
+							{p.name}
+						</label>
+					{/each}
+				</div>
+				<Button class="mt-3" size="sm" onclick={saveCorePreceptors} disabled={savingCore}>
+					{savingCore ? 'Saving…' : 'Save core preceptors'}
+				</Button>
+			{/if}
+		</Card>
+
 		<!-- Summary cards -->
 		<div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<Card class="p-4 text-center">
@@ -231,11 +358,15 @@
 				<div class="text-sm text-muted-foreground">Days required</div>
 			</Card>
 			<Card class="p-4 text-center">
-				<div class="text-2xl font-bold text-green-600">{status?.overall.completed ?? 0}</div>
+				<div class="text-2xl font-bold text-green-600" data-testid="overall-completed">
+					{status?.overall.completed ?? 0}
+				</div>
 				<div class="text-sm text-muted-foreground">Completed</div>
 			</Card>
 			<Card class="p-4 text-center">
-				<div class="text-2xl font-bold text-blue-600">{status?.overall.scheduled ?? 0}</div>
+				<div class="text-2xl font-bold text-blue-600" data-testid="overall-scheduled">
+					{status?.overall.scheduled ?? 0}
+				</div>
 				<div class="text-sm text-muted-foreground">Scheduled</div>
 			</Card>
 			<Card class="p-4 text-center">
@@ -258,7 +389,8 @@
 									{c.clerkship_name}
 								</a>
 								<span class="text-sm text-muted-foreground">
-									{c.completed} done · {c.scheduled} scheduled · {c.unscheduled} left / {c.required}
+									{c.completed} done · {c.scheduled} scheduled · {c.unscheduled} left / {c.required}{#if c.min_required > 0 && c.min_required < c.required}
+										<span class="text-muted-foreground"> (min {c.min_required})</span>{/if}
 								</span>
 							</div>
 							<!-- Segmented progress bar -->
@@ -278,6 +410,32 @@
 				</div>
 			{/if}
 		</Card>
+
+		{#if status && status.standalone_electives.length > 0}
+			<Card class="mt-6 p-6" data-testid="standalone-electives">
+				<h2 class="mb-1 text-xl font-semibold">Standalone electives</h2>
+				<p class="mb-4 text-sm text-muted-foreground">
+					Optional electives that aren't part of a clerkship. Their days count toward the elective only.
+				</p>
+				<div class="space-y-4">
+					{#each status.standalone_electives as e (e.elective_id)}
+						{@const total = Math.max(e.required, e.completed + e.scheduled)}
+						<div class="rounded-lg border p-4" data-testid="standalone-elective-{e.elective_id}">
+							<div class="mb-2 flex items-center justify-between">
+								<span class="font-medium">{e.elective_name}</span>
+								<span class="text-sm text-muted-foreground">
+									{e.completed} done · {e.scheduled} scheduled · {e.unscheduled} left / {e.required}
+								</span>
+							</div>
+							<div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
+								<div class="h-full bg-green-500" style="width: {(e.completed / total) * 100}%"></div>
+								<div class="h-full bg-blue-500" style="width: {(e.scheduled / total) * 100}%"></div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</Card>
+		{/if}
 	{:else if activeTab === 'schedule'}
 		{@render onboardingBanner()}
 		<Card class="p-6">
@@ -337,12 +495,24 @@
 						</thead>
 						<tbody>
 							{#each assignments as a (a.id)}
-								<tr class="border-t">
+								<tr class="border-t" data-testid={a.kind !== 'clinical' ? `student-assignment-${a.kind}-${a.date}` : undefined}>
 									<td class="px-3 py-2">{a.date}</td>
 									<td class="px-3 py-2">
-										<a href="/clerkships/{a.clerkshipId}" class="text-primary hover:underline"
-											>{a.clerkshipName}</a
-										>
+										{#if a.kind === 'free_day'}
+											<span
+												class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800"
+												>Free day</span
+											>
+										{:else if a.kind === 'exam'}
+											<span
+												class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+												>Exam</span
+											>
+										{:else}
+											<a href="/clerkships/{a.clerkshipId}" class="text-primary hover:underline"
+												>{a.clerkshipName}</a
+											>
+										{/if}
 										{#if a.electiveName}
 											<span
 												class="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-800"
@@ -362,9 +532,13 @@
 										{/if}
 									</td>
 									<td class="px-3 py-2">
-										<a href="/preceptors/{a.preceptorId}" class="text-primary hover:underline"
-											>{a.preceptorName}</a
-										>
+										{#if a.kind === 'clinical'}
+											<a href="/preceptors/{a.preceptorId}" class="text-primary hover:underline"
+												>{a.preceptorName}</a
+											>
+										{:else}
+											<span class="text-muted-foreground">—</span>
+										{/if}
 									</td>
 									<td class="px-3 py-2 text-muted-foreground">{a.siteName ?? '—'}</td>
 									<td class="px-3 py-2 text-right whitespace-nowrap">

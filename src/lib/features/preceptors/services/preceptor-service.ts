@@ -85,6 +85,7 @@ export async function createPreceptor(
 		name: data.name,
 		email: data.email,
 		phone: data.phone || null,
+		phone_type: data.phone_type || null,
 		health_system_id: data.health_system_id || null,
 		max_students: data.max_students ?? 1,
 		is_global_fallback_only: data.is_global_fallback_only ? 1 : 0,
@@ -147,6 +148,7 @@ export async function updatePreceptor(
 	if (data.email !== undefined) updateData.email = data.email;
 	if (data.max_students !== undefined) updateData.max_students = data.max_students;
 	if (data.phone !== undefined) updateData.phone = data.phone || null;
+	if (data.phone_type !== undefined) updateData.phone_type = data.phone_type || null;
 	if ('health_system_id' in data) updateData.health_system_id = data.health_system_id || null;
 	if (data.is_global_fallback_only !== undefined) updateData.is_global_fallback_only = data.is_global_fallback_only ? 1 : 0;
 
@@ -304,6 +306,7 @@ export interface PreceptorWithAssociations {
 	name: string;
 	email: string;
 	phone: string | null;
+	phone_type: string | null;
 	max_students: number;
 	is_global_fallback_only: boolean;
 	health_system_id: string | null;
@@ -330,6 +333,7 @@ export async function getPreceptorsWithAssociations(
 			'preceptors.name',
 			'preceptors.email',
 			'preceptors.phone',
+			'preceptors.phone_type',
 			'preceptors.max_students',
 			'preceptors.is_global_fallback_only',
 			'preceptors.health_system_id',
@@ -387,6 +391,7 @@ export async function getPreceptorsWithAssociations(
 				name: p.name,
 				email: p.email,
 				phone: p.phone,
+				phone_type: p.phone_type,
 				max_students: p.max_students,
 				is_global_fallback_only: Boolean(p.is_global_fallback_only),
 				health_system_id: p.health_system_id,
@@ -426,6 +431,7 @@ export async function getPreceptorsBySchedule(
 			'preceptors.name',
 			'preceptors.email',
 			'preceptors.phone',
+			'preceptors.phone_type',
 			'preceptors.max_students',
 			'preceptors.is_global_fallback_only',
 			'preceptors.health_system_id',
@@ -459,6 +465,7 @@ export async function getPreceptorsWithAssociationsBySchedule(
 			'preceptors.name',
 			'preceptors.email',
 			'preceptors.phone',
+			'preceptors.phone_type',
 			'preceptors.max_students',
 			'preceptors.is_global_fallback_only',
 			'preceptors.health_system_id',
@@ -516,6 +523,7 @@ export async function getPreceptorsWithAssociationsBySchedule(
 				name: p.name,
 				email: p.email,
 				phone: p.phone,
+				phone_type: p.phone_type,
 				max_students: p.max_students,
 				is_global_fallback_only: Boolean(p.is_global_fallback_only),
 				health_system_id: p.health_system_id,

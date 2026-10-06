@@ -122,7 +122,9 @@ export const PATCH: RequestHandler = async ({ params, request, url, locals }) =>
 				site_id: updates.site_id,
 				elective_id: updates.elective_id,
 				date: updates.date,
-				status: updates.status
+				status: updates.status,
+				credit_value: updates.credit_value,
+				session: updates.session
 			},
 			{ force, overrideCodes: override_codes, overrideNote: override_note }
 		);

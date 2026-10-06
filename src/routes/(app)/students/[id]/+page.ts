@@ -25,13 +25,16 @@ interface HealthSystem {
 export const load: PageLoad = async ({ params, fetch }) => {
 	try {
 		// Load all required data in parallel
-		const [studentRes, healthSystemsRes, onboardingRes, scheduleRes, statusRes] = await Promise.all([
-			fetch(`/api/students/${params.id}`),
-			fetch('/api/health-systems'),
-			fetch('/api/student-onboarding'),
-			fetch(`/api/students/${params.id}/schedule`),
-			fetch('/api/schedules/status')
-		]);
+		const [studentRes, healthSystemsRes, onboardingRes, scheduleRes, statusRes, coreRes, preceptorsRes] =
+			await Promise.all([
+				fetch(`/api/students/${params.id}`),
+				fetch('/api/health-systems'),
+				fetch('/api/student-onboarding'),
+				fetch(`/api/students/${params.id}/schedule`),
+				fetch('/api/schedules/status'),
+				fetch(`/api/students/${params.id}/core-preceptors`),
+				fetch('/api/preceptors')
+			]);
 
 		if (!studentRes.ok) {
 			// A malformed id yields a 400 from the API; from the user's point of
@@ -84,12 +87,24 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			) ?? null;
 		}
 
+		// Core preceptors (F5) and the preceptor roster for the picker.
+		let corePreceptorIds: string[] = [];
+		if (coreRes.ok) {
+			corePreceptorIds = ((await coreRes.json()).data?.preceptor_ids ?? []) as string[];
+		}
+		let preceptors: Array<{ id: string; name: string }> = [];
+		if (preceptorsRes.ok) {
+			preceptors = ((await preceptorsRes.json()).data ?? []) as Array<{ id: string; name: string }>;
+		}
+
 		return {
 			student,
 			healthSystems,
 			onboardingStatus: Object.fromEntries(onboardingStatus),
 			schedule,
 			status,
+			corePreceptorIds,
+			preceptors,
 			studentId: params.id
 		};
 	} catch (err) {

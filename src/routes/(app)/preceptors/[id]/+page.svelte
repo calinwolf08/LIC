@@ -48,6 +48,33 @@
 		toast.success('Availability saved');
 		await invalidateAll();
 	}
+
+	// ---- Mutual exclusions (L2) ----
+	let mutualExclusionIds = $state<string[]>([...(data.mutualExclusionIds ?? [])]);
+	let savingExclusions = $state(false);
+	function toggleExclusion(id: string) {
+		mutualExclusionIds = mutualExclusionIds.includes(id)
+			? mutualExclusionIds.filter((x) => x !== id)
+			: [...mutualExclusionIds, id];
+	}
+	async function saveExclusions() {
+		savingExclusions = true;
+		try {
+			const res = await fetch(`/api/preceptors/${data.preceptorId}/mutual-exclusions`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ preceptor_ids: mutualExclusionIds })
+			});
+			if (!res.ok) throw new Error('Failed to save mutual exclusions');
+			toast.success('Mutual exclusions saved');
+			await invalidateAll();
+		} catch (err) {
+			console.error('Failed to save mutual exclusions:', err);
+			toast.error('Failed to save mutual exclusions');
+		} finally {
+			savingExclusions = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -56,6 +83,7 @@
 
 <div class="container mx-auto max-w-6xl p-6">
 	<PageHeader
+		entityType="Preceptor"
 		title={data.preceptor.name}
 		description={data.preceptor.email}
 		breadcrumbs={[{ label: 'Preceptors', href: '/preceptors' }, { label: data.preceptor.name }]}
@@ -82,7 +110,14 @@
 					<dl class="space-y-1 text-sm">
 						<div><dt class="inline text-muted-foreground">Email:</dt> <dd class="inline">{data.preceptor.email}</dd></div>
 						{#if data.preceptor.phone}
-							<div><dt class="inline text-muted-foreground">Phone:</dt> <dd class="inline">{data.preceptor.phone}</dd></div>
+							<div>
+								<dt class="inline text-muted-foreground">Phone:</dt>
+								<dd class="inline">
+									{data.preceptor.phone}{#if data.preceptor.phone_type}
+										<span class="text-muted-foreground"> ({data.preceptor.phone_type})</span>
+									{/if}
+								</dd>
+							</div>
 						{/if}
 					</dl>
 					{#if data.preceptor.sites && data.preceptor.sites.length > 0}
@@ -171,6 +206,45 @@
 					onCancel={() => goto('/preceptors')}
 				/>
 			</div>
+		</Card>
+
+		<!-- Mutual exclusions (L2) -->
+		<Card class="mt-6 p-6" data-testid="mutual-exclusions">
+			<h3 class="text-lg font-semibold">Can't share a student-day with</h3>
+			<p class="mt-1 mb-3 text-sm text-muted-foreground">
+				Other preceptors who should not supervise the same student on the same day as this one.
+				Assigning a student to both on one day shows a warning you can override; auto-generation
+				avoids the pairing.
+			</p>
+			{#if data.otherPreceptors.length === 0}
+				<p class="text-sm text-muted-foreground">No other preceptors in this schedule yet.</p>
+			{:else}
+				<div class="max-h-48 space-y-1 overflow-y-auto">
+					{#each data.otherPreceptors as p (p.id)}
+						<label
+							class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
+						>
+							<input
+								type="checkbox"
+								data-testid="exclude-{p.id}"
+								checked={mutualExclusionIds.includes(p.id)}
+								onchange={() => toggleExclusion(p.id)}
+								class="h-4 w-4 rounded border-gray-300"
+							/>
+							{p.name}
+						</label>
+					{/each}
+				</div>
+				<Button
+					class="mt-3"
+					size="sm"
+					data-testid="save-exclusions"
+					onclick={saveExclusions}
+					disabled={savingExclusions}
+				>
+					{savingExclusions ? 'Saving…' : 'Save'}
+				</Button>
+			{/if}
 		</Card>
 	{/if}
 </div>

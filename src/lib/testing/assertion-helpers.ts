@@ -208,8 +208,8 @@ export async function assertTeamBalanced(
 	// Calculate days per team member (each assignment = 1 day)
 	const daysByMember = new Map<string, number>();
 	for (const assignment of assignments) {
-		const currentDays = daysByMember.get(assignment.preceptor_id) || 0;
-		daysByMember.set(assignment.preceptor_id, currentDays + 1);
+		const currentDays = daysByMember.get(assignment.preceptor_id ?? '') || 0;
+		daysByMember.set(assignment.preceptor_id ?? '', currentDays + 1);
 	}
 
 	// Check that distribution is reasonably balanced
@@ -356,8 +356,8 @@ export async function assertTeamContinuityStrategy(
 	// Count assignments per preceptor
 	const assignmentsByPreceptor = new Map<string, number>();
 	for (const assignment of assignments) {
-		const count = assignmentsByPreceptor.get(assignment.preceptor_id) || 0;
-		assignmentsByPreceptor.set(assignment.preceptor_id, count + 1);
+		const count = assignmentsByPreceptor.get(assignment.preceptor_id ?? '') || 0;
+		assignmentsByPreceptor.set(assignment.preceptor_id ?? '', count + 1);
 	}
 
 	// Find the preceptor with the most assignments (primary)

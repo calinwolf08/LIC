@@ -111,6 +111,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('specialty', 'text')
 		.addColumn('clerkship_type', 'text')
 		.addColumn('required_days', 'integer', (col) => col.notNull())
+		.addColumn('scheduling_kind', 'text', (col) => col.notNull().defaultTo('scattered'))
+		.addColumn('min_required_days', 'integer')
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -136,6 +138,7 @@ await db.schema
 		.addColumn('elective_id', 'text')
 		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
@@ -143,6 +146,8 @@ await db.schema
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	// Preceptor availability table
@@ -152,8 +157,12 @@ await db.schema
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
+		.addColumn('preference', 'text')
+		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 
 	// Junction tables — getStudentScheduleData scopes the student and the
@@ -208,7 +217,13 @@ async function insertTestData(
 			date: string;
 			status: string;
 		}>;
-		availability?: Array<{ id: string; preceptor_id: string; date: string; is_available: number }>;
+		availability?: Array<{
+			id: string;
+			preceptor_id: string;
+			date: string;
+			is_available: number;
+			notes?: string | null;
+		}>;
 	}
 ) {
 	const timestamp = new Date().toISOString();
@@ -828,6 +843,30 @@ describe('Schedule Views Service', () => {
 			expect(result!.overallCapacity.utilizationPercent).toBe(0);
 		});
 
+		// H6: a per-day availability note surfaces on the calendar read model.
+		it('surfaces the per-day availability note on the calendar', async () => {
+			const preceptorId = generateTestId('clpreceptor');
+
+			await insertTestData(db, {
+				preceptors: [{ id: preceptorId, name: 'Dr. Note', email: 'note@hospital.com' }],
+				availability: [
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1,
+						notes: 'Mornings only'
+					}
+				]
+			});
+
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
+			const day = result!.calendar
+				.flatMap((m) => m.weeks.flatMap((w) => w.days))
+				.find((d) => d.date === '2024-01-15');
+			expect(day?.availabilityNote).toBe('Mornings only');
+		});
+
 		it('calculates utilization with assignments', async () => {
 			const preceptorId = generateTestId('clpreceptor');
 			const studentId = generateTestId('clstudent');
@@ -891,6 +930,63 @@ describe('Schedule Views Service', () => {
 			expect(result!.overallCapacity.assignedDays).toBe(2);
 			expect(result!.overallCapacity.openSlots).toBe(2);
 			expect(result!.overallCapacity.utilizationPercent).toBe(50); // 2/4 = 50%
+		});
+
+		// I1 (client feedback): an assignment on a day the preceptor is NOT marked
+		// available must not corrupt the capacity math — utilization stays within
+		// 0–100%, open slots never go negative, and the out-of-availability count is
+		// reported so the coordinator can find and fix it.
+		it('counts out-of-availability assignments without breaking the math', async () => {
+			const preceptorId = generateTestId('clpreceptor');
+			const studentId = generateTestId('clstudent');
+			const clerkshipId = generateTestId('clclerkship');
+
+			await insertTestData(db, {
+				students: [{ id: studentId, name: 'Alice Johnson', email: 'alice@example.com' }],
+				preceptors: [{ id: preceptorId, name: 'Dr. Smith', email: 'smith@hospital.com' }],
+				clerkships: [
+					{ id: clerkshipId, name: 'Family Medicine', specialty: 'FM', required_days: 10 }
+				],
+				// Exactly ONE available day.
+				availability: [
+					{
+						id: generateTestId('clavail'),
+						preceptor_id: preceptorId,
+						date: '2024-01-15',
+						is_available: 1
+					}
+				],
+				// One assignment on the available day, one on a day with no availability
+				// row at all (outside availability).
+				assignments: [
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-15',
+						status: 'confirmed'
+					},
+					{
+						id: generateTestId('classign'),
+						student_id: studentId,
+						preceptor_id: preceptorId,
+						clerkship_id: clerkshipId,
+						date: '2024-01-20',
+						status: 'confirmed'
+					}
+				]
+			});
+
+			const result = await getPreceptorScheduleData(db, preceptorId, PERIOD_ID);
+
+			expect(result!.overallCapacity.availableDays).toBe(1);
+			expect(result!.overallCapacity.assignedDays).toBe(2);
+			expect(result!.overallCapacity.assignedOutsideAvailability).toBe(1);
+			// Open slots never negative; the outside day does not consume a slot.
+			expect(result!.overallCapacity.openSlots).toBe(0);
+			// Utilization measures used AVAILABLE capacity: 1 of 1 = 100%, not 200%.
+			expect(result!.overallCapacity.utilizationPercent).toBe(100);
 		});
 
 		it('groups assignments by student', async () => {

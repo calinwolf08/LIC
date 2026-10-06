@@ -178,3 +178,57 @@ export async function clerkshipHasWorkablePreceptor(
 	});
 	return eligible.size > 0;
 }
+
+export interface ServeableClerkship {
+	id: string;
+	name: string;
+}
+
+export interface TeamServeability {
+	/** Clerkships EVERY member can serve (availability at an allowed site). */
+	serveable: ServeableClerkship[];
+	/**
+	 * False only when the team has ≥2 members who share no serveable clerkship —
+	 * the "members don't overlap" case (client feedback G3/G4). A 0- or 1-member
+	 * team always overlaps trivially.
+	 */
+	overlap: boolean;
+}
+
+/**
+ * Infer the clerkships a team can serve from its members' own eligibility
+ * (client feedback G3): a clerkship is serveable when EVERY member has
+ * availability at one of that clerkship's allowed sites. When members share no
+ * such clerkship (e.g. a family-medicine preceptor and a surgery preceptor),
+ * `overlap` is false so the UI can warn and ask for an explicit override (G4).
+ *
+ * Availability-based (not team-membership-based) on purpose: membership would be
+ * circular — a member is trivially "eligible" for their own team's clerkship.
+ */
+export async function getTeamServeableClerkships(
+	db: Kysely<DB>,
+	scheduleId: string,
+	preceptorIds: string[]
+): Promise<TeamServeability> {
+	const members = [...new Set(preceptorIds)];
+	if (members.length === 0) return { serveable: [], overlap: true };
+
+	const clerkships = await db
+		.selectFrom('schedule_clerkships')
+		.innerJoin('clerkships', 'clerkships.id', 'schedule_clerkships.clerkship_id')
+		.select(['clerkships.id as id', 'clerkships.name as name'])
+		.where('schedule_clerkships.schedule_id', '=', scheduleId)
+		.execute();
+
+	const memberSet = new Set(members);
+	const serveable: ServeableClerkship[] = [];
+	for (const clerkship of clerkships) {
+		const allowed = await getClerkshipSiteIds(db, clerkship.id as string);
+		const withAvail = await getPreceptorIdsWithAvailability(db, allowed, { restrictTo: memberSet });
+		if (members.every((m) => withAvail.has(m))) {
+			serveable.push({ id: clerkship.id as string, name: clerkship.name });
+		}
+	}
+
+	return { serveable, overlap: members.length < 2 || serveable.length > 0 };
+}

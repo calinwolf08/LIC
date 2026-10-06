@@ -265,6 +265,7 @@
 
 <div class="container mx-auto max-w-4xl py-8">
 	<PageHeader
+		entityType="Clerkship"
 		title={data.clerkship?.name || 'Clerkship'}
 		description={`${data.clerkship?.clerkship_type === 'inpatient' ? 'Inpatient' : 'Outpatient'} · ${data.clerkship?.required_days ?? 0} days required`}
 		breadcrumbs={[

@@ -392,6 +392,276 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		});
 	});
 
+	describe('Test 8: Half-day session packing (L1)', () => {
+		it('places a morning of one clerkship and an afternoon of another on the same day', async () => {
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Half-Day Clinic');
+			const day = '2025-01-06'; // Monday
+
+			// Two outpatient clerkships, one required day each.
+			const clerkА = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 1,
+			});
+			const clerkB = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 1 });
+			const [studentId] = await createTestStudents(db, 1);
+
+			// A dedicated preceptor per clerkship, each available only on `day`.
+			const [precA] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkА,
+			});
+			const [precB] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkB,
+			});
+			for (const p of [precA, precB]) {
+				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			}
+
+			// precA offers only a morning that day; precB only an afternoon.
+			await createPreceptorAvailability(db, precA, siteIds[0], [day], 'am');
+			await createPreceptorAvailability(db, precB, siteIds[0], [day], 'pm');
+
+			const result = await engine.schedule(studentId ? [studentId] : [], [clerkА, clerkB], {
+				startDate: day,
+				endDate: day,
+				dryRun: false,
+			});
+			expect(result.success).toBe(true);
+
+			// The student holds two assignments on the one day — a morning and an
+			// afternoon — each worth half a day of credit (L1).
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['clerkship_id', 'session', 'credit_value'])
+				.where('student_id', '=', studentId)
+				.where('date', '=', day)
+				.execute();
+			expect(rows).toHaveLength(2);
+			expect(rows).toHaveLength(2);
+			expect(rows.map((r) => r.session).sort()).toEqual(['am', 'pm']);
+			expect(rows.every((r) => r.credit_value === 0.5)).toBe(true);
+			// One per clerkship — the two clerkships share the day.
+			expect(new Set(rows.map((r) => r.clerkship_id))).toEqual(new Set([clerkА, clerkB]));
+		});
+	});
+
+	describe('Test 9: Mutual exclusion auto-avoidance (L2)', () => {
+		it('does not place two mutually-exclusive preceptors for a student on the same day', async () => {
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Exclusion Clinic');
+			const day = '2025-01-06'; // Monday — the only availability date below
+
+			const clerkA = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 1
+			});
+			const clerkB = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 1 });
+			const [studentId] = await createTestStudents(db, 1);
+			const [precA] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkA
+			});
+			const [precB] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkB
+			});
+			for (const p of [precA, precB]) {
+				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			}
+			// Both preceptors offer only a full day on the single shared date.
+			await createPreceptorAvailability(db, precA, siteIds[0], [day]);
+			await createPreceptorAvailability(db, precB, siteIds[0], [day]);
+
+			// Rule: precA and precB must not share a student-day.
+			const [a, b] = precA <= precB ? [precA, precB] : [precB, precA];
+			await db
+				.insertInto('preceptor_mutual_exclusions')
+				.values({ id: 'me-1', preceptor_a_id: a, preceptor_b_id: b, created_at: new Date().toISOString() })
+				.execute();
+
+			await engine.schedule(studentId ? [studentId] : [], [clerkA, clerkB], {
+				startDate: day,
+				endDate: day,
+				dryRun: false
+			});
+
+			// The student is placed for at most one of the two clerkships on `day` —
+			// the engine avoided pairing the mutually-exclusive preceptors.
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select('preceptor_id')
+				.where('student_id', '=', studentId)
+				.where('date', '=', day)
+				.execute();
+			expect(rows.length).toBe(1);
+		});
+	});
+
+	describe('Test 10: Block-week auto-avoidance (L3)', () => {
+		it('keeps a scattered clerkship out of a week consumed by an inpatient block', async () => {
+			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Block Clinic');
+			const blockMon = '2025-01-06'; // Monday — the block day
+			const scatterSameWeek = '2025-01-08'; // Wed, same week as the block
+			const scatterNextWeek = '2025-01-13'; // next Monday, a free week
+
+			// One block (inpatient) clerkship and one scattered (outpatient) clerkship,
+			// one required day each.
+			const clerkBlock = await createTestClerkship(db, 'Inpatient Medicine', {
+				clerkshipType: 'inpatient',
+				requiredDays: 1,
+				schedulingKind: 'block'
+			});
+			const clerkScatter = await createTestClerkship(db, 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 1,
+				schedulingKind: 'scattered'
+			});
+			const [studentId] = await createTestStudents(db, 1);
+			const [precBlock] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkBlock
+			});
+			const [precScatter] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId: clerkScatter
+			});
+			for (const p of [precBlock, precScatter]) {
+				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			}
+
+			// The block preceptor offers only the block Monday. The scattered preceptor
+			// offers a day in the block week AND a day the next week.
+			await createPreceptorAvailability(db, precBlock, siteIds[0], [blockMon]);
+			await createPreceptorAvailability(db, precScatter, siteIds[0], [
+				scatterSameWeek,
+				scatterNextWeek
+			]);
+
+			await engine.schedule(studentId ? [studentId] : [], [clerkBlock, clerkScatter], {
+				startDate: blockMon,
+				endDate: scatterNextWeek,
+				dryRun: false
+			});
+
+			// The block was placed on its Monday, and the scattered day landed in the
+			// free week — the engine avoided the week the block consumes.
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['clerkship_id', 'date'])
+				.where('student_id', '=', studentId)
+				.execute();
+			const blockRow = rows.find((r) => r.clerkship_id === clerkBlock);
+			const scatterRow = rows.find((r) => r.clerkship_id === clerkScatter);
+			expect(blockRow?.date).toBe(blockMon);
+			expect(scatterRow?.date).toBe(scatterNextWeek);
+			expect(scatterRow?.date).not.toBe(scatterSameWeek);
+		});
+	});
+
+	describe('Test 10b: Blackout dates are schedule-scoped', () => {
+		it('does not apply another schedule\'s blackout to this schedule\'s generation', async () => {
+			// Regression guard: strategy-context used to read ALL blackout_dates, so a
+			// blackout on a *different* schedule removed a candidate day here. That broke
+			// L3 in the real pipeline (a seeded Demo blackout landed on the only valid
+			// free-week day for a sandbox). Blackouts must be scoped to the schedule.
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Scoped Clinic');
+			const day = '2025-02-03'; // Monday
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 1
+			});
+			const [studentId] = await createTestStudents(db, 1);
+			const [preceptorId] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId
+			});
+			await createCapacityRule(db, preceptorId, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			await createPreceptorAvailability(db, preceptorId, siteIds[0], [day]);
+
+			const ts = new Date().toISOString();
+			// This schedule (A) owns the entities; schedule B is a separate schedule that
+			// has a blackout on exactly `day`.
+			await db.insertInto('scheduling_periods').values([
+				{ id: 'sched-A', name: 'A', start_date: day, end_date: day, created_at: ts, updated_at: ts },
+				{ id: 'sched-B', name: 'B', start_date: day, end_date: day, created_at: ts, updated_at: ts }
+			]).execute();
+			await db.insertInto('schedule_clerkships').values({ id: 'sc-A', schedule_id: 'sched-A', clerkship_id: clerkshipId, created_at: ts }).execute();
+			await db.insertInto('schedule_preceptors').values({ id: 'sp-A', schedule_id: 'sched-A', preceptor_id: preceptorId, created_at: ts }).execute();
+			await db.insertInto('schedule_sites').values({ id: 'ss-A', schedule_id: 'sched-A', site_id: siteIds[0], created_at: ts }).execute();
+			await db.insertInto('blackout_dates').values({ id: 'bo-B', schedule_id: 'sched-B', date: day, reason: 'Other schedule holiday', created_at: ts }).execute();
+
+			await engine.schedule([studentId], [clerkshipId], {
+				startDate: day,
+				endDate: day,
+				scheduleId: 'sched-A',
+				dryRun: false
+			});
+
+			// Schedule B's blackout must not have removed `day` from schedule A.
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['date'])
+				.where('student_id', '=', studentId)
+				.execute();
+			expect(rows.map((r) => r.date)).toEqual([day]);
+		});
+
+		it('still applies this schedule\'s own blackout', async () => {
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Own Blackout Clinic');
+			const day = '2025-02-10'; // Monday
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', {
+				clerkshipType: 'outpatient',
+				requiredDays: 1
+			});
+			const [studentId] = await createTestStudents(db, 1);
+			const [preceptorId] = await createTestPreceptors(db, 1, {
+				healthSystemId,
+				siteId: siteIds[0],
+				maxStudents: 3,
+				clerkshipId
+			});
+			await createCapacityRule(db, preceptorId, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
+			await createPreceptorAvailability(db, preceptorId, siteIds[0], [day]);
+
+			const ts = new Date().toISOString();
+			await db.insertInto('scheduling_periods').values({ id: 'sched-own', name: 'Own', start_date: day, end_date: day, created_at: ts, updated_at: ts }).execute();
+			await db.insertInto('schedule_clerkships').values({ id: 'sc-own', schedule_id: 'sched-own', clerkship_id: clerkshipId, created_at: ts }).execute();
+			await db.insertInto('schedule_preceptors').values({ id: 'sp-own', schedule_id: 'sched-own', preceptor_id: preceptorId, created_at: ts }).execute();
+			await db.insertInto('schedule_sites').values({ id: 'ss-own', schedule_id: 'sched-own', site_id: siteIds[0], created_at: ts }).execute();
+			await db.insertInto('blackout_dates').values({ id: 'bo-own', schedule_id: 'sched-own', date: day, reason: 'Own holiday', created_at: ts }).execute();
+
+			await engine.schedule([studentId], [clerkshipId], {
+				startDate: day,
+				endDate: day,
+				scheduleId: 'sched-own',
+				dryRun: false
+			});
+
+			const rows = await db
+				.selectFrom('schedule_assignments')
+				.select(['date'])
+				.where('student_id', '=', studentId)
+				.execute();
+			// The only candidate day is blacked out for THIS schedule → nothing placed.
+			expect(rows).toHaveLength(0);
+		});
+	});
+
 	describe('Test 7: Capacity Enforcement', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup

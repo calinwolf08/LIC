@@ -97,7 +97,7 @@
 <div class="container mx-auto py-8">
 	<PageHeader
 		title="Locations"
-		description="Clinical locations where students rotate. Each site is its own location and belongs to a health system."
+		description="A health system is an organization (e.g. Kaiser); a site is a physical location within it (e.g. Kaiser Oakland) where students actually rotate. Every site belongs to one health system, and locations/addresses live on the site."
 	>
 		{#snippet actions()}
 			{#if data.hasActiveSchedule}

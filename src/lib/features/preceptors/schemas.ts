@@ -39,6 +39,7 @@ export const createPreceptorSchema = z.object({
 	name: nameSchema,
 	email: emailSchema,
 	phone: phoneSchema.optional(),
+	phone_type: z.enum(['cell', 'office', 'home']).optional(),
 	health_system_id: optionalIdSchema,
 	site_id: optionalIdSchema, // Deprecated: kept for backwards compatibility
 	site_ids: z.array(cuid2Schema).optional(), // New: array of site IDs
@@ -54,6 +55,7 @@ export const updatePreceptorSchema = z
 		name: nameSchema.optional(),
 		email: emailSchema.optional(),
 		phone: phoneSchema.optional(),
+		phone_type: z.enum(['cell', 'office', 'home']).optional(),
 		health_system_id: optionalIdSchema,
 		site_id: optionalIdSchema, // Deprecated: kept for backwards compatibility
 		site_ids: z.array(cuid2Schema).optional(), // New: array of site IDs

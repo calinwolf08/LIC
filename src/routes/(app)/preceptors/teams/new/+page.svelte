@@ -319,6 +319,11 @@
 			{/if}
 		</a>
 		<h1 class="text-3xl font-bold mt-2">Create New Team</h1>
+		<p class="mt-2 max-w-2xl text-sm text-muted-foreground" data-testid="team-explainer">
+			A team is a <strong>coverage group</strong> of preceptors who can cover the same clerkship's
+			days — a primary plus backups. When you assign, you can pick any member; in the paid
+			Auto-Generate tier, scheduling falls back down the list automatically.
+		</p>
 	</div>
 
 	{#if error}
@@ -548,7 +553,11 @@
 
 				<!-- Formation Rules -->
 				<div class="space-y-3">
-					<h3 class="font-medium">Team Formation Rules</h3>
+					<h3 class="font-medium">Team Formation Rules (optional)</h3>
+					<p class="text-xs text-muted-foreground">
+						These are optional guides, not hard blocks. If members don't match, you'll get a
+						warning you can override — the team still saves.
+					</p>
 
 					<div class="flex items-center gap-2">
 						<input

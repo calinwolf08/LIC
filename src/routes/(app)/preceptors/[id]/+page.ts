@@ -9,12 +9,15 @@ import type { PageLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 export const load: PageLoad = async ({ params, fetch }) => {
-	const [preceptorRes, scheduleRes, healthSystemsRes, sitesRes] = await Promise.all([
-		fetch(`/api/preceptors/${params.id}`),
-		fetch(`/api/preceptors/${params.id}/schedule`),
-		fetch('/api/health-systems'),
-		fetch('/api/sites')
-	]);
+	const [preceptorRes, scheduleRes, healthSystemsRes, sitesRes, preceptorsRes, exclusionsRes] =
+		await Promise.all([
+			fetch(`/api/preceptors/${params.id}`),
+			fetch(`/api/preceptors/${params.id}/schedule`),
+			fetch('/api/health-systems'),
+			fetch('/api/sites'),
+			fetch('/api/preceptors'),
+			fetch(`/api/preceptors/${params.id}/mutual-exclusions`)
+		]);
 
 	if (!preceptorRes.ok) {
 		// 400 (malformed id) reads as not-found for the user (e2e finding P1-d).
@@ -27,6 +30,22 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	const schedule = scheduleRes.ok ? (await scheduleRes.json()).data : null;
 	const healthSystems = healthSystemsRes.ok ? ((await healthSystemsRes.json()).data ?? []) : [];
 	const sites = sitesRes.ok ? ((await sitesRes.json()).data ?? []) : [];
+	// Other preceptors in the active schedule + this preceptor's mutual-exclusion set (L2).
+	const allPreceptors = preceptorsRes.ok ? ((await preceptorsRes.json()).data ?? []) : [];
+	const otherPreceptors = (allPreceptors as Array<{ id: string; name: string }>).filter(
+		(p) => p.id !== params.id
+	);
+	const mutualExclusionIds = exclusionsRes.ok
+		? ((await exclusionsRes.json()).data?.preceptor_ids ?? [])
+		: [];
 
-	return { preceptor, schedule, healthSystems, sites, preceptorId: params.id };
+	return {
+		preceptor,
+		schedule,
+		healthSystems,
+		sites,
+		preceptorId: params.id,
+		otherPreceptors,
+		mutualExclusionIds
+	};
 };

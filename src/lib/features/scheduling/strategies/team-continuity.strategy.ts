@@ -108,11 +108,18 @@ export class TeamContinuityStrategy extends BaseStrategy {
       }
 
       // Get preceptor's available dates that we haven't used yet
-      // AND where preceptor has daily capacity remaining (using context for batch tracking)
+      // AND where preceptor has daily capacity remaining (using context for batch tracking).
+      // Ordered by preference (H8): preferred days first, then untagged, with
+      // "in a pinch" days last so they are only used once nothing better remains —
+      // the engine never places an in-a-pinch day while a preferred day is open.
       const preceptorAvailableDates = preceptor.availability
         .filter(date => availableDates.includes(date) && !usedDates.has(date))
         .filter(date => this.hasDailyCapacity(context, preceptor, date))
-        .sort(); // Sort chronologically
+        .sort(
+          (a, b) =>
+            this.preferenceRank(preceptor, a) - this.preferenceRank(preceptor, b) ||
+            a.localeCompare(b)
+        );
 
       // Track assignments made for this preceptor in this strategy run
       let assignedToThisPreceptor = 0;
@@ -331,12 +338,30 @@ export class TeamContinuityStrategy extends BaseStrategy {
     // Sort preceptors by load
     const sortedPreceptors = this.sortByLoad(availablePreceptors);
 
-    for (const date of availableDates) {
+    // Best preference rank achievable on a date across all preceptors, so dates
+    // where a preferred slot is open are filled before in-a-pinch-only days (H8).
+    const bestRankForDate = (date: string): number => {
+      let best = 3;
+      for (const p of sortedPreceptors) {
+        if (p.availability.includes(date)) best = Math.min(best, this.preferenceRank(p, date));
+      }
+      return best;
+    };
+    const orderedDates = [...availableDates].sort(
+      (a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
+    );
+
+    for (const date of orderedDates) {
       if (assignments.length >= daysNeeded) break;
       if (usedDates.has(date)) continue;
 
+      // Prefer the preceptor whose availability on this date ranks best (H8), then load.
+      const rankedForDate = [...sortedPreceptors].sort(
+        (a, b) => this.preferenceRank(a, date) - this.preferenceRank(b, date)
+      );
+
       // Find first preceptor available on this date with capacity
-      for (const preceptor of sortedPreceptors) {
+      for (const preceptor of rankedForDate) {
         if (!preceptor.availability.includes(date)) continue;
 
         // Check daily capacity using context (includes pending assignments from batch)

@@ -10,9 +10,23 @@ function day(date: string, overrides: Partial<DayState> = {}): DayState {
 		preceptorBookings: [],
 		preceptorAtCapacity: false,
 		studentBusy: false,
+		studentBookedCredit: 0,
+		studentSessions: [],
+		availableSession: null,
+		availableCredit: null,
 		isPast: false,
 		...overrides
 	};
+}
+
+/** A day the student already has a full-day assignment on (for session-clash cases). */
+function booked(date: string, overrides: Partial<DayState> = {}): DayState {
+	return day(date, {
+		studentBusy: true,
+		studentBookedCredit: 1,
+		studentSessions: ['full'],
+		...overrides
+	});
 }
 
 const selection = {
@@ -33,13 +47,39 @@ describe('analyseSelection', () => {
 		expect(r.categories).toEqual([]);
 	});
 
-	it('excludes days the student is already booked — a hard conflict is never overridable', () => {
+	it('flags a full-day clash as session_clash — submittable, overridable (L1)', () => {
 		const r = analyseSelection(
 			['2030-03-05', '2030-03-06'],
-			[day('2030-03-05', { studentBusy: true }), day('2030-03-06')]
+			[booked('2030-03-05'), day('2030-03-06')],
+			{},
+			'full'
 		);
-		expect(r.blockedDates).toEqual(['2030-03-05']);
-		expect(r.submittableDates).toEqual(['2030-03-06']);
+		// No longer a hard block: both days submit, the booked one carries the warning.
+		expect(r.blockedDates).toEqual([]);
+		expect(r.submittableDates).toEqual(['2030-03-05', '2030-03-06']);
+		expect(r.categories.map((c) => c.category)).toEqual(['session_clash']);
+		expect(r.categories[0].dates).toEqual(['2030-03-05']);
+	});
+
+	it('lets an afternoon pass cleanly when the student already has a morning (AM + PM)', () => {
+		const r = analyseSelection(
+			['2030-03-05'],
+			[day('2030-03-05', { studentBusy: true, studentBookedCredit: 0.5, studentSessions: ['am'] })],
+			{},
+			'pm'
+		);
+		expect(r.submittableDates).toEqual(['2030-03-05']);
+		expect(r.categories).toEqual([]);
+	});
+
+	it('flags a second morning as a session clash (AM + AM)', () => {
+		const r = analyseSelection(
+			['2030-03-05'],
+			[day('2030-03-05', { studentBusy: true, studentBookedCredit: 0.5, studentSessions: ['am'] })],
+			{},
+			'am'
+		);
+		expect(r.categories.map((c) => c.category)).toEqual(['session_clash']);
 	});
 
 	it('groups flagged days by category', () => {
@@ -83,12 +123,12 @@ describe('analyseSelection', () => {
 		expect(r.categories[0].dates).toEqual([]);
 	});
 
-	it('skips selection-wide categories when every day is hard-blocked', () => {
-		const r = analyseSelection(['2030-03-05'], [day('2030-03-05', { studentBusy: true })], {
-			overRequired: true
-		});
-		expect(r.categories).toEqual([]);
-		expect(r.submittableDates).toEqual([]);
+	it('keeps selection-wide categories on a clashing (still submittable) day', () => {
+		const r = analyseSelection(['2030-03-05'], [booked('2030-03-05')], { overRequired: true }, 'full');
+		// The day is submittable now, so both the session-clash warning and the
+		// selection-wide over-required category apply.
+		expect(r.submittableDates).toEqual(['2030-03-05']);
+		expect(r.categories.map((c) => c.category)).toEqual(['session_clash', 'over_required_days']);
 	});
 
 	it('sorts the selection and reports categories in conversation order', () => {
@@ -110,12 +150,12 @@ describe('analyseSelection', () => {
 describe('buildSubmitPayload', () => {
 	const analysis: FlagAnalysis = analyseSelection(
 		['2030-03-05', '2030-03-06'],
-		[day('2030-03-05', { state: 'unavailable' }), day('2030-03-06', { studentBusy: true })]
+		[day('2030-03-05', { state: 'unavailable' }), day('2030-03-06')]
 	);
 
-	it('submits only the non-blocked days', () => {
+	it('submits every selected day (nothing is hard-blocked anymore)', () => {
 		const payload = buildSubmitPayload(selection, analysis, ['preceptor_unavailable']);
-		expect(payload.dates).toEqual(['2030-03-05']);
+		expect(payload.dates).toEqual(['2030-03-05', '2030-03-06']);
 	});
 
 	it('carries the accepted codes', () => {

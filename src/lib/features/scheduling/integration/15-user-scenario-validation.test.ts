@@ -190,7 +190,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 	 * Helper to count assignments per preceptor per date (for double-booking check)
 	 */
 	function countAssignmentsPerPreceptorDate(
-		assignments: Array<{ preceptor_id: string; date: string }>
+		assignments: Array<{ preceptor_id: string | null; date: string }>
 	): Map<string, number> {
 		const counts = new Map<string, number>();
 		for (const a of assignments) {

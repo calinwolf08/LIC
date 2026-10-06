@@ -64,6 +64,22 @@ export class DailyRotationStrategy extends BaseStrategy {
       }
     }
 
+    // Order candidate days by the best preference achievable on each (H8): days
+    // where a preferred slot is open come first, in-a-pinch-only days last, so the
+    // first-N slice never spends an in-a-pinch day while a preferred day is open.
+    const bestRankForDate = (date: string): number => {
+      let best = 3;
+      for (const p of candidates) {
+        if (this.isDateAvailable(p, date) && this.hasDailyCapacity(context, p, date)) {
+          best = Math.min(best, this.preferenceRank(p, date));
+        }
+      }
+      return best;
+    };
+    datesWithAvailability.sort(
+      (a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
+    );
+
     // Take as many days as we can, up to the requirement. A short supply is a
     // partial result (review finding F-21), not a discarded one.
     const assignments: import('./base-strategy').ProposedAssignment[] = [];
@@ -99,12 +115,18 @@ export class DailyRotationStrategy extends BaseStrategy {
         continue;
       }
 
+      // Restrict selection to the best-ranked preceptors for this day (H8) so a
+      // preferred slot is always chosen over an in-a-pinch one; rotation happens
+      // within that equally-preferred subset.
+      const minRank = Math.min(...availableToday.map(p => this.preferenceRank(p, date)));
+      const bestToday = availableToday.filter(p => this.preferenceRank(p, date) === minRank);
+
       // Try to select a DIFFERENT preceptor than the previous assignment (rotation behavior)
       let selectedPreceptor: (typeof candidates)[0] | null = null;
 
       // If we have multiple available preceptors, prefer one different from previous
-      if (availableToday.length > 1 && previousPreceptorId) {
-        const differentPreceptors = availableToday.filter(p => p.id !== previousPreceptorId);
+      if (bestToday.length > 1 && previousPreceptorId) {
+        const differentPreceptors = bestToday.filter(p => p.id !== previousPreceptorId);
         if (differentPreceptors.length > 0) {
           // Round-robin through the different preceptors
           selectedPreceptor = differentPreceptors[rotationIndex % differentPreceptors.length];
@@ -112,9 +134,9 @@ export class DailyRotationStrategy extends BaseStrategy {
         }
       }
 
-      // Fallback: use round-robin from all available today
+      // Fallback: use round-robin from the best-ranked preceptors today
       if (!selectedPreceptor) {
-        selectedPreceptor = availableToday[rotationIndex % availableToday.length];
+        selectedPreceptor = bestToday[rotationIndex % bestToday.length];
         rotationIndex++;
       }
 

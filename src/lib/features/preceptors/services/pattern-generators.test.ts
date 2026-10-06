@@ -353,6 +353,70 @@ describe('applyPatternsBySpecificity', () => {
 		expect(jan8?.is_available).toBe(false);
 	});
 
+	// H6: the pattern's free-text note (`reason`) is carried onto each generated
+	// day, for available and unavailable days alike.
+	it('carries the pattern note onto generated days (H6)', () => {
+		const patterns: CreatePattern[] = [
+			{
+				pattern_type: 'weekly',
+				is_available: true,
+				specificity: 1,
+				date_range_start: '2025-01-01',
+				date_range_end: '2025-01-31',
+				config: { days_of_week: [1, 3, 5] },
+				reason: 'Mornings only',
+				enabled: true,
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
+			},
+			{
+				pattern_type: 'block',
+				is_available: false,
+				specificity: 2,
+				date_range_start: '2025-01-06',
+				date_range_end: '2025-01-10',
+				config: { exclude_weekends: false },
+				reason: 'Out for conference',
+				enabled: true,
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
+			}
+		];
+
+		const result = applyPatternsBySpecificity(patterns);
+
+		// Available day carries its note.
+		expect(result.find((d) => d.date === '2025-01-03')?.notes).toBe('Mornings only');
+		// Unavailable day carries its note too.
+		const jan6 = result.find((d) => d.date === '2025-01-06');
+		expect(jan6?.is_available).toBe(false);
+		expect(jan6?.notes).toBe('Out for conference');
+	});
+
+	// L1: the pattern's half-day session + credit are carried onto each available day.
+	it('carries the pattern session + credit onto available generated days (L1)', () => {
+		const patterns: CreatePattern[] = [
+			{
+				pattern_type: 'weekly',
+				is_available: true,
+				specificity: 1,
+				date_range_start: '2025-01-01',
+				date_range_end: '2025-01-31',
+				config: { days_of_week: [1, 3, 5] },
+				session: 'am',
+				credit_value: 0.5,
+				enabled: true,
+				preceptor_id: 'test-preceptor',
+				site_id: 'test-site'
+			}
+		];
+
+		const result = applyPatternsBySpecificity(patterns);
+		const jan3 = result.find((d) => d.date === '2025-01-03');
+		expect(jan3?.session).toBe('am');
+		expect(jan3?.credit_value).toBe(0.5);
+	});
+
 	it('should handle individual overrides with highest specificity', () => {
 		const patterns: CreatePattern[] = [
 			{

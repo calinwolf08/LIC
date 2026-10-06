@@ -57,7 +57,7 @@ export interface ClerkshipConfigurations {
 }
 
 export interface ClerkshipElectives {
-  clerkship_id: string;
+  clerkship_id: string | null;
   created_at: Generated<string>;
   id: string | null;
   is_required: Generated<number>;
@@ -81,8 +81,10 @@ export interface Clerkships {
   created_at: Generated<string>;
   description: string | null;
   id: string | null;
+  min_required_days: number | null;
   name: string;
   required_days: number;
+  scheduling_kind: Generated<string>;
   specialty: string | null;
   updated_at: Generated<string>;
 }
@@ -190,10 +192,14 @@ export interface HealthSystems {
 
 export interface PreceptorAvailability {
   created_at: Generated<string>;
+  credit_value: Generated<number>;
   date: string;
   id: string | null;
   is_available: Generated<number>;
+  notes: string | null;
   preceptor_id: string;
+  preference: string | null;
+  session: Generated<string>;
   site_id: string;
   updated_at: Generated<string>;
 }
@@ -201,6 +207,7 @@ export interface PreceptorAvailability {
 export interface PreceptorAvailabilityPatterns {
   config: string | null;
   created_at: Generated<string>;
+  credit_value: Generated<number>;
   date_range_end: string;
   date_range_start: string;
   enabled: Generated<number>;
@@ -208,7 +215,9 @@ export interface PreceptorAvailabilityPatterns {
   is_available: Generated<number>;
   pattern_type: string;
   preceptor_id: string;
+  preference: string | null;
   reason: string | null;
+  session: Generated<string>;
   site_id: string;
   specificity: Generated<number>;
   updated_at: Generated<string>;
@@ -248,6 +257,7 @@ export interface Preceptors {
   max_students: Generated<number>;
   name: string;
   phone: string | null;
+  phone_type: string | null;
   updated_at: Generated<string>;
 }
 
@@ -280,16 +290,19 @@ export interface PreceptorTeams {
 }
 
 export interface ScheduleAssignments {
-  clerkship_id: string;
+  clerkship_id: string | null;
   created_at: Generated<string>;
+  credit_value: Generated<number>;
   date: string;
   elective_id: string | null;
   id: string | null;
+  kind: Generated<string>;
   locked: Generated<number>;
   override_codes: Generated<string>;
   override_note: string | null;
-  preceptor_id: string;
+  preceptor_id: string | null;
   schedule_id: string | null;
+  session: Generated<string>;
   site_id: string | null;
   source: Generated<string>;
   status: Generated<string>;
@@ -318,11 +331,44 @@ export interface ScheduleHealthSystems {
   schedule_id: string;
 }
 
+export interface SchedulePlanPins {
+  clerkship_id: string | null;
+  created_at: Generated<string>;
+  credit_value: Generated<number>;
+  date: string;
+  elective_id: string | null;
+  id: string | null;
+  kind: Generated<string>;
+  override_codes: Generated<string>;
+  override_note: string | null;
+  preceptor_id: string | null;
+  schedule_id: string;
+  session: Generated<string>;
+  site_id: string | null;
+  student_id: string;
+  updated_at: Generated<string>;
+  user_id: string;
+}
+
 export interface SchedulePreceptors {
   created_at: Generated<string>;
   id: string | null;
   preceptor_id: string;
   schedule_id: string;
+}
+
+export interface StudentCorePreceptors {
+  created_at: Generated<string>;
+  id: string | null;
+  preceptor_id: string;
+  student_id: string;
+}
+
+export interface PreceptorMutualExclusions {
+  created_at: Generated<string>;
+  id: string | null;
+  preceptor_a_id: string;
+  preceptor_b_id: string;
 }
 
 export interface ScheduleSites {
@@ -337,6 +383,25 @@ export interface ScheduleStudents {
   id: string | null;
   schedule_id: string;
   student_id: string;
+}
+
+export interface ScheduleDistributions {
+  created_at: Generated<string>;
+  day_count: Generated<number>;
+  id: string | null;
+  recipient_id: string;
+  recipient_type: string;
+  schedule_id: string;
+  sender_user_id: string;
+}
+
+export interface ScheduleQuarters {
+  created_at: Generated<string>;
+  end_date: string;
+  id: string | null;
+  name: string;
+  schedule_id: string;
+  start_date: string;
 }
 
 export interface ScheduleTeams {
@@ -492,6 +557,7 @@ export interface DB {
   preceptor_capacity_rules: PreceptorCapacityRules;
   preceptor_fallbacks: PreceptorFallbacks;
   preceptor_sites: PreceptorSites;
+  preceptor_mutual_exclusions: PreceptorMutualExclusions;
   preceptor_team_members: PreceptorTeamMembers;
   preceptor_teams: PreceptorTeams;
   preceptors: Preceptors;
@@ -499,8 +565,11 @@ export interface DB {
   schedule_clerkships: ScheduleClerkships;
   schedule_configurations: ScheduleConfigurations;
   schedule_health_systems: ScheduleHealthSystems;
+  schedule_plan_pins: SchedulePlanPins;
   schedule_preceptors: SchedulePreceptors;
   schedule_sites: ScheduleSites;
+  schedule_distributions: ScheduleDistributions;
+  schedule_quarters: ScheduleQuarters;
   schedule_students: ScheduleStudents;
   schedule_teams: ScheduleTeams;
   scheduling_periods: SchedulingPeriods;
@@ -509,6 +578,7 @@ export interface DB {
   site_availability_patterns: SiteAvailabilityPatterns;
   site_capacity_rules: SiteCapacityRules;
   sites: Sites;
+  student_core_preceptors: StudentCorePreceptors;
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;
   team_sites: TeamSites;

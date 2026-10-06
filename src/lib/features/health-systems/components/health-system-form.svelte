@@ -16,9 +16,10 @@
 
 	let { healthSystem, onSuccess, onCancel }: Props = $props();
 
+	// Location lives on each site, not on the health system (feedback D2), so the
+	// form no longer collects it.
 	const initial = {
 		name: healthSystem?.name || '',
-		location: healthSystem?.location || '',
 		description: healthSystem?.description || ''
 	};
 
@@ -34,9 +35,7 @@
 		registerUnsavedGuard(
 			() =>
 				!saved &&
-				(formData.name !== initial.name ||
-					formData.location !== initial.location ||
-					formData.description !== initial.description)
+				(formData.name !== initial.name || formData.description !== initial.description)
 		)
 	);
 
@@ -127,20 +126,9 @@
 				{/if}
 			</div>
 
-			<div class="space-y-2">
-				<Label for="location">Location (Optional)</Label>
-				<Input
-					id="location"
-					type="text"
-					bind:value={formData.location}
-					placeholder="e.g., New York, NY"
-					disabled={isSubmitting}
-					class={errors.location ? 'border-destructive' : ''}
-				/>
-				{#if errors.location}
-					<p class="text-sm text-destructive">{errors.location}</p>
-				{/if}
-			</div>
+			<p class="text-xs text-muted-foreground">
+				A health system groups its sites. Set each site's location on the site itself.
+			</p>
 
 			<div class="space-y-2">
 				<Label for="description">Description (Optional)</Label>

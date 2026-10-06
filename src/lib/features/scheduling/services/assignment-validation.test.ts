@@ -128,14 +128,154 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		expect(r.hard.some((v) => v.code === 'entity_missing')).toBe(true);
 	});
 
-	it('flags student double-booking as hard', async () => {
+	it('flags a same-day session clash as soft, not hard (L1)', async () => {
+		// A full day already booked; another full day on top overlaps it.
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
-		expect(r.valid).toBe(false);
-		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(r.hard).toEqual([]);
+		expect(r.valid).toBe(true); // overridable
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(true);
 	});
 
-	it('editing an assignment in place does not double-book itself (excludeId)', async () => {
+	it('lets a morning + afternoon on one day pass with no clash (AM + PM)', async () => {
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON, session: 'am' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			date: MON,
+			session: 'pm'
+		});
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
+	});
+
+	it('flags a second morning as a session clash (AM + AM)', async () => {
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON, session: 'am' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON, session: 'am' });
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(true);
+	});
+
+	it('flags mutual_exclusion for two excluded preceptors on one day (L2)', async () => {
+		const ts = new Date().toISOString();
+		const PREC2 = 'prec-2';
+		await db
+			.insertInto('preceptors')
+			.values({ id: PREC2, name: 'Dr P2', email: 'p2@x.com', max_students: 1, created_at: ts, updated_at: ts })
+			.execute();
+		const [a, b] = PRECEPTOR <= PREC2 ? [PRECEPTOR, PREC2] : [PREC2, PRECEPTOR];
+		await db
+			.insertInto('preceptor_mutual_exclusions')
+			.values({ id: 'me1', preceptor_a_id: a, preceptor_b_id: b, created_at: ts })
+			.execute();
+
+		// Existing morning with PREC2; candidate is PRECEPTOR in the afternoon — no
+		// session clash (AM + PM), but the two preceptors are mutually exclusive.
+		await createManualAssignment(db, SCHEDULE, { ...base, preceptor_id: PREC2, date: MON, session: 'am' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON, session: 'pm' });
+		expect(r.soft.some((v) => v.code === 'mutual_exclusion')).toBe(true);
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
+	});
+
+	it('flags a scattered day in a week consumed by an inpatient block (L3)', async () => {
+		const ts = new Date().toISOString();
+		const BLOCK = 'clerk-block';
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: BLOCK,
+				name: 'Inpatient Medicine',
+				clerkship_type: 'inpatient',
+				required_days: 5,
+				scheduling_kind: 'block',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// Student is on a block on MON — the whole week is consumed.
+		await createManualAssignment(db, SCHEDULE, {
+			...base,
+			clerkship_id: BLOCK,
+			date: MON
+		});
+		// A scattered (default) day later in the SAME week conflicts…
+		const same = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: WED });
+		expect(same.soft.some((v) => v.code === 'block_week_conflict')).toBe(true);
+		expect(same.valid).toBe(true); // overridable
+
+		// …but a scattered day in the NEXT week is clean.
+		const nextMon = isoPlusDays(dayOffset(MON) + 7);
+		const free = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: nextMon });
+		expect(free.soft.some((v) => v.code === 'block_week_conflict')).toBe(false);
+	});
+
+	it('flags adding a block to a week that already has scattered days (L3, reverse)', async () => {
+		const ts = new Date().toISOString();
+		const BLOCK = 'clerk-block';
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: BLOCK,
+				name: 'Inpatient Medicine',
+				clerkship_type: 'inpatient',
+				required_days: 5,
+				scheduling_kind: 'block',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// A scattered day already sits on MON.
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		// Adding a block later that week conflicts (the block would consume the week).
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			clerkship_id: BLOCK,
+			date: WED
+		});
+		expect(r.soft.some((v) => v.code === 'block_week_conflict')).toBe(true);
+	});
+
+	it('validates a non-clinical free day with no preceptor/clerkship (M2)', async () => {
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: '',
+			clerkship_id: null,
+			date: MON,
+			kind: 'free_day'
+		});
+		expect(r.valid).toBe(true);
+		expect(r.hard).toHaveLength(0);
+		// No preceptor/clerkship/site checks run for a non-clinical day.
+		expect(r.soft.some((v) => v.code === 'entity_missing')).toBe(false);
+		expect(r.soft.some((v) => v.code === 'not_onboarded')).toBe(false);
+	});
+
+	it('flags an exam that overlaps an existing assignment as a session clash (M3)', async () => {
+		// A clinical full day is already booked on MON.
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		// An exam on the same day occupies the whole day → overlapping session (soft).
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: '',
+			clerkship_id: null,
+			date: MON,
+			kind: 'exam'
+		});
+		expect(r.hard).toEqual([]);
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(true);
+	});
+
+	it('lets a non-clinical AM sit beside a clinical PM with no clash (M2)', async () => {
+		await createManualAssignment(db, SCHEDULE, { ...base, date: MON, session: 'pm' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: '',
+			clerkship_id: null,
+			date: MON,
+			session: 'am',
+			kind: 'free_day'
+		});
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
+	});
+
+	it('editing an assignment in place does not clash with itself (excludeId)', async () => {
 		const created = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		expect(created.ok).toBe(true);
 		const id = created.ok ? created.assignment.id : undefined;
@@ -148,11 +288,11 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 			date: MON,
 			excludeId: id ?? undefined
 		});
-		expect(edit.hard.some((v) => v.code === 'student_double_booked')).toBe(false);
+		expect(edit.soft.some((v) => v.code === 'session_clash')).toBe(false);
 
-		// A genuine second assignment on the same day (no exclusion) still conflicts.
+		// A genuine second full day overlapping the first clashes (soft).
 		const second = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
-		expect(second.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(second.soft.some((v) => v.code === 'session_clash')).toBe(true);
 	});
 
 	it('flags a blackout date as soft', async () => {
@@ -173,6 +313,47 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 	it('flags a date outside the schedule range as soft', async () => {
 		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: OUT_OF_RANGE });
 		expect(r.soft.some((v) => v.code === 'outside_schedule')).toBe(true);
+	});
+
+	// F5: assigning outside the student's core preceptors is a soft warning; with
+	// no core preceptors set, or when the preceptor IS core, it's clean.
+	it('flags an assignment outside the student core preceptors as soft', async () => {
+		const ts = new Date().toISOString();
+		const otherPreceptor = 'core-preceptor-1';
+		await db
+			.insertInto('preceptors')
+			.values({
+				id: otherPreceptor,
+				name: 'Dr Core',
+				email: 'core@x.com',
+				max_students: 1,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// The student's only core preceptor is `otherPreceptor`, so assigning the
+		// base PRECEPTOR is outside-core.
+		await db
+			.insertInto('student_core_preceptors')
+			.values({ id: 'scp-1', student_id: STUDENT, preceptor_id: otherPreceptor, created_at: ts })
+			.execute();
+
+		const outside = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
+		expect(outside.valid).toBe(true);
+		expect(outside.soft.some((v) => v.code === 'outside_core_preceptor')).toBe(true);
+
+		// Assigning the core preceptor itself is clean.
+		const inCore = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			preceptor_id: otherPreceptor,
+			date: MON
+		});
+		expect(inCore.soft.some((v) => v.code === 'outside_core_preceptor')).toBe(false);
+	});
+
+	it('does not flag core-preceptor when the student has none set', async () => {
+		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON });
+		expect(r.soft.some((v) => v.code === 'outside_core_preceptor')).toBe(false);
 	});
 
 	it('flags preceptor capacity as soft (different student, same slot)', async () => {
@@ -207,11 +388,12 @@ describe('createManualAssignment', () => {
 		}
 	});
 
-	it('rejects a hard conflict even with force', async () => {
+	it('creates a clashing day with force, recording the session_clash override', async () => {
+		// Same-day session clash is now soft (L1): a blanket force accepts and records it.
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await createManualAssignment(db, SCHEDULE, { ...base, date: MON }, { force: true });
-		expect(r.ok).toBe(false);
-		if (!r.ok) expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(r.ok).toBe(true);
+		if (r.ok) expect(String(r.assignment.override_codes)).toContain('session_clash');
 	});
 
 	it('rejects a soft violation without force', async () => {
@@ -263,7 +445,7 @@ describe('createManualAssignmentsBulk', () => {
 		expect(r.results.filter((x) => x.created)).toHaveLength(3);
 	});
 
-	it('skips dates the student is already booked (hard conflict)', async () => {
+	it('skips an over-booked date without an override (soft-blocked)', async () => {
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
 		const r = await createManualAssignmentsBulk(db, SCHEDULE, {
 			...base,
@@ -272,7 +454,8 @@ describe('createManualAssignmentsBulk', () => {
 		});
 		const conflict = r.results.find((x) => x.date === MON);
 		expect(conflict?.created).toBe(false);
-		expect(conflict?.skipped).toBe('hard_conflict');
+		// A same-day over-book is now a soft violation, not a hard conflict.
+		expect(conflict?.skipped).toBe('soft_blocked');
 	});
 });
 
@@ -320,11 +503,14 @@ describe('validateCandidateWithContext (pure, for Step 10)', () => {
 		expect(r.soft).toHaveLength(0);
 	});
 
-	it('detects double-booking from the existing map (hard)', () => {
+	it('no longer flags same-day booking here — session clash is slot-scoped now (L1)', () => {
+		// The per-candidate context validator dropped the double-book check; whole-schedule
+		// validation computes the `session_clash` finding per clashing day.
 		const existing = new Map([[`${STUDENT}:2025-03-03`, 'other-assignment']]);
 		const r = validateCandidateWithContext({ ...base, date: '2025-03-03' }, ctx(), existing);
-		expect(r.valid).toBe(false);
-		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(true);
+		expect(r.valid).toBe(true);
+		expect(r.hard).toEqual([]);
+		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
 	});
 
 	it('flags blackout + outside-range as soft', () => {
@@ -405,14 +591,14 @@ describe('validateCandidateWithContext (pure, for Step 10)', () => {
 		expect(r.soft).toHaveLength(0);
 	});
 
-	it('excludeId prevents an assignment from double-booking itself', () => {
+	it('does not raise a same-day hard conflict against its own existing row', () => {
 		const existing = new Map([[`${STUDENT}:2025-03-03`, 'self']]);
 		const r = validateCandidateWithContext(
 			{ ...base, date: '2025-03-03', excludeId: 'self' },
 			ctx(),
 			existing
 		);
-		expect(r.hard.some((v) => v.code === 'student_double_booked')).toBe(false);
+		expect(r.hard).toEqual([]);
 	});
 
 	it('boundary dates at schedule start/end are in range', () => {
@@ -431,6 +617,155 @@ describe('validateCandidateWithContext (pure, for Step 10)', () => {
 				(v) => v.code === 'outside_schedule'
 			)
 		).toBe(true);
+	});
+
+	// preferred_day_available (H8): an in-a-pinch day is noted when the preceptor
+	// still has an OPEN preferred day the student could take instead.
+	const pinchCtx = (over: Partial<ValidationContext> = {}) =>
+		ctx({
+			preceptorInPinch: new Map([[PRECEPTOR, new Set(['2025-03-03'])]]),
+			preceptorPreferredDates: new Map([[PRECEPTOR, ['2025-03-05']]]),
+			preceptorDateOccupancy: new Map(),
+			...over
+		});
+
+	it('flags preferred_day_available when an in-a-pinch day has an open preferred alternative', () => {
+		const r = validateCandidateWithContext({ ...base, date: '2025-03-03' }, pinchCtx(), new Map());
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(true);
+	});
+
+	it('does not flag preferred_day_available when the preferred day is at capacity', () => {
+		const r = validateCandidateWithContext(
+			{ ...base, date: '2025-03-03' },
+			pinchCtx({ preceptorDateOccupancy: new Map([[`${PRECEPTOR}:2025-03-05`, 1]]) }),
+			new Map()
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag preferred_day_available when the student is busy on the preferred day', () => {
+		const r = validateCandidateWithContext(
+			{ ...base, date: '2025-03-03' },
+			pinchCtx(),
+			new Map([[`${STUDENT}:2025-03-05`, 'x']])
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag preferred_day_available when only in-a-pinch days remain', () => {
+		const r = validateCandidateWithContext(
+			{ ...base, date: '2025-03-03' },
+			pinchCtx({ preceptorPreferredDates: new Map() }),
+			new Map()
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('omitting the preference maps skips the preferred_day_available check (backward compat)', () => {
+		const r = validateCandidateWithContext({ ...base, date: '2025-03-03' }, ctx(), new Map());
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+});
+
+describe('preferred_day_available (DB-backed, H8)', () => {
+	let db: Kysely<DB>;
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	async function addAvail(date: string, preference: 'preferred' | 'in_a_pinch' | null) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: `av-${date}-${preference ?? 'n'}`,
+				preceptor_id: PRECEPTOR,
+				site_id: 'site-1',
+				date,
+				is_available: 1,
+				preference,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('flags an in-a-pinch day when the preceptor has an open preferred day', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(true);
+	});
+
+	it('does not flag when there is no preferred day open', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag when the preferred day is already taken by the student', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		await createManualAssignment(db, SCHEDULE, { ...base, date: WED });
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('does not flag the preferred day itself', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: WED },
+			{ checkCreateTimeCodes: true }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('is create-time-gated: generation (checkCreateTimeCodes:false) never sees it', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const r = await validateAssignmentCandidate(
+			db,
+			SCHEDULE,
+			{ ...base, date: MON },
+			{ checkCreateTimeCodes: false }
+		);
+		expect(r.soft.some((v) => v.code === 'preferred_day_available')).toBe(false);
+	});
+
+	it('is overridable: a manual create is blocked until the code is accepted', async () => {
+		await addAvail(MON, 'in_a_pinch');
+		await addAvail(WED, 'preferred');
+		const blocked = await createManualAssignment(db, SCHEDULE, { ...base, date: MON });
+		expect(blocked.ok).toBe(false);
+		const ok = await createManualAssignment(db, SCHEDULE, {
+			...base,
+			date: MON,
+			override_codes: ['preferred_day_available']
+		});
+		expect(ok.ok).toBe(true);
+		if (ok.ok) expect(ok.assignment.override_codes).toContain('preferred_day_available');
 	});
 });
 
@@ -607,5 +942,70 @@ describe('over_required_days vs electives (P7-a)', () => {
 			{ checkCreateTimeCodes: true }
 		);
 		expect(over.soft.some((s) => s.code === 'over_required_days')).toBe(true);
+	});
+});
+
+describe('standalone electives (DB-backed, E3)', () => {
+	let db: Kysely<DB>;
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		await seed(db);
+	});
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
+
+	async function addStandaloneElective(id: string) {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id,
+				clerkship_id: null,
+				name: 'Global Health',
+				minimum_days: 2,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+	}
+
+	it('creates a standalone-elective day with a null clerkship_id', async () => {
+		await addStandaloneElective('elec-sa');
+		const res = await createManualAssignment(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: PRECEPTOR,
+			clerkship_id: null,
+			elective_id: 'elec-sa',
+			date: MON
+		});
+		expect(res.ok).toBe(true);
+		if (res.ok) {
+			expect(res.assignment.clerkship_id).toBeNull();
+			expect(res.assignment.elective_id).toBe('elec-sa');
+		}
+	});
+
+	it('rejects a day with neither a clerkship nor an elective', async () => {
+		const res = await createManualAssignment(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: PRECEPTOR,
+			clerkship_id: null,
+			date: MON
+		});
+		expect(res.ok).toBe(false);
+		if (!res.ok) expect(res.hard.some((h) => h.code === 'entity_missing')).toBe(true);
+	});
+
+	it('rejects pairing a standalone elective with a clerkship (mismatch)', async () => {
+		await addStandaloneElective('elec-sa');
+		const res = await createManualAssignment(db, SCHEDULE, {
+			student_id: STUDENT,
+			preceptor_id: PRECEPTOR,
+			clerkship_id: CLERKSHIP,
+			elective_id: 'elec-sa',
+			date: MON
+		});
+		expect(res.ok).toBe(false);
 	});
 });

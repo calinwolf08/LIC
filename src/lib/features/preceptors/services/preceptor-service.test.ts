@@ -45,6 +45,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('email', 'text', (col) => col.notNull().unique())
 		.addColumn('health_system_id', 'text')
 		.addColumn('phone', 'text')
+		.addColumn('phone_type', 'text')
 		.addColumn('max_students', 'integer', (col) => col.notNull())
 		.addColumn('is_global_fallback_only', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -58,12 +59,15 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.addColumn('site_id', 'text')
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('override_codes', 'text', (col) => col.notNull().defaultTo('[]'))
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 

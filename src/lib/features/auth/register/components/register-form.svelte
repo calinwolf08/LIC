@@ -11,9 +11,10 @@
 
 	interface Props {
 		serverErrors?: Record<string, string[]>;
+		initialEmail?: string;
 	}
 
-	let { serverErrors }: Props = $props();
+	let { serverErrors, initialEmail = '' }: Props = $props();
 
 	let errorMessage = $state<string | null>(null);
 
@@ -27,7 +28,7 @@
 	const formManager = useForm({
 		initialValues: {
 			name: '',
-			email: '',
+			email: initialEmail,
 			password: '',
 			confirmPassword: ''
 		},

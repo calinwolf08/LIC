@@ -35,6 +35,9 @@
 		date_range_end: string;
 		config: any;
 		reason: string | null;
+		preference: string | null;
+		session: string;
+		credit_value: number;
 		enabled: number;
 		created_at: string;
 		updated_at: string;
@@ -56,6 +59,7 @@
 	let isSaving = $state(false);
 	let isGenerating = $state(false);
 	let error = $state<string | null>(null);
+	let warning = $state<string | null>(null);
 	let showPatternForm = $state(false);
 	let editingPattern = $state<LocalPattern | null>(null);
 	let editingIndex = $state<number | null>(null);
@@ -93,11 +97,13 @@
 	async function generatePreviewLocal() {
 		if (localPatterns.length === 0) {
 			generationResult = null;
+			warning = null;
 			return;
 		}
 
 		isGenerating = true;
 		error = null;
+		warning = null;
 
 		try {
 			// Import the pattern generator functions
@@ -117,11 +123,22 @@
 					date_range_end: p.date_range_end,
 					config: p.config,
 					reason: p.reason || undefined,
+					preference: (p.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+					session: (p.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+					credit_value: p.credit_value ?? undefined,
 					enabled: typeof p.enabled === 'number' ? p.enabled === 1 : p.enabled
 				})) as CreatePattern[];
 
 			// Generate dates locally
 			const generatedDates = applyPatternsBySpecificity(createPatterns);
+
+			// H1 (client feedback): a pattern whose weekdays never fall inside its
+			// date range (e.g. Wed/Thu/Fri over a range that is only a Sunday)
+			// produces zero dates. Warn loudly instead of silently saving nothing.
+			warning =
+				createPatterns.length > 0 && generatedDates.length === 0
+					? 'This pattern doesn’t match any dates in the selected range. Check the days of week and the start/end dates.'
+					: null;
 
 			// Calculate stats
 			const availableDates = generatedDates.filter((d) => d.is_available).length;
@@ -160,6 +177,10 @@
 			date_range_end: pattern.date_range_end,
 			config: pattern.config,
 			reason: pattern.reason || null,
+			preference: pattern.preference || null,
+			session: pattern.session ?? 'full',
+			credit_value:
+				pattern.credit_value ?? (pattern.session && pattern.session !== 'full' ? 0.5 : 1),
 			enabled: pattern.enabled ? 1 : 0,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -186,6 +207,10 @@
 			date_range_end: pattern.date_range_end,
 			config: pattern.config,
 			reason: pattern.reason || null,
+			preference: pattern.preference || null,
+			session: pattern.session ?? 'full',
+			credit_value:
+				pattern.credit_value ?? (pattern.session && pattern.session !== 'full' ? 0.5 : 1),
 			enabled: pattern.enabled ? 1 : 0,
 			updated_at: new Date().toISOString()
 		};
@@ -279,6 +304,9 @@
 						date_range_end: pattern.date_range_end,
 						config: pattern.config,
 						reason: pattern.reason || undefined,
+						preference: (pattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+						session: (pattern.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+						credit_value: pattern.credit_value ?? undefined,
 						enabled: pattern.enabled === 1
 					};
 
@@ -306,6 +334,9 @@
 						date_range_end: pattern.date_range_end,
 						config: pattern.config,
 						reason: pattern.reason || undefined,
+						preference: (pattern.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+						session: (pattern.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+						credit_value: pattern.credit_value ?? undefined,
 						enabled: pattern.enabled === 1
 					};
 
@@ -380,6 +411,9 @@
 			date_range_end: p.date_range_end,
 			config: p.config,
 			reason: p.reason || undefined,
+			preference: (p.preference as 'preferred' | 'in_a_pinch' | null) || undefined,
+			session: (p.session as 'full' | 'am' | 'pm' | undefined) ?? 'full',
+			credit_value: p.credit_value ?? undefined,
 			enabled: p.enabled === 1
 		} as CreatePattern;
 	}
@@ -387,18 +421,47 @@
 
 <div class="space-y-6">
 	<div>
-		<h3 class="text-lg font-semibold">Availability Patterns for {preceptor.name}</h3>
+		<h3 class="text-lg font-semibold">Availability for {preceptor.name}</h3>
 		<p class="mt-1 text-sm text-muted-foreground">
-			Create patterns to define year-long availability schedules
+			Build this preceptor's available days from one or more rules
 			{#if hasUnsavedChanges}
 				<span class="text-orange-600 dark:text-orange-400">• Unsaved changes</span>
 			{/if}
 		</p>
 	</div>
 
+	<!-- How availability works (feedback H2/H3/H5): the day-of-week choice is a
+	     rule applied to a date range, not a statement that the preceptor is always
+	     available on those days. -->
+	<div
+		data-testid="availability-help"
+		class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200"
+	>
+		<p class="font-medium">How this works</p>
+		<ol class="mt-1 list-decimal space-y-0.5 pl-5">
+			<li>
+				Add a rule — e.g. a <strong>Weekly</strong> rule for Mon–Fri
+				<strong>applied to a date range</strong> you choose (it doesn't mean “always available”; you
+				still set the start and end dates).
+			</li>
+			<li>Preview the days the rule produces.</li>
+			<li>Save to turn those days into this preceptor's availability.</li>
+		</ol>
+	</div>
+
 	{#if error}
 		<div class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
 			{error}
+		</div>
+	{/if}
+
+	{#if warning}
+		<div
+			role="alert"
+			data-testid="pattern-no-dates-warning"
+			class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+		>
+			{warning}
 		</div>
 	{/if}
 
@@ -499,9 +562,12 @@
 				{#if isSaving}
 					Saving...
 				{:else if generationResult}
-					Save {generationResult.generated_dates} Dates
+					Save {generationResult.generated_dates} availability {generationResult.generated_dates ===
+					1
+						? 'day'
+						: 'days'}
 				{:else}
-					Save All
+					Save availability
 				{/if}
 			</Button>
 		</div>

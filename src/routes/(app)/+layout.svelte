@@ -13,6 +13,7 @@
 		GraduationCap,
 		MapPin,
 		Wand2,
+		ClipboardList,
 		type Icon as IconType
 	} from '@lucide/svelte';
 
@@ -42,6 +43,7 @@
 	const allNavItems: NavItem[] = [
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/calendar', label: 'Calendar', icon: CalendarDays },
+		{ href: '/plan', label: 'Planner', icon: ClipboardList },
 		{ href: '/students', label: 'Students', icon: Users },
 		{ href: '/preceptors', label: 'Preceptors', icon: Stethoscope },
 		{ href: '/clerkships', label: 'Clerkships', icon: GraduationCap },

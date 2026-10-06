@@ -18,6 +18,11 @@
 	import AssignmentContextPanel from './assignment-context-panel.svelte';
 	import type { EligibilityOption } from '$lib/features/scheduling/services/assignment-eligibility';
 	import type { DayState } from '$lib/features/scheduling/services/assignment-day-state';
+	import {
+		SESSION_LABEL,
+		normalizeSession,
+		type SessionSlot
+	} from '$lib/features/scheduling/services/session-slots';
 	import type { RequirementImpact } from '$lib/features/scheduling/services/requirement-preview';
 	import type { OverrideSideEffect } from '../services/assignment-service';
 	import {
@@ -40,6 +45,9 @@
 		clerkshipId?: string;
 		siteId?: string;
 		date?: string;
+		/** Open in range mode with this span preselected (calendar range-select, I3). */
+		rangeStart?: string;
+		rangeEnd?: string;
 		lockStudent?: boolean;
 		lockPreceptor?: boolean;
 		lockClerkship?: boolean;
@@ -60,6 +68,8 @@
 		clerkshipId = '',
 		siteId = '',
 		date = '',
+		rangeStart = '',
+		rangeEnd = '',
 		lockStudent = false,
 		lockPreceptor = false,
 		lockClerkship = false,
@@ -84,6 +94,13 @@
 	let pickerMode = $state<'single' | 'range' | 'individual'>('single');
 	let locked = $state(false);
 	let note = $state('');
+	let credit = $state(1);
+	let session = $state<SessionSlot>('full');
+	/** Assignment type (M2/M3). A non-clinical day hides the clinical pickers. */
+	let assignmentKind = $state<'clinical' | 'free_day' | 'exam'>('clinical');
+	let isClinical = $derived(assignmentKind === 'clinical');
+	/** True once the user changes session/credit by hand, so availability prefill stops overriding them. */
+	let sessionTouched = $state(false);
 	let clearedNotice = $state<string | null>(null);
 
 	// ---- loaded data --------------------------------------------------------
@@ -135,15 +152,35 @@
 
 	let current = $derived(queue[currentIndex] ?? null);
 
+	/** Every YYYY-MM-DD from `from` to `to` inclusive (calendar range-select, I3). */
+	function expandRange(from: string, to: string): string[] {
+		const out: string[] = [];
+		const cur = new Date(`${from}T00:00:00.000Z`);
+		const last = new Date(`${to}T00:00:00.000Z`);
+		let guard = 0;
+		while (cur <= last && guard < 400) {
+			out.push(cur.toISOString().slice(0, 10));
+			cur.setUTCDate(cur.getUTCDate() + 1);
+			guard++;
+		}
+		return out;
+	}
+
 	function reset() {
 		student = studentId;
 		clerkship = clerkshipId;
 		preceptor = preceptorId;
 		site = siteId;
-		selectedDates = date ? [date] : [];
-		pickerMode = 'single';
+		// A calendar range-selection opens straight into range mode with the span
+		// preselected (I3); otherwise a single prefilled day, or nothing.
+		const hasRange = mode === 'create' && rangeStart && rangeEnd;
+		selectedDates = hasRange ? expandRange(rangeStart, rangeEnd) : date ? [date] : [];
+		pickerMode = hasRange ? 'range' : 'single';
 		locked = false;
 		note = '';
+		credit = 1;
+		session = 'full';
+		sessionTouched = false;
 		clearedNotice = null;
 		originalDate = '';
 		serverSoftCodes = [];
@@ -157,7 +194,7 @@
 		capacityFollowUpOpen = false;
 		decisionMade = false;
 		dayCache = { key: '', map: new Map() };
-		visibleMonth = (date || '').slice(0, 7);
+		visibleMonth = (rangeStart || date || '').slice(0, 7);
 	}
 
 	async function loadRange() {
@@ -208,6 +245,9 @@
 			selectedDates = [body.data.date];
 			originalDate = body.data.date;
 			locked = body.data.locked === 1;
+			credit = body.data.credit_value ?? 1;
+			session = normalizeSession(body.data.session);
+			sessionTouched = true; // an existing assignment's session is authoritative
 			visibleMonth = body.data.date.slice(0, 7);
 		} catch {
 			/* leave the prefill in place */
@@ -253,7 +293,10 @@
 	 * forced to click the only option (create mode only; edit prefills its own).
 	 */
 	function autoSelectLoneSite() {
-		if (mode === 'edit' || site) return;
+		// Runs whenever no site is chosen — including after a reassign clears a now-invalid
+		// site in edit mode — so the coordinator is never left with an empty required site
+		// when the chosen preceptor has exactly one (finding #1).
+		if (site) return;
 		const eligible = options.sites.filter((s) => s.eligible);
 		if (eligible.length === 1) site = eligible[0].id;
 	}
@@ -349,7 +392,8 @@
 	 * know about (onboarding, site rules).
 	 */
 	$effect(() => {
-		if (!open || !student || !clerkship || !preceptor || !site || selectedDates.length === 0) {
+		const clinicalReady = !!clerkship && !!preceptor && !!site;
+		if (!open || !student || selectedDates.length === 0 || (isClinical && !clinicalReady)) {
 			serverSoftCodes = [];
 			hardErrors = [];
 			probing = false;
@@ -364,9 +408,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					student_id: student,
-					preceptor_id: preceptor,
-					clerkship_id: clerkship,
-					site_id: site,
+					// A non-clinical day carries no preceptor/clerkship/site (M2/M3).
+					...(isClinical
+						? { preceptor_id: preceptor, clerkship_id: clerkship, site_id: site }
+						: { kind: assignmentKind }),
 					date: probe,
 					dry_run: true,
 					...(mode === 'edit' && assignmentId ? { excludeId: assignmentId } : {})
@@ -410,18 +455,36 @@
 
 	let selectionWide = $derived({
 		overRequired: (impact?.exceedsBy ?? 0) > 0,
-		notOnboarded: serverSoftCodes.includes('not_onboarded')
+		notOnboarded: serverSoftCodes.includes('not_onboarded'),
+		outsideCorePreceptor: serverSoftCodes.includes('outside_core_preceptor'),
+		preferredDayAvailable: serverSoftCodes.includes('preferred_day_available'),
+		mutualExclusion: serverSoftCodes.includes('mutual_exclusion'),
+		blockWeekConflict: serverSoftCodes.includes('block_week_conflict')
 	});
 
-	let liveAnalysis = $derived(analyseSelection(selectedDates, [...dayStates.values()], selectionWide));
+	let liveAnalysis = $derived(
+		analyseSelection(selectedDates, [...dayStates.values()], selectionWide, session)
+	);
+
+	// Prefill session + credit from the preceptor's availability for the first
+	// selected day, until the coordinator changes them by hand (L1). Half-day slots
+	// default to 0.5 credit; a full day to 1 — both overridable.
+	$effect(() => {
+		if (mode !== 'create' || sessionTouched) return;
+		const first = selectedDates[0];
+		if (!first) return;
+		const day = dayStates.get(first);
+		if (!day || !day.availableSession) return;
+		session = day.availableSession;
+		credit = day.availableCredit ?? credit;
+	});
 
 	let canSubmit = $derived(
 		!submitting &&
 			!probing &&
 			!!student &&
-			!!clerkship &&
-			!!preceptor &&
-			!!site &&
+			// A non-clinical day (free_day / exam) needs no clerkship/preceptor/site (M2/M3).
+			(!isClinical || (!!clerkship && !!preceptor && !!site)) &&
 			selectedDates.length > 0 &&
 			liveAnalysis.submittableDates.length > 0
 	);
@@ -543,7 +606,10 @@
 				siteId: site,
 				electiveId: electiveId || null,
 				locked: canLock && locked,
-				note
+				note,
+				creditValue: credit,
+				session,
+				kind: assignmentKind
 			},
 			analysis!,
 			acceptedCodes,
@@ -615,6 +681,8 @@
 						date: day,
 						override_codes: acceptedCodes,
 						override_note: note || null,
+						credit_value: credit,
+						session,
 						...(canLock ? { locked } : {})
 					})
 				}
@@ -691,68 +759,92 @@
 					</div>
 				{/if}
 
-				<div class="space-y-1">
-					<Label for="ad-clerkship">Clerkship</Label>
-					<select
-						id="ad-clerkship"
-						bind:value={clerkship}
-						disabled={lockClerkship}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
-					>
-						<option value="">Select a clerkship…</option>
-						{#each options.clerkships as c (c.id)}
-							<option value={c.id} disabled={!c.eligible}>{optionLabel(c)}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="space-y-1">
-					<Label for="ad-preceptor">Preceptor</Label>
-					<select
-						id="ad-preceptor"
-						bind:value={preceptor}
-						disabled={lockPreceptor}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
-					>
-						<option value="">Select a preceptor…</option>
-						{#each options.preceptors as p (p.id)}
-							<option value={p.id} disabled={!p.eligible}>{optionLabel(p)}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="space-y-1">
-					<Label for="ad-site">Site <span class="text-destructive">*</span></Label>
-					<select
-						id="ad-site"
-						bind:value={site}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					>
-						<option value="">Select a site…</option>
-						{#each options.sites as s (s.id)}
-							<option value={s.id} disabled={!s.eligible}>{optionLabel(s)}</option>
-						{/each}
-					</select>
-				</div>
-
-				{#if options.electives.length > 0}
+				{#if mode === 'create'}
 					<div class="space-y-1">
-						<Label for="ad-elective">Elective <span class="text-muted-foreground">(optional)</span></Label>
+						<Label for="ad-kind">Type</Label>
 						<select
-							id="ad-elective"
-							bind:value={electiveId}
+							id="ad-kind"
+							data-testid="ad-kind"
+							bind:value={assignmentKind}
 							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 						>
-							<option value="">No elective (counts as clerkship day)</option>
-							{#each options.electives as e (e.id)}
-								<option value={e.id}>
-									{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays === 1
-										? ''
-										: 's'})
-								</option>
+							<option value="clinical">Clinical</option>
+							<option value="free_day">Free day</option>
+							<option value="exam">Exam</option>
+						</select>
+						{#if !isClinical}
+							<p class="text-xs text-muted-foreground">
+								A {assignmentKind === 'exam' ? 'exam' : 'free'} day takes up the student's day but has no
+								preceptor, clerkship or site and doesn't count toward clinical requirements.
+							</p>
+						{/if}
+					</div>
+				{/if}
+
+				{#if isClinical}
+					<div class="space-y-1">
+						<Label for="ad-clerkship">Clerkship</Label>
+						<select
+							id="ad-clerkship"
+							bind:value={clerkship}
+							disabled={lockClerkship}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+						>
+							<option value="">Select a clerkship…</option>
+							{#each options.clerkships as c (c.id)}
+								<option value={c.id} disabled={!c.eligible}>{optionLabel(c)}</option>
 							{/each}
 						</select>
 					</div>
+
+					<div class="space-y-1">
+						<Label for="ad-preceptor">Preceptor</Label>
+						<select
+							id="ad-preceptor"
+							bind:value={preceptor}
+							disabled={lockPreceptor}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+						>
+							<option value="">Select a preceptor…</option>
+							{#each options.preceptors as p (p.id)}
+								<option value={p.id} disabled={!p.eligible}>{optionLabel(p)}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="space-y-1">
+						<Label for="ad-site">Site <span class="text-destructive">*</span></Label>
+						<select
+							id="ad-site"
+							bind:value={site}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">Select a site…</option>
+							{#each options.sites as s (s.id)}
+								<option value={s.id} disabled={!s.eligible}>{optionLabel(s)}</option>
+							{/each}
+						</select>
+					</div>
+
+					{#if options.electives.length > 0}
+						<div class="space-y-1">
+							<Label for="ad-elective">Elective <span class="text-muted-foreground">(optional)</span></Label>
+							<select
+								id="ad-elective"
+								bind:value={electiveId}
+								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+							>
+								<option value="">No elective (counts as clerkship day)</option>
+								{#each options.electives as e (e.id)}
+									<option value={e.id}>
+										{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays === 1
+											? ''
+											: 's'})
+									</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
 				{/if}
 
 				{#if clearedNotice}
@@ -774,6 +866,13 @@
 				{/if}
 
 				{#if range}
+					{#if preceptor}
+						<p class="text-xs text-muted-foreground" data-testid="availability-hint">
+							Green days are within this preceptor's availability. Days they're not marked
+							available appear amber — you can still pick them and confirm the override. If no days
+							look available, this preceptor may have no availability set yet.
+						</p>
+					{/if}
 					<AssignmentDatePicker
 						rangeStart={range.start}
 						rangeEnd={range.end}
@@ -810,6 +909,49 @@
 						</ul>
 					</div>
 				{/if}
+
+				<div class="flex flex-wrap gap-4">
+					<div class="space-y-1">
+						<Label for="ad-session">Session</Label>
+						<select
+							id="ad-session"
+							data-testid="ad-session"
+							value={session}
+							onchange={(e) => {
+								session = normalizeSession((e.currentTarget as HTMLSelectElement).value);
+								sessionTouched = true;
+								// Snap the credit to the new session's default unless the coordinator
+								// has already typed a custom credit.
+								credit = session === 'full' ? 1 : 0.5;
+							}}
+							class="border-input bg-background focus-visible:ring-ring flex h-9 w-40 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+						>
+							<option value="full">{SESSION_LABEL.full}</option>
+							<option value="am">{SESSION_LABEL.am}</option>
+							<option value="pm">{SESSION_LABEL.pm}</option>
+						</select>
+					</div>
+					<div class="space-y-1">
+						<Label for="ad-credit">
+							Credit per day
+							<span class="text-muted-foreground">(1 = a full day; 0.5 = a half day)</span>
+						</Label>
+						<input
+							id="ad-credit"
+							data-testid="ad-credit"
+							type="number"
+							min="0.5"
+							max="10"
+							step="0.5"
+							value={credit}
+							oninput={(e) => {
+								credit = Number((e.currentTarget as HTMLInputElement).value);
+								sessionTouched = true;
+							}}
+							class="border-input bg-background focus-visible:ring-ring flex h-9 w-32 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+						/>
+					</div>
+				</div>
 
 				{#if liveAnalysis.categories.length > 0}
 					<div
@@ -858,6 +1000,7 @@
 				<Button
 					variant="destructive"
 					class="mr-auto"
+					data-testid="ad-remove"
 					disabled={submitting}
 					onclick={() => requestRemove(false)}
 				>

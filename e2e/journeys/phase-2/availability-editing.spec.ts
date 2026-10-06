@@ -62,7 +62,7 @@ test.describe('J2.7 availability — single-date editing', { tag: ['@stage1'] },
 		const availabilityOn = async (date: string): Promise<number | undefined> =>
 			(await availability()).find((r) => r.date === date)?.is_available;
 		const saveDates = () =>
-			asAdmin.getByRole('button', { name: /save all|save \d+ dates/i }).click();
+			asAdmin.getByRole('button', { name: /save availability|save \d+ availability/i }).click();
 
 		// --- Paint a base weekly (Mon–Fri) availability over a two-week window ---
 		await asAdmin.goto(`/preceptors/${precId}?tab=availability`);

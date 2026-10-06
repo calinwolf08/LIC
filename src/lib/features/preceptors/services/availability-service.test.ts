@@ -47,6 +47,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('email', 'text', (col) => col.notNull().unique())
 		.addColumn('health_system_id', 'text')
 		.addColumn('phone', 'text')
+		.addColumn('phone_type', 'text')
 		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('is_global_fallback_only', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('created_at', 'text', (col) => col.notNull())
@@ -67,8 +68,12 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
+		.addColumn('preference', 'text')
+		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 
 	await db.schema
@@ -78,11 +83,14 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.addColumn('site_id', 'text')
 		.addColumn('override_codes', 'text', (col) => col.notNull().defaultTo('[]'))
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 
@@ -344,6 +352,59 @@ describe('Availability Service', () => {
 			expect(created.site_id).toBe(DEFAULT_SITE_ID);
 			expect(created.date).toBe('2024-01-15');
 			expect(created.is_available).toBe(1);
+		});
+
+		// H8: preference is stored for available days and cleared for unavailable ones.
+		it('stores a preference on an available day and clears it when unavailable', async () => {
+			const preferred = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-15',
+				true,
+				'preferred'
+			);
+			expect(preferred.preference).toBe('preferred');
+
+			// Re-setting the same day as unavailable clears the preference.
+			const cleared = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-15',
+				false,
+				'preferred'
+			);
+			expect(cleared.preference).toBeNull();
+		});
+
+		// H6: a per-day note is stored and kept regardless of availability.
+		it('stores a note on an available day and keeps it when the day turns unavailable', async () => {
+			const withNote = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-16',
+				true,
+				'preferred',
+				'Mornings only'
+			);
+			expect(withNote.notes).toBe('Mornings only');
+
+			// The note explains an unavailable day too ("out for conference"), so it is
+			// NOT cleared like preference is.
+			const unavailable = await setAvailability(
+				db,
+				preceptor.id,
+				DEFAULT_SITE_ID,
+				'2024-01-16',
+				false,
+				null,
+				'Out for conference'
+			);
+			expect(unavailable.is_available).toBe(0);
+			expect(unavailable.preference).toBeNull();
+			expect(unavailable.notes).toBe('Out for conference');
 		});
 
 		it('creates unavailability record', async () => {

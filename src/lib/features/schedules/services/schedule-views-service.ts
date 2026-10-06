@@ -100,8 +100,10 @@ export async function getStudentScheduleData(
 	// when a preceptor works at multiple sites
 	const assignments = await db
 		.selectFrom('schedule_assignments as sa')
-		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so non-clinical days (free_day / exam, no preceptor — M2/M3) still appear.
+		.leftJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
+		// leftJoin so standalone-elective days (no clerkship, E3) still appear.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
@@ -118,6 +120,7 @@ export async function getStudentScheduleData(
 			'sa.locked',
 			'sa.elective_id',
 			'sa.override_codes',
+			'sa.kind',
 			'e.name as elective_name'
 		])
 		// Scope to THIS schedule — a student can belong to more than one schedule
@@ -169,7 +172,7 @@ export async function getStudentScheduleData(
 
 	// Enrich assignments with site info
 	const enrichedAssignments = assignments.map((a) => {
-		const site = preceptorSiteMap.get(a.preceptor_id);
+		const site = a.preceptor_id ? preceptorSiteMap.get(a.preceptor_id) : undefined;
 		return {
 			...a,
 			site_id: site?.site_id ?? null,
@@ -192,14 +195,17 @@ export async function getStudentScheduleData(
 		const siteMap = new Map<string, { id: string; name: string }>();
 
 		for (const a of clerkshipAssignments) {
-			if (!preceptorMap.has(a.preceptor_id)) {
-				preceptorMap.set(a.preceptor_id, {
-					id: a.preceptor_id,
-					name: a.preceptor_name,
+			// clerkshipAssignments are clinical (they have a clerkship_id), so a
+			// preceptor is always present; coalesce only to satisfy the nullable type.
+			const pid = a.preceptor_id ?? '';
+			if (!preceptorMap.has(pid)) {
+				preceptorMap.set(pid, {
+					id: pid,
+					name: a.preceptor_name ?? '',
 					daysAssigned: 0
 				});
 			}
-			preceptorMap.get(a.preceptor_id)!.daysAssigned++;
+			preceptorMap.get(pid)!.daysAssigned++;
 
 			if (a.site_id && a.site_name && !siteMap.has(a.site_id)) {
 				siteMap.set(a.site_id, { id: a.site_id, name: a.site_name });
@@ -233,8 +239,8 @@ export async function getStudentScheduleData(
 			id: a.id as string,
 			clerkshipId: a.clerkship_id,
 			clerkshipName: a.clerkship_name,
-			preceptorId: a.preceptor_id,
-			preceptorName: a.preceptor_name,
+			preceptorId: a.preceptor_id ?? '',
+			preceptorName: a.preceptor_name ?? '',
 			studentId: student.id as string,
 			studentName: student.name,
 			color: getClerkshipColor(a.clerkship_specialty ?? 'General'),
@@ -248,11 +254,12 @@ export async function getStudentScheduleData(
 	const formattedAssignments: StudentAssignment[] = enrichedAssignments.map((a) => ({
 		id: a.id as string,
 		date: a.date,
-		clerkshipId: a.clerkship_id,
-		clerkshipName: a.clerkship_name,
+		// Standalone-elective days (E3) have no clerkship — label them by the elective.
+		clerkshipId: a.clerkship_id ?? '',
+		clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
-		preceptorId: a.preceptor_id,
-		preceptorName: a.preceptor_name,
+		preceptorId: a.preceptor_id ?? '',
+		preceptorName: a.preceptor_name ?? '',
 		siteId: a.site_id ?? undefined,
 		siteName: a.site_name || undefined,
 		healthSystemId: a.health_system_id ?? undefined,
@@ -264,7 +271,8 @@ export async function getStudentScheduleData(
 		locked: Boolean(a.locked),
 		electiveId: a.elective_id ?? undefined,
 		electiveName: a.elective_name ?? undefined,
-		overrideCodes: parseCodes(a.override_codes)
+		overrideCodes: parseCodes(a.override_codes),
+		kind: (a as { kind?: string }).kind ?? 'clinical'
 	}));
 
 	log.info('Student schedule data fetched', {
@@ -341,22 +349,29 @@ export async function getPreceptorScheduleData(
 	// Get preceptor availability
 	const availability = await db
 		.selectFrom('preceptor_availability')
-		.select(['date', 'is_available'])
+		.select(['date', 'is_available', 'notes'])
 		.where('preceptor_id', '=', preceptorId)
 		.where('date', '>=', startDate)
 		.where('date', '<=', endDate)
 		.execute();
 
 	const availabilityMap = new Map<string, boolean>();
+	// Per-day availability notes (H6). Multiple site rows can share a date; keep the
+	// first non-empty note so the calendar shows the planning annotation.
+	const availabilityNoteMap = new Map<string, string>();
 	for (const a of availability) {
 		availabilityMap.set(a.date, a.is_available === 1);
+		if (a.notes && !availabilityNoteMap.has(a.date)) {
+			availabilityNoteMap.set(a.date, a.notes);
+		}
 	}
 
 	// Get all assignments for this preceptor
 	const assignments = await db
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('students as s', 's.id', 'sa.student_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so standalone-elective days (no clerkship, E3) still appear.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.leftJoin('clerkship_electives as e', 'e.id', 'sa.elective_id')
 		.select([
 			'sa.id',
@@ -372,6 +387,7 @@ export async function getPreceptorScheduleData(
 			'sa.locked',
 			'sa.elective_id',
 			'sa.override_codes',
+			'sa.kind',
 			'e.name as elective_name'
 		])
 		.where('sa.preceptor_id', '=', preceptorId)
@@ -392,6 +408,7 @@ export async function getPreceptorScheduleData(
 
 	let totalAvailable = 0;
 	let totalAssigned = 0;
+	let totalAssignedOutside = 0;
 
 	for (const { year, month, name } of months) {
 		const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -399,7 +416,8 @@ export async function getPreceptorScheduleData(
 		const monthEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
 		let available = 0;
-		let assigned = 0;
+		let assignedWithin = 0;
+		let assignedOutside = 0;
 
 		// Count days - use UTC to avoid timezone shifts
 		const current = parseUTCDate(monthStart);
@@ -414,16 +432,23 @@ export async function getPreceptorScheduleData(
 				if (isAvailable === true) {
 					available++;
 				}
+				// An assignment on a day the preceptor is not marked available is
+				// allowed (Stage 1 is permissive, R3.6) but must be counted
+				// separately so it never inflates utilization past 100% or makes
+				// openSlots go negative (client feedback I1).
 				if (assignmentByDate.has(dateStr)) {
-					assigned++;
+					if (isAvailable === true) assignedWithin++;
+					else assignedOutside++;
 				}
 			}
 
 			current.setUTCDate(current.getUTCDate() + 1);
 		}
 
+		const assigned = assignedWithin + assignedOutside;
 		totalAvailable += available;
 		totalAssigned += assigned;
+		totalAssignedOutside += assignedOutside;
 
 		monthlyCapacity.push({
 			periodName: name,
@@ -431,13 +456,18 @@ export async function getPreceptorScheduleData(
 			endDate: monthEnd < endDate ? monthEnd : endDate,
 			availableDays: available,
 			assignedDays: assigned,
-			openSlots: Math.max(0, available - assigned),
-			utilizationPercent: available > 0 ? Math.round((assigned / available) * 100) : 0
+			assignedOutsideAvailability: assignedOutside,
+			// Open slots are available days not filled by an in-availability
+			// assignment; out-of-availability days don't consume an available slot.
+			openSlots: Math.max(0, available - assignedWithin),
+			// Utilization measures how much of the AVAILABLE capacity is used, so it
+			// stays within 0–100%; out-of-availability days are reported separately.
+			utilizationPercent: available > 0 ? Math.round((assignedWithin / available) * 100) : 0
 		});
 	}
 
 	// Build calendar with availability and assignments - use UTC to avoid timezone shifts
-	const calendarData: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; assignedStudent?: any; assignment?: any }> = [];
+	const calendarData: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; availabilityNote?: string; assignedStudent?: any; assignment?: any }> = [];
 
 	const current = parseUTCDate(startDate);
 	const end = parseUTCDate(endDate);
@@ -450,6 +480,7 @@ export async function getPreceptorScheduleData(
 		calendarData.push({
 			date: dateStr,
 			availability: isAvailable === true ? 'available' : isAvailable === false ? 'unavailable' : 'unset',
+			availabilityNote: availabilityNoteMap.get(dateStr),
 			assignedStudent: assignment ? {
 				id: assignment.student_id,
 				name: assignment.student_name,
@@ -485,8 +516,8 @@ export async function getPreceptorScheduleData(
 			studentAssignments.set(key, {
 				studentId: a.student_id,
 				studentName: a.student_name,
-				clerkshipId: a.clerkship_id,
-				clerkshipName: a.clerkship_name,
+				clerkshipId: a.clerkship_id ?? '',
+				clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 				dates: []
 			});
 		}
@@ -512,8 +543,8 @@ export async function getPreceptorScheduleData(
 		studentId: a.student_id,
 		studentName: a.student_name,
 		studentInitials: getInitials(a.student_name),
-		clerkshipId: a.clerkship_id,
-		clerkshipName: a.clerkship_name,
+		clerkshipId: a.clerkship_id ?? '',
+		clerkshipName: a.clerkship_name ?? a.elective_name ?? 'Elective',
 		clerkshipColor: getClerkshipColor(a.clerkship_specialty ?? 'General'),
 		status: a.status,
 		source: a.source,
@@ -528,8 +559,12 @@ export async function getPreceptorScheduleData(
 		preceptorName: preceptor.name,
 		totalAvailableDays: totalAvailable,
 		totalAssignedDays: totalAssigned,
-		openSlots: Math.max(0, totalAvailable - totalAssigned),
-		utilizationPercent: totalAvailable > 0 ? Math.round((totalAssigned / totalAvailable) * 100) : 0,
+		assignedOutsideAvailability: totalAssignedOutside,
+		openSlots: Math.max(0, totalAvailable - (totalAssigned - totalAssignedOutside)),
+		utilizationPercent:
+			totalAvailable > 0
+				? Math.round(((totalAssigned - totalAssignedOutside) / totalAvailable) * 100)
+				: 0,
 		uniqueStudents: assignedStudents.length
 	});
 
@@ -550,8 +585,12 @@ export async function getPreceptorScheduleData(
 		overallCapacity: {
 			availableDays: totalAvailable,
 			assignedDays: totalAssigned,
-			openSlots: Math.max(0, totalAvailable - totalAssigned),
-			utilizationPercent: totalAvailable > 0 ? Math.round((totalAssigned / totalAvailable) * 100) : 0
+			assignedOutsideAvailability: totalAssignedOutside,
+			openSlots: Math.max(0, totalAvailable - (totalAssigned - totalAssignedOutside)),
+			utilizationPercent:
+				totalAvailable > 0
+					? Math.round(((totalAssigned - totalAssignedOutside) / totalAvailable) * 100)
+					: 0
 		},
 		calendar,
 		assignedStudents,
@@ -621,6 +660,9 @@ export async function getScheduleSummaryData(
 	const studentClerkshipCounts = new Map<string, Map<string, number>>();
 
 	for (const a of assignments) {
+		// Standalone-elective days (no clerkship, E3) don't count toward clerkship
+		// requirement summaries.
+		if (!a.clerkship_id) continue;
 		if (!studentClerkshipCounts.has(a.student_id)) {
 			studentClerkshipCounts.set(a.student_id, new Map());
 		}
@@ -680,6 +722,7 @@ export async function getScheduleSummaryData(
 	// Calculate clerkship breakdown
 	const clerkshipAssignments = new Map<string, { count: number; students: Set<string> }>();
 	for (const a of assignments) {
+		if (!a.clerkship_id) continue;
 		if (!clerkshipAssignments.has(a.clerkship_id)) {
 			clerkshipAssignments.set(a.clerkship_id, { count: 0, students: new Set() });
 		}
@@ -793,7 +836,7 @@ function emptyPreceptorSchedule(preceptor: {
 		},
 		period: null,
 		monthlyCapacity: [],
-		overallCapacity: { availableDays: 0, assignedDays: 0, openSlots: 0, utilizationPercent: 0 },
+		overallCapacity: { availableDays: 0, assignedDays: 0, assignedOutsideAvailability: 0, openSlots: 0, utilizationPercent: 0 },
 		calendar: [],
 		assignedStudents: [],
 		assignments: []
@@ -905,7 +948,7 @@ function buildCalendarMonths(
 function buildCalendarMonthsWithAvailability(
 	startDate: string,
 	endDate: string,
-	data: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; assignedStudent?: any; assignment?: any }>
+	data: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; availabilityNote?: string; assignedStudent?: any; assignment?: any }>
 ): CalendarMonth[] {
 	// Collect all data per date (supports multiple assignments per day)
 	const dataMap = new Map<string, Array<typeof data[0]>>();
@@ -960,6 +1003,7 @@ function buildCalendarMonthsWithAvailability(
 					// Keep assignment for backward compatibility
 					assignment: firstDayData?.assignment,
 					availability: firstDayData?.availability,
+					availabilityNote: firstDayData?.availabilityNote,
 					assignedStudent: firstDayData?.assignedStudent
 				});
 

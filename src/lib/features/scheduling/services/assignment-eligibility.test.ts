@@ -235,11 +235,17 @@ describe('getEligibleOptions', () => {
 		expect(find(r.sites, NORTH)!.eligible).toBe(true);
 	});
 
-	it('marks a preceptor who does not work at the selected site ineligible', async () => {
+	it('does NOT gate preceptors by the selected site (finding #1)', async () => {
+		// A site selection must never disable a preceptor — that deadlocked reassigning
+		// a preceptor who works elsewhere. The preceptor↔site relationship is enforced
+		// on the site dropdown, and the dialog clears/auto-selects the site on change.
 		const r = await getEligibleOptions(db, SCHEDULE, { siteId: NORTH });
-		expect(find(r.preceptors, PATEL)!.eligible).toBe(false);
-		expect(find(r.preceptors, PATEL)!.reason).toContain('North Clinic');
+		expect(find(r.preceptors, PATEL)!.eligible).toBe(true);
 		expect(find(r.preceptors, LEE)!.eligible).toBe(true);
+		// The site dropdown still reflects the preceptor's sites when a preceptor is set.
+		const byPreceptor = await getEligibleOptions(db, SCHEDULE, { preceptorId: PATEL });
+		expect(find(byPreceptor.sites, NORTH)!.eligible).toBe(false);
+		expect(find(byPreceptor.sites, SOUTH)!.eligible).toBe(true);
 	});
 
 	it('narrows clerkships from the selected preceptor', async () => {

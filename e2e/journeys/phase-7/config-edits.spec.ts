@@ -1,3 +1,4 @@
+// @coverage @constraint(outside_schedule)
 // @coverage @req(R4.2) @req(R4.3) @req(R5.1) @req(R1.3) @finding(P8-e)
 /**
  * J7.7 — Editing configuration that existing assignments depend on (e2e plan

@@ -218,7 +218,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 		// the created row matches field for field (P-01).
 		const created = await createManualAssignment(db, SCHED, {
 			student_id: STU2,
-			preceptor_id: gen.preceptor_id,
+			preceptor_id: gen.preceptor_id ?? '',
 			clerkship_id: gen.clerkship_id,
 			site_id: gen.site_id,
 			elective_id: gen.elective_id,

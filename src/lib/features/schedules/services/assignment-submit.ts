@@ -8,13 +8,19 @@
 
 import type { OverrideSideEffect } from './assignment-service';
 import type { DayState } from '$lib/features/scheduling/services/assignment-day-state';
+import { sessionClashes, type SessionSlot } from '$lib/features/scheduling/services/session-slots';
 
 /** Soft categories the dialog can raise a conversation about. */
 export type OverrideCategory =
+	| 'session_clash'
+	| 'mutual_exclusion'
+	| 'block_week_conflict'
 	| 'preceptor_unavailable'
 	| 'preceptor_capacity'
 	| 'blackout_date'
 	| 'not_onboarded'
+	| 'outside_core_preceptor'
+	| 'preferred_day_available'
 	| 'over_required_days'
 	| 'past_date';
 
@@ -39,6 +45,14 @@ export interface SelectionWideFlags {
 	overRequired?: boolean;
 	/** The student has not completed onboarding at the preceptor's health system. */
 	notOnboarded?: boolean;
+	/** The preceptor is not one of the student's core preceptors. */
+	outsideCorePreceptor?: boolean;
+	/** The day sits on an "in a pinch" availability while a preferred day was open. */
+	preferredDayAvailable?: boolean;
+	/** The student has a mutually-exclusive preceptor on this day (L2). */
+	mutualExclusion?: boolean;
+	/** The selection lands in a week consumed by an inpatient block (L3). */
+	blockWeekConflict?: boolean;
 }
 
 export interface FlagAnalysis {
@@ -51,10 +65,15 @@ export interface FlagAnalysis {
 }
 
 const CATEGORY_ORDER: OverrideCategory[] = [
+	'session_clash',
+	'mutual_exclusion',
+	'block_week_conflict',
 	'preceptor_unavailable',
 	'preceptor_capacity',
 	'blackout_date',
 	'not_onboarded',
+	'outside_core_preceptor',
+	'preferred_day_available',
 	'over_required_days',
 	'past_date'
 ];
@@ -66,7 +85,13 @@ const CATEGORY_ORDER: OverrideCategory[] = [
 export function analyseSelection(
 	selectedDates: string[],
 	dayStates: DayState[],
-	selectionWide: SelectionWideFlags = {}
+	selectionWide: SelectionWideFlags = {},
+	/**
+	 * The session each new day occupies (L1). A day clashes only when this session
+	 * overlaps one the student already has that day (AM+AM, PM+PM, full+anything);
+	 * a morning + afternoon pair submits cleanly. Credit is not capped.
+	 */
+	session: SessionSlot = 'full'
 ): FlagAnalysis {
 	const byDate = new Map(dayStates.map((d) => [d.date, d]));
 	const blockedDates: string[] = [];
@@ -84,12 +109,16 @@ export function analyseSelection(
 
 	for (const date of [...selectedDates].sort()) {
 		const day = byDate.get(date);
-		if (day?.studentBusy) {
-			blockedDates.push(date);
-			continue;
-		}
+		// Same-day assignments are allowed (half-days), so a busy day is no longer a
+		// hard block. It becomes a clash warning only when the new session overlaps a
+		// session the student already has that day — AM + PM passes, AM + AM does not.
 		submittableDates.push(date);
 		if (!day) continue;
+
+		const existingSessions = day.studentSessions ?? (day.studentBusy ? ['full' as SessionSlot] : []);
+		if (sessionClashes(existingSessions, session)) {
+			bucket('session_clash').dates.push(date);
+		}
 
 		if (day.state === 'unavailable') bucket('preceptor_unavailable').dates.push(date);
 		if (day.state === 'blackout') bucket('blackout_date').dates.push(date);
@@ -107,7 +136,11 @@ export function analyseSelection(
 
 	// Selection-wide categories only matter if something is actually submittable.
 	if (submittableDates.length > 0) {
+		if (selectionWide.mutualExclusion) bucket('mutual_exclusion');
+		if (selectionWide.blockWeekConflict) bucket('block_week_conflict');
 		if (selectionWide.notOnboarded) bucket('not_onboarded');
+		if (selectionWide.outsideCorePreceptor) bucket('outside_core_preceptor');
+		if (selectionWide.preferredDayAvailable) bucket('preferred_day_available');
 		if (selectionWide.overRequired) bucket('over_required_days');
 	}
 
@@ -117,19 +150,27 @@ export function analyseSelection(
 
 export interface AssignmentSelectionInput {
 	studentId: string;
+	/** Empty for a non-clinical day (free_day / exam), which has no preceptor (M2/M3). */
 	preceptorId: string;
+	/** Empty for a non-clinical day. */
 	clerkshipId: string;
 	siteId?: string | null;
 	/** Elective this day satisfies, if any (P-01). */
 	electiveId?: string | null;
 	locked?: boolean;
 	note?: string;
+	/** Days of requirement credit each created day is worth (default 1.0; M1/F4). */
+	creditValue?: number;
+	/** The session each created day occupies (default 'full'; L1). */
+	session?: SessionSlot;
+	/** The kind of day (default 'clinical'; M2/M3). Non-clinical omits the clinical fields. */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 export interface SubmitPayload {
 	student_id: string;
-	preceptor_id: string;
-	clerkship_id: string;
+	preceptor_id: string | null;
+	clerkship_id: string | null;
 	site_id: string | null;
 	elective_id?: string | null;
 	dates: string[];
@@ -137,6 +178,12 @@ export interface SubmitPayload {
 	override_codes: OverrideCategory[];
 	override_note?: string;
 	side_effects?: OverrideSideEffect[];
+	/** Days of requirement credit each created day is worth; omitted when 1.0 (M1/F4). */
+	credit_value?: number;
+	/** The session each created day occupies; omitted when 'full' (L1). */
+	session?: SessionSlot;
+	/** The kind of day; omitted when 'clinical' (M2/M3). */
+	kind?: 'free_day' | 'exam';
 }
 
 /**
@@ -151,23 +198,48 @@ export function buildSubmitPayload(
 ): SubmitPayload {
 	const flagged = new Set(analysis.categories.map((c) => c.category));
 	const codes = [...new Set(accepted)].filter((c) => flagged.has(c));
+	const kind = selection.kind ?? 'clinical';
+	const isClinical = kind === 'clinical';
 
 	return {
 		student_id: selection.studentId,
-		preceptor_id: selection.preceptorId,
-		clerkship_id: selection.clerkshipId,
-		site_id: selection.siteId || null,
-		...(selection.electiveId ? { elective_id: selection.electiveId } : {}),
+		// A non-clinical day (free_day / exam) carries no preceptor/clerkship/site/elective.
+		preceptor_id: isClinical ? selection.preceptorId : null,
+		clerkship_id: isClinical ? selection.clerkshipId : null,
+		site_id: isClinical ? selection.siteId || null : null,
+		...(isClinical && selection.electiveId ? { elective_id: selection.electiveId } : {}),
+		...(isClinical ? {} : { kind: kind as 'free_day' | 'exam' }),
 		dates: analysis.submittableDates,
 		locked: !!selection.locked,
 		override_codes: codes,
 		...(codes.length > 0 && selection.note ? { override_note: selection.note } : {}),
-		...(sideEffects.length > 0 ? { side_effects: sideEffects } : {})
+		...(sideEffects.length > 0 ? { side_effects: sideEffects } : {}),
+		// Only send a non-default credit; the server defaults to 1.0.
+		...(selection.creditValue !== undefined && selection.creditValue !== 1
+			? { credit_value: selection.creditValue }
+			: {}),
+		// Only send a non-default session; the server defaults to 'full'.
+		...(selection.session && selection.session !== 'full' ? { session: selection.session } : {})
 	};
 }
 
 /** Human copy for each override conversation. */
 export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: string }> = {
+	session_clash: {
+		title: 'Overlapping session',
+		describe:
+			'The student already has an assignment in the same session on these days (two mornings, two afternoons, or a full day overlapping another). A morning + afternoon pair is fine; confirm if you intend to overlap.'
+	},
+	mutual_exclusion: {
+		title: 'Preceptors marked not to share a day',
+		describe:
+			'This preceptor is marked not to supervise the same student on a day another already-assigned preceptor is on.'
+	},
+	block_week_conflict: {
+		title: 'Week used by an inpatient block',
+		describe:
+			'An inpatient block occupies the whole week, so this outpatient day overlaps a week the student is already on a block (or a block is being added to a week that already has outpatient days).'
+	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',
 		describe: 'The preceptor is marked unavailable on these days.'
@@ -183,6 +255,15 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 	not_onboarded: {
 		title: 'Student is not onboarded',
 		describe: "The student has not completed onboarding at this preceptor's health system."
+	},
+	outside_core_preceptor: {
+		title: 'Not a core preceptor',
+		describe: "This preceptor is not one of the student's core preceptors."
+	},
+	preferred_day_available: {
+		title: 'A preferred day is available',
+		describe:
+			'This day is one the preceptor marked "in a pinch", but they have a preferred day open that the student could take instead.'
 	},
 	over_required_days: {
 		title: 'More days than required',

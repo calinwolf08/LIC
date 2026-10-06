@@ -20,19 +20,22 @@ import type { DB } from '$lib/db/types';
 export async function createTestClerkship(
 	db: Kysely<DB>,
 	name: string,
-	clerkshipTypeOrOptions?: 'inpatient' | 'outpatient' | string | { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number },
-	options?: { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number }
+	clerkshipTypeOrOptions?: 'inpatient' | 'outpatient' | string | { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number; schedulingKind?: 'block' | 'scattered' },
+	options?: { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number; schedulingKind?: 'block' | 'scattered' }
 ) {
 	const id = nanoid();
 
 	// Handle both old signature (string) and new signature (object)
 	let clerkshipType: 'inpatient' | 'outpatient' = 'outpatient';
 	let requiredDays = 28;
+	// Scheduling kind (L3): defaults to 'scattered' (the DB default) unless set.
+	let schedulingKind: 'block' | 'scattered' = 'scattered';
 
 	if (typeof clerkshipTypeOrOptions === 'object' && clerkshipTypeOrOptions !== null) {
 		// New signature: options object in third param
 		clerkshipType = clerkshipTypeOrOptions.clerkshipType || 'outpatient';
 		requiredDays = clerkshipTypeOrOptions.requiredDays || 28;
+		schedulingKind = clerkshipTypeOrOptions.schedulingKind || 'scattered';
 	} else if (typeof clerkshipTypeOrOptions === 'string') {
 		// Legacy signature: string type in third param
 		clerkshipType = (clerkshipTypeOrOptions === 'inpatient' || clerkshipTypeOrOptions === 'outpatient')
@@ -44,6 +47,9 @@ export async function createTestClerkship(
 			if (options.clerkshipType) {
 				clerkshipType = options.clerkshipType;
 			}
+			if (options.schedulingKind) {
+				schedulingKind = options.schedulingKind;
+			}
 		}
 	}
 
@@ -54,6 +60,7 @@ export async function createTestClerkship(
 			name,
 			clerkship_type: clerkshipType,
 			required_days: requiredDays,
+			scheduling_kind: schedulingKind,
 			description: `Test ${name} clerkship`
 		})
 		.execute();
@@ -494,7 +501,9 @@ export async function createPreceptorAvailability(
 	db: Kysely<DB>,
 	preceptorId: string,
 	siteId: string,
-	dates: string[]
+	dates: string[],
+	/** Session the slot occupies (L1). Defaults to a full day. AM/PM → half credit. */
+	session: 'full' | 'am' | 'pm' = 'full'
 ) {
 	const values = dates.map((date) => ({
 		id: nanoid(),
@@ -502,6 +511,8 @@ export async function createPreceptorAvailability(
 		site_id: siteId,
 		date,
 		is_available: 1, // SQLite boolean
+		session,
+		credit_value: session === 'full' ? 1 : 0.5,
 		created_at: new Date().toISOString(),
 	}));
 

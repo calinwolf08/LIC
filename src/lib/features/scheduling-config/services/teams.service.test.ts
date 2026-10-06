@@ -135,6 +135,58 @@ describe('TeamService', () => {
 			// The error comes from schema validation
 			expect(result.error).toBeDefined();
 		});
+
+		// G1 (client feedback): "same health system" is a soft, overrideable guide,
+		// never a hard block. A one-member team, or members without a health system,
+		// must create even with requireSameHealthSystem on; a genuine cross-system
+		// team must also create (the warning is surfaced by the /validate preview).
+		describe('same-health-system is a soft guide (G1)', () => {
+			async function createPreceptorInHS(hsId: string | null, name: string): Promise<string> {
+				const id = nanoid();
+				await db
+					.insertInto('preceptors')
+					.values({ id, name, email: `${id}@test.edu`, health_system_id: hsId })
+					.execute();
+				return id;
+			}
+			async function createHS(name: string): Promise<string> {
+				const id = nanoid();
+				await db.insertInto('health_systems').values({ id, name, location: 'Test City' }).execute();
+				return id;
+			}
+
+			it('creates a one-member team with requireSameHealthSystem on (member has no HS)', async () => {
+				const clerkshipId = await createTestClerkship(db);
+				const preceptorId = await createPreceptorInHS(null, 'Dr. Solo');
+
+				const result = await service.createTeam(clerkshipId, {
+					name: 'Solo Team',
+					requireSameHealthSystem: true,
+					members: [{ preceptorId, priority: 1, isFallbackOnly: false }],
+				});
+
+				expect(result.success).toBe(true);
+			});
+
+			it('creates a cross-health-system team instead of hard-blocking it', async () => {
+				const clerkshipId = await createTestClerkship(db);
+				const hsA = await createHS('System A');
+				const hsB = await createHS('System B');
+				const p1 = await createPreceptorInHS(hsA, 'Dr. A');
+				const p2 = await createPreceptorInHS(hsB, 'Dr. B');
+
+				const result = await service.createTeam(clerkshipId, {
+					name: 'Cross-System Team',
+					requireSameHealthSystem: true,
+					members: [
+						{ preceptorId: p1, priority: 1, isFallbackOnly: false },
+						{ preceptorId: p2, priority: 2, isFallbackOnly: false },
+					],
+				});
+
+				expect(result.success).toBe(true);
+			});
+		});
 	});
 
 	describe('getTeam', () => {

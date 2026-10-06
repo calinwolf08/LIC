@@ -74,6 +74,8 @@ export interface CalendarDay {
 	assignment?: CalendarDayAssignment;
 	/** For preceptor view: availability status */
 	availability?: 'available' | 'unavailable' | 'unset';
+	/** For preceptor view: free-text note for the day (H6). */
+	availabilityNote?: string;
 	/** For preceptor view: student assigned */
 	assignedStudent?: {
 		id: string;
@@ -156,6 +158,8 @@ export interface StudentAssignment {
 	electiveName?: string;
 	/** Accepted soft-violation codes persisted on the row. */
 	overrideCodes: string[];
+	/** The kind of day (M2/M3): 'clinical' | 'free_day' | 'exam'. */
+	kind: string;
 }
 
 /**
@@ -167,6 +171,8 @@ export interface PreceptorCapacitySummary {
 	endDate: string;
 	availableDays: number;
 	assignedDays: number;
+	/** Assigned days that fall on a day the preceptor is NOT marked available. */
+	assignedOutsideAvailability: number;
 	openSlots: number;
 	utilizationPercent: number;
 }
@@ -193,6 +199,8 @@ export interface PreceptorSchedule {
 	overallCapacity: {
 		availableDays: number;
 		assignedDays: number;
+		/** Assigned days that fall outside the preceptor's marked availability. */
+		assignedOutsideAvailability: number;
 		openSlots: number;
 		utilizationPercent: number;
 	};

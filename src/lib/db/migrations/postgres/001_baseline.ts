@@ -45,6 +45,7 @@ import type { Kysely } from 'kysely';
 // created separately by ensureAuthTables, not here.
 const TEXT = sql.raw('text');
 const INTEGER = sql.raw('integer');
+const REAL = sql.raw('real');
 /** 0/1 in an integer column — deliberately NOT a Postgres boolean. */
 const BOOLEAN = sql.raw('integer');
 /** ISO-8601 text — deliberately NOT a Postgres timestamp. */
@@ -89,6 +90,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().check(sql`clerkship_type IN ('inpatient', 'outpatient')`)
 		)
 		.addColumn('required_days', INTEGER, (col) => col.notNull().check(sql`required_days > 0`))
+		.addColumn('min_required_days', INTEGER)
+		.addColumn('scheduling_kind', TEXT, (col) =>
+			col.notNull().defaultTo('scattered').check(sql`scheduling_kind IN ('block', 'scattered')`)
+		)
 		.addColumn('description', TEXT)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
@@ -138,6 +143,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('name', TEXT, (col) => col.notNull())
 		.addColumn('email', TEXT, (col) => col.notNull())
 		.addColumn('phone', TEXT)
+		.addColumn('phone_type', TEXT)
 		.addColumn('health_system_id', TEXT)
 		.addColumn('max_students', INTEGER, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
@@ -204,9 +210,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('clerkship_electives')
 		.addColumn('id', TEXT, (col) => col.primaryKey())
-		.addColumn('clerkship_id', TEXT, (col) =>
-			col.notNull().references('clerkships.id').onDelete('cascade')
-		)
+		// Nullable: a standalone elective has no parent clerkship (E3).
+		.addColumn('clerkship_id', TEXT, (col) => col.references('clerkships.id').onDelete('cascade'))
 		.addColumn('name', TEXT, (col) => col.notNull())
 		.addColumn('minimum_days', INTEGER, (col) => col.notNull().check(sql`minimum_days > 0`))
 		.addColumn('specialty', TEXT)
@@ -364,6 +369,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('site_id', TEXT, (col) => col.notNull())
 		.addColumn('date', TEXT, (col) => col.notNull())
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
+		.addColumn('preference', TEXT)
+		.addColumn('notes', TEXT)
+		// Half-day sessions (L1): the slot's time of day and its default credit. AM/PM
+		// slots default to half a day; the coordinator can toggle a slot to a full day.
+		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();
@@ -379,6 +390,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('date_range_end', TEXT, (col) => col.notNull())
 		.addColumn('is_available', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('reason', TEXT)
+		.addColumn('preference', TEXT)
+		// Half-day session this pattern grants + the credit each materialised day is
+		// worth (L1). Mirrors preceptor_availability's session/credit_value.
+		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
 		.addColumn('specificity', INTEGER, (col) => col.notNull().defaultTo(0))
 		.addColumn('enabled', BOOLEAN, (col) => col.notNull().defaultTo(1))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
@@ -551,6 +567,38 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('updated_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
 		.execute();
 
+	// Student core preceptors (migration 029): a student's continuity preceptors.
+	await db.schema
+		.createTable('student_core_preceptors')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('student_id', TEXT, (col) =>
+			col.notNull().references('students.id').onDelete('cascade')
+		)
+		.addColumn('preceptor_id', TEXT, (col) =>
+			col.notNull().references('preceptors.id').onDelete('cascade')
+		)
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.addUniqueConstraint('student_core_preceptors_unique', ['student_id', 'preceptor_id'])
+		.execute();
+
+	// Pairwise mutual-exclusion rules between preceptors (L2). Stored canonically
+	// (preceptor_a_id < preceptor_b_id) so the rule is symmetric and unique.
+	await db.schema
+		.createTable('preceptor_mutual_exclusions')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('preceptor_a_id', TEXT, (col) =>
+			col.notNull().references('preceptors.id').onDelete('cascade')
+		)
+		.addColumn('preceptor_b_id', TEXT, (col) =>
+			col.notNull().references('preceptors.id').onDelete('cascade')
+		)
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.addUniqueConstraint('preceptor_mutual_exclusions_unique', [
+			'preceptor_a_id',
+			'preceptor_b_id'
+		])
+		.execute();
+
 	// ---------------------------------------------------------- assignments
 
 	// `site_id` has no foreign key on SQLite either — migration 010 added it with
@@ -561,12 +609,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('student_id', TEXT, (col) =>
 			col.notNull().references('students.id').onDelete('cascade')
 		)
+		// Nullable: a non-clinical day (free_day / exam) has no preceptor (M2/M3).
 		.addColumn('preceptor_id', TEXT, (col) =>
-			col.notNull().references('preceptors.id').onDelete('restrict')
+			col.references('preceptors.id').onDelete('restrict')
 		)
-		.addColumn('clerkship_id', TEXT, (col) =>
-			col.notNull().references('clerkships.id').onDelete('restrict')
-		)
+		// Nullable: a standalone-elective day has no clerkship (E3).
+		.addColumn('clerkship_id', TEXT, (col) => col.references('clerkships.id').onDelete('restrict'))
 		.addColumn('date', TEXT, (col) => col.notNull())
 		.addColumn('status', TEXT, (col) => col.notNull().defaultTo('scheduled'))
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
@@ -579,6 +627,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('source', TEXT, (col) => col.notNull().defaultTo('manual'))
 		.addColumn('override_codes', TEXT, (col) => col.notNull().defaultTo('[]'))
 		.addColumn('override_note', TEXT)
+		.addColumn('credit_value', REAL, (col) => col.notNull().defaultTo(1))
+		// Half-day session (L1): 'full' | 'am' | 'pm'. Two assignments clash only when
+		// their sessions overlap (AM+AM, PM+PM, full+anything); AM+PM is fine.
+		.addColumn('session', TEXT, (col) => col.notNull().defaultTo('full'))
+		// Assignment kind (M2/M3): 'clinical' | 'free_day' | 'exam'. Non-clinical days
+		// occupy the student's day but need no preceptor/clerkship/site and never count
+		// toward clinical requirements.
+		.addColumn('kind', TEXT, (col) =>
+			col.notNull().defaultTo('clinical').check(sql`kind IN ('clinical', 'free_day', 'exam')`)
+		)
 		.execute();
 
 	// ------------------------------------------------------ schedule scoping
@@ -672,6 +730,35 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addUniqueConstraint('schedule_teams_unique', ['schedule_id', 'team_id'])
 		.execute();
 
+	// Distribution audit log (K1): one row per (send, recipient), ids + counts only.
+	await db.schema
+		.createTable('schedule_distributions')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('schedule_id', TEXT, (col) =>
+			col.notNull().references('scheduling_periods.id').onDelete('cascade')
+		)
+		.addColumn('sender_user_id', TEXT, (col) => col.notNull())
+		.addColumn('recipient_type', TEXT, (col) =>
+			col.notNull().check(sql`recipient_type IN ('preceptor', 'student', 'site')`)
+		)
+		.addColumn('recipient_id', TEXT, (col) => col.notNull())
+		.addColumn('day_count', INTEGER, (col) => col.notNull().defaultTo(0))
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.execute();
+
+	// Optional quarter date ranges per schedule (M4).
+	await db.schema
+		.createTable('schedule_quarters')
+		.addColumn('id', TEXT, (col) => col.primaryKey())
+		.addColumn('schedule_id', TEXT, (col) =>
+			col.notNull().references('scheduling_periods.id').onDelete('cascade')
+		)
+		.addColumn('name', TEXT, (col) => col.notNull())
+		.addColumn('start_date', TEXT, (col) => col.notNull())
+		.addColumn('end_date', TEXT, (col) => col.notNull())
+		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
+		.execute();
+
 	// ------------------------------------------------------------- indexes
 	// Same names as SQLite so a schema diff between the two engines is empty.
 
@@ -754,7 +841,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_assignments_date', 'schedule_assignments', ['date']);
 	await index('idx_assignments_elective', 'schedule_assignments', ['elective_id']);
 	await index('idx_assignments_preceptor_date', 'schedule_assignments', ['preceptor_id', 'date']);
-	await uniqueIndex('idx_assignments_student_date', 'schedule_assignments', ['student_id', 'date']);
+	// Non-unique: a student may have more than one assignment per day (half-days /
+	// AM-PM). Same-day capacity is an app-level, credit-aware check (L1), not a DB
+	// constraint. Mirrors sqlite migration 104.
+	await index('idx_assignments_student_date', 'schedule_assignments', ['student_id', 'date']);
 	await index('idx_schedule_assignments_site', 'schedule_assignments', ['site_id']);
 
 	await index('idx_schedule_clerkships_schedule', 'schedule_clerkships', ['schedule_id']);
@@ -766,6 +856,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_schedule_students_schedule', 'schedule_students', ['schedule_id']);
 	await index('idx_schedule_students_student', 'schedule_students', ['student_id']);
 	await index('idx_schedule_teams_schedule', 'schedule_teams', ['schedule_id']);
+	await index('idx_schedule_quarters_schedule', 'schedule_quarters', ['schedule_id']);
+	await index('idx_schedule_distributions_schedule', 'schedule_distributions', ['schedule_id']);
 
 	// Partial unique index: at most one active schedule. Postgres and SQLite
 	// both support `WHERE` on an index; this is what enforces the invariant.

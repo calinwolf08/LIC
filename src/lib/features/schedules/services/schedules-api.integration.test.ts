@@ -136,6 +136,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_type', 'text', (col) => col.notNull())
 		.addColumn('specialty', 'text')
 		.addColumn('required_days', 'integer', (col) => col.notNull())
+		.addColumn('scheduling_kind', 'text', (col) => col.notNull().defaultTo('scattered'))
+		.addColumn('min_required_days', 'integer')
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -171,6 +173,14 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	await db.schema
+		.createTable('student_core_preceptors')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
 		.createTable('clerkship_electives')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
@@ -201,6 +211,7 @@ await db.schema
 		.addColumn('elective_id', 'text')
 		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
@@ -208,6 +219,8 @@ await db.schema
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	// Blackout dates table
@@ -229,8 +242,12 @@ await db.schema
 		.addColumn('site_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
+		.addColumn('preference', 'text')
+		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 
 	await db.schema

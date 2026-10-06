@@ -25,6 +25,11 @@ import {
 	type AssignmentCandidate,
 	type Violation
 } from '$lib/features/scheduling/services/assignment-validation';
+import {
+	normalizeSession,
+	sessionsOverlap,
+	defaultCreditForSession
+} from '$lib/features/scheduling/services/session-slots';
 
 const log = createServerLogger('service:schedules:assignment');
 
@@ -42,8 +47,10 @@ const log = createServerLogger('service:schedules:assignment');
 export interface NewAssignmentRow {
 	schedule_id: string | null;
 	student_id: string;
-	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for a non-clinical day (free_day / exam), which has no preceptor (M2/M3). */
+	preceptor_id: string | null;
+	/** Null for a standalone-elective day, which has no parent clerkship (E3). */
+	clerkship_id: string | null;
 	elective_id?: string | null;
 	site_id?: string | null;
 	date: string;
@@ -53,6 +60,12 @@ export interface NewAssignmentRow {
 	/** Accepted soft-violation codes to persist on the row. */
 	override_codes?: string[];
 	override_note?: string | null;
+	/** Days of requirement credit this row is worth (default 1.0; M1/F4). */
+	credit_value?: number;
+	/** Which part of the day this row occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
+	session?: string;
+	/** The kind of day: 'clinical' | 'free_day' | 'exam' (default 'clinical'; M2/M3). */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 /** Map a normalized row onto the full insertable column set, with defaults. */
@@ -72,9 +85,22 @@ function toInsertable(row: NewAssignmentRow, timestamp: string): Insertable<Sche
 		override_codes: JSON.stringify(row.override_codes ?? []),
 		override_note:
 			(row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
+		credit_value: normalizeCredit(row.credit_value),
+		session: normalizeSession(row.session),
+		kind: row.kind ?? 'clinical',
 		created_at: timestamp,
 		updated_at: timestamp
 	};
+}
+
+/**
+ * Clamp a caller-supplied credit to a sane value (M1/F4). Missing → 1.0. Credit
+ * must be positive; a non-positive or non-finite value falls back to 1.0 so a bad
+ * input can never zero out or corrupt a requirement total.
+ */
+export function normalizeCredit(value: number | null | undefined): number {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 1;
+	return Math.round(value * 100) / 100;
 }
 
 /**
@@ -102,8 +128,10 @@ export async function insertAssignments(
 
 export interface ManualAssignmentInput {
 	student_id: string;
-	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for a non-clinical day (free_day / exam), which has no preceptor (M2/M3). */
+	preceptor_id: string | null;
+	/** Null for a standalone-elective day (no parent clerkship, E3) or a non-clinical day. */
+	clerkship_id: string | null;
 	site_id?: string | null;
 	/** Elective this day satisfies, if any. Must belong to the clerkship (P-01). */
 	elective_id?: string | null;
@@ -113,6 +141,12 @@ export interface ManualAssignmentInput {
 	override_codes?: string[];
 	/** Free text captured alongside the override. */
 	override_note?: string | null;
+	/** Days of requirement credit this day is worth (default 1.0; M1/F4). */
+	credit_value?: number;
+	/** Which part of the day this occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
+	session?: string;
+	/** The kind of day: 'clinical' | 'free_day' | 'exam' (default 'clinical'; M2/M3). */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 /**
@@ -123,18 +157,23 @@ export interface ManualAssignmentInput {
 export async function checkElectiveBelongsToClerkship(
 	db: Kysely<DB>,
 	electiveId: string,
-	clerkshipId: string
+	clerkshipId: string | null
 ): Promise<Violation | null> {
 	const elective = await db
 		.selectFrom('clerkship_electives')
 		.select(['id', 'clerkship_id'])
 		.where('id', '=', electiveId)
 		.executeTakeFirst();
-	if (!elective || elective.clerkship_id !== clerkshipId) {
+	// A standalone elective (clerkship_id null) belongs to a standalone day (no
+	// clerkship). An attached elective must match the day's clerkship (E3/P-01).
+	if (!elective || (elective.clerkship_id ?? null) !== (clerkshipId ?? null)) {
 		return {
 			code: 'entity_missing',
 			message: 'Elective does not belong to this clerkship',
-			entity_refs: { clerkship_id: clerkshipId, elective_id: electiveId }
+			entity_refs: {
+				...(clerkshipId ? { clerkship_id: clerkshipId } : {}),
+				elective_id: electiveId
+			}
 		};
 	}
 	return null;
@@ -169,13 +208,30 @@ export async function createManualAssignment(
 	input: ManualAssignmentInput,
 	opts: ManualCreateOptions = {}
 ): Promise<ManualCreateResult> {
+	const kind = input.kind ?? 'clinical';
+	const isClinical = kind === 'clinical';
+
+	// A clinical day must belong to a clerkship or a (standalone) elective — never
+	// neither. A non-clinical day (free_day / exam) has none of these (M2/M3).
+	if (isClinical && !input.clerkship_id && !input.elective_id) {
+		return {
+			ok: false,
+			hard: [{ code: 'entity_missing', message: 'A clerkship or elective is required' }],
+			soft: []
+		};
+	}
+
 	const candidate: AssignmentCandidate = {
 		student_id: input.student_id,
-		preceptor_id: input.preceptor_id,
-		clerkship_id: input.clerkship_id,
-		site_id: input.site_id ?? null,
-		elective_id: input.elective_id ?? null,
-		date: input.date
+		// A non-clinical day carries no preceptor/clerkship/site/elective.
+		preceptor_id: isClinical ? (input.preceptor_id ?? '') : '',
+		clerkship_id: isClinical ? input.clerkship_id : null,
+		site_id: isClinical ? (input.site_id ?? null) : null,
+		elective_id: isClinical ? (input.elective_id ?? null) : null,
+		date: input.date,
+		credit_value: input.credit_value,
+		session: normalizeSession(input.session),
+		kind
 	};
 	const result = await validateAssignmentCandidate(db, scheduleId, candidate, {
 		today: opts.today,
@@ -183,8 +239,8 @@ export async function createManualAssignment(
 	});
 
 	// An elective must belong to the assignment's clerkship (P-01). This is a hard
-	// block, not overridable.
-	if (input.elective_id) {
+	// block, not overridable. Non-clinical days carry no elective.
+	if (isClinical && input.elective_id) {
 		const electiveViolation = await checkElectiveBelongsToClerkship(
 			db,
 			input.elective_id,
@@ -208,15 +264,19 @@ export async function createManualAssignment(
 		{
 			schedule_id: scheduleId,
 			student_id: input.student_id,
-			preceptor_id: input.preceptor_id,
-			clerkship_id: input.clerkship_id,
-			elective_id: input.elective_id ?? null,
-			site_id: input.site_id ?? null,
+			// A non-clinical day (free_day / exam) carries no preceptor/clerkship/site/elective.
+			preceptor_id: isClinical ? input.preceptor_id : null,
+			clerkship_id: isClinical ? input.clerkship_id : null,
+			elective_id: isClinical ? (input.elective_id ?? null) : null,
+			site_id: isClinical ? (input.site_id ?? null) : null,
 			date: input.date,
 			source: 'manual',
 			locked: input.locked,
 			override_codes: persistedCodes,
-			override_note: input.override_note
+			override_note: input.override_note,
+			credit_value: input.credit_value,
+			session: normalizeSession(input.session),
+			kind
 		}
 	]);
 
@@ -230,8 +290,10 @@ export async function createManualAssignment(
 
 export interface BulkManualInput {
 	student_id: string;
-	preceptor_id: string;
-	clerkship_id: string;
+	/** Null for non-clinical days (free_day / exam), which have no preceptor (M2/M3). */
+	preceptor_id: string | null;
+	/** Null for standalone-elective days (no parent clerkship, E3) or non-clinical days. */
+	clerkship_id: string | null;
 	site_id?: string | null;
 	/** Elective these days satisfy, if any. Must belong to the clerkship (P-01). */
 	elective_id?: string | null;
@@ -246,6 +308,12 @@ export interface BulkManualInput {
 	/** Soft violation codes the user explicitly accepted, applied to every date. */
 	override_codes?: string[];
 	override_note?: string | null;
+	/** Days of requirement credit each created day is worth (default 1.0; M1/F4). */
+	credit_value?: number;
+	/** The session each created day occupies: 'full' | 'am' | 'pm' (default 'full'; L1). */
+	session?: string;
+	/** The kind of day: 'clinical' | 'free_day' | 'exam' (default 'clinical'; M2/M3). */
+	kind?: 'clinical' | 'free_day' | 'exam';
 }
 
 export interface BulkManualDateResult {
@@ -318,7 +386,10 @@ export async function createManualAssignmentsBulk(
 					date,
 					locked: input.locked,
 					override_codes: input.override_codes,
-					override_note: input.override_note
+					override_note: input.override_note,
+					credit_value: input.credit_value,
+					session: input.session,
+					kind: input.kind
 				},
 				opts
 			);
@@ -493,7 +564,9 @@ export async function listOverrides(
 		.selectFrom('schedule_assignments as sa')
 		.innerJoin('schedule_students as ss', 'ss.student_id', 'sa.student_id')
 		.innerJoin('students as st', 'st.id', 'sa.student_id')
-		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		// leftJoin so a standalone-elective day (no clerkship, E3) with an override
+		// still surfaces in the overrides list.
+		.leftJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
 		.innerJoin('preceptors as p', 'p.id', 'sa.preceptor_id')
 		.select([
 			'sa.id as id',
@@ -536,10 +609,10 @@ export async function listOverrides(
 				date: r.date,
 				studentId: r.student_id,
 				studentName: r.student_name,
-				clerkshipId: r.clerkship_id,
-				clerkshipName: r.clerkship_name,
-				preceptorId: r.preceptor_id,
-				preceptorName: r.preceptor_name,
+				clerkshipId: r.clerkship_id ?? '',
+				clerkshipName: r.clerkship_name ?? 'Elective',
+				preceptorId: r.preceptor_id ?? '',
+				preceptorName: r.preceptor_name ?? '—',
 				codes,
 				note: r.override_note,
 				createdAt: r.created_at,
@@ -850,19 +923,12 @@ export async function updateAssignment(
 		throw new ValidationError(dateCheck.error!);
 	}
 
-	// Raw writer. The only invariant it enforces itself is the one true hard rule
-	// — a student cannot be in two places on the same day. Every overridable
-	// (soft) rule is checked by the callers that own the mutation contract
-	// (createManualAssignment and the edit paths in editing-service, both via the
-	// single validateAssignmentCandidate validator). Callers that want the
-	// hard/soft override envelope must go through those.
-	const targetStudent = data.student_id || current.student_id;
-	const targetDate = data.date || current.date;
-	if (data.student_id || data.date) {
-		if (await hasStudentConflict(db, targetStudent, targetDate, id)) {
-			throw new ValidationError('Student already has an assignment on this date');
-		}
-	}
+	// Raw writer. Same-day capacity is no longer a hard rule here: a student may
+	// hold more than one assignment per day (half-days), and over-booking is the
+	// credit-aware, overridable `day_overbooked` soft code checked by the callers
+	// that own the mutation contract (createManualAssignment and the edit paths in
+	// editing-service, both via the single validateAssignmentCandidate validator).
+	// Callers that want the hard/soft override envelope must go through those.
 
 	const updated = await db
 		.updateTable('schedule_assignments')
@@ -997,6 +1063,14 @@ export interface GeneratedAssignmentInput {
 	overrideCodes?: string[];
 	/** Row status; defaults to 'scheduled'. Fallback rows may be 'pending_approval'. */
 	status?: string;
+	/**
+	 * Session this generated day occupies (L1). When omitted, it is derived from the
+	 * availability slot the (preceptor, date) fills, so a half-day slot yields a
+	 * half-day assignment worth its slot credit.
+	 */
+	session?: string;
+	/** Credit this generated day is worth (L1). When omitted, derived from the slot. */
+	creditValue?: number;
 }
 
 /**
@@ -1024,6 +1098,42 @@ export type SkippedGeneratedAssignment = GeneratedAssignmentInput & {
  * @returns the inserted rows plus the candidates skipped because their slot was
  *          already taken.
  */
+/**
+ * The available slot (session, credit, site) each generated (preceptor, date)
+ * fills, so generated assignments inherit their slot's session + credit (L1).
+ * Keyed "preceptorId:date". When a preceptor has both an AM and a PM slot that
+ * day, the first available row wins for the fallback — callers that need a
+ * specific session pass it explicitly on the input.
+ */
+async function lookupAvailabilitySlots(
+	db: Kysely<DB>,
+	assignments: GeneratedAssignmentInput[]
+): Promise<Map<string, { session: string; credit_value: number; site_id: string | null }>> {
+	const out = new Map<string, { session: string; credit_value: number; site_id: string | null }>();
+	const preceptorIds = [...new Set(assignments.map((a) => a.preceptorId))];
+	const dates = [...new Set(assignments.map((a) => a.date))];
+	if (preceptorIds.length === 0 || dates.length === 0) return out;
+	const rows = await db
+		.selectFrom('preceptor_availability')
+		.select(['preceptor_id', 'date', 'site_id', 'session', 'credit_value'])
+		.where('preceptor_id', 'in', preceptorIds)
+		.where('date', 'in', dates)
+		.where('is_available', '=', 1)
+		.execute();
+	for (const row of rows) {
+		const key = `${row.preceptor_id}:${row.date}`;
+		if (!out.has(key)) {
+			out.set(key, {
+				session: normalizeSession(row.session),
+				credit_value:
+					typeof row.credit_value === 'number' && row.credit_value > 0 ? row.credit_value : 1,
+				site_id: row.site_id
+			});
+		}
+	}
+	return out;
+}
+
 export async function insertGeneratedAssignments(
 	db: Kysely<DB>,
 	scheduleId: string | null,
@@ -1036,32 +1146,51 @@ export async function insertGeneratedAssignments(
 		return { inserted: [], skipped: [] };
 	}
 
-	// De-duplicate by (student, date) — a student is one place per day.
+	// Resolve each candidate's session up front (from the input, else the slot it
+	// fills), so de-duplication and occupancy are session-aware — a morning and an
+	// afternoon on one student-day can coexist (L1).
+	const slotInfo = await lookupAvailabilitySlots(db, assignments);
+	const sessionOf = (a: GeneratedAssignmentInput): string =>
+		normalizeSession(a.session ?? slotInfo.get(`${a.preceptorId}:${a.date}`)?.session);
+
+	// De-duplicate by (student, date, session) — a student may hold one AM and one
+	// PM (or a single full day) per date, but not two of the same session.
 	const byKey = new Map<string, GeneratedAssignmentInput>();
 	for (const a of assignments) {
-		byKey.set(`${a.studentId}:${a.date}`, a);
+		byKey.set(`${a.studentId}:${a.date}:${sessionOf(a)}`, a);
 	}
 	const deduped = [...byKey.values()];
 
-	// Skip slots already occupied (locked / manual / earlier rows). Reported, not
-	// dropped silently — each skip carries the id of the assignment that holds the
-	// slot so the caller can tell the user exactly what blocked the day (P-09).
+	// Skip slots already occupied by an overlapping session (locked / manual /
+	// earlier rows). Reported, not dropped silently — each skip carries the id of the
+	// assignment that holds the slot so the caller can tell the user what blocked the
+	// day (P-09).
 	const studentIds = [...new Set(deduped.map((a) => a.studentId))];
 	const existing =
 		studentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['id', 'student_id', 'date'])
+					.select(['id', 'student_id', 'date', 'session'])
 					.where('student_id', 'in', studentIds)
 					.execute()
 			: [];
-	const blockingId = new Map(existing.map((e) => [`${e.student_id}:${e.date}`, e.id]));
+	const existingByStudentDate = new Map<string, { id: string | null; session: string }[]>();
+	for (const e of existing) {
+		const k = `${e.student_id}:${e.date}`;
+		(existingByStudentDate.get(k) ?? existingByStudentDate.set(k, []).get(k)!).push({
+			id: e.id,
+			session: normalizeSession(e.session)
+		});
+	}
 
 	const toInsert: GeneratedAssignmentInput[] = [];
 	const skipped: SkippedGeneratedAssignment[] = [];
 	for (const a of deduped) {
-		const blockedBy = blockingId.get(`${a.studentId}:${a.date}`);
-		if (blockedBy !== undefined) skipped.push({ ...a, blockedBy });
+		const candidateSession = normalizeSession(sessionOf(a));
+		const clash = (existingByStudentDate.get(`${a.studentId}:${a.date}`) ?? []).find((e) =>
+			sessionsOverlap(normalizeSession(e.session), candidateSession)
+		);
+		if (clash?.id != null) skipped.push({ ...a, blockedBy: clash.id });
 		else toInsert.push(a);
 	}
 
@@ -1072,39 +1201,29 @@ export async function insertGeneratedAssignments(
 		return { inserted: [], skipped };
 	}
 
-	// Resolve site_id from availability for any row that did not carry one.
-	const needSite = toInsert.filter((a) => !a.siteId);
-	const siteLookup = new Map<string, string | null>();
-	if (needSite.length > 0) {
-		const preceptorIds = [...new Set(needSite.map((a) => a.preceptorId))];
-		const dates = [...new Set(needSite.map((a) => a.date))];
-		const availability = await db
-			.selectFrom('preceptor_availability')
-			.select(['preceptor_id', 'date', 'site_id'])
-			.where('preceptor_id', 'in', preceptorIds)
-			.where('date', 'in', dates)
-			.where('is_available', '=', 1)
-			.execute();
-		for (const row of availability) {
-			siteLookup.set(`${row.preceptor_id}:${row.date}`, row.site_id);
-		}
-	}
-
 	const inserted = await insertAssignments(
 		db,
-		toInsert.map((a) => ({
-			schedule_id: scheduleId,
-			student_id: a.studentId,
-			preceptor_id: a.preceptorId,
-			clerkship_id: a.clerkshipId,
-			elective_id: a.electiveId ?? null,
-			site_id: a.siteId ?? siteLookup.get(`${a.preceptorId}:${a.date}`) ?? null,
-			date: a.date,
-			status: a.status ?? 'scheduled',
-			source: 'generated' as const,
-			override_codes: a.overrideCodes ?? [],
-			override_note: (a.overrideCodes?.length ?? 0) > 0 ? 'auto-generation bypass' : null
-		}))
+		toInsert.map((a) => {
+			const slot = slotInfo.get(`${a.preceptorId}:${a.date}`);
+			const session = normalizeSession(a.session ?? slot?.session);
+			return {
+				schedule_id: scheduleId,
+				student_id: a.studentId,
+				preceptor_id: a.preceptorId,
+				clerkship_id: a.clerkshipId,
+				elective_id: a.electiveId ?? null,
+				site_id: a.siteId ?? slot?.site_id ?? null,
+				date: a.date,
+				status: a.status ?? 'scheduled',
+				source: 'generated' as const,
+				override_codes: a.overrideCodes ?? [],
+				override_note: (a.overrideCodes?.length ?? 0) > 0 ? 'auto-generation bypass' : null,
+				// A generated day is worth its slot's credit (a half-day slot → 0.5), and
+				// carries the slot's session so AM/PM read correctly (L1).
+				credit_value: a.creditValue ?? slot?.credit_value ?? defaultCreditForSession(session),
+				session
+			};
+		})
 	);
 
 	log.info('Generated assignments inserted', {

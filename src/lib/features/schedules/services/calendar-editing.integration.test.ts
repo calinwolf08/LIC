@@ -136,6 +136,8 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('clerkship_type', 'text', (col) => col.notNull())
 		.addColumn('specialty', 'text')
 		.addColumn('required_days', 'integer', (col) => col.notNull())
+		.addColumn('scheduling_kind', 'text', (col) => col.notNull().defaultTo('scattered'))
+		.addColumn('min_required_days', 'integer')
 		.addColumn('description', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
@@ -190,6 +192,14 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	await db.schema
+		.createTable('student_core_preceptors')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('student_id', 'text', (col) => col.notNull())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
 		.createTable('clerkship_electives')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
@@ -220,6 +230,7 @@ await db.schema
 		.addColumn('elective_id', 'text')
 		.addColumn('site_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
+		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.addColumn('status', 'text', (col) => col.notNull())
 		.addColumn('locked', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('source', 'text', (col) => col.notNull().defaultTo('manual'))
@@ -227,6 +238,8 @@ await db.schema
 		.addColumn('override_note', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	await db.schema
@@ -253,8 +266,12 @@ await db.schema
 		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull())
+		.addColumn('preference', 'text')
+		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
+				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 }
 
@@ -917,11 +934,13 @@ describe('Editing Service Integration Tests', () => {
 				date: futureDate2
 			});
 
-			// Try to change assignment1 to same date as assignment2
+			// Moving assignment1 onto assignment2's day now overlaps that session rather
+			// than hard-failing (L1 — same-day half-days are allowed). The calendar move
+			// path does not block on soft codes, so it proceeds and surfaces the warning.
 			const result = await changeAssignmentDate(db, assignment1.id, futureDate2);
 
-			expect(result.valid).toBe(false);
-			expect(result.errors.some((e) => e.includes('already has an assignment'))).toBe(true);
+			expect(result.valid).toBe(true);
+			expect(result.soft.some((v) => v.code === 'session_clash')).toBe(true);
 		});
 	});
 

@@ -29,7 +29,8 @@ import { validateAssignmentCandidate, type Violation } from '../services/assignm
 export interface ProposalInput {
 	studentId: string;
 	preceptorId: string;
-	clerkshipId: string;
+	/** Null for a standalone-elective day (no parent clerkship, E3). */
+	clerkshipId: string | null;
 	date: string;
 	/** Optional pre-resolved site; otherwise resolved from availability. */
 	siteId?: string | null;

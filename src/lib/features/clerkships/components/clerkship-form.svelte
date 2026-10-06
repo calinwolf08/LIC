@@ -20,6 +20,11 @@
 		name: clerkship?.name || '',
 		clerkship_type: (clerkship?.clerkship_type as 'inpatient' | 'outpatient') || 'inpatient',
 		required_days: clerkship?.required_days || 1,
+		min_required_days: clerkship?.min_required_days ?? null,
+		scheduling_kind:
+			(clerkship?.scheduling_kind as string | undefined) === 'block'
+				? ('block' as const)
+				: ('scattered' as const),
 		description: clerkship?.description || ''
 	};
 
@@ -38,6 +43,8 @@
 				(formData.name !== initial.name ||
 					formData.clerkship_type !== initial.clerkship_type ||
 					formData.required_days !== initial.required_days ||
+					formData.min_required_days !== initial.min_required_days ||
+					formData.scheduling_kind !== initial.scheduling_kind ||
 					formData.description !== initial.description)
 		)
 	);
@@ -114,6 +121,10 @@
 
 			<div class="space-y-2">
 				<Label for="name">Name</Label>
+				<p class="text-xs text-muted-foreground">
+					The name you'll recognize this clerkship by throughout the app (e.g. "Internal
+					Medicine"). Use your program's official course name if you want it to match your catalog.
+				</p>
 				<Input
 					id="name"
 					type="text"
@@ -170,6 +181,64 @@
 				/>
 				{#if errors.required_days}
 					<p class="text-sm text-destructive">{errors.required_days}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2">
+				<Label for="min_required_days">
+					Minimum required days <span class="text-muted-foreground">(optional)</span>
+				</Label>
+				<Input
+					id="min_required_days"
+					type="number"
+					bind:value={formData.min_required_days}
+					min="1"
+					max={formData.required_days}
+					placeholder="Same as required"
+					disabled={isSubmitting}
+					class={errors.min_required_days ? 'border-destructive' : ''}
+				/>
+				<p class="text-xs text-muted-foreground">
+					A student counts as complete once they reach this many days, even if below the full
+					requirement. Leave blank to require all {formData.required_days} days.
+				</p>
+				{#if errors.min_required_days}
+					<p class="text-sm text-destructive">{errors.min_required_days}</p>
+				{/if}
+			</div>
+
+			<div class="space-y-2" data-testid="clerkship-scheduling-kind">
+				<Label>How it's scheduled</Label>
+				<div class="flex flex-col gap-2">
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="radio"
+							name="scheduling_kind"
+							value="scattered"
+							bind:group={formData.scheduling_kind}
+							disabled={isSubmitting}
+							class="h-4 w-4"
+						/>
+						<span>Scattered (outpatient) — individual days across the schedule</span>
+					</label>
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="radio"
+							name="scheduling_kind"
+							value="block"
+							bind:group={formData.scheduling_kind}
+							disabled={isSubmitting}
+							class="h-4 w-4"
+						/>
+						<span>Block (inpatient) — whole weeks at a time</span>
+					</label>
+				</div>
+				<p class="text-xs text-muted-foreground">
+					A block takes up the student's whole week. Weeks a student spends on a block become
+					unavailable for scattered (outpatient) days — the scheduler warns when the two overlap.
+				</p>
+				{#if errors.scheduling_kind}
+					<p class="text-sm text-destructive">{errors.scheduling_kind}</p>
 				{/if}
 			</div>
 

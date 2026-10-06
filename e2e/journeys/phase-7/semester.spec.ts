@@ -1,3 +1,4 @@
+// @coverage @constraint(over_required_days)
 // @coverage @req(R1.3) @req(R4.2)
 // @coverage @finding(P7-a) @finding(D7-1)
 /**

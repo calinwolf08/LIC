@@ -4,6 +4,12 @@
  * Runs the structured per-assignment checks over every assignment in a
  * schedule in a single batched pass (no N+1 queries) and indexes the results
  * by date, student, and preceptor for the calendar / dashboard.
+ *
+ * The work is split into two layers so the same rules can be applied to
+ * hypothetical, not-yet-persisted assignments (the manual planner's "dry run"):
+ *   - `loadValidationInputs` does all the DB reads and builds the context.
+ *   - `evaluateAssignments` is a pure, in-memory pass over an assignment list.
+ * `validateSchedule` is simply `evaluateAssignments(await loadValidationInputs(...))`.
  */
 
 import type { Kysely } from 'kysely';
@@ -13,6 +19,9 @@ import {
 	type ValidationContext,
 	type Violation
 } from './assignment-validation';
+import { normalizeSession, sessionsOverlap } from './session-slots';
+import { mutualExclusionKey } from './mutual-exclusion';
+import { normalizeSchedulingKind, weekKey } from './scheduling-kind';
 
 export interface ScheduleViolation extends Violation {
 	assignment_id: string;
@@ -36,69 +45,180 @@ export interface ScheduleValidationResult {
 	counts: Record<string, number>;
 }
 
-export async function validateSchedule(
+/**
+ * The shape of an assignment the evaluator needs. Committed rows from
+ * `schedule_assignments` satisfy it, and so do the planner's tentative pins (which
+ * supply a synthetic `id`), so both run through exactly the same rules.
+ */
+export interface ValidationAssignment {
+	id: string | null;
+	student_id: string;
+	preceptor_id: string | null;
+	clerkship_id: string | null;
+	site_id: string | null;
+	elective_id: string | null;
+	date: string;
+	credit_value: number;
+	session: string;
+	kind: string;
+}
+
+/**
+ * Everything `evaluateAssignments` needs that comes from the database. Produced by
+ * `loadValidationInputs`; the planner builds a variant that also covers the entities
+ * its pins reference.
+ */
+export interface ValidationInputs {
+	assignments: ValidationAssignment[];
+	ctx: ValidationContext;
+	/** `mutualExclusionKey(a, b)` for every mutually-exclusive preceptor pair in scope. */
+	exclusionKeys: Set<string>;
+	/** clerkship_id -> block | scattered for every clerkship in scope. */
+	clerkshipKind: Map<string, 'block' | 'scattered'>;
+}
+
+function emptyInputs(start: string, end: string): ValidationInputs {
+	return {
+		assignments: [],
+		ctx: {
+			scheduleStart: start,
+			scheduleEnd: end,
+			preceptorMaxStudents: new Map(),
+			preceptorUnavailable: new Map(),
+			preceptorHealthSystem: new Map(),
+			clerkshipSites: new Map(),
+			studentOnboarded: new Map(),
+			blackoutDates: new Set(),
+			existingStudentIds: new Set(),
+			existingPreceptorIds: new Set(),
+			existingClerkshipIds: new Set(),
+			preceptorInPinch: new Map(),
+			preceptorPreferredDates: new Map(),
+			preceptorDateOccupancy: new Map()
+		},
+		exclusionKeys: new Set(),
+		clerkshipKind: new Map()
+	};
+}
+
+/**
+ * Entities a caller knows will be referenced beyond the committed assignments — the
+ * manual planner passes the preceptors/clerkships/students its pins touch, so their
+ * context (availability, capacity, kind, mutual exclusions) is loaded even when no
+ * committed assignment uses them yet.
+ */
+export interface ExtraEntities {
+	preceptorIds?: string[];
+	clerkshipIds?: string[];
+	studentIds?: string[];
+}
+
+/**
+ * Load the committed assignments for a schedule's students plus all the context the
+ * rules consult (availability, onboarding, capacity, blackouts, clerkship kinds,
+ * mutual exclusions). No rules are applied here — see `evaluateAssignments`.
+ *
+ * `extra` widens the entity sets so context covers entities only a hypothetical pin
+ * references (the planner dry-run); with no `extra` the result is exactly what the
+ * whole-schedule validator has always produced.
+ */
+export async function loadValidationInputs(
 	db: Kysely<DB>,
-	scheduleId: string
-): Promise<ScheduleValidationResult> {
+	scheduleId: string,
+	extra: ExtraEntities = {}
+): Promise<ValidationInputs> {
 	const period = await db
 		.selectFrom('scheduling_periods')
 		.select(['start_date', 'end_date'])
 		.where('id', '=', scheduleId)
 		.executeTakeFirst();
+	const rangeStart = period?.start_date ?? '0000-01-01';
+	const rangeEnd = period?.end_date ?? '9999-12-31';
 
-	// Students & clerkships in this schedule
+	// Students in this schedule, plus any the caller named (pins only reference
+	// schedule students, but unioning keeps the contract explicit).
 	const studentRows = await db
 		.selectFrom('schedule_students')
 		.select('student_id')
 		.where('schedule_id', '=', scheduleId)
 		.execute();
-	const studentIds = studentRows.map((r) => r.student_id);
+	const studentIds = [...new Set([...studentRows.map((r) => r.student_id), ...(extra.studentIds ?? [])])];
 
 	if (studentIds.length === 0) {
-		return { violations: [], byDate: {}, byStudent: {}, byPreceptor: {}, counts: {} };
+		return emptyInputs(rangeStart, rangeEnd);
 	}
 
 	// All assignments for those students. Not schedule-scoped: a student is one
 	// place per calendar day across every schedule (the DB enforces a global
 	// UNIQUE(student_id, date)), so the whole-schedule health view considers all
 	// of a student's days when flagging double-books and capacity.
-	const assignments = await db
+	const assignments: ValidationAssignment[] = await db
 		.selectFrom('schedule_assignments')
-		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date'])
+		.select([
+			'id',
+			'student_id',
+			'preceptor_id',
+			'clerkship_id',
+			'site_id',
+			'elective_id',
+			'date',
+			'credit_value',
+			'session',
+			'kind'
+		])
 		.where('student_id', 'in', studentIds)
 		.execute();
 
-	if (assignments.length === 0) {
-		return { violations: [], byDate: {}, byStudent: {}, byPreceptor: {}, counts: {} };
-	}
-
-	const preceptorIds = [...new Set(assignments.map((a) => a.preceptor_id))];
-	const clerkshipIds = [...new Set(assignments.map((a) => a.clerkship_id))];
+	// Non-clinical days (free_day / exam) have no preceptor or clerkship, so they are
+	// excluded from every preceptor/clerkship-keyed query and grouping below. They
+	// still participate in the session-clash slot logic (a free day + a clinical day
+	// on one date is a double-book). The caller's `extra` entities are unioned in so
+	// context covers pin-only preceptors/clerkships.
+	const preceptorIds = [
+		...new Set([
+			...assignments.map((a) => a.preceptor_id).filter((p): p is string => p !== null),
+			...(extra.preceptorIds ?? [])
+		])
+	];
+	const clerkshipIds = [
+		...new Set([
+			...assignments.map((a) => a.clerkship_id).filter((c): c is string => c !== null),
+			...(extra.clerkshipIds ?? [])
+		])
+	];
 
 	// Batch-load the context inputs
 	const [preceptors, clerkships, availability, blackouts, clerkshipSites, onboarding] =
 		await Promise.all([
-			db
-				.selectFrom('preceptors')
-				.select(['id', 'max_students', 'health_system_id'])
-				.where('id', 'in', preceptorIds)
-				.execute(),
-			db.selectFrom('clerkships').select('id').where('id', 'in', clerkshipIds).execute(),
-			db
-				.selectFrom('preceptor_availability')
-				.select(['preceptor_id', 'date', 'is_available'])
-				.where('preceptor_id', 'in', preceptorIds)
-				.execute(),
-			db
-				.selectFrom('blackout_dates')
-				.select('date')
-				.where('schedule_id', '=', scheduleId)
-				.execute(),
-			db
-				.selectFrom('clerkship_sites')
-				.select(['clerkship_id', 'site_id'])
-				.where('clerkship_id', 'in', clerkshipIds)
-				.execute(),
+			preceptorIds.length
+				? db
+						.selectFrom('preceptors')
+						.select(['id', 'max_students', 'health_system_id'])
+						.where('id', 'in', preceptorIds)
+						.execute()
+				: Promise.resolve([]),
+			clerkshipIds.length
+				? db
+						.selectFrom('clerkships')
+						.select(['id', 'scheduling_kind'])
+						.where('id', 'in', clerkshipIds)
+						.execute()
+				: Promise.resolve([]),
+			preceptorIds.length
+				? db
+						.selectFrom('preceptor_availability')
+						.select(['preceptor_id', 'date', 'is_available', 'preference'])
+						.where('preceptor_id', 'in', preceptorIds)
+						.execute()
+				: Promise.resolve([]),
+			db.selectFrom('blackout_dates').select('date').where('schedule_id', '=', scheduleId).execute(),
+			clerkshipIds.length
+				? db
+						.selectFrom('clerkship_sites')
+						.select(['clerkship_id', 'site_id'])
+						.where('clerkship_id', 'in', clerkshipIds)
+						.execute()
+				: Promise.resolve([]),
 			db
 				.selectFrom('student_health_system_onboarding')
 				.select(['student_id', 'health_system_id', 'is_completed'])
@@ -115,12 +235,35 @@ export async function validateSchedule(
 	}
 
 	const preceptorUnavailable = new Map<string, Set<string>>();
+	// Preference-aware maps for the `preferred_day_available` health note (H8): the
+	// "in a pinch" days a preceptor is on, and the "preferred" days (in range) they
+	// still have open.
+	const preceptorInPinch = new Map<string, Set<string>>();
+	const preceptorPreferredDates = new Map<string, string[]>();
 	for (const a of availability) {
 		if (a.is_available === 0) {
 			if (!preceptorUnavailable.has(a.preceptor_id))
 				preceptorUnavailable.set(a.preceptor_id, new Set());
 			preceptorUnavailable.get(a.preceptor_id)!.add(a.date);
+			continue;
 		}
+		if (a.preference === 'in_a_pinch') {
+			if (!preceptorInPinch.has(a.preceptor_id))
+				preceptorInPinch.set(a.preceptor_id, new Set());
+			preceptorInPinch.get(a.preceptor_id)!.add(a.date);
+		} else if (a.preference === 'preferred' && a.date >= rangeStart && a.date <= rangeEnd) {
+			if (!preceptorPreferredDates.has(a.preceptor_id))
+				preceptorPreferredDates.set(a.preceptor_id, []);
+			preceptorPreferredDates.get(a.preceptor_id)!.push(a.date);
+		}
+	}
+
+	// Per-preceptor-day occupancy from committed assignments, so the health note only
+	// counts a preferred day as an alternative when the preceptor is under capacity.
+	const preceptorDateOccupancy = new Map<string, number>();
+	for (const a of assignments) {
+		const k = `${a.preceptor_id}:${a.date}`;
+		preceptorDateOccupancy.set(k, (preceptorDateOccupancy.get(k) ?? 0) + 1);
 	}
 
 	const clerkshipSiteMap = new Map<string, Set<string>>();
@@ -138,8 +281,8 @@ export async function validateSchedule(
 	}
 
 	const ctx: ValidationContext = {
-		scheduleStart: period?.start_date ?? '0000-01-01',
-		scheduleEnd: period?.end_date ?? '9999-12-31',
+		scheduleStart: rangeStart,
+		scheduleEnd: rangeEnd,
 		preceptorMaxStudents,
 		preceptorUnavailable,
 		preceptorHealthSystem,
@@ -148,13 +291,49 @@ export async function validateSchedule(
 		blackoutDates: new Set(blackouts.map((b) => b.date)),
 		existingStudentIds: new Set(studentIds),
 		existingPreceptorIds: new Set(preceptorIds),
-		existingClerkshipIds: new Set(clerkships.map((c) => c.id!))
+		existingClerkshipIds: new Set(clerkships.map((c) => c.id!)),
+		preceptorInPinch,
+		preceptorPreferredDates,
+		preceptorDateOccupancy
 	};
+
+	// Mutual-exclusion pairs among the preceptors in scope (L2).
+	const exclusionRows = preceptorIds.length
+		? await db
+				.selectFrom('preceptor_mutual_exclusions')
+				.select(['preceptor_a_id', 'preceptor_b_id'])
+				.where('preceptor_a_id', 'in', preceptorIds)
+				.where('preceptor_b_id', 'in', preceptorIds)
+				.execute()
+		: [];
+	const exclusionKeys = new Set(
+		exclusionRows.map((e) => mutualExclusionKey(e.preceptor_a_id, e.preceptor_b_id))
+	);
+
+	// Clerkship kinds (L3): block (inpatient) | scattered (outpatient).
+	const clerkshipKind = new Map<string, 'block' | 'scattered'>();
+	for (const c of clerkships) clerkshipKind.set(c.id!, normalizeSchedulingKind(c.scheduling_kind));
+
+	return { assignments, ctx, exclusionKeys, clerkshipKind };
+}
+
+/**
+ * Pure, in-memory application of every whole-schedule rule to an assignment list.
+ * Takes no database — it only reads `inputs`, so the same rules run identically over
+ * committed rows and over the planner's hypothetical pins.
+ */
+export function evaluateAssignments(inputs: ValidationInputs): ScheduleValidationResult {
+	const { assignments, ctx, exclusionKeys, clerkshipKind } = inputs;
+
+	if (assignments.length === 0) {
+		return { violations: [], byDate: {}, byStudent: {}, byPreceptor: {}, counts: {} };
+	}
 
 	// Preceptor-date occupancy for capacity checks: keep the actual assignments on
 	// each slot so a single capacity finding can reference them all.
-	const slotAssignments = new Map<string, typeof assignments>();
+	const slotAssignments = new Map<string, ValidationAssignment[]>();
 	for (const a of assignments) {
+		if (a.preceptor_id === null) continue; // non-clinical days have no preceptor slot
 		const k = `${a.preceptor_id}:${a.date}`;
 		(slotAssignments.get(k) ?? slotAssignments.set(k, []).get(k)!).push(a);
 	}
@@ -169,10 +348,14 @@ export async function validateSchedule(
 
 	// Per-assignment findings (capacity is slot-scoped and handled separately below).
 	for (const a of assignments) {
+		// Non-clinical days (free_day / exam) have no preceptor/clerkship/site to
+		// validate; their only whole-schedule concern is the session clash handled
+		// by the slot logic below (M2/M3).
+		if (a.kind !== 'clinical') continue;
 		const res = validateCandidateWithContext(
 			{
 				student_id: a.student_id,
-				preceptor_id: a.preceptor_id,
+				preceptor_id: a.preceptor_id ?? '',
 				clerkship_id: a.clerkship_id,
 				site_id: a.site_id,
 				date: a.date,
@@ -189,7 +372,104 @@ export async function validateSchedule(
 				assignment_ids: [a.id!],
 				date: a.date,
 				student_id: a.student_id,
-				preceptor_id: a.preceptor_id
+				preceptor_id: a.preceptor_id ?? ''
+			});
+		}
+	}
+
+	// Session clash (L1): ONE finding per (student, date) whose assignments occupy an
+	// overlapping session — two mornings, two afternoons, or a full day overlapping
+	// anything. A morning + afternoon pair (AM + PM) is fine, and credit per day is
+	// NOT capped. Slot-scoped like capacity so the count is per day.
+	const studentDaySlots = new Map<string, ValidationAssignment[]>();
+	for (const a of assignments) {
+		const k = `${a.student_id}:${a.date}`;
+		(studentDaySlots.get(k) ?? studentDaySlots.set(k, []).get(k)!).push(a);
+	}
+	for (const [, slot] of studentDaySlots) {
+		if (slot.length < 2) continue;
+		const sessions = slot.map((a) => normalizeSession(a.session));
+		const clashes = sessions.some((s, i) => sessions.some((t, j) => i !== j && sessionsOverlap(s, t)));
+		if (clashes) {
+			const first = slot[0];
+			violations.push({
+				code: 'session_clash',
+				message: `Student has overlapping sessions on ${first.date}`,
+				entity_refs: { student_id: first.student_id },
+				assignment_id: first.id!,
+				assignment_ids: slot.map((a) => a.id!),
+				date: first.date,
+				student_id: first.student_id,
+				preceptor_id: first.preceptor_id ?? ''
+			});
+		}
+	}
+
+	// Mutual exclusion (L2): ONE finding per (student, date) where two of the day's
+	// preceptors are marked not to share a student-day. Slot-scoped like the others.
+	if (exclusionKeys.size > 0) {
+		for (const [, slot] of studentDaySlots) {
+			if (slot.length < 2) continue;
+			let hit: ValidationAssignment | undefined;
+			outer: for (let i = 0; i < slot.length; i++) {
+				for (let j = i + 1; j < slot.length; j++) {
+					const pi = slot[i].preceptor_id;
+					const pj = slot[j].preceptor_id;
+					if (!pi || !pj) continue; // non-clinical days have no preceptor
+					if (exclusionKeys.has(mutualExclusionKey(pi, pj))) {
+						hit = slot[i];
+						break outer;
+					}
+				}
+			}
+			if (hit) {
+				violations.push({
+					code: 'mutual_exclusion',
+					message: `Student has two preceptors marked not to share a day on ${hit.date}`,
+					entity_refs: { student_id: hit.student_id },
+					assignment_id: hit.id!,
+					assignment_ids: slot.map((a) => a.id!),
+					date: hit.date,
+					student_id: hit.student_id,
+					preceptor_id: hit.preceptor_id ?? ''
+				});
+			}
+		}
+	}
+
+	// Block-week conflict (L3): block (inpatient) clerkships occupy whole weeks, so
+	// a scattered (outpatient) day can't share a week a block already consumes. For
+	// each student, derive the weeks consumed by block assignments, then flag every
+	// scattered day (including standalone-elective days, which have no clerkship)
+	// that lands in one — one finding per offending day so it can be moved.
+	const kindOf = (clerkshipId: string | null): 'block' | 'scattered' =>
+		clerkshipId ? (clerkshipKind.get(clerkshipId) ?? 'scattered') : 'scattered';
+
+	const assignmentsByStudent = new Map<string, ValidationAssignment[]>();
+	for (const a of assignments) {
+		(assignmentsByStudent.get(a.student_id) ?? assignmentsByStudent.set(a.student_id, []).get(a.student_id)!).push(a);
+	}
+	for (const [, studentAssignments] of assignmentsByStudent) {
+		const blockWeeks = new Set<string>();
+		for (const a of studentAssignments) {
+			if (kindOf(a.clerkship_id) === 'block') blockWeeks.add(weekKey(a.date));
+		}
+		if (blockWeeks.size === 0) continue;
+		for (const a of studentAssignments) {
+			// A non-clinical day (free_day / exam) is not an outpatient clerkship day, so
+			// it never conflicts with a block week (M2/M3).
+			if (a.kind !== 'clinical') continue;
+			if (kindOf(a.clerkship_id) === 'block') continue;
+			if (!blockWeeks.has(weekKey(a.date))) continue;
+			violations.push({
+				code: 'block_week_conflict',
+				message: `Outpatient day on ${a.date} falls in a week used by an inpatient block`,
+				entity_refs: { student_id: a.student_id },
+				assignment_id: a.id!,
+				assignment_ids: [a.id!],
+				date: a.date,
+				student_id: a.student_id,
+				preceptor_id: a.preceptor_id ?? ''
 			});
 		}
 	}
@@ -198,17 +478,18 @@ export async function validateSchedule(
 	// assignment — so four double-booked days read as 4, not 8.
 	for (const [, slot] of slotAssignments) {
 		const first = slot[0];
-		const max = preceptorMaxStudents.get(first.preceptor_id) ?? 1;
+		const firstPreceptor = first.preceptor_id ?? '';
+		const max = ctx.preceptorMaxStudents.get(firstPreceptor) ?? 1;
 		if (slot.length > max) {
 			violations.push({
 				code: 'preceptor_capacity',
 				message: 'Preceptor is over capacity for this date',
-				entity_refs: { preceptor_id: first.preceptor_id },
+				entity_refs: { preceptor_id: firstPreceptor },
 				assignment_id: first.id!,
 				assignment_ids: slot.map((a) => a.id!),
 				date: first.date,
 				student_id: first.student_id,
-				preceptor_id: first.preceptor_id
+				preceptor_id: firstPreceptor
 			});
 		}
 	}
@@ -225,4 +506,11 @@ export async function validateSchedule(
 	}
 
 	return { violations, byDate, byStudent, byPreceptor, counts };
+}
+
+export async function validateSchedule(
+	db: Kysely<DB>,
+	scheduleId: string
+): Promise<ScheduleValidationResult> {
+	return evaluateAssignments(await loadValidationInputs(db, scheduleId));
 }

@@ -59,7 +59,13 @@ async function seed(db: Kysely<DB>) {
 		.execute();
 }
 
-async function addAssignment(db: Kysely<DB>, id: string, date: string, scheduleId: string = SCHED) {
+async function addAssignment(
+	db: Kysely<DB>,
+	id: string,
+	date: string,
+	scheduleId: string = SCHED,
+	creditValue?: number
+) {
 	const ts = new Date().toISOString();
 	await db
 		.insertInto('schedule_assignments')
@@ -71,6 +77,7 @@ async function addAssignment(db: Kysely<DB>, id: string, date: string, scheduleI
 			schedule_id: scheduleId,
 			date,
 			status: 'scheduled',
+			...(creditValue !== undefined ? { credit_value: creditValue } : {}),
 			created_at: ts,
 			updated_at: ts
 		})
@@ -85,6 +92,81 @@ describe('getStudentStatuses', () => {
 	});
 	afterEach(async () => {
 		await cleanupTestDatabase(db);
+	});
+
+	// E3: standalone electives (no parent clerkship) track separately and never
+	// fold into a clerkship total.
+	it('tracks a standalone elective on its own, not against any clerkship', async () => {
+		const ts = new Date().toISOString();
+		// A standalone elective: minimum 2 days, no parent clerkship.
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id: 'elec-standalone',
+				clerkship_id: null,
+				name: 'Global Health',
+				minimum_days: 2,
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+		// One completed standalone-elective day (no clerkship on the row).
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id: 'sa-elec',
+				student_id: STU,
+				preceptor_id: PREC,
+				clerkship_id: null,
+				elective_id: 'elec-standalone',
+				schedule_id: SCHED,
+				date: '2025-05-01',
+				status: 'scheduled',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		// Surfaced as its own requirement.
+		expect(status.standalone_electives).toHaveLength(1);
+		const se = status.standalone_electives[0];
+		expect(se.elective_name).toBe('Global Health');
+		expect(se.required).toBe(2);
+		expect(se.completed).toBe(1);
+		expect(se.unscheduled).toBe(1);
+		// The Medicine clerkship total is untouched by the standalone-elective day.
+		const medicine = status.per_clerkship.find((c) => c.clerkship_id === CLERK)!;
+		expect(medicine.completed).toBe(0);
+		expect(medicine.scheduled).toBe(0);
+		expect(status.overall.completed).toBe(0);
+	});
+
+	// M2/M3: a non-clinical day (free_day / exam) has no clerkship and never counts
+	// toward any clinical requirement.
+	it('does not count a non-clinical free day toward any clerkship requirement', async () => {
+		const ts = new Date().toISOString();
+		await db
+			.insertInto('schedule_assignments')
+			.values({
+				id: 'sa-free',
+				student_id: STU,
+				preceptor_id: null,
+				clerkship_id: null,
+				schedule_id: SCHED,
+				date: '2025-05-01',
+				status: 'scheduled',
+				kind: 'free_day',
+				created_at: ts,
+				updated_at: ts
+			})
+			.execute();
+
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const medicine = status.per_clerkship.find((c) => c.clerkship_id === CLERK)!;
+		expect(medicine.completed).toBe(0);
+		expect(medicine.scheduled).toBe(0);
+		expect(status.overall.completed).toBe(0);
 	});
 
 	it('reports all-unscheduled with no assignments (state=none)', async () => {
@@ -134,6 +216,56 @@ describe('getStudentStatuses', () => {
 		await addAssignment(db, 'a1', '2025-05-05');
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);
 		expect(status.conflict_count).toBe(0);
+	});
+
+	// M1/F4: requirement progress sums credit_value, not row count.
+	it('sums credit_value rather than counting rows (two half days = 1.0 completed)', async () => {
+		await addAssignment(db, 'h1', '2025-05-01', SCHED, 0.5);
+		await addAssignment(db, 'h2', '2025-05-02', SCHED, 0.5);
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.completed).toBe(1); // 0.5 + 0.5, not 2
+		expect(c.scheduled).toBe(0);
+		expect(c.unscheduled).toBe(2); // 3 required - 1 credit
+		expect(status.scheduling_state).toBe('partial');
+	});
+
+	it('a >1 credit day reaches the requirement faster', async () => {
+		await addAssignment(db, 'd1', '2025-05-01', SCHED, 1.5);
+		await addAssignment(db, 'd2', '2025-05-02', SCHED, 1.5);
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.completed).toBe(3); // 1.5 + 1.5
+		expect(c.unscheduled).toBe(0);
+		expect(status.scheduling_state).toBe('full');
+	});
+
+	// E2: a min_required_days floor marks the student complete at the floor.
+	it('marks a clerkship complete once the min_required_days floor is met', async () => {
+		// Medicine requires 3 days; set an allowable-miss floor of 2.
+		await db.updateTable('clerkships').set({ min_required_days: 2 }).where('id', '=', CLERK).execute();
+		await addAssignment(db, 'm1', '2025-05-01');
+		await addAssignment(db, 'm2', '2025-05-02');
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.required).toBe(3);
+		expect(c.min_required).toBe(2);
+		expect(c.completed).toBe(2);
+		// Floor met → no remaining gap and no false "unscheduled".
+		expect(c.unscheduled).toBe(0);
+		expect(status.scheduling_state).toBe('full');
+		// Still tracked as under the full requirement via over_scheduled staying 0.
+		expect(c.over_scheduled).toBe(0);
+	});
+
+	it('without a floor, the full required days are still the target', async () => {
+		await addAssignment(db, 'm1', '2025-05-01');
+		await addAssignment(db, 'm2', '2025-05-02');
+		const [status] = await getStudentStatuses(db, SCHED, TODAY);
+		const c = status.per_clerkship[0];
+		expect(c.min_required).toBe(0);
+		expect(c.unscheduled).toBe(1); // 3 required - 2
+		expect(status.scheduling_state).toBe('partial');
 	});
 
 	it('counts an assignment dated exactly today as scheduled, not completed', async () => {
