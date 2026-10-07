@@ -12,6 +12,11 @@ vi.mock('$lib/server/identity', async () => ({
 	identity: { createOrganization: (input: unknown) => createOrganization(input) }
 }));
 
+const subscribe = vi.fn();
+vi.mock('$lib/server/billing', () => ({
+	billing: { subscribe: (input: unknown) => subscribe(input) }
+}));
+
 import { IdentityError } from '$lib/server/identity/types';
 import { actions, load } from './+page.server';
 
@@ -71,6 +76,8 @@ describe('onboarding/organization load', () => {
 describe('onboarding/organization action', () => {
 	beforeEach(() => {
 		createOrganization.mockReset();
+		subscribe.mockReset();
+		subscribe.mockResolvedValue({ kind: 'active', subscription: {} });
 	});
 
 	it('creates the organization as the session’s user and continues into the app', async () => {
@@ -85,6 +92,23 @@ describe('onboarding/organization action', () => {
 			name: 'New Program',
 			ownerUserId: 'u1',
 			headers: request.headers
+		});
+		// New organizations start on the default plan (Standard, annual).
+		expect(subscribe).toHaveBeenCalledWith({
+			organizationId: 'org-new',
+			organizationName: 'New Program',
+			billingEmail: 'u1@example.com',
+			planId: 'standard',
+			interval: 'year'
+		});
+	});
+
+	it('sends the user to a hosted checkout when the provider asks for one', async () => {
+		createOrganization.mockResolvedValue({ id: 'org-new' });
+		subscribe.mockResolvedValue({ kind: 'redirect', url: 'https://pay.example/checkout' });
+		expect(await redirectOf(() => submit(post('Program'), locals()))).toEqual({
+			status: 303,
+			location: 'https://pay.example/checkout'
 		});
 	});
 
@@ -110,6 +134,7 @@ describe('onboarding/organization action', () => {
 		};
 		expect(result.status).toBe(400);
 		expect(result.data).toEqual({ name: 'Program', errors: ['Not allowed'] });
+		expect(subscribe).not.toHaveBeenCalled();
 	});
 
 	it('does not create a second organization on a double submit', async () => {

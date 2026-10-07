@@ -9,7 +9,8 @@
  *   1. creates the better-auth tables if missing (they are NOT created at
  *      runtime, which is why a fresh database 500s on the first sign-up), then
  *   2. applies all pending Kysely migrations (guarded/idempotent), then
- *   3. gives every user without an organization one of their own (backfill).
+ *   3. gives every user without an organization one of their own, and every
+ *      organization without a subscription one (backfill-accounts.ts).
  *
  * It NEVER seeds — production must come up empty.
  *
@@ -23,8 +24,7 @@ import { describeDbConfig, resolveDbConfig } from '../config';
 import { createDB } from '../connection';
 import { migrateToLatest } from '../migrations';
 import { ensureAuthTables } from './ensure-auth-tables';
-import { createIdentity } from '../../server/identity';
-import { backfillOrganizations } from '../../server/organizations/backfill';
+import { backfillAccounts } from './backfill-accounts';
 
 async function main() {
 	const config = resolveDbConfig(process.env);
@@ -38,12 +38,11 @@ async function main() {
 		console.log('  • Applying migrations…');
 		await migrateToLatest(db);
 
-		console.log('  • Giving organization-less users an organization…');
-		const { created } = await backfillOrganizations({
-			db,
-			identity: createIdentity({ db, dialect: config.dialect })
-		});
-		console.log(`    ${created} organization(s) created`);
+		console.log('  • Backfilling organizations and subscriptions…');
+		const created = await backfillAccounts(db, config.dialect);
+		console.log(
+			`    ${created.organizations} organization(s), ${created.subscriptions} subscription(s) created`
+		);
 
 		console.log('✅ Database setup complete');
 	} finally {

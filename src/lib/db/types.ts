@@ -25,6 +25,25 @@ export interface Account {
   userId: string;
 }
 
+export interface BillingCustomers {
+  created_at: Generated<string>;
+  id: string;
+  organization_id: string;
+  provider: string;
+  provider_customer_id: string | null;
+  updated_at: Generated<string>;
+}
+
+export interface BillingEvents {
+  created_at: Generated<string>;
+  id: string;
+  payload: string;
+  processed_at: string | null;
+  provider: string;
+  provider_event_id: string;
+  type: string;
+}
+
 export interface BlackoutDates {
   created_at: Generated<string>;
   date: string;
@@ -530,6 +549,21 @@ export interface Students {
   updated_at: Generated<string>;
 }
 
+export interface Subscriptions {
+  billing_interval: string;
+  cancel_at_period_end: Generated<number>;
+  created_at: Generated<string>;
+  current_period_end: string | null;
+  grace_ends_at: string | null;
+  id: string;
+  organization_id: string;
+  plan_id: string;
+  provider: string;
+  provider_subscription_id: string | null;
+  status: string;
+  updated_at: Generated<string>;
+}
+
 export interface Teams {
   created_at: Generated<string>;
   description: string | null;
@@ -568,6 +602,8 @@ export interface Verification {
 
 export interface DB {
   account: Account;
+  billing_customers: BillingCustomers;
+  billing_events: BillingEvents;
   blackout_dates: BlackoutDates;
   clerkship_configurations: ClerkshipConfigurations;
   clerkship_electives: ClerkshipElectives;
@@ -613,6 +649,7 @@ export interface DB {
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;
   team_sites: TeamSites;
+  subscriptions: Subscriptions;
   teams: Teams;
   user: User;
   verification: Verification;

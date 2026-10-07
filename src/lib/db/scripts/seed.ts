@@ -15,6 +15,8 @@
 
 import { createDB } from '../connection';
 import { identity } from '../../server/identity';
+import { billing } from '../../server/billing';
+import type { PlanId } from '../../billing/plans';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
@@ -157,15 +159,7 @@ async function seed(db: Kysely<DB>) {
 		}
 	}
 
-	// Grant the admin user the Stage 2 (auto-generation) entitlement.
-	await db
-		.updateTable('user')
-		.set({ entitlements: JSON.stringify(['autogen']) })
-		.where('id', '=', userId)
-		.execute();
-	console.log('  Granted "autogen" entitlement to admin user');
-
-	// Create a second user WITHOUT the autogen entitlement (for gating tests).
+	// Create a second user whose organization is on Standard (for gating tests).
 	const existingBasic = await db
 		.selectFrom('user')
 		.select('id')
@@ -184,19 +178,41 @@ async function seed(db: Kysely<DB>) {
 		}
 	}
 
-	// Each seeded user owns their own organization (program).
-	for (const [email, orgName] of [
-		[TEST_USER.email, SEED_ORGANIZATIONS.admin],
-		[BASIC_USER.email, SEED_ORGANIZATIONS.basic]
-	] as const) {
+	// Each seeded user owns their own organization (program) on a fixed plan:
+	// the admin's is Pro (sees Stage 2), the basic user's is Standard.
+	for (const [email, orgName, planId] of [
+		[TEST_USER.email, SEED_ORGANIZATIONS.admin, 'pro'],
+		[BASIC_USER.email, SEED_ORGANIZATIONS.basic, 'standard']
+	] as const satisfies readonly (readonly [string, string, PlanId])[]) {
 		const user = await db
 			.selectFrom('user')
 			.select('id')
 			.where('email', '=', email)
 			.executeTakeFirstOrThrow();
-		if ((await identity.listMemberships(user.id)).length === 0) {
+		let [membership] = await identity.listMemberships(user.id);
+		if (!membership) {
 			await identity.createOrganization({ name: orgName, ownerUserId: user.id });
+			[membership] = await identity.listMemberships(user.id);
 			console.log(`  Created organization "${orgName}" owned by ${email}`);
+		}
+
+		const subscription = await billing.getSubscription(membership.organizationId);
+		if (!subscription) {
+			await billing.subscribe({
+				organizationId: membership.organizationId,
+				organizationName: membership.organizationName,
+				billingEmail: email,
+				planId,
+				interval: 'year'
+			});
+			console.log(`  Subscribed "${membership.organizationName}" to ${planId}`);
+		} else if (subscription.planId !== planId) {
+			await billing.changePlan({
+				organizationId: membership.organizationId,
+				planId,
+				interval: subscription.interval
+			});
+			console.log(`  Moved "${membership.organizationName}" to ${planId}`);
 		}
 	}
 

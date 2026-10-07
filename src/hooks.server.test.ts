@@ -12,7 +12,10 @@ const getSession = vi.fn();
 // handleRequest must only run when the request is allowed through.
 const resolved = new Response('ok', { status: 200 });
 const handleRequest = vi.fn(async (_arg?: unknown) => resolved);
-const listMemberships = vi.fn(async (_userId: string): Promise<unknown[]> => []);
+// By default a signed-in user belongs to one organization (see `signedIn`).
+const ORG = { organizationId: 'org-1', organizationName: 'Program', role: 'owner' };
+let memberships: unknown[] = [];
+const listMemberships = vi.fn(async (_userId: string): Promise<unknown[]> => memberships);
 vi.mock('$lib/server/identity', async () => ({
 	// The real (pure) active-membership rule; only the provider calls are mocked.
 	pickActiveMembership: (await import('$lib/server/identity/memberships')).pickActiveMembership,
@@ -24,21 +27,20 @@ vi.mock('$lib/server/identity', async () => ({
 }));
 vi.mock('$app/environment', () => ({ building: false }));
 
-// The hook reads `user.entitlements` for the signed-in user from the DB.
-let storedEntitlements: string | undefined = '[]';
-vi.mock('$lib/db', () => {
-	const query = {
-		select: () => query,
-		where: () => query,
-		executeTakeFirst: async () =>
-			storedEntitlements === undefined ? undefined : { entitlements: storedEntitlements }
-	};
-	return { db: { selectFrom: () => query } };
-});
+// Entitlements come from the organization's subscription.
+let orgEntitlements: string[] = [];
+const entitlementsFor = vi.fn(async (_organizationId: string) => orgEntitlements);
+vi.mock('$lib/server/billing', () => ({
+	billing: { entitlementsFor: (organizationId: string) => entitlementsFor(organizationId) }
+}));
 
-/** A signed-in session whose user holds `entitlements` (a JSON string). */
+/**
+ * A signed-in session for a member of one organization whose plan grants
+ * `entitlements` (a JSON string, as the old per-user column held them).
+ */
 function signedIn(entitlements: string) {
-	storedEntitlements = entitlements;
+	memberships = [ORG];
+	orgEntitlements = JSON.parse(entitlements);
 	return {
 		user: { id: 'u1', email: 'u1@example.com', name: 'U One' },
 		activeOrganizationId: null as string | null
@@ -146,11 +148,20 @@ describe('hooks: central Stage 2 (autogen) gating', () => {
 		expect(handleRequest).toHaveBeenCalledOnce();
 	});
 
-	it('grants nothing when the user row cannot be read', async () => {
+	it('takes entitlements from the active organization’s plan', async () => {
 		getSession.mockResolvedValue(signedIn('["autogen"]'));
-		storedEntitlements = undefined;
+		const e = event('/api/schedules/generate') as unknown as { locals: App.Locals };
+		await handle({ event: e, resolve } as never);
+		expect(entitlementsFor).toHaveBeenCalledWith('org-1');
+		expect(e.locals.entitlements).toEqual(['autogen']);
+	});
+
+	it('grants nothing to a user without an organization', async () => {
+		getSession.mockResolvedValue(signedIn('["autogen"]'));
+		memberships = [];
 		const res = await handle({ event: event('/api/schedules/generate'), resolve } as never);
 		expect(res.status).toBe(403);
+		expect(entitlementsFor).not.toHaveBeenCalled();
 		expect(handleRequest).not.toHaveBeenCalled();
 	});
 
@@ -185,7 +196,7 @@ describe('hooks: active organization', () => {
 
 	it('is null for a signed-in user with no memberships', async () => {
 		getSession.mockResolvedValue(signedIn('[]'));
-		listMemberships.mockResolvedValue([]);
+		listMemberships.mockResolvedValueOnce([]);
 		const e = eventWithLocals('/dashboard');
 		await handle({ event: e, resolve } as never);
 		expect(listMemberships).toHaveBeenCalledWith('u1');
@@ -194,7 +205,7 @@ describe('hooks: active organization', () => {
 
 	it('uses the session’s active organization when the user belongs to it', async () => {
 		getSession.mockResolvedValue({ ...signedIn('[]'), activeOrganizationId: 'org-2' });
-		listMemberships.mockResolvedValue([first, second]);
+		listMemberships.mockResolvedValueOnce([first, second]);
 		const e = eventWithLocals('/dashboard');
 		await handle({ event: e, resolve } as never);
 		expect(e.locals.organization).toEqual(second);
@@ -202,7 +213,7 @@ describe('hooks: active organization', () => {
 
 	it('falls back to the oldest membership when the active one is stale', async () => {
 		getSession.mockResolvedValue({ ...signedIn('[]'), activeOrganizationId: 'org-removed' });
-		listMemberships.mockResolvedValue([first, second]);
+		listMemberships.mockResolvedValueOnce([first, second]);
 		const e = eventWithLocals('/dashboard');
 		await handle({ event: e, resolve } as never);
 		expect(e.locals.organization).toEqual(first);

@@ -36,10 +36,10 @@ npm run dev             # http://localhost:5173
 
 ### Seed logins
 
-| User                | Password      | Entitlement              |
-| ------------------- | ------------- | ------------------------ |
-| `admin@example.com` | `password123` | `autogen` (sees Stage 2) |
-| `basic@example.com` | `password123` | none (Stage 1 only)      |
+| User                | Password      | Organization       | Plan                          |
+| ------------------- | ------------- | ------------------ | ----------------------------- |
+| `admin@example.com` | `password123` | `Demo Program`     | Pro (`autogen`, sees Stage 2) |
+| `basic@example.com` | `password123` | `Tenant B Program` | Standard (Stage 1 only)       |
 
 The seed also creates a second account whose data is all named **"Tenant B …"**
 (owned by `basic@example.com`), so tenant-isolation can be checked by hand and
@@ -62,11 +62,16 @@ anchored to *today*, so the demo never rots into the past):
 Tenant B gets the same shape at smaller scale (two students, one accepted
 override) so isolation tests have more than a single row to miss.
 
-Grant/revoke the Stage 2 entitlement manually:
+Stage 2 access comes from the **plan of the user's organization** (Pro includes
+auto-generation; Standard does not). Change it manually:
 
 ```bash
-npx tsx scripts/set-entitlement.ts <email> autogen on|off
+npx tsx scripts/set-plan.ts <email> standard|pro [month|year]
 ```
+
+Payments are not live: `PAYMENT_PROVIDER` defaults to `manual`, which activates
+any plan immediately and for free. See
+[`docs/plans/signup-and-billing-plan.md`](docs/plans/signup-and-billing-plan.md).
 
 ### Resetting data
 
@@ -101,8 +106,9 @@ The app is a SvelteKit `adapter-node` build (selected automatically when the
 **1. Set up the database before the server starts.** better-auth does **not**
 create its tables at runtime, and the app's migrations must be applied — on a
 fresh database the first sign-up returns a 500 (`no such table: user`) until
-this runs. One idempotent command does both, on whichever engine the environment
-selects, and is safe to run on every deploy (it **never** seeds):
+this runs. One idempotent command does both — and backfills an organization and
+a subscription for any account missing one — on whichever engine the
+environment selects, and is safe to run on every deploy (it **never** seeds):
 
 ```bash
 npm run db:setup
@@ -204,7 +210,7 @@ The Playwright suite is organised by the plan in `docs/plans/e2e-validation-plan
 ```
 src/lib/features/<feature>/     feature verticals (components / services / schemas)
 src/lib/components/             shared UI primitives (PageHeader, dialogs, toast, …)
-src/lib/server/                 server-only helpers (entitlements)
+src/lib/server/                 server-only: identity, authz, billing, entitlements
 src/routes/(app)/               authenticated app pages
 src/routes/(app)/generate/      gated Stage 2 hub
 src/routes/api/                 JSON API endpoints

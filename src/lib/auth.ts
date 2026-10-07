@@ -117,13 +117,10 @@ export function createAuth({ db, dialect }: AuthDatabase) {
 				active_schedule_id: {
 					type: 'string',
 					required: false
-				},
-				// Stage 2 gating: JSON array of entitlement strings (e.g. ["autogen"]).
-				entitlements: {
-					type: 'string',
-					required: false,
-					defaultValue: '[]'
 				}
+				// `user.entitlements` is retired: entitlements come from the
+				// organization's subscription (src/lib/server/billing). The column
+				// stays only for the subscription backfill to read.
 			}
 		},
 		databaseHooks: {

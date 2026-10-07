@@ -1,10 +1,9 @@
 import { identity, pickActiveMembership } from '$lib/server/identity';
 import { building } from '$app/environment';
 import { json, type Handle } from '@sveltejs/kit';
-import { parseEntitlements } from '$lib/server/entitlements';
+import { billing } from '$lib/server/billing';
 import { requiresApiAuthChallenge, requiresAutogenEntitlement } from '$lib/server/api-auth';
 import { ENTITLEMENT_AUTOGEN } from '$lib/server/entitlements';
-import { db } from '$lib/db';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const session = await identity.getSession(event.request.headers);
@@ -19,24 +18,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			)
 		: null;
 
-	// Resolve entitlements from the DB (source of truth). A failed read grants
-	// nothing.
-	if (session) {
-		let raw: unknown;
-		try {
-			const row = await db
-				.selectFrom('user')
-				.select('entitlements')
-				.where('id', '=', session.user.id)
-				.executeTakeFirst();
-			raw = row?.entitlements;
-		} catch {
-			raw = undefined;
-		}
-		event.locals.entitlements = parseEntitlements(raw);
-	} else {
-		event.locals.entitlements = [];
-	}
+	// Entitlements come from the organization's subscription (its plan, while
+	// the subscription is usable). No organization, no entitlements.
+	event.locals.entitlements = event.locals.organization
+		? await billing.entitlementsFor(event.locals.organization.organizationId)
+		: [];
 
 	// Central API authentication (step 34). The hook is the single enforcement
 	// point: any `/api/` route outside the explicit public allowlist requires a

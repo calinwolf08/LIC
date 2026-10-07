@@ -10,8 +10,7 @@ import { describeDbConfig, resolveDbConfig } from '../config';
 import { createDB } from '../connection';
 import { migrateToLatest } from './index';
 import { ensureAuthTables } from '../scripts/ensure-auth-tables';
-import { createIdentity } from '../../server/identity';
-import { backfillOrganizations } from '../../server/organizations/backfill';
+import { backfillAccounts } from '../scripts/backfill-accounts';
 
 async function main() {
 	// Resolve the engine + target from the environment (DATABASE_DIALECT /
@@ -28,11 +27,12 @@ async function main() {
 		await ensureAuthTables(db, config.dialect);
 		await migrateToLatest(db);
 
-		const { created } = await backfillOrganizations({
-			db,
-			identity: createIdentity({ db, dialect: config.dialect })
-		});
-		if (created > 0) console.log(`🏢 Created ${created} organization(s) for existing users`);
+		const created = await backfillAccounts(db, config.dialect);
+		if (created.organizations + created.subscriptions > 0) {
+			console.log(
+				`🏢 Backfilled ${created.organizations} organization(s), ${created.subscriptions} subscription(s)`
+			);
+		}
 	} finally {
 		await db.destroy();
 	}

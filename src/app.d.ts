@@ -13,7 +13,7 @@ declare global {
 			 * Null when signed out or when the user belongs to no organization yet.
 			 */
 			organization: OrgMembership | null;
-			/** Parsed entitlement strings for the current user (e.g. ["autogen"]). */
+			/** What the organization's plan grants right now (e.g. ["autogen"]). */
 			entitlements: string[];
 		}
 		// interface PageData {}

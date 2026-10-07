@@ -1,11 +1,15 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createOrganizationSchema } from '$lib/features/organizations/schemas';
+import { DEFAULT_BILLING_INTERVAL, DEFAULT_PLAN_ID } from '$lib/billing/plans';
+import { billing } from '$lib/server/billing';
 import { identity, IdentityError } from '$lib/server/identity';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
  * Name your organization: where a signed-in user without one lands (the app
- * layout redirects here). Creating it makes the user its `owner`.
+ * layout redirects here). Creating it makes the user its `owner` and starts
+ * the default plan (Standard) — choosing a tier here arrives with the reworked
+ * sign-up (plan Phase 4).
  */
 
 const SELF = '/onboarding/organization';
@@ -29,12 +33,13 @@ export const actions: Actions = {
 			return fail(400, { name: raw, errors: parsed.error.flatten().fieldErrors.name ?? [] });
 		}
 
+		let organizationId: string;
 		try {
-			await identity.createOrganization({
+			({ id: organizationId } = await identity.createOrganization({
 				name: parsed.data.name,
 				ownerUserId: locals.session.user.id,
 				headers: request.headers
-			});
+			}));
 		} catch (error) {
 			if (error instanceof IdentityError) {
 				return fail(400, { name: raw, errors: [error.message] });
@@ -42,6 +47,15 @@ export const actions: Actions = {
 			throw error;
 		}
 
-		throw redirect(303, '/');
+		// The manual provider activates immediately; a hosted checkout would
+		// return a URL to send the user to instead.
+		const subscribed = await billing.subscribe({
+			organizationId,
+			organizationName: parsed.data.name,
+			billingEmail: locals.session.user.email,
+			planId: DEFAULT_PLAN_ID,
+			interval: DEFAULT_BILLING_INTERVAL
+		});
+		throw redirect(303, subscribed.kind === 'redirect' ? subscribed.url : '/');
 	}
 };

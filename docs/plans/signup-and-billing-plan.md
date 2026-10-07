@@ -532,7 +532,54 @@ Original steps:
 7. Tests: role/permission matrix; hook org resolution (member, stale active
    org, no org); backfill on both engines, run twice to show idempotency.
 
-### Phase 3: Billing domain and derived entitlements
+### Phase 3: Billing domain and derived entitlements ✅ Done
+
+What shipped (and where it differs from the steps below):
+
+- **Catalog** (`src/lib/billing/plans.ts`, shared with the client): Standard
+  and Pro, both `kind: 'contact'`. `ENTITLEMENT_AUTOGEN` now lives here;
+  `$lib/server/entitlements` re-exports it. `salesContactHref()` gives the
+  "Contact us" link, defaulting to the placeholder
+  `mailto:sales@example.com`. **Policy** (`src/lib/billing/policy.ts`):
+  `BILLING_GRACE_DAYS = 30`.
+- **Migration `112_billing.ts`:** `billing_customers` (an `id` primary key and
+  a unique `organization_id`, because the equivalence test assumes `id`
+  primary keys), `subscriptions` (with `grace_ends_at` and a partial unique
+  index allowing one non-canceled row per org), and `billing_events` (unique
+  `provider, provider_event_id`). There's no foreign key to `organization`:
+  it's an auth-provider table created outside migrations.
+- **`src/lib/server/billing/`:**
+  - `types.ts`: `PaymentProvider`, `ProviderSubscription`, `BillingEvent`,
+    `BillingError`.
+  - `providers/manual.ts` and `providers/index.ts`: `getPaymentProvider()`
+    reads `PAYMENT_PROVIDER` and fails on an unknown value.
+  - `service.ts`: `createBillingService({ db, provider, now })`. It handles
+    subscribe, changePlan, cancel and webhooks (idempotent per event id; the
+    first event after a hosted checkout matches the row by
+    `organizationId`). Events for an unknown subscription are left
+    unprocessed so a redelivery can still apply them.
+  - `entitlements.ts`: the pure usable/grace rules.
+  - `index.ts`: the `billing` singleton.
+- **Request flow:** the hook sets
+  `locals.entitlements = billing.entitlementsFor(locals.organization)`.
+  better-auth no longer treats `user.entitlements` as a field. The column
+  stays, read only by the backfill.
+- **Backfills** (`src/lib/db/scripts/backfill-accounts.ts`, run by
+  `db:setup` and `db:migrate`): organizations, then subscriptions. Each
+  owned org gets a manual annual subscription: Pro if the owner held
+  `autogen`, else Standard. This was verified by upgrading a database
+  seeded from `main`.
+- **Onboarding** starts new organizations on Standard/annual. Picking a
+  plan arrives in Phase 4.
+- **Tooling:** `scripts/set-plan.ts` replaces `set-entitlement.ts`. The seed
+  puts "Demo Program" on Pro and "Tenant B Program" on Standard. The e2e
+  helpers keep their names (`grantAutogen` and the rest), but now move the
+  user's organization between Pro and Standard.
+- **Deferred to Phase 5:** the §6.2 guard that locks a lapsed organization
+  out (`/settings/billing` doesn't exist yet). Until then a lapsed org simply
+  loses its plan's entitlements, which for Standard means nothing changes.
+
+Original steps:
 
 1. `src/lib/billing/plans.ts` catalog (both plans `kind: 'contact'`) and
    `src/lib/billing/policy.ts` (`BILLING_GRACE_DAYS = 30`).
