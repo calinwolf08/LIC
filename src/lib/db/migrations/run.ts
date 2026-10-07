@@ -9,6 +9,9 @@
 import { describeDbConfig, resolveDbConfig } from '../config';
 import { createDB } from '../connection';
 import { migrateToLatest } from './index';
+import { ensureAuthTables } from '../scripts/ensure-auth-tables';
+import { createIdentity } from '../../server/identity';
+import { backfillOrganizations } from '../../server/organizations/backfill';
 
 async function main() {
 	// Resolve the engine + target from the environment (DATABASE_DIALECT /
@@ -20,7 +23,16 @@ async function main() {
 	const db = createDB(config);
 
 	try {
+		// Auth tables first (core + organization plugin): idempotent, and the
+		// migrations and the backfill below both rely on them.
+		await ensureAuthTables(db, config.dialect);
 		await migrateToLatest(db);
+
+		const { created } = await backfillOrganizations({
+			db,
+			identity: createIdentity({ db, dialect: config.dialect })
+		});
+		if (created > 0) console.log(`🏢 Created ${created} organization(s) for existing users`);
 	} finally {
 		await db.destroy();
 	}

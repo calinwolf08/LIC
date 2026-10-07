@@ -8,7 +8,13 @@
  * path + query. Auth is always driven through the real forms.
  */
 
-import { test, expect, uniqueEmail, apiOf } from '../../fixtures';
+import {
+	test,
+	expect,
+	uniqueEmail,
+	apiOf,
+	completeOrganizationOnboarding
+} from '../../fixtures';
 
 test.describe('J1.1 account lifecycle', { tag: ['@stage1'] }, () => {
 	test('register: inline validation blocks bad input, a clean submit lands schedule-first', async ({
@@ -39,7 +45,8 @@ test.describe('J1.1 account lifecycle', { tag: ['@stage1'] }, () => {
 		await page.locator('#confirmPassword').fill('password123');
 		await page.getByRole('button', { name: /create account/i }).click();
 
-		await expect(page).not.toHaveURL(/\/register/, { timeout: 15000 });
+		// A new account names its organization (program) before entering the app.
+		await completeOrganizationOnboarding(page, 'Journey One Program');
 		// The sign-up hook creates a first schedule, so the switcher is present.
 		await page.goto('/dashboard');
 		await expect(page.getByTestId('schedule-switcher')).toBeVisible({ timeout: 15000 });

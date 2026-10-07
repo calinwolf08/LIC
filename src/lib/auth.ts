@@ -1,9 +1,11 @@
 import { betterAuth } from 'better-auth';
+import { organization } from 'better-auth/plugins/organization';
 import type { Kysely } from 'kysely';
 import { activeDbConfig, db } from './db/connection';
 import type { DbDialectName } from './db/dialects/types';
 import { getAuthDialectProfile } from './db/scripts/ensure-auth-tables';
 import type { DB } from './db/types';
+import { organizationAccessControl, organizationRoles } from './server/identity/better-auth/access';
 
 // Read from process.env (available in the SvelteKit server runtime and in
 // standalone scripts run via tsx) rather than the compile-time `$env` module,
@@ -101,6 +103,15 @@ export function createAuth({ db, dialect }: AuthDatabase) {
 			type: profile.kyselyType
 		},
 		trustedOrigins: [PUBLIC_BASE_URL, 'http://localhost:4173', 'http://localhost:5173'],
+		plugins: [
+			// Organizations (programs) own billing and, later, members with roles.
+			// Tables are created by ensure-auth-tables.ts, like the core auth tables.
+			organization({
+				ac: organizationAccessControl,
+				roles: organizationRoles,
+				creatorRole: 'owner'
+			})
+		],
 		user: {
 			additionalFields: {
 				active_schedule_id: {

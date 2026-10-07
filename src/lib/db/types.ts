@@ -190,6 +190,33 @@ export interface HealthSystems {
   updated_at: Generated<string>;
 }
 
+export interface Invitation {
+  email: string;
+  expiresAt: string;
+  id: string;
+  inviterId: string;
+  organizationId: string;
+  role: string | null;
+  status: Generated<string>;
+}
+
+export interface Member {
+  createdAt: Generated<string>;
+  id: string;
+  organizationId: string;
+  role: Generated<string>;
+  userId: string;
+}
+
+export interface Organization {
+  createdAt: Generated<string>;
+  id: string;
+  logo: string | null;
+  metadata: string | null;
+  name: string;
+  slug: string;
+}
+
 export interface PreceptorAvailability {
   created_at: Generated<string>;
   credit_value: Generated<number>;
@@ -424,6 +451,7 @@ export interface SchedulingPeriods {
 }
 
 export interface Session {
+  activeOrganizationId: string | null;
   createdAt: string;
   expiresAt: string;
   id: string;
@@ -552,6 +580,9 @@ export interface DB {
   global_inpatient_defaults: GlobalInpatientDefaults;
   global_outpatient_defaults: GlobalOutpatientDefaults;
   health_systems: HealthSystems;
+  invitation: Invitation;
+  member: Member;
+  organization: Organization;
   preceptor_availability: PreceptorAvailability;
   preceptor_availability_patterns: PreceptorAvailabilityPatterns;
   preceptor_capacity_rules: PreceptorCapacityRules;

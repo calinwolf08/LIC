@@ -6,14 +6,20 @@
  */
 
 import { svelteKitHandler } from 'better-auth/svelte-kit';
+import type { Kysely } from 'kysely';
 import type { createAuth } from '../../../auth';
+import type { DB } from '../../../db/types';
+import { organizationSlug } from '../memberships';
 import {
 	IdentityError,
+	isRole,
 	type AppSession,
 	type AppUser,
+	type CreateOrganizationInput,
 	type EmailSignUpInput,
 	type EmailSignUpResult,
-	type IdentityService
+	type IdentityService,
+	type OrgMembership
 } from '../types';
 
 type BetterAuth = ReturnType<typeof createAuth>;
@@ -44,12 +50,22 @@ function toIdentityError(error: unknown): IdentityError | null {
 	return new IdentityError('invalid_input', message);
 }
 
-export function createBetterAuthIdentity(auth: BetterAuth): IdentityService {
+export function createBetterAuthIdentity({
+	auth,
+	db
+}: {
+	auth: BetterAuth;
+	/** The same database `auth` was built over; used for membership reads. */
+	db: Kysely<DB>;
+}): IdentityService {
 	return {
 		async getSession(headers: Headers): Promise<AppSession | null> {
 			const session = await auth.api.getSession({ headers });
 			if (!session?.user) return null;
-			return { user: toAppUser(session.user) };
+			return {
+				user: toAppUser(session.user),
+				activeOrganizationId: session.session.activeOrganizationId ?? null
+			};
 		},
 
 		async signUpWithEmail(input: EmailSignUpInput): Promise<EmailSignUpResult> {
@@ -62,6 +78,55 @@ export function createBetterAuthIdentity(auth: BetterAuth): IdentityService {
 			} catch (error) {
 				throw toIdentityError(error) ?? error;
 			}
+		},
+
+		async createOrganization(input: CreateOrganizationInput): Promise<{ id: string }> {
+			const name = input.name.trim();
+			if (!name) throw new IdentityError('invalid_input', 'Organization name is required');
+
+			// With headers better-auth makes the SESSION's user the owner, so the
+			// caller's ownerUserId must be that user — never silently someone else.
+			if (input.headers) {
+				const session = await auth.api.getSession({ headers: input.headers });
+				if (session?.user.id !== input.ownerUserId) {
+					throw new Error('createOrganization: ownerUserId does not match the request session');
+				}
+			}
+
+			try {
+				// Without headers better-auth trusts `userId` (a server-only call);
+				// with them it uses the session's user and makes the org active.
+				const created = await auth.api.createOrganization({
+					body: {
+						name,
+						slug: organizationSlug(name),
+						...(input.headers ? {} : { userId: input.ownerUserId })
+					},
+					...(input.headers ? { headers: input.headers } : {})
+				});
+				if (!created) throw new Error('Organization was not created');
+				return { id: created.id };
+			} catch (error) {
+				throw toIdentityError(error) ?? error;
+			}
+		},
+
+		async listMemberships(userId: string): Promise<OrgMembership[]> {
+			const rows = await db
+				.selectFrom('member')
+				.innerJoin('organization', 'organization.id', 'member.organizationId')
+				.select(['member.organizationId', 'member.role', 'organization.name'])
+				.where('member.userId', '=', userId)
+				.orderBy('member.createdAt', 'asc')
+				.orderBy('member.id', 'asc')
+				.execute();
+
+			// A role this app does not know (e.g. written by another tool) grants nothing.
+			return rows.flatMap((row) =>
+				isRole(row.role)
+					? [{ organizationId: row.organizationId, organizationName: row.name, role: row.role }]
+					: []
+			);
 		},
 
 		handleRequest({ event, resolve, building }) {

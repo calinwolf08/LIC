@@ -12,7 +12,8 @@
  *   junction row in ANY schedule — entities shared with another user survive.
  * - `schedule_assignments` has no `schedule_id`; assignments attach to a
  *   student and scope transitively via `schedule_students`.
- * - better-auth owns `user`, `session`, `account`, `verification`.
+ * - better-auth owns `user`, `session`, `account`, `verification`, and the
+ *   organization plugin's `organization`, `member`, `invitation`.
  */
 
 import type { Kysely } from 'kysely';
@@ -405,7 +406,30 @@ export async function resetUser(
 		// 8. The schedules themselves.
 		await del('scheduling_periods', (qb) => qb.where('user_id', '=', userId));
 
-		// 9. better-auth rows.
+		// 9. better-auth rows. Organizations the user owns alone go with them;
+		// an organization with other members survives without this user.
+		const soleOwnedOrgs = (
+			await conn
+				.selectFrom('member as m')
+				.select('m.organizationId')
+				.where('m.userId', '=', userId)
+				.where(({ not, exists, selectFrom }) =>
+					not(
+						exists(
+							selectFrom('member as other')
+								.select('other.id')
+								.whereRef('other.organizationId', '=', 'm.organizationId')
+								.where('other.userId', '!=', userId)
+						)
+					)
+				)
+				.execute()
+		).map((r) => r.organizationId);
+		const noSoleOwnedOrgs = soleOwnedOrgs.length === 0;
+		await del('invitation', (qb) => qb.where('inviterId', '=', userId));
+		await del('invitation', (qb) => qb.where('organizationId', 'in', soleOwnedOrgs), noSoleOwnedOrgs);
+		await del('member', (qb) => qb.where('userId', '=', userId));
+		await del('organization', (qb) => qb.where('id', 'in', soleOwnedOrgs), noSoleOwnedOrgs);
 		await del('session', (qb) => qb.where('userId', '=', userId));
 		await del('account', (qb) => qb.where('userId', '=', userId));
 		await del('verification', (qb) => qb.where('identifier', '=', email));
@@ -461,6 +485,9 @@ const ALL_TABLES_DELETE_ORDER: (keyof DB)[] = [
 	'clerkships',
 	'health_systems',
 	'scheduling_periods',
+	'invitation',
+	'member',
+	'organization',
 	'session',
 	'account',
 	'verification',

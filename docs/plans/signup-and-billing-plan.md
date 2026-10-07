@@ -137,7 +137,7 @@ Roles are registered with the plugin through `createAccessControl`, so
 better-auth accepts them. **Permission checks still go through our own
 `$lib/server/authz`**, so they survive a move off better-auth.
 
-### 4.2 Billing (our tables, shared migration `113_billing.ts`)
+### 4.2 Billing (our tables, shared migration `112_billing.ts`)
 
 ```text
 billing_customers
@@ -465,7 +465,52 @@ Original steps:
 4. Tests: identity adapter against SQLite and PGlite (extend
    `auth.signup.test.ts`).
 
-### Phase 2: Organizations, roles and backfill
+### Phase 2: Organizations, roles and backfill ✅ Done
+
+What shipped (and where it differs from the steps below):
+
+- **Spike result:** better-auth 1.3.34's `organization()` plugin. Its schema
+  was read from `getAuthTables({ plugins: [organization()] })`:
+  `organization.slug` is required and unique (we add a random suffix),
+  `member` has no `updatedAt`, `invitation` has no `createdAt`. Server-side
+  `createOrganization` accepts `userId` without a session; with session
+  headers it also sets `session.activeOrganizationId`. The plugin rejects
+  unknown roles, so all four are registered in
+  `identity/better-auth/access.ts` (owner and admin use the plugin's
+  owner/admin statements; preceptor and student get plain-member statements).
+- **Tables:** `ensure-auth-tables.ts` creates `organization`, `member` (plus a
+  unique index on `userId, organizationId`) and `invitation`, and adds
+  `session.activeOrganizationId`. `src/lib/db/types.ts` gained the three
+  tables, edited by hand: full regeneration would have rewritten unrelated
+  hand-tuned auth types. `test-utils.ts` now builds auth tables with
+  `ensureAuthTables`, so tests use the production DDL.
+- **IdentityService:** `createOrganization` and `listMemberships`.
+  `AppSession.activeOrganizationId`. Roles are `ROLES`/`Role`/`OrgMembership`
+  in `identity/types.ts`. `pickActiveMembership` and `organizationSlug` live in
+  `identity/memberships.ts`. `organizationClient()` was **not** added; nothing
+  in the browser needs it until invites exist.
+- **authz:** `src/lib/server/authz` (`PERMISSIONS`, `ROLE_PERMISSIONS`, `can`,
+  `requirePermission`).
+- **Request flow:** the hook sets `locals.organization` (membership re-checked
+  every request; a stale active org falls back to the oldest membership). The
+  root layout exposes `organization` to pages. `(app)` redirects org-less users
+  to `/onboarding/organization`, a new route group with a form action that
+  makes the user the `owner`. Until Phase 4 adds the org name to `/register`,
+  every new account passes through this page. The e2e
+  `registerViaForm` fills it in.
+- **Backfill is a setup step, not a migration.** Shared migrations may only
+  import `kysely` and can't create rows through better-auth (which handles
+  per-engine dates). So `src/lib/server/organizations/backfill.ts` runs from
+  both `db:setup` and `db:migrate`, after migrations, through
+  `IdentityService`. It's idempotent. `db:migrate` now also runs
+  `ensureAuthTables` first. Anyone it misses still hits onboarding.
+- **Seed:** `admin@example.com` owns "Demo Program", `basic@example.com` owns
+  "Tenant B Program".
+- **Resets:** `resetUser` deletes the user's memberships and invitations, and
+  any organization they were the only member of. `resetAll` empties the org
+  tables.
+
+Original steps:
 
 1. **Spike:** confirm the organization plugin API and schema for the locked
    better-auth version (`package-lock` resolves `^1.3.4`; code comments
@@ -491,14 +536,15 @@ Original steps:
 
 1. `src/lib/billing/plans.ts` catalog (both plans `kind: 'contact'`) and
    `src/lib/billing/policy.ts` (`BILLING_GRACE_DAYS = 30`).
-2. Migration `113_billing.ts` (tables in §4.2). Regenerate `types.ts` and
+2. Migration `112_billing.ts` (tables in §4.2). Regenerate `types.ts` and
    extend the equivalence test.
 3. `PaymentProvider` interface, `ManualProvider`, the `getPaymentProvider()`
    factory and the `PAYMENT_PROVIDER` env var (document in README and
    `.env.example`).
 4. `BillingService` and `EntitlementService`. Switch the hook to org-derived
    entitlements.
-5. Migration `114_backfill_subscriptions.ts`: create a `manual`
+5. Subscription backfill as a **setup step** (like the Phase 2 org backfill,
+   and run right after it in `db:setup`/`db:migrate`): create a `manual`
    subscription for every org without one. Pro/annual if the owner's
    `user.entitlements` contains `autogen`, else Standard/annual.
 6. Retire `user.entitlements` as a source: remove it from `additionalFields`
@@ -584,8 +630,10 @@ Original steps:
 
 ## 12. Open questions and risks
 
-1. **Sales contact.** Which address or form should "Contact us for pricing"
-   use? (`PUBLIC_SALES_CONTACT_EMAIL`)
+1. **Sales contact (placeholder for now).** "Contact us for pricing" doesn't
+   need to work yet. It links to `PUBLIC_SALES_CONTACT_EMAIL`, defaulting to
+   the placeholder `mailto:sales@example.com`. Swap in the real address or
+   form when sales is ready.
 2. **Comp / pilot accounts.** Once Stripe is live, how should pilot schools get
    Pro without paying? Options: keep those orgs on the `manual` provider, or
    use a 100% coupon in Stripe. No schema change is needed either way.

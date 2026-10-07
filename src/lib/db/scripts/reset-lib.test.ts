@@ -62,6 +62,21 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 		.execute();
 
 	await db
+		.insertInto('organization')
+		.values({ id: id('org'), name: `${key} Program`, slug: id('org'), createdAt: ts })
+		.execute();
+	await db
+		.insertInto('member')
+		.values({
+			id: id('member'),
+			organizationId: id('org'),
+			userId: id('user'),
+			role: 'owner',
+			createdAt: ts,
+		})
+		.execute();
+
+	await db
 		.insertInto('scheduling_periods')
 		.values({
 			id: id('sched'),
@@ -241,6 +256,11 @@ describe('resetUser', () => {
 		expect(await count(db, 'session')).toBe(1);
 		expect(await count(db, 'account')).toBe(1);
 		expect(await count(db, 'verification')).toBe(1);
+		// Alice's sole-owned organization goes with her; Bob's stays.
+		expect(await count(db, 'member')).toBe(1);
+		expect(
+			await db.selectFrom('organization').select('id').orderBy('id').execute()
+		).toEqual([{ id: 'bob-org' }]);
 
 		// Bob fully intact.
 		const bob = await db
@@ -254,6 +274,46 @@ describe('resetUser', () => {
 		expect(result.counts['user']).toBe(1);
 		expect(result.counts['schedule_assignments']).toBe(1);
 		expect(result.dryRun).toBe(false);
+	});
+
+	it('keeps an organization another member still belongs to, minus the removed user', async () => {
+		await db
+			.insertInto('member')
+			.values({
+				id: 'bob-in-alice-org',
+				organizationId: 'alice-org',
+				userId: 'bob-user',
+				role: 'admin',
+				createdAt: ts,
+			})
+			.execute();
+		await db
+			.insertInto('invitation')
+			.values({
+				id: 'alice-invite',
+				organizationId: 'alice-org',
+				email: 'carol@example.com',
+				role: 'admin',
+				expiresAt: ts,
+				inviterId: 'alice-user',
+			})
+			.execute();
+
+		const result = await resetUser(db, 'alice@example.com');
+
+		expect(
+			await db.selectFrom('organization').select('id').orderBy('id').execute()
+		).toEqual([{ id: 'alice-org' }, { id: 'bob-org' }]);
+		expect(
+			await db.selectFrom('member').select(['organizationId', 'userId']).orderBy('id').execute()
+		).toEqual([
+			{ organizationId: 'alice-org', userId: 'bob-user' },
+			{ organizationId: 'bob-org', userId: 'bob-user' },
+		]);
+		// Alice's pending invitation is withdrawn along with her.
+		expect(await count(db, 'invitation')).toBe(0);
+		expect(result.counts['organization']).toBe(0);
+		expect(result.counts['member']).toBe(1);
 	});
 
 	it('keeps an entity shared with another user (only removes the junction row)', async () => {
@@ -353,7 +413,14 @@ describe('resetAll', () => {
 	it('empties every table', async () => {
 		const result = await resetAll(db);
 		expect(result.counts['user']).toBe(2);
-		for (const table of ['user', 'scheduling_periods', 'students', 'schedule_assignments'] as const) {
+		for (const table of [
+			'user',
+			'organization',
+			'member',
+			'scheduling_periods',
+			'students',
+			'schedule_assignments',
+		] as const) {
 			expect(await count(db, table)).toBe(0);
 		}
 	});

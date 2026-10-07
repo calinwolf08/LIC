@@ -1,4 +1,4 @@
-import { identity } from '$lib/server/identity';
+import { identity, pickActiveMembership } from '$lib/server/identity';
 import { building } from '$app/environment';
 import { json, type Handle } from '@sveltejs/kit';
 import { parseEntitlements } from '$lib/server/entitlements';
@@ -9,6 +9,15 @@ import { db } from '$lib/db';
 export const handle: Handle = async ({ event, resolve }) => {
 	const session = await identity.getSession(event.request.headers);
 	event.locals.session = session;
+
+	// The organization this request acts under. The session's active org is only
+	// a hint; membership is re-checked against the DB on every request.
+	event.locals.organization = session
+		? pickActiveMembership(
+				await identity.listMemberships(session.user.id),
+				session.activeOrganizationId
+			)
+		: null;
 
 	// Resolve entitlements from the DB (source of truth). A failed read grants
 	// nothing.

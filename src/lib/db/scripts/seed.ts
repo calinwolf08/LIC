@@ -53,6 +53,12 @@ const BASIC_USER = {
 	name: 'Basic User'
 };
 
+/** The organization each seeded user owns. */
+const SEED_ORGANIZATIONS = {
+	admin: 'Demo Program',
+	basic: 'Tenant B Program'
+} as const;
+
 // The seed owns its schedule outright — see seed-schedule.ts for why the range
 // is anchored to today. Previously the auth hook's "My Schedule" was silently
 // reused as-is, so the seed's stated intent and its result disagreed.
@@ -175,6 +181,22 @@ async function seed(db: Kysely<DB>) {
 			console.log(`  Created basic (non-entitled) user: ${BASIC_USER.email}`);
 		} catch {
 			console.log(`  Basic user ${BASIC_USER.email} already exists`);
+		}
+	}
+
+	// Each seeded user owns their own organization (program).
+	for (const [email, orgName] of [
+		[TEST_USER.email, SEED_ORGANIZATIONS.admin],
+		[BASIC_USER.email, SEED_ORGANIZATIONS.basic]
+	] as const) {
+		const user = await db
+			.selectFrom('user')
+			.select('id')
+			.where('email', '=', email)
+			.executeTakeFirstOrThrow();
+		if ((await identity.listMemberships(user.id)).length === 0) {
+			await identity.createOrganization({ name: orgName, ownerUserId: user.id });
+			console.log(`  Created organization "${orgName}" owned by ${email}`);
 		}
 	}
 

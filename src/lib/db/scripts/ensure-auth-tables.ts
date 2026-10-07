@@ -123,7 +123,7 @@ export function getAuthDialectProfile(dialect: DbDialectName): AuthDialectProfil
 }
 
 /**
- * Create the four better-auth tables, if missing, in the shape better-auth
+ * Create the better-auth tables (core + organization plugin), if missing, in the shape better-auth
  * expects for `dialect`.
  *
  * @param db      target database
@@ -199,5 +199,74 @@ export async function ensureAuthTables(
 		.addColumn('expiresAt', timestamp, (col) => col.notNull())
 		.addColumn('createdAt', timestamp, (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addColumn('updatedAt', timestamp, (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.execute();
+
+	await ensureOrganizationTables(db, t);
+}
+
+/**
+ * The organization plugin's tables (organization, member, invitation) and its
+ * `session.activeOrganizationId` column, in the shape better-auth 1.3.34's
+ * `organization()` plugin expects — columns taken from its own schema
+ * (`getAuthTables({ plugins: [organization()] })`).
+ *
+ * `invitation` is unused today; it exists so inviting admins, preceptors and
+ * students later needs no schema change.
+ */
+async function ensureOrganizationTables(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- see ensureAuthTables
+	db: Kysely<any>,
+	t: AuthDialectProfile
+): Promise<void> {
+	const text = sql.raw(t.text);
+	const timestamp = sql.raw(t.timestamp);
+
+	const sessionColumns =
+		(await db.introspection.getTables()).find((table) => table.name === 'session')?.columns ?? [];
+	if (!sessionColumns.some((column) => column.name === 'activeOrganizationId')) {
+		await db.schema.alterTable('session').addColumn('activeOrganizationId', text).execute();
+	}
+
+	await db.schema
+		.createTable('organization')
+		.ifNotExists()
+		.addColumn('id', text, (col) => col.primaryKey())
+		.addColumn('name', text, (col) => col.notNull())
+		.addColumn('slug', text, (col) => col.notNull().unique())
+		.addColumn('logo', text)
+		.addColumn('metadata', text)
+		.addColumn('createdAt', timestamp, (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.execute();
+
+	await db.schema
+		.createTable('member')
+		.ifNotExists()
+		.addColumn('id', text, (col) => col.primaryKey())
+		.addColumn('organizationId', text, (col) => col.notNull().references('organization.id'))
+		.addColumn('userId', text, (col) => col.notNull().references('user.id'))
+		.addColumn('role', text, (col) => col.notNull().defaultTo('member'))
+		.addColumn('createdAt', timestamp, (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.execute();
+
+	// One membership per user per organization; also serves the per-request
+	// "which organizations does this user belong to" lookup.
+	await db.schema
+		.createIndex('member_user_organization_unique')
+		.ifNotExists()
+		.unique()
+		.on('member')
+		.columns(['userId', 'organizationId'])
+		.execute();
+
+	await db.schema
+		.createTable('invitation')
+		.ifNotExists()
+		.addColumn('id', text, (col) => col.primaryKey())
+		.addColumn('organizationId', text, (col) => col.notNull().references('organization.id'))
+		.addColumn('email', text, (col) => col.notNull())
+		.addColumn('role', text)
+		.addColumn('status', text, (col) => col.notNull().defaultTo('pending'))
+		.addColumn('expiresAt', timestamp, (col) => col.notNull())
+		.addColumn('inviterId', text, (col) => col.notNull().references('user.id'))
 		.execute();
 }

@@ -10,6 +10,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname + url.search)}`);
 	}
 
+	// Every user acts within an organization. One without (a sign-up that never
+	// named its program, or an account predating organizations that the backfill
+	// has not reached) names it first.
+	if (!locals.organization) {
+		throw redirect(302, '/onboarding/organization');
+	}
+
 	// Schedule-first architecture: Check if user has an active schedule
 	// If not, redirect to create schedule (unless already on schedule pages)
 	const scheduleExemptRoutes = ['/schedules'];
