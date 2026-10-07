@@ -38,6 +38,9 @@
 | Sign-up entry points         | Public `/pricing` page that deep-links to `/register`, where the tier can still be changed |
 | Billing intervals            | Monthly and annual                                                 |
 | Existing users               | Backfill one org per user; Pro if they hold `autogen` today, else Standard |
+| Published pricing            | None: enterprise-style "contact us for pricing"                     |
+| Grace period (lapsed payment) | 30 days (arbitrary for now; one constant)                          |
+| Email verification           | Not needed yet                                                     |
 
 ### Out of scope
 
@@ -153,6 +156,7 @@ subscriptions
   provider                 text not null
   provider_subscription_id text null      (unique when not null)
   current_period_end       text null      -- ISO; null for manual
+  grace_ends_at            text null      -- ISO; set on entering past_due (30 days)
   cancel_at_period_end     integer not null default 0
   created_at, updated_at
 
@@ -181,13 +185,19 @@ export interface Plan {
   name: string;
   description: string;
   features: readonly Entitlement[];          // pro: ['autogen']
-  prices: Record<BillingInterval, {
-    amountCents: number;                      // display price
-    currency: 'usd';
-  }>;
+  pricing:                                    // enterprise: no list price today
+    | { kind: 'contact' }
+    | { kind: 'listed'; prices: Record<BillingInterval, { amountCents: number; currency: 'usd' }> };
   rank: number;                               // for upgrade/downgrade wording
 }
 ```
+
+Both plans start as `{ kind: 'contact' }`, so the UI shows "Contact us for
+pricing" (`PUBLIC_SALES_CONTACT_EMAIL`) instead of a price. The
+`billing_interval` stays in the data model so a provider can bill monthly or
+annually. Subscriptions default to `year`, and the interval toggle only shows
+for a plan with `kind: 'listed'`. Switching to published prices later is a
+catalog edit, not a schema change.
 
 The catalog is shared by client and server (pricing page, register form,
 settings). Processor price IDs are **not** in the catalog: each provider maps
@@ -303,8 +313,14 @@ provider.
 - `getSubscription(orgId)`: returns the current non-canceled row.
 
 `EntitlementService.forOrganization(orgId)` returns `plan.features` when the
-status is `active`, `trialing` or `past_due` (grace period). Otherwise it
-returns `[]`.
+status is `active` or `trialing`, or `past_due` while `now < grace_ends_at`.
+Otherwise it returns `[]`.
+
+**Grace period:** `BILLING_GRACE_DAYS = 30` (one constant in
+`src/lib/billing/policy.ts`). When `BillingService` first moves a subscription
+to `past_due`, it stamps `grace_ends_at = now + 30 days`, and clears it when the
+subscription returns to `active`. This needs a `grace_ends_at text null` column
+on `subscriptions` (§4.2).
 
 ## 6. Request flow changes
 
@@ -331,7 +347,7 @@ fields.
 2. **No organization: redirect to `/onboarding/organization`.** *(new)* This
    catches half-finished sign-ups and backfill gaps, and later serves
    invite-accepting users.
-3. **No usable subscription (status not active, trialing or past_due):
+3. **No usable subscription (not active, not trialing, and not past_due within the 30-day grace period):
    redirect to `/settings/billing`.** *(new; can't happen with the `manual`
    provider, but required for Stripe)*
 4. No schedule: redirect to `/schedules/new`. *(existing)*
@@ -342,9 +358,12 @@ Exempt `/onboarding/*` from guards 2–4 and `/settings/billing` from guards 3�
 
 ### 7.1 `/pricing` (public, new)
 
-- Two tier cards with a feature comparison and a Monthly/Annual toggle (annual
-  shows the saving).
-- Each card's CTA links to `/register?plan=<id>&interval=<month|year>`.
+- Two tier cards with a feature comparison. Each card reads "Contact us for
+  pricing" with a mailto link to `PUBLIC_SALES_CONTACT_EMAIL`. A
+  Monthly/Annual toggle shows only once a plan has `kind: 'listed'` pricing.
+- Each card also has a "Get started" CTA linking to `/register?plan=<id>`
+  (plus `&interval=` when prices are listed). Until payments go live,
+  registering is free on either tier.
 - Link it from the public landing page (`(public)/+page.svelte`) and the login
   page.
 
@@ -414,7 +433,29 @@ show "Upgrade to Pro" linking to `/settings/billing`, for users holding
 Each phase is one PR, and green on `npm run check`, `test:unit`, `test:pg` and
 the e2e smoke run.
 
-### Phase 1: Identity abstraction (no behaviour change)
+### Phase 1: Identity abstraction (no behaviour change) ✅ Done
+
+What shipped:
+
+- `src/lib/server/identity/`: `types.ts` (`AppUser`, `AppSession`,
+  `IdentityService`, `IdentityError`), `better-auth/identity.ts` (the adapter,
+  which maps better-auth `APIError` codes onto `email_taken`, `invalid_input`
+  and `invalid_credentials`) and `index.ts` (the `identity` singleton). It
+  uses relative imports so the seed script still runs under `tsx`.
+- `src/lib/identity-client.ts`: the browser wrapper (`signInWithEmail`,
+  `signUpWithEmail`, `signOut`, each returning a result object). The login
+  form, register form and app-layout logout use it.
+- `hooks.server.ts` uses `identity.getSession` and `identity.handleRequest`.
+  Entitlements are now always read from the `user` row, because `AppUser` no
+  longer carries better-auth's additional fields.
+- `App.Locals.session` is `AppSession`. `/api/scheduling-periods` reads
+  `locals.session` instead of calling better-auth again. The seed uses
+  `identity.signUpWithEmail`.
+- `import-boundary.test.ts`: fails on any non-test import of `better-auth*`,
+  `$lib/auth` or `$lib/auth-client` outside the identity layer.
+- Adapter tests on SQLite and PGlite (in `auth.signup.test.ts`).
+
+Original steps:
 
 1. Add `identity/types.ts`, the `IdentityService` interface and its
    better-auth implementation, wrapping today's `getSession` and sign-up.
@@ -448,7 +489,8 @@ the e2e smoke run.
 
 ### Phase 3: Billing domain and derived entitlements
 
-1. `src/lib/billing/plans.ts` catalog. Placeholder prices are flagged in §12.
+1. `src/lib/billing/plans.ts` catalog (both plans `kind: 'contact'`) and
+   `src/lib/billing/policy.ts` (`BILLING_GRACE_DAYS = 30`).
 2. Migration `113_billing.ts` (tables in §4.2). Regenerate `types.ts` and
    extend the equivalence test.
 3. `PaymentProvider` interface, `ManualProvider`, the `getPaymentProvider()`
@@ -464,7 +506,9 @@ the e2e smoke run.
    cleanup migration once data is verified.
 7. Replace `scripts/set-entitlement.ts` with `scripts/set-plan.ts <email> standard|pro [month|year]`,
    which calls `BillingService.changePlan` on the user's org.
-8. Tests: catalog invariants (Pro ⊇ Standard features, both intervals priced);
+8. Tests: catalog invariants (Pro ⊇ Standard features, a `listed` plan prices
+   both intervals); grace period (past_due within 30 days is entitled, past it
+   is not, and returning to active clears it);
    ManualProvider; BillingService with a fake provider covering activated,
    redirect leading to an incomplete row, change, no-op change, cancel, and
    webhook idempotency; entitlement status matrix; the existing
@@ -540,19 +584,16 @@ the e2e smoke run.
 
 ## 12. Open questions and risks
 
-1. **Prices.** The catalog ships with placeholder amounts. Pricing needs
-   confirmation before `/pricing` is public.
+1. **Sales contact.** Which address or form should "Contact us for pricing"
+   use? (`PUBLIC_SALES_CONTACT_EMAIL`)
 2. **Comp / pilot accounts.** Once Stripe is live, how should pilot schools get
    Pro without paying? Options: keep those orgs on the `manual` provider, or
    use a 100% coupon in Stripe. No schema change is needed either way.
-3. **Email verification.** It's currently off. It should probably be required
-   before paid checkout. Decide before the Stripe phase.
-4. **Institutional invoicing.** Medical schools often pay by PO or invoice
+3. **Institutional invoicing.** Medical schools often pay by PO or invoice
    rather than card. Stripe Invoicing (`collection_method: send_invoice`) fits
    the same interface, but confirm the need.
-5. **Lapsed payment.** `past_due` keeps entitlements (grace period), and
-   `canceled`/`incomplete` lock the app to `/settings/billing`. Confirm the
-   grace length, and whether Standard data should stay read-only instead of
-   being locked.
-6. **better-auth version.** The organization plugin's schema and API differ
+4. **After the grace period.** The grace period is 30 days (decided). Once it
+   ends, or on `canceled`/`incomplete`, the app locks to `/settings/billing`.
+   Should Standard data stay read-only instead of being locked?
+5. **better-auth version.** The organization plugin's schema and API differ
    across 1.x minors. Phase 2's spike pins this down before any DDL is written.

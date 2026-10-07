@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { registerSchema } from "../utils";
-	import { authClient } from "$lib/auth-client";
+	import { signUpWithEmail } from "$lib/identity-client";
 	import { FormField } from "$lib/components/forms";
 	import { useForm } from "$lib/components/forms";
 	import { Input } from "$lib/components/ui/input";
@@ -38,21 +38,16 @@
 		async onSubmit(values) {
 			errorMessage = null;
 
-			await authClient.signUp.email(
-				{
-					name: values.name,
-					email: values.email,
-					password: values.password,
-				},
-				{
-					onSuccess: () => {
-						window.location.href = "/";
-					},
-					onError: (ctx) => {
-						errorMessage = ctx.error.message || "Failed to create account. Please try again.";
-					},
-				}
-			);
+			const result = await signUpWithEmail({
+				name: values.name,
+				email: values.email,
+				password: values.password,
+			});
+			if (result.ok) {
+				window.location.href = "/";
+			} else {
+				errorMessage = result.message;
+			}
 		}
 	});
 

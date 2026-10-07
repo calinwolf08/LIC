@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { loginSchema } from "../utils";
-	import { authClient } from "$lib/auth-client";
+	import { signInWithEmail } from "$lib/identity-client";
 	import { goto } from "$app/navigation";
 	import { FormField } from "$lib/components/forms";
 	import { useForm } from "$lib/components/forms";
@@ -41,21 +41,16 @@
 		async onSubmit(values) {
 			errorMessage = null;
 
-			await authClient.signIn.email(
-				{
-					email: values.email,
-					password: values.password,
-					rememberMe: values.rememberMe,
-				},
-				{
-					onSuccess: () => {
-						window.location.href = redirectTo;
-					},
-					onError: (ctx) => {
-						errorMessage = ctx.error.message || "Failed to sign in. Please try again.";
-					},
-				}
-			);
+			const result = await signInWithEmail({
+				email: values.email,
+				password: values.password,
+				rememberMe: values.rememberMe,
+			});
+			if (result.ok) {
+				window.location.href = redirectTo;
+			} else {
+				errorMessage = result.message;
+			}
 		}
 	});
 

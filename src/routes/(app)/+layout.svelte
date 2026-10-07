@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { authClient } from '$lib/auth-client';
+	import { signOut } from '$lib/identity-client';
 	import ScheduleSelector from '$lib/features/schedules/components/schedule-selector.svelte';
 	import { Toaster } from '$lib/components/toast';
 	import FormShell from '$lib/components/form-shell.svelte';
@@ -23,13 +23,10 @@
 	let mobileMenuOpen = $state(false);
 
 	async function handleLogout() {
-		await authClient.signOut({
-			fetchOptions: {
-				onSuccess: () => {
-					window.location.href = '/login';
-				}
-			}
-		});
+		const result = await signOut();
+		if (result.ok) {
+			window.location.href = '/login';
+		}
 	}
 
 	let currentPath = $derived($page.url.pathname);

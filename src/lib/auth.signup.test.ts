@@ -25,6 +25,8 @@ import { getDialectAdapter } from './db/dialects/index';
 import type { DbDialectName } from './db/dialects/types';
 import { ensureAuthTables } from './db/scripts/ensure-auth-tables';
 import type { DB } from './db/types';
+import { createBetterAuthIdentity } from './server/identity/better-auth/identity';
+import { IdentityError, type IdentityService } from './server/identity/types';
 
 // better-auth otherwise generates a throwaway secret and warns on every call.
 process.env.BETTER_AUTH_SECRET ||= 'auth-signup-test-secret-auth-signup-test';
@@ -96,6 +98,63 @@ describe.each(engines)('better-auth sign-up on $dialect', ({ dialect, connect })
 
 	afterAll(async () => {
 		await db?.destroy();
+	});
+
+	describe('through the IdentityService adapter', () => {
+		let identity: IdentityService;
+		beforeAll(() => {
+			identity = createBetterAuthIdentity(auth);
+		});
+
+		/** Turn a response's Set-Cookie headers into a request Cookie header. */
+		function cookieHeaderFrom(headers: Headers): Headers {
+			const cookie = headers
+				.getSetCookie()
+				.map((c) => c.split(';')[0])
+				.join('; ');
+			return new Headers({ cookie });
+		}
+
+		it(
+			'signs up, returns the session cookie, and resolves it to an app-owned session',
+			{ timeout: 30000 },
+			async () => {
+				const email = `identity-${dialect}@example.com`;
+				const result = await identity.signUpWithEmail({
+					name: 'Identity Test',
+					email,
+					password: 'password12345'
+				});
+
+				expect(result.user).toEqual({ id: expect.any(String), email, name: 'Identity Test' });
+				expect(result.responseHeaders.getSetCookie().length).toBeGreaterThan(0);
+
+				const session = await identity.getSession(cookieHeaderFrom(result.responseHeaders));
+				// Exactly the app's shape — no provider fields leak through.
+				expect(session).toEqual({ user: result.user });
+			}
+		);
+
+		it('resolves no session for a request without cookies', async () => {
+			expect(await identity.getSession(new Headers())).toBeNull();
+		});
+
+		it('refuses a duplicate email with a provider-neutral error', { timeout: 30000 }, async () => {
+			const input = { name: 'Dup', email: `dup-${dialect}@example.com`, password: 'password12345' };
+			await identity.signUpWithEmail(input);
+
+			const error = await identity.signUpWithEmail(input).catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(IdentityError);
+			expect((error as IdentityError).code).toBe('email_taken');
+		});
+
+		it('refuses an invalid sign-up as invalid input', async () => {
+			const error = await identity
+				.signUpWithEmail({ name: 'Short', email: `short-${dialect}@example.com`, password: 'x' })
+				.catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(IdentityError);
+			expect((error as IdentityError).code).toBe('invalid_input');
+		});
 	});
 
 	it('creates the user, a default schedule, and links the two', async () => {

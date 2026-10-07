@@ -1,13 +1,13 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 
-import type { Session, User } from 'better-auth';
+import type { AppSession } from '$lib/server/identity/types';
 
 // for information about these interfaces
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			session: { session: Session; user: User } | null;
+			session: AppSession | null;
 			/** Parsed entitlement strings for the current user (e.g. ["autogen"]). */
 			entitlements: string[];
 		}

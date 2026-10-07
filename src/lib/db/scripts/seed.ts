@@ -14,7 +14,7 @@
  */
 
 import { createDB } from '../connection';
-import { auth } from '../../auth';
+import { identity } from '../../server/identity';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
@@ -127,17 +127,11 @@ async function seed(db: Kysely<DB>) {
 		userId = existingUser.id;
 	} else {
 		try {
-			const result = await auth.api.signUpEmail({
-				body: {
-					email: TEST_USER.email,
-					password: TEST_USER.password,
-					name: TEST_USER.name
-				}
+			const result = await identity.signUpWithEmail({
+				email: TEST_USER.email,
+				password: TEST_USER.password,
+				name: TEST_USER.name
 			});
-
-			if (!result.user) {
-				throw new Error('Failed to create user');
-			}
 
 			userId = result.user.id;
 			console.log(`  Created user: ${TEST_USER.email}`);
@@ -173,12 +167,10 @@ async function seed(db: Kysely<DB>) {
 		.executeTakeFirst();
 	if (!existingBasic) {
 		try {
-			await auth.api.signUpEmail({
-				body: {
-					email: BASIC_USER.email,
-					password: BASIC_USER.password,
-					name: BASIC_USER.name
-				}
+			await identity.signUpWithEmail({
+				email: BASIC_USER.email,
+				password: BASIC_USER.password,
+				name: BASIC_USER.name
 			});
 			console.log(`  Created basic (non-entitled) user: ${BASIC_USER.email}`);
 		} catch {

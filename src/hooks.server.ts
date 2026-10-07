@@ -1,5 +1,4 @@
-import { auth } from '$lib/auth'; // path to your auth file
-import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { identity } from '$lib/server/identity';
 import { building } from '$app/environment';
 import { json, type Handle } from '@sveltejs/kit';
 import { parseEntitlements } from '$lib/server/entitlements';
@@ -8,24 +7,22 @@ import { ENTITLEMENT_AUTOGEN } from '$lib/server/entitlements';
 import { db } from '$lib/db';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const session = await auth.api.getSession({ headers: event.request.headers });
+	const session = await identity.getSession(event.request.headers);
 	event.locals.session = session;
 
-	// Resolve entitlements from the DB (source of truth). Falls back to the
-	// value on the session user if present, then to none.
-	if (session?.user) {
-		let raw: unknown = (session.user as { entitlements?: unknown }).entitlements;
-		if (raw === undefined) {
-			try {
-				const row = await db
-					.selectFrom('user')
-					.select('entitlements')
-					.where('id', '=', session.user.id)
-					.executeTakeFirst();
-				raw = row?.entitlements;
-			} catch {
-				raw = undefined;
-			}
+	// Resolve entitlements from the DB (source of truth). A failed read grants
+	// nothing.
+	if (session) {
+		let raw: unknown;
+		try {
+			const row = await db
+				.selectFrom('user')
+				.select('entitlements')
+				.where('id', '=', session.user.id)
+				.executeTakeFirst();
+			raw = row?.entitlements;
+		} catch {
+			raw = undefined;
 		}
 		event.locals.entitlements = parseEntitlements(raw);
 	} else {
@@ -49,7 +46,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// callers reach this — unauthenticated ones were already 401'd above.
 	if (
 		!building &&
-		session?.user &&
+		session &&
 		requiresAutogenEntitlement(event.url.pathname) &&
 		!event.locals.entitlements.includes(ENTITLEMENT_AUTOGEN)
 	) {
@@ -59,7 +56,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 		);
 	}
 
-	const response = await svelteKitHandler({ event, resolve, auth, building });
-
-	return response;
+	return identity.handleRequest({ event, resolve, building });
 };
