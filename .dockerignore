@@ -1,0 +1,19 @@
+# Keep the build context small and free of local state.
+node_modules
+build
+.svelte-kit
+.git
+.github
+coverage
+test-results
+playwright-report
+e2e
+docs
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+Dockerfile
+.dockerignore

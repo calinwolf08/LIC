@@ -96,8 +96,13 @@ using it.
 
 ## Deployment
 
+**Production runs on Coolify from a Docker image built by GitHub Actions** —
+merging to `master` runs CI, then `.github/workflows/deploy.yml` builds the
+image, pushes it to `ghcr.io/calinwolf08/lic` and triggers Coolify. Step-by-step
+GitHub + Coolify setup: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 The app is a SvelteKit `adapter-node` build (selected automatically when the
-`COOLIFY` env var is set) started with `node build`.
+`COOLIFY` env var is set, as the `Dockerfile` does) started with `node build`.
 
 **The database engine is chosen by environment variables** — SQLite by default
 (local dev and tests), PostgreSQL in production — with no code changes. See
