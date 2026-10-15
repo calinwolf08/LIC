@@ -23,155 +23,155 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
  * 4. Generate one assignment per day, rotating preceptors
  */
 export class DailyRotationStrategy extends BaseStrategy {
-  getName(): string {
-    return 'DailyRotationStrategy';
-  }
+	getName(): string {
+		return 'DailyRotationStrategy';
+	}
 
-  canHandle(config: ResolvedRequirementConfiguration): boolean {
-    return config.assignmentStrategy === 'daily_rotation';
-  }
+	canHandle(config: ResolvedRequirementConfiguration): boolean {
+		return config.assignmentStrategy === 'daily_rotation';
+	}
 
-  async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
-    const { student, clerkship, config, availableDates, availablePreceptors } = context;
+	async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
+		const { student, clerkship, config, availableDates, availablePreceptors } = context;
 
-    // Validate required IDs
-    if (!student.id) {
-      return { success: false, assignments: [], error: 'Student must have a valid ID' };
-    }
-    if (!clerkship.id) {
-      return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
-    }
+		// Validate required IDs
+		if (!student.id) {
+			return { success: false, assignments: [], error: 'Student must have a valid ID' };
+		}
+		if (!clerkship.id) {
+			return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
+		}
 
-    // Use config.requiredDays which respects requirement overrides
-    const totalDays = config.requiredDays;
+		// Use config.requiredDays which respects requirement overrides
+		const totalDays = config.requiredDays;
 
-    // Filter preceptors by specialty
-    let candidates = clerkship.specialty
-      ? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
-      : availablePreceptors;
+		// Filter preceptors by specialty
+		let candidates = clerkship.specialty
+			? this.filterBySpecialty(availablePreceptors, clerkship.specialty)
+			: availablePreceptors;
 
-    // Sort by load for initial ordering
-    candidates = this.sortByLoad(candidates);
+		// Sort by load for initial ordering
+		candidates = this.sortByLoad(candidates);
 
-    // Find dates where ANY preceptor is available AND has daily capacity
-    const datesWithAvailability: string[] = [];
-    for (const date of availableDates) {
-      const availableToday = candidates.filter(
-        p => this.isDateAvailable(p, date) && this.hasDailyCapacity(context, p, date)
-      );
-      if (availableToday.length > 0) {
-        datesWithAvailability.push(date);
-      }
-    }
+		// Find dates where ANY preceptor is available AND has daily capacity
+		const datesWithAvailability: string[] = [];
+		for (const date of availableDates) {
+			const availableToday = candidates.filter(
+				(p) => this.isDateAvailable(p, date) && this.hasDailyCapacity(context, p, date)
+			);
+			if (availableToday.length > 0) {
+				datesWithAvailability.push(date);
+			}
+		}
 
-    // Order candidate days by the best preference achievable on each (H8): days
-    // where a preferred slot is open come first, in-a-pinch-only days last, so the
-    // first-N slice never spends an in-a-pinch day while a preferred day is open.
-    const bestRankForDate = (date: string): number => {
-      let best = 3;
-      for (const p of candidates) {
-        if (this.isDateAvailable(p, date) && this.hasDailyCapacity(context, p, date)) {
-          best = Math.min(best, this.preferenceRank(p, date));
-        }
-      }
-      return best;
-    };
-    datesWithAvailability.sort(
-      (a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
-    );
+		// Order candidate days by the best preference achievable on each (H8): days
+		// where a preferred slot is open come first, in-a-pinch-only days last, so the
+		// first-N slice never spends an in-a-pinch day while a preferred day is open.
+		const bestRankForDate = (date: string): number => {
+			let best = 3;
+			for (const p of candidates) {
+				if (this.isDateAvailable(p, date) && this.hasDailyCapacity(context, p, date)) {
+					best = Math.min(best, this.preferenceRank(p, date));
+				}
+			}
+			return best;
+		};
+		datesWithAvailability.sort(
+			(a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
+		);
 
-    // Take as many days as we can, up to the requirement. A short supply is a
-    // partial result (review finding F-21), not a discarded one.
-    const assignments: import('./base-strategy').ProposedAssignment[] = [];
-    const requiredDates = datesWithAvailability.slice(0, totalDays);
-    const insufficientDates = datesWithAvailability.length < totalDays;
+		// Take as many days as we can, up to the requirement. A short supply is a
+		// partial result (review finding F-21), not a discarded one.
+		const assignments: import('./base-strategy').ProposedAssignment[] = [];
+		const requiredDates = datesWithAvailability.slice(0, totalDays);
+		const insufficientDates = datesWithAvailability.length < totalDays;
 
-    // Track rotation index for round-robin
-    let rotationIndex = 0;
-    let previousPreceptorId: string | null = null;
+		// Track rotation index for round-robin
+		let rotationIndex = 0;
+		let previousPreceptorId: string | null = null;
 
-    // Track assignments made in this call (for daily capacity within this student's assignment)
-    const localAssignmentsByPreceptorDate = new Map<string, Map<string, number>>();
+		// Track assignments made in this call (for daily capacity within this student's assignment)
+		const localAssignmentsByPreceptorDate = new Map<string, Map<string, number>>();
 
-    // Assign each day, rotating through preceptors
-    for (const date of requiredDates) {
-      // Find preceptors available on this date with remaining daily capacity
-      // Check both pending assignments (from context) and local assignments (this call)
-      const availableToday = candidates.filter(p => {
-        if (!this.isDateAvailable(p, date)) return false;
+		// Assign each day, rotating through preceptors
+		for (const date of requiredDates) {
+			// Find preceptors available on this date with remaining daily capacity
+			// Check both pending assignments (from context) and local assignments (this call)
+			const availableToday = candidates.filter((p) => {
+				if (!this.isDateAvailable(p, date)) return false;
 
-        // Check pending assignments from context
-        const pendingCount = context.assignmentsByPreceptorDate?.get(p.id)?.get(date) ?? 0;
-        // Check local assignments made in this call
-        const localCount = localAssignmentsByPreceptorDate.get(p.id)?.get(date) ?? 0;
-        const totalDailyCount = pendingCount + localCount;
+				// Check pending assignments from context
+				const pendingCount = context.assignmentsByPreceptorDate?.get(p.id)?.get(date) ?? 0;
+				// Check local assignments made in this call
+				const localCount = localAssignmentsByPreceptorDate.get(p.id)?.get(date) ?? 0;
+				const totalDailyCount = pendingCount + localCount;
 
-        return totalDailyCount < p.maxStudentsPerDay;
-      });
+				return totalDailyCount < p.maxStudentsPerDay;
+			});
 
-      if (availableToday.length === 0) {
-        // Skip this day rather than discarding the whole result — keep the days
-        // already placed and let the engine report the gap (F-21).
-        continue;
-      }
+			if (availableToday.length === 0) {
+				// Skip this day rather than discarding the whole result — keep the days
+				// already placed and let the engine report the gap (F-21).
+				continue;
+			}
 
-      // Restrict selection to the best-ranked preceptors for this day (H8) so a
-      // preferred slot is always chosen over an in-a-pinch one; rotation happens
-      // within that equally-preferred subset.
-      const minRank = Math.min(...availableToday.map(p => this.preferenceRank(p, date)));
-      const bestToday = availableToday.filter(p => this.preferenceRank(p, date) === minRank);
+			// Restrict selection to the best-ranked preceptors for this day (H8) so a
+			// preferred slot is always chosen over an in-a-pinch one; rotation happens
+			// within that equally-preferred subset.
+			const minRank = Math.min(...availableToday.map((p) => this.preferenceRank(p, date)));
+			const bestToday = availableToday.filter((p) => this.preferenceRank(p, date) === minRank);
 
-      // Try to select a DIFFERENT preceptor than the previous assignment (rotation behavior)
-      let selectedPreceptor: (typeof candidates)[0] | null = null;
+			// Try to select a DIFFERENT preceptor than the previous assignment (rotation behavior)
+			let selectedPreceptor: (typeof candidates)[0] | null = null;
 
-      // If we have multiple available preceptors, prefer one different from previous
-      if (bestToday.length > 1 && previousPreceptorId) {
-        const differentPreceptors = bestToday.filter(p => p.id !== previousPreceptorId);
-        if (differentPreceptors.length > 0) {
-          // Round-robin through the different preceptors
-          selectedPreceptor = differentPreceptors[rotationIndex % differentPreceptors.length];
-          rotationIndex++;
-        }
-      }
+			// If we have multiple available preceptors, prefer one different from previous
+			if (bestToday.length > 1 && previousPreceptorId) {
+				const differentPreceptors = bestToday.filter((p) => p.id !== previousPreceptorId);
+				if (differentPreceptors.length > 0) {
+					// Round-robin through the different preceptors
+					selectedPreceptor = differentPreceptors[rotationIndex % differentPreceptors.length];
+					rotationIndex++;
+				}
+			}
 
-      // Fallback: use round-robin from the best-ranked preceptors today
-      if (!selectedPreceptor) {
-        selectedPreceptor = bestToday[rotationIndex % bestToday.length];
-        rotationIndex++;
-      }
+			// Fallback: use round-robin from the best-ranked preceptors today
+			if (!selectedPreceptor) {
+				selectedPreceptor = bestToday[rotationIndex % bestToday.length];
+				rotationIndex++;
+			}
 
-      // Track this assignment locally
-      if (!localAssignmentsByPreceptorDate.has(selectedPreceptor.id)) {
-        localAssignmentsByPreceptorDate.set(selectedPreceptor.id, new Map());
-      }
-      const dateMap = localAssignmentsByPreceptorDate.get(selectedPreceptor.id)!;
-      const currentCount = dateMap.get(date) ?? 0;
-      dateMap.set(date, currentCount + 1);
+			// Track this assignment locally
+			if (!localAssignmentsByPreceptorDate.has(selectedPreceptor.id)) {
+				localAssignmentsByPreceptorDate.set(selectedPreceptor.id, new Map());
+			}
+			const dateMap = localAssignmentsByPreceptorDate.get(selectedPreceptor.id)!;
+			const currentCount = dateMap.get(date) ?? 0;
+			dateMap.set(date, currentCount + 1);
 
-      // Create assignment
-      assignments.push(
-        this.createAssignment(student.id, selectedPreceptor.id, clerkship.id, date, {
-          requirementType: config.requirementType,
-        })
-      );
+			// Create assignment
+			assignments.push(
+				this.createAssignment(student.id, selectedPreceptor.id, clerkship.id, date, {
+					requirementType: config.requirementType
+				})
+			);
 
-      previousPreceptorId = selectedPreceptor.id;
-    }
+			previousPreceptorId = selectedPreceptor.id;
+		}
 
-    const complete = assignments.length >= totalDays;
-    return {
-      success: complete,
-      assignments,
-      error: complete
-        ? undefined
-        : insufficientDates
-          ? `Insufficient dates with preceptor availability: ${datesWithAvailability.length} < ${totalDays}`
-          : `Only ${assignments.length} of ${totalDays} days could be assigned`,
-      metadata: {
-        strategyUsed: this.getName(),
-        preceptorsConsidered: candidates.length,
-        assignmentCount: assignments.length,
-      },
-    };
-  }
+		const complete = assignments.length >= totalDays;
+		return {
+			success: complete,
+			assignments,
+			error: complete
+				? undefined
+				: insufficientDates
+					? `Insufficient dates with preceptor availability: ${datesWithAvailability.length} < ${totalDays}`
+					: `Only ${assignments.length} of ${totalDays} days could be assigned`,
+			metadata: {
+				strategyUsed: this.getName(),
+				preceptorsConsidered: candidates.length,
+				assignmentCount: assignments.length
+			}
+		};
+	}
 }

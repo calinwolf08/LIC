@@ -18,7 +18,7 @@ import {
 	createTestTeam,
 	clearAllTestData,
 	generateDateRange,
-	getStudentAssignments,
+	getStudentAssignments
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import { nanoid } from 'nanoid';
@@ -45,7 +45,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			.values({
 				id,
 				date,
-				reason: reason || 'Test blackout',
+				reason: reason || 'Test blackout'
 			})
 			.execute();
 		return id;
@@ -65,13 +65,18 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 1: Single blackout date is skipped', () => {
 		it('should not schedule on a single blackout date', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -88,31 +93,36 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(5);
 
 			// Verify no assignment on blackout date
-			const blackoutAssignment = result.assignments.find(a => a.date === '2025-12-03');
+			const blackoutAssignment = result.assignments.find((a) => a.date === '2025-12-03');
 			expect(blackoutAssignment).toBeUndefined();
 
 			// Verify assignments exist on non-blackout dates
-			const assignmentDates = result.assignments.map(a => a.date);
+			const assignmentDates = result.assignments.map((a) => a.date);
 			expect(assignmentDates).not.toContain('2025-12-03');
 		});
 	});
 
 	describe('Test 2: Multiple blackout dates are skipped', () => {
 		it('should not schedule on any blackout dates', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -124,22 +134,19 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			await createPreceptorAvailability(db, preceptorId, siteId, dates);
 
 			// Create multiple blackout dates
-			await createBlackoutDatesFromArray(
-				['2025-12-03', '2025-12-05', '2025-12-07'],
-				'Holiday'
-			);
+			await createBlackoutDatesFromArray(['2025-12-03', '2025-12-05', '2025-12-07'], 'Holiday');
 
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(5);
 
 			// Verify no assignments on any blackout dates
-			const assignmentDates = result.assignments.map(a => a.date);
+			const assignmentDates = result.assignments.map((a) => a.date);
 			expect(assignmentDates).not.toContain('2025-12-03');
 			expect(assignmentDates).not.toContain('2025-12-05');
 			expect(assignmentDates).not.toContain('2025-12-07');
@@ -148,13 +155,18 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 3: Blackout dates reduce available scheduling days', () => {
 		it('should schedule available days even when blackouts reduce total below requirement', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 3
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -171,7 +183,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			// Should have exactly 3 assignments (meeting the 3-day requirement)
@@ -179,7 +191,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			expect(result.assignments.length).toBe(3);
 
 			// Verify no assignments on blackout dates
-			const assignmentDates = result.assignments.map(a => a.date);
+			const assignmentDates = result.assignments.map((a) => a.date);
 			expect(assignmentDates).not.toContain('2025-12-02');
 			expect(assignmentDates).not.toContain('2025-12-04');
 
@@ -192,13 +204,18 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 4: Blackout date at start of range', () => {
 		it('should skip blackout at the start of scheduling range', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 3
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -215,14 +232,14 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(3);
 
 			// First assignment should be on Dec 2, not Dec 1
-			const assignmentDates = result.assignments.map(a => a.date).sort();
+			const assignmentDates = result.assignments.map((a) => a.date).sort();
 			expect(assignmentDates[0]).toBe('2025-12-02');
 			expect(assignmentDates).not.toContain('2025-12-01');
 		});
@@ -230,13 +247,18 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 5: Blackout date at end of range', () => {
 		it('should skip blackout at the end of scheduling range', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 3
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -253,26 +275,31 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-05',
+				endDate: '2025-12-05'
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(3);
 
-			const assignmentDates = result.assignments.map(a => a.date);
+			const assignmentDates = result.assignments.map((a) => a.date);
 			expect(assignmentDates).not.toContain('2025-12-05');
 		});
 	});
 
 	describe('Test 6: Consecutive blackout dates (holiday week)', () => {
 		it('should skip entire consecutive blackout period', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -292,14 +319,14 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-15',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(5);
 
 			// Verify no assignments during Christmas week
-			const assignmentDates = result.assignments.map(a => a.date);
+			const assignmentDates = result.assignments.map((a) => a.date);
 			expect(assignmentDates).not.toContain('2025-12-24');
 			expect(assignmentDates).not.toContain('2025-12-25');
 			expect(assignmentDates).not.toContain('2025-12-26');
@@ -308,14 +335,19 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 7: Multiple students with blackout dates', () => {
 		it('should respect blackouts for all students', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 3 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 3
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
 				siteId,
-				maxStudents: 2, // Can handle 2 students per day
+				maxStudents: 2 // Can handle 2 students per day
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -332,20 +364,20 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
 
 			// Both students should have assignments
-			const student1Assignments = result.assignments.filter(a => a.studentId === studentIds[0]);
-			const student2Assignments = result.assignments.filter(a => a.studentId === studentIds[1]);
+			const student1Assignments = result.assignments.filter((a) => a.studentId === studentIds[0]);
+			const student2Assignments = result.assignments.filter((a) => a.studentId === studentIds[1]);
 
 			expect(student1Assignments.length).toBe(3);
 			expect(student2Assignments.length).toBe(3);
 
 			// Neither student should have assignments on blackout dates
-			const allAssignmentDates = result.assignments.map(a => a.date);
+			const allAssignmentDates = result.assignments.map((a) => a.date);
 			expect(allAssignmentDates).not.toContain('2025-12-03');
 			expect(allAssignmentDates).not.toContain('2025-12-06');
 		});
@@ -355,7 +387,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 		it('should store and retrieve blackout reasons', async () => {
 			// Create blackout dates with different reasons
 			await createBlackoutDate('2025-12-25', 'Christmas Day');
-			await createBlackoutDate('2025-01-01', 'New Year\'s Day');
+			await createBlackoutDate('2025-01-01', "New Year's Day");
 			await createBlackoutDate('2025-07-04', 'Independence Day');
 
 			// Verify stored correctly
@@ -366,7 +398,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 				.execute();
 
 			expect(blackouts).toHaveLength(3);
-			expect(blackouts[0].reason).toBe('New Year\'s Day');
+			expect(blackouts[0].reason).toBe("New Year's Day");
 			expect(blackouts[1].reason).toBe('Independence Day');
 			expect(blackouts[2].reason).toBe('Christmas Day');
 		});
@@ -374,13 +406,18 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 9: Assignments persisted correctly exclude blackouts', () => {
 		it('should persist assignments without any on blackout dates', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -396,7 +433,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			// Query persisted assignments directly from database
@@ -405,7 +442,7 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			expect(persistedAssignments.length).toBe(5);
 
 			// Verify persisted assignments don't include blackout dates
-			const persistedDates = persistedAssignments.map(a => a.date);
+			const persistedDates = persistedAssignments.map((a) => a.date);
 			expect(persistedDates).not.toContain('2025-12-03');
 			expect(persistedDates).not.toContain('2025-12-05');
 			expect(persistedDates).not.toContain('2025-12-07');
@@ -414,13 +451,18 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 
 	describe('Test 10: No blackout dates allows normal scheduling', () => {
 		it('should schedule normally when no blackout dates exist', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -436,33 +478,38 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.assignments.length).toBe(5);
 
 			// All 5 consecutive days should be scheduled
-			const assignmentDates = result.assignments.map(a => a.date).sort();
+			const assignmentDates = result.assignments.map((a) => a.date).sort();
 			expect(assignmentDates).toEqual([
 				'2025-12-01',
 				'2025-12-02',
 				'2025-12-03',
 				'2025-12-04',
-				'2025-12-05',
+				'2025-12-05'
 			]);
 		});
 	});
 
 	describe('Test 11: Blackout outside scheduling range has no effect', () => {
 		it('should ignore blackout dates outside the scheduling window', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			await createTestTeam(db, clerkshipId, 'Test Team', [preceptorId]);
@@ -474,15 +521,12 @@ describe('Integration Suite 13: Blackout Date Scheduling', () => {
 			await createPreceptorAvailability(db, preceptorId, siteId, dates);
 
 			// Create blackout dates outside the scheduling window (January)
-			await createBlackoutDatesFromArray(
-				['2026-01-01', '2026-01-02'],
-				'Future holidays'
-			);
+			await createBlackoutDatesFromArray(['2026-01-01', '2026-01-02'], 'Future holidays');
 
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			// Should schedule normally since blackouts are in January

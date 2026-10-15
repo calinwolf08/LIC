@@ -39,7 +39,8 @@ export class PlanPage {
 		await this.page.getByTestId('plan-student').selectOption({ label: form.student });
 		await this.page.getByTestId('plan-kind').selectOption(kind);
 		if (kind === 'clinical') {
-			if (form.clerkship) await this.page.getByTestId('plan-clerkship').selectOption({ label: form.clerkship });
+			if (form.clerkship)
+				await this.page.getByTestId('plan-clerkship').selectOption({ label: form.clerkship });
 			await this.page.getByTestId('plan-preceptor').selectOption({ label: form.preceptor! });
 			await this.page.getByTestId('plan-site').selectOption({ label: form.site! });
 			await this.page.getByTestId('plan-session').selectOption(form.session ?? 'full');

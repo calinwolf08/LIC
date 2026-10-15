@@ -58,7 +58,8 @@
 		// Filter preceptors who work at any of the selected sites
 		return preceptors.filter(
 			(p) =>
-				p.sites && p.sites.some((s) => selectedSiteIds.includes(s.id)) &&
+				p.sites &&
+				p.sites.some((s) => selectedSiteIds.includes(s.id)) &&
 				!members.find((m) => m.preceptorId === p.id)
 		);
 	});
@@ -166,9 +167,7 @@
 		isSubmitting = true;
 
 		try {
-			const url = team
-				? `/api/preceptors/teams/${team.id}`
-				: `/api/preceptors/teams`;
+			const url = team ? `/api/preceptors/teams/${team.id}` : `/api/preceptors/teams`;
 			const method = team ? 'PATCH' : 'POST';
 
 			const payload = {
@@ -231,11 +230,15 @@
 
 {#if open}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-		<div class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-background p-6 shadow-lg">
+		<div
+			class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-background p-6 shadow-lg"
+		>
 			<h2 class="mb-4 text-2xl font-bold">{team ? 'Edit Team' : 'Create Team'}</h2>
 
 			{#if error}
-				<div class="mb-4 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+				<div
+					class="mb-4 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+				>
 					{error}
 				</div>
 			{/if}
@@ -332,11 +335,14 @@
 					<div class="space-y-3 rounded-lg border p-4">
 						<h3 class="font-semibold">Team Sites (Optional)</h3>
 						<p class="text-xs text-muted-foreground">
-							Select sites where this team operates. Preceptor selection will be filtered by these sites.
+							Select sites where this team operates. Preceptor selection will be filtered by these
+							sites.
 						</p>
-						<div class="max-h-32 overflow-y-auto space-y-1">
+						<div class="max-h-32 space-y-1 overflow-y-auto">
 							{#each sites as site}
-								<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-1 cursor-pointer">
+								<label
+									class="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-muted/50"
+								>
 									<input
 										type="checkbox"
 										checked={selectedSiteIds.includes(site.id)}
@@ -436,7 +442,9 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="text-sm text-muted-foreground">No members added yet. Add at least 1 member.</p>
+						<p class="text-sm text-muted-foreground">
+							No members added yet. Add at least 1 member.
+						</p>
 					{/if}
 				</div>
 

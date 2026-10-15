@@ -81,7 +81,8 @@ export class SiteContinuityConstraint implements Constraint {
 			const student = context.students.find((s) => s.id === assignment.studentId);
 			const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
-			const currentSiteName = context.sites?.find((s) => s.id === currentSiteId)?.name || currentSiteId;
+			const currentSiteName =
+				context.sites?.find((s) => s.id === currentSiteId)?.name || currentSiteId;
 			const firstSiteName = context.sites?.find((s) => s.id === firstSiteId)?.name || firstSiteId;
 
 			violationTracker.recordViolation(
@@ -130,8 +131,10 @@ export class SiteContinuityConstraint implements Constraint {
 				firstAssignment.date
 			);
 
-			const currentSiteName = context.sites?.find((s) => s.id === currentSiteId)?.name || currentSiteId || 'Unknown';
-			const firstSiteName = context.sites?.find((s) => s.id === firstSiteId)?.name || firstSiteId || 'Unknown';
+			const currentSiteName =
+				context.sites?.find((s) => s.id === currentSiteId)?.name || currentSiteId || 'Unknown';
+			const firstSiteName =
+				context.sites?.find((s) => s.id === firstSiteId)?.name || firstSiteId || 'Unknown';
 
 			return `Student ${student?.name} must stay at ${firstSiteName} for ${clerkship?.name}. Cannot assign to ${preceptor?.name} at ${currentSiteName}.`;
 		}

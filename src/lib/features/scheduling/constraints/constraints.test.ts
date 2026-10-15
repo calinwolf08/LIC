@@ -1539,7 +1539,13 @@ describe('PreceptorClerkshipAssociationConstraint', () => {
 			assignmentsByStudent: new Map(),
 			assignmentsByPreceptor: new Map(),
 			studentRequirements: new Map([
-				['student-1', new Map([['clerkship-1', 5], ['clerkship-2', 3]])]
+				[
+					'student-1',
+					new Map([
+						['clerkship-1', 5],
+						['clerkship-2', 3]
+					])
+				]
 			]),
 			blackoutDates: new Set(),
 			preceptorAvailability: new Map(),

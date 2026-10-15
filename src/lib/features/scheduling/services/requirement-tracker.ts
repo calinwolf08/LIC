@@ -45,9 +45,7 @@ export function getMostNeededClerkship(
  * @param context - Scheduling context
  * @returns Array of students with unmet requirements
  */
-export function getStudentsNeedingAssignments(
-	context: SchedulingContext
-): Selectable<Students>[] {
+export function getStudentsNeedingAssignments(context: SchedulingContext): Selectable<Students>[] {
 	return context.students.filter((student) => {
 		const requirements = context.studentRequirements.get(student.id!);
 		if (!requirements) return false;
@@ -94,7 +92,7 @@ export function checkUnmetRequirements(context: SchedulingContext): UnmetRequire
 					clerkshipName: clerkship.name,
 					requiredDays: Number(clerkship.required_days),
 					assignedDays,
-					remainingDays: daysNeeded,
+					remainingDays: daysNeeded
 				});
 			}
 		}
@@ -142,7 +140,8 @@ export function initializeStudentRequirements(
 		requirements.set(student.id!, studentReqs);
 	}
 
-	const totalDays = students.length * clerkships.reduce((sum, c) => sum + Number(c.required_days), 0);
+	const totalDays =
+		students.length * clerkships.reduce((sum, c) => sum + Number(c.required_days), 0);
 
 	log.info('Student requirements initialized', {
 		studentCount: students.length,

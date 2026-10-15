@@ -150,7 +150,7 @@ async function retryWithBackoff<T>(
 
 			// Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms
 			const delay = initialDelay * Math.pow(2, i);
-			await new Promise(resolve => setTimeout(resolve, delay));
+			await new Promise((resolve) => setTimeout(resolve, delay));
 		}
 	}
 

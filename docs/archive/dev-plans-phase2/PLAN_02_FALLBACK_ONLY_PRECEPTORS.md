@@ -91,6 +91,7 @@ ALTER TABLE preceptors ADD COLUMN is_global_fallback_only INTEGER DEFAULT 0;
 **File:** `src/lib/features/scheduling/strategies/team-continuity.strategy.ts`
 
 Modifications:
+
 - When getting team members, separate into:
   - Primary members (`is_fallback_only = false`)
   - Fallback-only members (`is_fallback_only = true`)
@@ -99,6 +100,7 @@ Modifications:
 - **Critical:** First assignment must always be from primary members
 
 Logic flow:
+
 ```
 1. Get team members sorted by priority
 2. Filter out fallback-only members for initial assignment
@@ -124,14 +126,14 @@ Logic flow:
  * Ensures first assignment for a student-clerkship is not a fallback-only preceptor
  */
 export class FirstAssignmentConstraint implements Constraint {
-  name = 'FirstAssignment';
-  priority = 2;
-  bypassable = false;
+	name = 'FirstAssignment';
+	priority = 2;
+	bypassable = false;
 
-  validate(assignment, context, violationTracker): boolean {
-    // Check if this is the first assignment for student-clerkship
-    // If so, verify preceptor is not fallback-only
-  }
+	validate(assignment, context, violationTracker): boolean {
+		// Check if this is the first assignment for student-clerkship
+		// If so, verify preceptor is not fallback-only
+	}
 }
 ```
 
@@ -218,25 +220,25 @@ export class FirstAssignmentConstraint implements Constraint {
 
 ## Files to Create/Modify
 
-| Action | File Path |
-|--------|-----------|
-| Create | `src/lib/db/migrations/0XX_add_fallback_only_flag.ts` |
+| Action | File Path                                                                |
+| ------ | ------------------------------------------------------------------------ |
+| Create | `src/lib/db/migrations/0XX_add_fallback_only_flag.ts`                    |
 | Create | `src/lib/features/scheduling/constraints/first-assignment.constraint.ts` |
-| Modify | `src/lib/db/types.ts` (regenerate) |
-| Modify | `src/lib/features/scheduling-config/types/teams.ts` |
-| Modify | `src/lib/features/scheduling-config/services/teams.service.ts` |
-| Modify | `src/lib/features/scheduling-config/schemas/teams.schemas.ts` |
-| Modify | `src/lib/features/preceptors/services/preceptor-service.ts` |
-| Modify | `src/lib/features/preceptors/schemas.ts` |
-| Modify | `src/lib/features/scheduling/strategies/team-continuity.strategy.ts` |
-| Modify | `src/lib/features/scheduling/fallback/preceptor-resolver.ts` |
-| Modify | `src/lib/features/scheduling/services/context-builder.ts` |
-| Modify | `src/lib/features/scheduling/constraints/index.ts` |
-| Modify | `src/routes/api/preceptors/teams/+server.ts` |
-| Modify | `src/routes/api/preceptors/teams/[id]/+server.ts` |
-| Modify | `src/routes/api/preceptors/[id]/+server.ts` |
-| Modify | Team form component(s) |
-| Modify | Preceptor form component |
+| Modify | `src/lib/db/types.ts` (regenerate)                                       |
+| Modify | `src/lib/features/scheduling-config/types/teams.ts`                      |
+| Modify | `src/lib/features/scheduling-config/services/teams.service.ts`           |
+| Modify | `src/lib/features/scheduling-config/schemas/teams.schemas.ts`            |
+| Modify | `src/lib/features/preceptors/services/preceptor-service.ts`              |
+| Modify | `src/lib/features/preceptors/schemas.ts`                                 |
+| Modify | `src/lib/features/scheduling/strategies/team-continuity.strategy.ts`     |
+| Modify | `src/lib/features/scheduling/fallback/preceptor-resolver.ts`             |
+| Modify | `src/lib/features/scheduling/services/context-builder.ts`                |
+| Modify | `src/lib/features/scheduling/constraints/index.ts`                       |
+| Modify | `src/routes/api/preceptors/teams/+server.ts`                             |
+| Modify | `src/routes/api/preceptors/teams/[id]/+server.ts`                        |
+| Modify | `src/routes/api/preceptors/[id]/+server.ts`                              |
+| Modify | Team form component(s)                                                   |
+| Modify | Preceptor form component                                                 |
 
 ---
 

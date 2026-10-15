@@ -18,7 +18,7 @@ const columnTypes: DdlTypeMap = {
 	// objects and break string comparison/sorting.
 	timestamp: 'text',
 	json: 'jsonb',
-	blob: 'bytea',
+	blob: 'bytea'
 };
 
 function asPostgresConfig(config: DbConfig): PostgresDbConfig {
@@ -65,9 +65,9 @@ export const postgresAdapter: DialectAdapter = {
 			pool: async () => {
 				const { default: pg } = await import('pg');
 				return new pg.Pool({ connectionString });
-			},
+			}
 		});
-	},
+	}
 };
 
 /**

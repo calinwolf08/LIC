@@ -62,7 +62,10 @@ async function seed(db: Kysely<DB>) {
 			})
 			.execute();
 	}
-	await db.insertInto('health_systems').values({ id: HS, name: 'HS', created_at: ts, updated_at: ts }).execute();
+	await db
+		.insertInto('health_systems')
+		.values({ id: HS, name: 'HS', created_at: ts, updated_at: ts })
+		.execute();
 	await db
 		.insertInto('students')
 		.values([
@@ -73,16 +76,45 @@ async function seed(db: Kysely<DB>) {
 	await db
 		.insertInto('preceptors')
 		.values([
-			{ id: P1, name: 'P1', email: 'p1@x.com', max_students: 1, health_system_id: HS, created_at: ts, updated_at: ts },
-			{ id: P2, name: 'P2', email: 'p2@x.com', max_students: 5, health_system_id: HS, created_at: ts, updated_at: ts }
+			{
+				id: P1,
+				name: 'P1',
+				email: 'p1@x.com',
+				max_students: 1,
+				health_system_id: HS,
+				created_at: ts,
+				updated_at: ts
+			},
+			{
+				id: P2,
+				name: 'P2',
+				email: 'p2@x.com',
+				max_students: 5,
+				health_system_id: HS,
+				created_at: ts,
+				updated_at: ts
+			}
 		])
 		.execute();
 	await db
 		.insertInto('clerkships')
-		.values({ id: CLERK, name: 'FM', clerkship_type: 'outpatient', required_days: 5, created_at: ts, updated_at: ts })
+		.values({
+			id: CLERK,
+			name: 'FM',
+			clerkship_type: 'outpatient',
+			required_days: 5,
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
-	await db.insertInto('sites').values({ id: SITE, name: 'Clinic', health_system_id: HS, created_at: ts, updated_at: ts }).execute();
-	await db.insertInto('clerkship_sites').values({ clerkship_id: CLERK, site_id: SITE, created_at: ts }).execute();
+	await db
+		.insertInto('sites')
+		.values({ id: SITE, name: 'Clinic', health_system_id: HS, created_at: ts, updated_at: ts })
+		.execute();
+	await db
+		.insertInto('clerkship_sites')
+		.values({ clerkship_id: CLERK, site_id: SITE, created_at: ts })
+		.execute();
 	// Both students in the schedule, both onboarded at HS → a clean clinical pin raises nothing.
 	await db
 		.insertInto('schedule_students')
@@ -94,8 +126,22 @@ async function seed(db: Kysely<DB>) {
 	await db
 		.insertInto('student_health_system_onboarding')
 		.values([
-			{ id: 'o1', student_id: STU, health_system_id: HS, is_completed: 1, created_at: ts, updated_at: ts },
-			{ id: 'o2', student_id: STU2, health_system_id: HS, is_completed: 1, created_at: ts, updated_at: ts }
+			{
+				id: 'o1',
+				student_id: STU,
+				health_system_id: HS,
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			},
+			{
+				id: 'o2',
+				student_id: STU2,
+				health_system_id: HS,
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			}
 		])
 		.execute();
 }
@@ -236,13 +282,26 @@ describe('evaluatePlan (dry run)', () => {
 		const res = await evaluatePlan(db, SCHED, U1);
 		expect(res.counts['session_clash']).toBe(1);
 		// Both pins are implicated.
-		for (const pin of pins) expect(res.pinStatus[pin.id].soft.some((v) => v.code === 'session_clash')).toBe(true);
+		for (const pin of pins)
+			expect(res.pinStatus[pin.id].soft.some((v) => v.code === 'session_clash')).toBe(true);
 	});
 
 	it('detects a capacity breach across pins on a preceptor with no committed assignments', async () => {
 		// P1 has max_students 1 and no committed rows: proves pin-only entity context loads.
-		await addPins(db, SCHED, U1, { student_id: STU, preceptor_id: P1, clerkship_id: CLERK, site_id: SITE, dates: [D3] });
-		await addPins(db, SCHED, U1, { student_id: STU2, preceptor_id: P1, clerkship_id: CLERK, site_id: SITE, dates: [D3] });
+		await addPins(db, SCHED, U1, {
+			student_id: STU,
+			preceptor_id: P1,
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: [D3]
+		});
+		await addPins(db, SCHED, U1, {
+			student_id: STU2,
+			preceptor_id: P1,
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: [D3]
+		});
 		const res = await evaluatePlan(db, SCHED, U1);
 		expect(res.counts['preceptor_capacity']).toBe(1);
 	});
@@ -261,7 +320,9 @@ describe('evaluatePlan (dry run)', () => {
 		});
 		const res = await evaluatePlan(db, SCHED, U1);
 		expect(res.counts['over_required_days']).toBe(1);
-		const flagged = pins.filter((p) => res.pinStatus[p.id].unresolved.includes('over_required_days'));
+		const flagged = pins.filter((p) =>
+			res.pinStatus[p.id].unresolved.includes('over_required_days')
+		);
 		expect(flagged).toHaveLength(1);
 		expect(res.pinStatus[flagged[0].id].committable).toBe(false);
 		// Accepting the override makes it committable (parity with commit).
@@ -270,7 +331,11 @@ describe('evaluatePlan (dry run)', () => {
 
 	it('flags past_date for a pin before today', async () => {
 		const yesterday = datePlus(-1); // >= schedule start, < today → isolates past_date
-		const [pin] = await addPins(db, SCHED, U1, { ...clinicalPin, preceptor_id: P2, dates: [yesterday] });
+		const [pin] = await addPins(db, SCHED, U1, {
+			...clinicalPin,
+			preceptor_id: P2,
+			dates: [yesterday]
+		});
 		const res = await evaluatePlan(db, SCHED, U1);
 		expect(res.counts['past_date']).toBe(1);
 		expect(res.pinStatus[pin.id].unresolved).toContain('past_date');
@@ -348,12 +413,24 @@ describe('commitPlan', () => {
 	it('commits the committable pins and leaves the rest in a mixed batch', async () => {
 		// Clean pin on D2 + an unaccepted clash pair on D1 (second one skipped).
 		await addPins(db, SCHED, U1, { ...clinicalPin, dates: [D2] });
-		await addPins(db, SCHED, U1, { student_id: STU, preceptor_id: P2, clerkship_id: CLERK, site_id: SITE, dates: [D1] });
-		await addPins(db, SCHED, U1, { student_id: STU, preceptor_id: P2, clerkship_id: CLERK, site_id: SITE, dates: [D1] });
+		await addPins(db, SCHED, U1, {
+			student_id: STU,
+			preceptor_id: P2,
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: [D1]
+		});
+		await addPins(db, SCHED, U1, {
+			student_id: STU,
+			preceptor_id: P2,
+			clerkship_id: CLERK,
+			site_id: SITE,
+			dates: [D1]
+		});
 		const res = await commitPlan(db, SCHED, U1);
 		// D2 commits; the first D1 commits; the second D1 clashes with it → skipped.
 		expect(res.committed).toBe(2);
 		expect(res.skipped).toBe(1);
-		expect((await listPins(db, SCHED, U1))).toHaveLength(1); // the skipped one remains
+		expect(await listPins(db, SCHED, U1)).toHaveLength(1); // the skipped one remains
 	});
 });

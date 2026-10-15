@@ -14,12 +14,7 @@ import {
 	BlackoutDateConstraint,
 	PreceptorAvailabilityConstraint
 } from '../constraints';
-import type {
-	Students,
-	Preceptors,
-	Clerkships,
-	PreceptorAvailability
-} from '$lib/db/types';
+import type { Students, Preceptors, Clerkships, PreceptorAvailability } from '$lib/db/types';
 
 // Helper to create mock student
 function createMockStudent(overrides: Partial<Students> = {}): Students {
@@ -121,10 +116,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('schedules single student with single preceptor successfully', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 3 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 3
+			});
 
 			// Create availability for preceptor
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-05');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-05'
+			);
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -139,19 +142,31 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.success).toBe(true);
 			expect(result.assignments).toHaveLength(3);
 			expect(result.unmetRequirements).toHaveLength(0);
-			expect(result.assignments.every(a => a.studentId === 'student-1')).toBe(true);
-			expect(result.assignments.every(a => a.preceptorId === 'preceptor-1')).toBe(true);
-			expect(result.assignments.every(a => a.clerkshipId === 'clerkship-1')).toBe(true);
+			expect(result.assignments.every((a) => a.studentId === 'student-1')).toBe(true);
+			expect(result.assignments.every((a) => a.preceptorId === 'preceptor-1')).toBe(true);
+			expect(result.assignments.every((a) => a.clerkshipId === 'clerkship-1')).toBe(true);
 		});
 
 		it('schedules multiple students across available preceptors', async () => {
 			const student1 = createMockStudent({ id: 'student-1' });
 			const student2 = createMockStudent({ id: 'student-2', email: 'student2@example.com' });
-			const preceptor = createMockPreceptor({ id: 'preceptor-1', max_students: 2, specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const preceptor = createMockPreceptor({
+				id: 'preceptor-1',
+				max_students: 2,
+				specialty: 'Family Medicine'
+			});
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			// Create availability for preceptor
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-03');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-03'
+			);
 
 			const result = await engine.generateSchedule(
 				[student1, student2],
@@ -165,8 +180,8 @@ describe('Scheduling Algorithm Integration Tests', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.assignments).toHaveLength(4); // 2 students * 2 days each
-			const student1Assignments = result.assignments.filter(a => a.studentId === 'student-1');
-			const student2Assignments = result.assignments.filter(a => a.studentId === 'student-2');
+			const student1Assignments = result.assignments.filter((a) => a.studentId === 'student-1');
+			const student2Assignments = result.assignments.filter((a) => a.studentId === 'student-2');
 			expect(student1Assignments).toHaveLength(2);
 			expect(student2Assignments).toHaveLength(2);
 		});
@@ -175,11 +190,23 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const student1 = createMockStudent({ id: 'student-1' });
 			const student2 = createMockStudent({ id: 'student-2', email: 'student2@example.com' });
 			const student3 = createMockStudent({ id: 'student-3', email: 'student3@example.com' });
-			const preceptor = createMockPreceptor({ id: 'preceptor-1', max_students: 2, specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 1 });
+			const preceptor = createMockPreceptor({
+				id: 'preceptor-1',
+				max_students: 2,
+				specialty: 'Family Medicine'
+			});
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 1
+			});
 
 			// Create availability for preceptor
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-01');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-01'
+			);
 
 			const result = await engine.generateSchedule(
 				[student1, student2, student3],
@@ -200,9 +227,22 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('handles no-double-booking constraint', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor1 = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const preceptor2 = createMockPreceptor({ id: 'preceptor-2', email: 'preceptor2@example.com', specialty: 'Internal Medicine' });
-			const clerkship1 = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 1 });
-			const clerkship2 = createMockClerkship({ id: 'clerkship-2', name: 'Internal Medicine', specialty: 'Internal Medicine', required_days: 1 });
+			const preceptor2 = createMockPreceptor({
+				id: 'preceptor-2',
+				email: 'preceptor2@example.com',
+				specialty: 'Internal Medicine'
+			});
+			const clerkship1 = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 1
+			});
+			const clerkship2 = createMockClerkship({
+				id: 'clerkship-2',
+				name: 'Internal Medicine',
+				specialty: 'Internal Medicine',
+				required_days: 1
+			});
 
 			// Create availability for both preceptors
 			const availability = [
@@ -228,9 +268,20 @@ describe('Scheduling Algorithm Integration Tests', () => {
 	describe('Specialty Matching', () => {
 		it('only assigns students to preceptors with matching specialty', async () => {
 			const student = createMockStudent({ id: 'student-1' });
-			const familyPreceptor = createMockPreceptor({ id: 'preceptor-fm', specialty: 'Family Medicine' });
-			const imPreceptor = createMockPreceptor({ id: 'preceptor-im', email: 'im@example.com', specialty: 'Internal Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const familyPreceptor = createMockPreceptor({
+				id: 'preceptor-fm',
+				specialty: 'Family Medicine'
+			});
+			const imPreceptor = createMockPreceptor({
+				id: 'preceptor-im',
+				email: 'im@example.com',
+				specialty: 'Internal Medicine'
+			});
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			// Create availability for both preceptors
 			const availability = [
@@ -250,13 +301,17 @@ describe('Scheduling Algorithm Integration Tests', () => {
 
 			expect(result.success).toBe(true);
 			// All assignments should be with Family Medicine preceptor
-			expect(result.assignments.every(a => a.preceptorId === 'preceptor-fm')).toBe(true);
+			expect(result.assignments.every((a) => a.preceptorId === 'preceptor-fm')).toBe(true);
 		});
 
 		it('fails when no preceptors match required specialty', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Internal Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -278,10 +333,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('skips blackout dates when scheduling', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			// Create availability for preceptor
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-03');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-03'
+			);
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -296,18 +359,26 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.success).toBe(true);
 			expect(result.assignments).toHaveLength(2);
 			// Should assign on Jan 1 and Jan 3, skipping Jan 2
-			expect(result.assignments.some(a => a.date === '2024-01-02')).toBe(false);
-			expect(result.assignments.some(a => a.date === '2024-01-01')).toBe(true);
-			expect(result.assignments.some(a => a.date === '2024-01-03')).toBe(true);
+			expect(result.assignments.some((a) => a.date === '2024-01-02')).toBe(false);
+			expect(result.assignments.some((a) => a.date === '2024-01-01')).toBe(true);
+			expect(result.assignments.some((a) => a.date === '2024-01-03')).toBe(true);
 		});
 
 		it('handles multiple blackout dates', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 3 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 3
+			});
 
 			// Create availability for preceptor
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-05');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-05'
+			);
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -322,7 +393,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.success).toBe(true);
 			expect(result.assignments).toHaveLength(3);
 			// Should only assign on days 1, 3, and 5
-			const dates = result.assignments.map(a => a.date).sort();
+			const dates = result.assignments.map((a) => a.date).sort();
 			expect(dates).toEqual(['2024-01-01', '2024-01-03', '2024-01-05']);
 		});
 	});
@@ -331,7 +402,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('respects preceptor unavailability', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			// Mark preceptor available on Jan 1 and 3, but NOT on Jan 2
 			const availability: PreceptorAvailability[] = [
@@ -368,7 +443,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.success).toBe(true);
 			expect(result.assignments).toHaveLength(2);
 			// Should not assign on Jan 2 when preceptor is unavailable
-			expect(result.assignments.some(a => a.date === '2024-01-02')).toBe(false);
+			expect(result.assignments.some((a) => a.date === '2024-01-02')).toBe(false);
 		});
 	});
 
@@ -376,9 +451,22 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('distributes student assignments across multiple clerkships', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const fmPreceptor = createMockPreceptor({ id: 'preceptor-fm', specialty: 'Family Medicine' });
-			const imPreceptor = createMockPreceptor({ id: 'preceptor-im', email: 'im@example.com', specialty: 'Internal Medicine' });
-			const fmClerkship = createMockClerkship({ id: 'clerkship-fm', specialty: 'Family Medicine', required_days: 2 });
-			const imClerkship = createMockClerkship({ id: 'clerkship-im', name: 'Internal Medicine', specialty: 'Internal Medicine', required_days: 2 });
+			const imPreceptor = createMockPreceptor({
+				id: 'preceptor-im',
+				email: 'im@example.com',
+				specialty: 'Internal Medicine'
+			});
+			const fmClerkship = createMockClerkship({
+				id: 'clerkship-fm',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
+			const imClerkship = createMockClerkship({
+				id: 'clerkship-im',
+				name: 'Internal Medicine',
+				specialty: 'Internal Medicine',
+				required_days: 2
+			});
 
 			// Create availability for both preceptors
 			const availability = [
@@ -399,8 +487,8 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.success).toBe(true);
 			expect(result.assignments).toHaveLength(4);
 
-			const fmAssignments = result.assignments.filter(a => a.clerkshipId === 'clerkship-fm');
-			const imAssignments = result.assignments.filter(a => a.clerkshipId === 'clerkship-im');
+			const fmAssignments = result.assignments.filter((a) => a.clerkshipId === 'clerkship-fm');
+			const imAssignments = result.assignments.filter((a) => a.clerkshipId === 'clerkship-im');
 
 			expect(fmAssignments).toHaveLength(2);
 			expect(imAssignments).toHaveLength(2);
@@ -410,7 +498,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 	describe('Edge Cases and Constraints', () => {
 		it('handles scenario with no available preceptors', async () => {
 			const student = createMockStudent({ id: 'student-1' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -430,7 +522,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('handles scenario with insufficient time period', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 10 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 10
+			});
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -451,11 +547,23 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			const student1 = createMockStudent({ id: 'student-1' });
 			const student2 = createMockStudent({ id: 'student-2', email: 'student2@example.com' });
 			const student3 = createMockStudent({ id: 'student-3', email: 'student3@example.com' });
-			const preceptor = createMockPreceptor({ id: 'preceptor-1', max_students: 1, specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 1 });
+			const preceptor = createMockPreceptor({
+				id: 'preceptor-1',
+				max_students: 1,
+				specialty: 'Family Medicine'
+			});
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 1
+			});
 
 			// Create availability for preceptor
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-01');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-01'
+			);
 
 			const result = await engine.generateSchedule(
 				[student1, student2, student3],
@@ -475,7 +583,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 
 		it('handles empty student list', async () => {
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 5 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 5
+			});
 
 			const result = await engine.generateSchedule(
 				[], // no students
@@ -495,7 +607,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('handles scenario where all days are blacked out', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 2 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -523,9 +639,18 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			];
 			const preceptors = [
 				createMockPreceptor({ id: 'p1', specialty: 'Family Medicine', max_students: 2 }),
-				createMockPreceptor({ id: 'p2', email: 'p2@example.com', specialty: 'Family Medicine', max_students: 2 })
+				createMockPreceptor({
+					id: 'p2',
+					email: 'p2@example.com',
+					specialty: 'Family Medicine',
+					max_students: 2
+				})
 			];
-			const clerkship = createMockClerkship({ id: 'c1', specialty: 'Family Medicine', required_days: 2 });
+			const clerkship = createMockClerkship({
+				id: 'c1',
+				specialty: 'Family Medicine',
+				required_days: 2
+			});
 
 			// Create availability for both preceptors
 			const availability = [
@@ -547,8 +672,8 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.assignments).toHaveLength(8); // 4 students * 2 days
 
 			// Check distribution
-			const p1Assignments = result.assignments.filter(a => a.preceptorId === 'p1').length;
-			const p2Assignments = result.assignments.filter(a => a.preceptorId === 'p2').length;
+			const p1Assignments = result.assignments.filter((a) => a.preceptorId === 'p1').length;
+			const p2Assignments = result.assignments.filter((a) => a.preceptorId === 'p2').length;
 
 			// Both preceptors should have assignments (fair distribution)
 			expect(p1Assignments).toBeGreaterThan(0);
@@ -612,7 +737,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			// due to UTC/local timezone mismatch
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 6 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 6
+			});
 
 			// Create availability for Mon=1, Wed=3, Fri=5 only
 			// December 2025: Dec 1 is Monday
@@ -648,14 +777,13 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			// Verify NO assignments on Sun/Tues/Thurs (the bug would produce these)
 			for (const assignment of result.assignments) {
 				const dayOfWeek = getUTCDayOfWeek(assignment.date);
-				expect(
-					[0, 2, 4],
-					`Date ${assignment.date} should NOT be Sun/Tues/Thurs`
-				).not.toContain(dayOfWeek);
+				expect([0, 2, 4], `Date ${assignment.date} should NOT be Sun/Tues/Thurs`).not.toContain(
+					dayOfWeek
+				);
 			}
 
 			// Verify specific expected dates are included (first week)
-			const dates = result.assignments.map(a => a.date);
+			const dates = result.assignments.map((a) => a.date);
 			expect(dates).toContain('2025-12-01'); // Monday
 			expect(dates).toContain('2025-12-03'); // Wednesday
 			expect(dates).toContain('2025-12-05'); // Friday
@@ -664,7 +792,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('generates schedule only on weekends when preceptor availability is Sat/Sun (timezone regression)', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 4 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 4
+			});
 
 			// Create availability for Sat=6, Sun=0 only
 			const availability = createWeeklyAvailability(
@@ -697,7 +829,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			}
 
 			// Verify specific expected dates
-			const dates = result.assignments.map(a => a.date);
+			const dates = result.assignments.map((a) => a.date);
 			expect(dates).toContain('2025-12-06'); // Saturday
 			expect(dates).toContain('2025-12-07'); // Sunday
 		});
@@ -705,7 +837,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 		it('generates schedule only on Tues/Thurs when preceptor availability is Tues/Thurs (timezone regression)', async () => {
 			const student = createMockStudent({ id: 'student-1' });
 			const preceptor = createMockPreceptor({ id: 'preceptor-1', specialty: 'Family Medicine' });
-			const clerkship = createMockClerkship({ id: 'clerkship-1', specialty: 'Family Medicine', required_days: 4 });
+			const clerkship = createMockClerkship({
+				id: 'clerkship-1',
+				specialty: 'Family Medicine',
+				required_days: 4
+			});
 
 			// Create availability for Tue=2, Thu=4 only
 			const availability = createWeeklyAvailability(
@@ -738,7 +874,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			}
 
 			// Verify specific expected dates (first week of Dec 2025)
-			const dates = result.assignments.map(a => a.date);
+			const dates = result.assignments.map((a) => a.date);
 			expect(dates).toContain('2025-12-02'); // Tuesday
 			expect(dates).toContain('2025-12-04'); // Thursday
 		});
@@ -761,7 +897,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 				required_days: 5
 			});
 
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-10');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-10'
+			);
 
 			// Build a context manually with pre-credited requirements (2 days already done)
 			const { buildSchedulingContext } = await import('./context-builder');
@@ -807,7 +947,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 				required_days: 5
 			});
 
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-10');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-10'
+			);
 
 			// Build context with an existing assignment
 			const { buildSchedulingContext } = await import('./context-builder');
@@ -855,7 +999,9 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.assignments.length).toBeGreaterThanOrEqual(4);
 
 			// Should NOT have created a duplicate on 2024-01-01
-			const jan1Assignments = result.assignments.filter(a => a.date === '2024-01-01' && a.studentId === 'student-1');
+			const jan1Assignments = result.assignments.filter(
+				(a) => a.date === '2024-01-01' && a.studentId === 'student-1'
+			);
 			expect(jan1Assignments.length).toBeLessThanOrEqual(1);
 		});
 
@@ -868,7 +1014,11 @@ describe('Scheduling Algorithm Integration Tests', () => {
 				required_days: 5
 			});
 
-			const availability = createAvailabilityForDateRange('preceptor-1', '2024-01-01', '2024-01-10');
+			const availability = createAvailabilityForDateRange(
+				'preceptor-1',
+				'2024-01-01',
+				'2024-01-10'
+			);
 
 			const result = await engine.generateSchedule(
 				[student],
@@ -883,7 +1033,7 @@ describe('Scheduling Algorithm Integration Tests', () => {
 			expect(result.success).toBe(true);
 
 			// Check for duplicate (studentId, date) combinations
-			const keys = result.assignments.map(a => `${a.studentId}:${a.date}`);
+			const keys = result.assignments.map((a) => `${a.studentId}:${a.date}`);
 			const uniqueKeys = new Set(keys);
 
 			expect(keys.length).toBe(uniqueKeys.size);

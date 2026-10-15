@@ -86,9 +86,7 @@ test.describe('CF-E2 allowable missed days (min required)', { tag: ['@stage1'] }
 
 		// The student's strip shows the clerkship as complete: min annotation, 0 left.
 		await asAdmin.goto(`/students/${sid}`);
-		const row = asAdmin
-			.locator('div.rounded-lg.border')
-			.filter({ hasText: clerkshipName });
+		const row = asAdmin.locator('div.rounded-lg.border').filter({ hasText: clerkshipName });
 		await expect(row).toBeVisible({ timeout: 15000 });
 		await expect(row).toContainText(/\(min 2\)/);
 		await expect(row).toContainText(/0 left \/ 3/);

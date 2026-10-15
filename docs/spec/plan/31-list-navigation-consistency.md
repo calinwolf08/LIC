@@ -1,10 +1,12 @@
 # Step 31 — Entity List Row Navigation & Manage Button Consistency
 
 ## Objective
+
 Clicking a row should open the entity everywhere, as it already does on Locations, and the Manage
 button should look the same on every list.
 
 ## Context (verified in code)
+
 - `health-system-table.svelte` has `handleRowClick` wired to the `<tr>` (lines 114, 175), with the
   actions cell calling `e.stopPropagation()` so buttons still work.
 - `student-list.svelte`, `preceptor-list.svelte` and `clerkship-list.svelte` have **no** row click
@@ -14,9 +16,11 @@ button should look the same on every list.
   clerkship treatment everywhere.
 
 ## Prerequisites
+
 None — independent of the rest of Round 3.
 
 ## Scope
+
 **In:** row-click navigation and Manage button styling on the student, preceptor and clerkship
 lists (and the sites list, for symmetry). **Out:** table redesign.
 
@@ -36,10 +40,11 @@ lists (and the sites list, for symmetry). **Out:** table redesign.
    If two solid buttons per row reads heavy, that's a design call to make once, consistently — not
    per list.
 3. **Sweep for stragglers:** `grep -rn "Manage" src/lib/features/*/components/*list*.svelte
-   src/lib/features/*/components/*table*.svelte` and confirm every occurrence uses the same
+src/lib/features/*/components/*table*.svelte` and confirm every occurrence uses the same
    size/variant.
 
 ## Testing
+
 - **E2E (extend `entity-consistency.spec.ts`):** on `/students`, `/preceptors` and `/clerkships`,
   clicking a row (not the button) navigates to that entity's detail page; clicking Delete in the row
   opens the delete dialog and does **not** navigate (proves `stopPropagation` works); the Manage
@@ -49,6 +54,7 @@ lists (and the sites list, for symmetry). **Out:** table redesign.
 - Re-run the existing Locations journey to confirm the shared pattern still behaves.
 
 ## Acceptance criteria
+
 - [ ] Rows are clickable on students, preceptors, clerkships (and sites), matching Locations.
 - [ ] Row-level buttons still work and do not trigger navigation.
 - [ ] Manage is visually identical across every entity list.

@@ -19,14 +19,14 @@ import {
 	createTestTeam,
 	clearAllTestData,
 	createPreceptorAvailability,
-	setOutpatientAssignmentStrategy,
+	setOutpatientAssignmentStrategy
 } from '$lib/testing/integration-helpers';
 import {
 	assertContinuousSingleStrategy,
 	assertBlockBasedStrategy,
 	assertDailyRotationStrategy,
 	assertTeamContinuityStrategy,
-	assertNoDateConflicts,
+	assertNoDateConflicts
 } from '$lib/testing/assertion-helpers';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -64,20 +64,22 @@ describe('Strategy Pattern Tests', () => {
 		it('should assign the same preceptor for all days of a clerkship', async () => {
 			// Setup: Create health system, sites, clerkship with continuous_single strategy
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 10 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 10
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 5,
-				clerkshipId, // Required: associates preceptors with clerkship via team
+				clerkshipId // Required: associates preceptors with clerkship via team
 			});
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -91,7 +93,7 @@ describe('Strategy Pattern Tests', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Verify assignments were created
@@ -106,12 +108,14 @@ describe('Strategy Pattern Tests', () => {
 
 		it('should fail gracefully when no preceptor has availability for all required days', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 20 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 20
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
-				maxStudents: 5,
+				maxStudents: 5
 			});
 
 			// Only give preceptors 5 days of availability each (not enough)
@@ -124,7 +128,7 @@ describe('Strategy Pattern Tests', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Should report unmet requirements
@@ -136,13 +140,15 @@ describe('Strategy Pattern Tests', () => {
 		it('should maximize assignments with primary preceptor and fill gaps with team members', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
 			// Use outpatient which defaults to team_continuity/continuous_single strategy
-			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'outpatient', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'outpatient', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
-				clerkshipId, // Associate preceptors with clerkship via team
+				clerkshipId // Associate preceptors with clerkship via team
 			});
 
 			// Create a team with 3 members
@@ -152,7 +158,7 @@ describe('Strategy Pattern Tests', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -168,7 +174,7 @@ describe('Strategy Pattern Tests', () => {
 				startDate,
 				endDate,
 				enableTeamFormation: true,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Verify assignments were created
@@ -182,12 +188,14 @@ describe('Strategy Pattern Tests', () => {
 
 		it('schedules against available preceptors when no team is configured (F-19)', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 10 });
+			const clerkshipId = await createTestClerkship(db, 'Pediatrics', 'outpatient', {
+				requiredDays: 10
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
-				maxStudents: 10,
+				maxStudents: 10
 				// Note: NO team - the clerkship has no preceptor team configured.
 			});
 
@@ -195,7 +203,7 @@ describe('Strategy Pattern Tests', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -208,7 +216,7 @@ describe('Strategy Pattern Tests', () => {
 				startDate,
 				endDate,
 				enableTeamFormation: true,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// With no team, the shared eligibility predicate (03 §6) falls back to
@@ -223,13 +231,15 @@ describe('Strategy Pattern Tests', () => {
 	describe('block_based strategy', () => {
 		it('should create fixed-size blocks with same preceptor per block', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'Surgery', 'inpatient', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Surgery', 'inpatient', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
-				clerkshipId, // Required: associates preceptors with clerkship via team
+				clerkshipId // Required: associates preceptors with clerkship via team
 			});
 
 			const blockSize = 7;
@@ -238,7 +248,7 @@ describe('Strategy Pattern Tests', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -252,7 +262,7 @@ describe('Strategy Pattern Tests', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Verify assignments were created
@@ -271,20 +281,22 @@ describe('Strategy Pattern Tests', () => {
 			await setOutpatientAssignmentStrategy(db, 'daily_rotation');
 
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', { requiredDays: 10 });
+			const clerkshipId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', {
+				requiredDays: 10
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 4, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
-				clerkshipId, // Required: associates preceptors with clerkship via team
+				clerkshipId // Required: associates preceptors with clerkship via team
 			});
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -298,7 +310,7 @@ describe('Strategy Pattern Tests', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Verify assignments were created
@@ -314,20 +326,22 @@ describe('Strategy Pattern Tests', () => {
 	describe('default strategy behavior', () => {
 		it('should use continuous_single as default when no strategy is specified', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'General Practice', 'outpatient', { requiredDays: 10 });
+			const clerkshipId = await createTestClerkship(db, 'General Practice', 'outpatient', {
+				requiredDays: 10
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
-				clerkshipId, // Required: associates preceptors with clerkship via team
+				clerkshipId // Required: associates preceptors with clerkship via team
 			});
 
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -341,7 +355,7 @@ describe('Strategy Pattern Tests', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Verify assignments were created
@@ -357,20 +371,22 @@ describe('Strategy Pattern Tests', () => {
 	describe('multiple students scheduling', () => {
 		it('should schedule multiple students with same strategy', async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Health System');
-			const clerkshipId = await createTestClerkship(db, 'OB/GYN', 'outpatient', { requiredDays: 10 });
+			const clerkshipId = await createTestClerkship(db, 'OB/GYN', 'outpatient', {
+				requiredDays: 10
+			});
 			const studentIds = await createTestStudents(db, 3);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 10,
-				clerkshipId, // Required: associates preceptors with clerkship via team
+				clerkshipId // Required: associates preceptors with clerkship via team
 			});
 
 			// Set capacity rules allowing multiple students per day
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 3, // Allow multiple students
-					maxStudentsPerYear: 100,
+					maxStudentsPerYear: 100
 				});
 			}
 
@@ -384,7 +400,7 @@ describe('Strategy Pattern Tests', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Each student should have assignments

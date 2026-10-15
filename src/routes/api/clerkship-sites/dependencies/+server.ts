@@ -47,7 +47,11 @@ export const GET: RequestHandler = async ({ url }) => {
 		const dependentTeams = await db
 			.selectFrom('preceptor_teams')
 			.innerJoin('preceptor_team_members', 'preceptor_teams.id', 'preceptor_team_members.team_id')
-			.innerJoin('preceptor_sites', 'preceptor_team_members.preceptor_id', 'preceptor_sites.preceptor_id')
+			.innerJoin(
+				'preceptor_sites',
+				'preceptor_team_members.preceptor_id',
+				'preceptor_sites.preceptor_id'
+			)
 			.select(['preceptor_teams.id as teamId', 'preceptor_teams.name as teamName'])
 			.where('preceptor_teams.clerkship_id', '=', clerkshipId)
 			.where('preceptor_sites.site_id', '=', siteId)

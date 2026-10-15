@@ -43,6 +43,7 @@ Generates and uploads test coverage reports.
 ### Required Dependencies
 
 The workflows use these npm scripts:
+
 - `npm run lint` - Prettier check
 - `npm run check` - TypeScript/Svelte check
 - `npm run test:unit -- --run` - Unit tests
@@ -89,12 +90,14 @@ npm run build
 ## Coverage Reports
 
 Coverage reports are:
+
 - Displayed in the console (text format)
 - Saved as HTML in `coverage/` directory
 - Uploaded to Codecov (if configured)
 - Available as GitHub Actions artifacts
 
 To view coverage locally:
+
 ```bash
 npm run test:unit -- --run --coverage
 open coverage/index.html

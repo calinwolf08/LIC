@@ -9,17 +9,11 @@ import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
 	// Step 1: Delete preceptors without health_system_id
-	await db
-		.deleteFrom('preceptors')
-		.where('health_system_id', 'is', null)
-		.execute();
+	await db.deleteFrom('preceptors').where('health_system_id', 'is', null).execute();
 
 	// Step 2: Recreate preceptors table with health_system_id as NOT NULL
 	// Get existing data
-	const existingPreceptors = await db
-		.selectFrom('preceptors')
-		.selectAll()
-		.execute();
+	const existingPreceptors = await db.selectFrom('preceptors').selectAll().execute();
 
 	// Create new table with health_system_id required
 	await db.schema
@@ -32,15 +26,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('health_system_id', 'text', (col) =>
 			col.notNull().references('health_systems.id').onDelete('restrict')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.references('sites.id').onDelete('set null')
-		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('site_id', 'text', (col) => col.references('sites.id').onDelete('set null'))
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Copy data (all remaining preceptors have health_system_id)
@@ -70,11 +58,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await sql`ALTER TABLE preceptors_new RENAME TO preceptors`.execute(db);
 
 	// Recreate indexes
-	await db.schema
-		.createIndex('idx_preceptors_email')
-		.on('preceptors')
-		.column('email')
-		.execute();
+	await db.schema.createIndex('idx_preceptors_email').on('preceptors').column('email').execute();
 
 	await db.schema
 		.createIndex('idx_preceptors_specialty')
@@ -88,19 +72,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.column('health_system_id')
 		.execute();
 
-	await db.schema
-		.createIndex('idx_preceptors_site')
-		.on('preceptors')
-		.column('site_id')
-		.execute();
+	await db.schema.createIndex('idx_preceptors_site').on('preceptors').column('site_id').execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
 	// Make health_system_id nullable again
-	const existingPreceptors = await db
-		.selectFrom('preceptors')
-		.selectAll()
-		.execute();
+	const existingPreceptors = await db.selectFrom('preceptors').selectAll().execute();
 
 	await db.schema
 		.createTable('preceptors_new')
@@ -112,32 +89,19 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('health_system_id', 'text', (col) =>
 			col.references('health_systems.id').onDelete('restrict')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.references('sites.id').onDelete('set null')
-		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('site_id', 'text', (col) => col.references('sites.id').onDelete('set null'))
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	for (const preceptor of existingPreceptors) {
-		await db
-			.insertInto('preceptors_new')
-			.values(preceptor)
-			.execute();
+		await db.insertInto('preceptors_new').values(preceptor).execute();
 	}
 
 	await db.schema.dropTable('preceptors').execute();
 	await sql`ALTER TABLE preceptors_new RENAME TO preceptors`.execute(db);
 
-	await db.schema
-		.createIndex('idx_preceptors_email')
-		.on('preceptors')
-		.column('email')
-		.execute();
+	await db.schema.createIndex('idx_preceptors_email').on('preceptors').column('email').execute();
 
 	await db.schema
 		.createIndex('idx_preceptors_specialty')
@@ -151,9 +115,5 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.column('health_system_id')
 		.execute();
 
-	await db.schema
-		.createIndex('idx_preceptors_site')
-		.on('preceptors')
-		.column('site_id')
-		.execute();
+	await db.schema.createIndex('idx_preceptors_site').on('preceptors').column('site_id').execute();
 }

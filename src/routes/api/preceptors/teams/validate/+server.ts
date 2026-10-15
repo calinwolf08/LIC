@@ -6,11 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { TeamValidator } from '$lib/features/scheduling/team-formation';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -23,26 +19,32 @@ const log = createServerLogger('api:preceptors:teams:validate');
  * Team validation request schema
  */
 const validateTeamSchema = z.object({
-	members: z.array(z.object({
-		preceptorId: z.string(),
-		priority: z.number().int().positive(),
-		role: z.string().optional(),
-		assignedDates: z.array(z.string()).optional(),
-	})).min(1, 'At least one team member is required'),
+	members: z
+		.array(
+			z.object({
+				preceptorId: z.string(),
+				priority: z.number().int().positive(),
+				role: z.string().optional(),
+				assignedDates: z.array(z.string()).optional()
+			})
+		)
+		.min(1, 'At least one team member is required'),
 	config: z.object({
 		requireSameHealthSystem: z.boolean(),
 		requireSameSite: z.boolean(),
 		requireSameSpecialty: z.boolean(),
 		requiresAdminApproval: z.boolean(),
 		minMembers: z.number().int().positive().optional(),
-		maxMembers: z.number().int().positive().optional(),
+		maxMembers: z.number().int().positive().optional()
 	}),
-	options: z.object({
-		clerkshipId: z.string().optional(),
-		requirementType: z.enum(['outpatient', 'inpatient', 'elective']).optional(),
-		specialty: z.string().optional(),
-		totalDates: z.array(z.string()).optional(),
-	}).optional(),
+	options: z
+		.object({
+			clerkshipId: z.string().optional(),
+			requirementType: z.enum(['outpatient', 'inpatient', 'elective']).optional(),
+			specialty: z.string().optional(),
+			totalDates: z.array(z.string()).optional()
+		})
+		.optional()
 });
 
 /**
@@ -111,7 +113,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Team validation schema failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

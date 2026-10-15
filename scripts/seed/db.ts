@@ -10,6 +10,6 @@ const dbPath = process.env.DATABASE_PATH || './sqlite.db';
 
 export const db = new Kysely<DB>({
 	dialect: new SqliteDialect({
-		database: new Database(dbPath),
-	}),
+		database: new Database(dbPath)
+	})
 });

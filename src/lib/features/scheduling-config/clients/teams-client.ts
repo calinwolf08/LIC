@@ -98,9 +98,7 @@ export interface ApiError {
 /**
  * Result type for client operations
  */
-export type ClientResult<T> =
-	| { success: true; data: T }
-	| { success: false; error: ApiError };
+export type ClientResult<T> = { success: true; data: T } | { success: false; error: ApiError };
 
 // ============================================================================
 // Client Implementation
@@ -326,5 +324,7 @@ export function isNetworkError(error: ApiError): boolean {
  * Check if error is a validation error
  */
 export function isValidationError(error: ApiError): boolean {
-	return error.code === 'VALIDATION_ERROR' || (error.details !== undefined && error.details.length > 0);
+	return (
+		error.code === 'VALIDATION_ERROR' || (error.details !== undefined && error.details.length > 0)
+	);
 }

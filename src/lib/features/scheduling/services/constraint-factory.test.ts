@@ -283,10 +283,7 @@ describe('ConstraintFactory', () => {
 			context.studentOnboarding = new Map();
 			context.preceptorClerkshipAssociations = new Map();
 
-			const constraints = await factory.buildConstraints(
-				['clerkship-1', 'clerkship-2'],
-				context
-			);
+			const constraints = await factory.buildConstraints(['clerkship-1', 'clerkship-2'], context);
 
 			expect(constraints.length).toBeGreaterThanOrEqual(3); // At least base constraints
 		});

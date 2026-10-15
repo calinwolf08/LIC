@@ -11,11 +11,27 @@
 
 	interface EntityData {
 		students: Array<{ id: string; name: string; email: string }>;
-		preceptors: Array<{ id: string; name: string; email: string; site_ids: string[]; team_ids: string[] }>;
-		sites: Array<{ id: string; name: string; health_system_id: string | null; health_system_name?: string | null }>;
+		preceptors: Array<{
+			id: string;
+			name: string;
+			email: string;
+			site_ids: string[];
+			team_ids: string[];
+		}>;
+		sites: Array<{
+			id: string;
+			name: string;
+			health_system_id: string | null;
+			health_system_name?: string | null;
+		}>;
 		healthSystems: Array<{ id: string; name: string }>;
 		clerkships: Array<{ id: string; name: string; clerkship_type: string }>;
-		teams: Array<{ id: string; name: string | null; clerkship_id: string | null; clerkship_name?: string | null }>;
+		teams: Array<{
+			id: string;
+			name: string | null;
+			clerkship_id: string | null;
+			clerkship_name?: string | null;
+		}>;
 		configurations: Array<{ id: string; clerkship_name?: string | null }>;
 	}
 
@@ -41,7 +57,12 @@
 		entityData: EntityData;
 	}
 
-	let { sourceScheduleId = null, sourceSchedule = null, sourceEntityIds = null, entityData }: Props = $props();
+	let {
+		sourceScheduleId = null,
+		sourceSchedule = null,
+		sourceEntityIds = null,
+		entityData
+	}: Props = $props();
 
 	// Make entityData reactive so we can update it after creating new entities
 	let localEntityData = $state<EntityData>({ ...entityData });
@@ -99,11 +120,11 @@
 	// Derived: Find preceptors that are selected but not in any selected team
 	let preceptorsWithoutTeams = $derived(() => {
 		const selectedTeamSet = new Set(selectedTeams);
-		return selectedPreceptors.filter(preceptorId => {
-			const preceptor = localEntityData.preceptors.find(p => p.id === preceptorId);
+		return selectedPreceptors.filter((preceptorId) => {
+			const preceptor = localEntityData.preceptors.find((p) => p.id === preceptorId);
 			if (!preceptor) return true;
 			// Check if preceptor is in any of the selected teams
-			return !preceptor.team_ids.some(teamId => selectedTeamSet.has(teamId));
+			return !preceptor.team_ids.some((teamId) => selectedTeamSet.has(teamId));
 		});
 	});
 
@@ -116,25 +137,39 @@
 
 	function getCurrentStepSelections(): string[] {
 		switch (currentStep) {
-			case 1: return selectedHealthSystems;
-			case 2: return selectedSites;
-			case 3: return selectedClerkships;
-			case 4: return selectedPreceptors;
-			case 5: return selectedTeams;
-			case 6: return selectedStudents;
-			default: return [];
+			case 1:
+				return selectedHealthSystems;
+			case 2:
+				return selectedSites;
+			case 3:
+				return selectedClerkships;
+			case 4:
+				return selectedPreceptors;
+			case 5:
+				return selectedTeams;
+			case 6:
+				return selectedStudents;
+			default:
+				return [];
 		}
 	}
 
 	function getCurrentStepEntityName(): string {
 		switch (currentStep) {
-			case 1: return 'Health Systems';
-			case 2: return 'Sites';
-			case 3: return 'Clerkships';
-			case 4: return 'Preceptors';
-			case 5: return 'Teams';
-			case 6: return 'Students';
-			default: return '';
+			case 1:
+				return 'Health Systems';
+			case 2:
+				return 'Sites';
+			case 3:
+				return 'Clerkships';
+			case 4:
+				return 'Preceptors';
+			case 5:
+				return 'Teams';
+			case 6:
+				return 'Students';
+			default:
+				return '';
 		}
 	}
 
@@ -373,43 +408,64 @@
 		try {
 			const options: Record<string, string[] | 'all'> = {};
 
-			if (selectedStudents.length === localEntityData.students.length && localEntityData.students.length > 0) {
+			if (
+				selectedStudents.length === localEntityData.students.length &&
+				localEntityData.students.length > 0
+			) {
 				options.students = 'all';
 			} else if (selectedStudents.length > 0) {
 				options.students = selectedStudents;
 			}
 
-			if (selectedPreceptors.length === localEntityData.preceptors.length && localEntityData.preceptors.length > 0) {
+			if (
+				selectedPreceptors.length === localEntityData.preceptors.length &&
+				localEntityData.preceptors.length > 0
+			) {
 				options.preceptors = 'all';
 			} else if (selectedPreceptors.length > 0) {
 				options.preceptors = selectedPreceptors;
 			}
 
-			if (selectedSites.length === localEntityData.sites.length && localEntityData.sites.length > 0) {
+			if (
+				selectedSites.length === localEntityData.sites.length &&
+				localEntityData.sites.length > 0
+			) {
 				options.sites = 'all';
 			} else if (selectedSites.length > 0) {
 				options.sites = selectedSites;
 			}
 
-			if (selectedHealthSystems.length === localEntityData.healthSystems.length && localEntityData.healthSystems.length > 0) {
+			if (
+				selectedHealthSystems.length === localEntityData.healthSystems.length &&
+				localEntityData.healthSystems.length > 0
+			) {
 				options.healthSystems = 'all';
 			} else if (selectedHealthSystems.length > 0) {
 				options.healthSystems = selectedHealthSystems;
 			}
 
-			if (selectedClerkships.length === localEntityData.clerkships.length && localEntityData.clerkships.length > 0) {
+			if (
+				selectedClerkships.length === localEntityData.clerkships.length &&
+				localEntityData.clerkships.length > 0
+			) {
 				options.clerkships = 'all';
 			} else if (selectedClerkships.length > 0) {
 				options.clerkships = selectedClerkships;
 			}
 
-			if (selectedTeams.length === localEntityData.teams.length && localEntityData.teams.length > 0) {
+			if (
+				selectedTeams.length === localEntityData.teams.length &&
+				localEntityData.teams.length > 0
+			) {
 				options.teams = 'all';
 			} else if (selectedTeams.length > 0) {
 				options.teams = selectedTeams;
 			}
 
-			if (selectedConfigurations.length === localEntityData.configurations.length && localEntityData.configurations.length > 0) {
+			if (
+				selectedConfigurations.length === localEntityData.configurations.length &&
+				localEntityData.configurations.length > 0
+			) {
 				options.configurations = 'all';
 			} else if (selectedConfigurations.length > 0) {
 				options.configurations = selectedConfigurations;
@@ -495,7 +551,7 @@
 
 	// Prepare data for forms
 	let sitesForPreceptorForm = $derived(
-		localEntityData.sites.map(s => ({
+		localEntityData.sites.map((s) => ({
 			id: s.id,
 			name: s.name,
 			health_system_id: s.health_system_id
@@ -505,26 +561,26 @@
 	// Prepare preceptors for team form (with site info)
 	let preceptorsForTeamForm = $derived(() => {
 		return localEntityData.preceptors
-			.filter(p => selectedPreceptors.includes(p.id))
-			.map(p => ({
+			.filter((p) => selectedPreceptors.includes(p.id))
+			.map((p) => ({
 				id: p.id,
 				name: p.name,
 				sites: p.site_ids
-					.map(siteId => localEntityData.sites.find(s => s.id === siteId))
+					.map((siteId) => localEntityData.sites.find((s) => s.id === siteId))
 					.filter((s): s is NonNullable<typeof s> => s !== undefined)
-					.map(s => ({ id: s.id, name: s.name }))
+					.map((s) => ({ id: s.id, name: s.name }))
 			}));
 	});
 
 	// Prepare sites for team form (only selected sites)
 	let sitesForTeamForm = $derived(() => {
 		return localEntityData.sites
-			.filter(s => selectedSites.includes(s.id))
-			.map(s => ({ id: s.id, name: s.name }));
+			.filter((s) => selectedSites.includes(s.id))
+			.map((s) => ({ id: s.id, name: s.name }));
 	});
 </script>
 
-<div class="max-w-4xl mx-auto">
+<div class="mx-auto max-w-4xl">
 	<!-- Progress Steps -->
 	<div class="mb-8">
 		<div class="flex items-center justify-between">
@@ -538,7 +594,7 @@
 						: 'opacity-50'}"
 				>
 					<div
-						class="w-10 h-10 rounded-full flex items-center justify-center text-lg {index ===
+						class="flex h-10 w-10 items-center justify-center rounded-full text-lg {index ===
 						currentStep
 							? 'bg-blue-600 text-white'
 							: index < currentStep
@@ -547,11 +603,11 @@
 					>
 						{step.icon}
 					</div>
-					<span class="text-xs text-gray-600 hidden sm:block">{step.name}</span>
+					<span class="hidden text-xs text-gray-600 sm:block">{step.name}</span>
 				</button>
 				{#if index < steps.length - 1}
 					<div
-						class="flex-1 h-0.5 mx-2 {index < currentStep ? 'bg-green-600' : 'bg-gray-200'}"
+						class="mx-2 h-0.5 flex-1 {index < currentStep ? 'bg-green-600' : 'bg-gray-200'}"
 					></div>
 				{/if}
 			{/each}
@@ -560,19 +616,19 @@
 
 	<!-- Error Message -->
 	{#if error}
-		<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+		<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
 			{error}
 		</div>
 	{/if}
 
 	<!-- Step Content -->
-	<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+	<div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
 		{#if currentStep === 0}
 			<!-- Step 0: Details -->
-			<h2 class="text-xl font-semibold mb-6">Schedule Details</h2>
+			<h2 class="mb-6 text-xl font-semibold">Schedule Details</h2>
 			<div class="space-y-4">
 				<div>
-					<label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="name" class="mb-1 block text-sm font-medium text-gray-700">
 						Schedule Name
 					</label>
 					<input
@@ -580,31 +636,31 @@
 						type="text"
 						bind:value={name}
 						placeholder="e.g., Academic Year 2025-2026"
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>
 
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="startDate" class="mb-1 block text-sm font-medium text-gray-700">
 							Start Date
 						</label>
 						<input
 							id="startDate"
 							type="date"
 							bind:value={startDate}
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 						/>
 					</div>
 					<div>
-						<label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="endDate" class="mb-1 block text-sm font-medium text-gray-700">
 							End Date
 						</label>
 						<input
 							id="endDate"
 							type="date"
 							bind:value={endDate}
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 						/>
 					</div>
 				</div>
@@ -615,23 +671,22 @@
 					</p>
 				{/if}
 			</div>
-
 		{:else if currentStep === 1}
 			<!-- Step 1: Health Systems -->
-			<h2 class="text-xl font-semibold mb-1">Include Health Systems</h2>
-			<p class="text-sm text-gray-500 mb-6">
+			<h2 class="mb-1 text-xl font-semibold">Include Health Systems</h2>
+			<p class="mb-6 text-sm text-gray-500">
 				Check the health systems this schedule should cover. This chooses what's
-				<em>included</em> in the schedule — it doesn't change the health systems themselves, and
-				you can add or edit them anytime. This step is optional.
+				<em>included</em> in the schedule — it doesn't change the health systems themselves, and you
+				can add or edit them anytime. This step is optional.
 			</p>
 
 			{#if localEntityData.healthSystems.length === 0}
-				<div class="text-center py-8">
-					<p class="text-gray-500 mb-4">No health systems available yet.</p>
+				<div class="py-8 text-center">
+					<p class="mb-4 text-gray-500">No health systems available yet.</p>
 					<button
 						type="button"
-						onclick={() => showHealthSystemForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showHealthSystemForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Health System
 					</button>
@@ -647,29 +702,28 @@
 				<div class="mt-4">
 					<button
 						type="button"
-						onclick={() => showHealthSystemForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showHealthSystemForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Health System
 					</button>
 				</div>
 			{/if}
-
 		{:else if currentStep === 2}
 			<!-- Step 2: Sites -->
-			<h2 class="text-xl font-semibold mb-1">Include Sites</h2>
-			<p class="text-sm text-gray-500 mb-6">
-				Check the sites this schedule should cover. The health system is shown so sites that share
-				a name (e.g. two "Kaiser" locations) are easy to tell apart. This step is optional.
+			<h2 class="mb-1 text-xl font-semibold">Include Sites</h2>
+			<p class="mb-6 text-sm text-gray-500">
+				Check the sites this schedule should cover. The health system is shown so sites that share a
+				name (e.g. two "Kaiser" locations) are easy to tell apart. This step is optional.
 			</p>
 
 			{#if localEntityData.sites.length === 0}
-				<div class="text-center py-8">
-					<p class="text-gray-500 mb-4">No sites available yet.</p>
+				<div class="py-8 text-center">
+					<p class="mb-4 text-gray-500">No sites available yet.</p>
 					<button
 						type="button"
-						onclick={() => showSiteForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showSiteForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Site
 					</button>
@@ -693,25 +747,24 @@
 				<div class="mt-4">
 					<button
 						type="button"
-						onclick={() => showSiteForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showSiteForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Site
 					</button>
 				</div>
 			{/if}
-
 		{:else if currentStep === 3}
 			<!-- Step 3: Clerkships -->
-			<h2 class="text-xl font-semibold mb-6">Select Clerkships</h2>
+			<h2 class="mb-6 text-xl font-semibold">Select Clerkships</h2>
 
 			{#if localEntityData.clerkships.length === 0}
-				<div class="text-center py-8">
-					<p class="text-gray-500 mb-4">No clerkships available yet.</p>
+				<div class="py-8 text-center">
+					<p class="mb-4 text-gray-500">No clerkships available yet.</p>
 					<button
 						type="button"
-						onclick={() => showClerkshipForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showClerkshipForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Clerkship
 					</button>
@@ -727,32 +780,35 @@
 				<div class="mt-4">
 					<button
 						type="button"
-						onclick={() => showClerkshipForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showClerkshipForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Clerkship
 					</button>
 				</div>
 			{/if}
-
 		{:else if currentStep === 4}
 			<!-- Step 4: Preceptors -->
-			<h2 class="text-xl font-semibold mb-6">Select Preceptors</h2>
+			<h2 class="mb-6 text-xl font-semibold">Select Preceptors</h2>
 
 			{#if localEntityData.preceptors.length === 0}
-				<div class="text-center py-8">
-					<p class="text-gray-500 mb-4">No preceptors available yet.</p>
+				<div class="py-8 text-center">
+					<p class="mb-4 text-gray-500">No preceptors available yet.</p>
 					<button
 						type="button"
-						onclick={() => showPreceptorForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showPreceptorForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Preceptor
 					</button>
 				</div>
 			{:else}
 				<EntitySelectionTable
-					entities={localEntityData.preceptors.map((p) => ({ id: p.id, name: p.name, email: p.email }))}
+					entities={localEntityData.preceptors.map((p) => ({
+						id: p.id,
+						name: p.name,
+						email: p.email
+					}))}
 					selectedIds={selectedPreceptors}
 					onSelectionChange={(ids) => (selectedPreceptors = ids)}
 					searchPlaceholder="Search preceptors..."
@@ -761,37 +817,37 @@
 				<div class="mt-4">
 					<button
 						type="button"
-						onclick={() => showPreceptorForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showPreceptorForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Preceptor
 					</button>
 				</div>
 			{/if}
-
 		{:else if currentStep === 5}
 			<!-- Step 5: Teams -->
-			<h2 class="text-xl font-semibold mb-6">Select Teams</h2>
+			<h2 class="mb-6 text-xl font-semibold">Select Teams</h2>
 
 			{#if !teamsPrerequisitesMet}
-				<div class="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
-					<div class="text-amber-600 text-4xl mb-4">⚠️</div>
-					<h3 class="text-lg font-medium text-amber-800 mb-2">Prerequisites Required</h3>
-					<p class="text-amber-700 mb-4">
-						Teams connect preceptors to clerkships for scheduling. You need at least one clerkship and one preceptor to create a team.
+				<div class="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
+					<div class="mb-4 text-4xl text-amber-600">⚠️</div>
+					<h3 class="mb-2 text-lg font-medium text-amber-800">Prerequisites Required</h3>
+					<p class="mb-4 text-amber-700">
+						Teams connect preceptors to clerkships for scheduling. You need at least one clerkship
+						and one preceptor to create a team.
 					</p>
 					<div class="flex justify-center gap-3">
 						<button
 							type="button"
-							onclick={() => currentStep = 3}
-							class="px-4 py-2 text-amber-700 bg-amber-100 rounded-lg hover:bg-amber-200"
+							onclick={() => (currentStep = 3)}
+							class="rounded-lg bg-amber-100 px-4 py-2 text-amber-700 hover:bg-amber-200"
 						>
 							← Add Clerkships
 						</button>
 						<button
 							type="button"
-							onclick={() => currentStep = 4}
-							class="px-4 py-2 text-amber-700 bg-amber-100 rounded-lg hover:bg-amber-200"
+							onclick={() => (currentStep = 4)}
+							class="rounded-lg bg-amber-100 px-4 py-2 text-amber-700 hover:bg-amber-200"
 						>
 							← Add Preceptors
 						</button>
@@ -800,13 +856,14 @@
 			{:else}
 				<!-- Warning about preceptors without teams -->
 				{#if preceptorsWithoutTeams().length > 0}
-					<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+					<div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
 						<div class="flex gap-3">
-							<div class="text-blue-600 text-xl">ℹ️</div>
+							<div class="text-xl text-blue-600">ℹ️</div>
 							<div>
-								<p class="text-blue-800 font-medium">Teams are required for scheduling</p>
-								<p class="text-blue-700 text-sm mt-1">
-									{preceptorsWithoutTeams().length} selected preceptor(s) are not assigned to any team and won't be available for scheduling. Create teams below to include them.
+								<p class="font-medium text-blue-800">Teams are required for scheduling</p>
+								<p class="mt-1 text-sm text-blue-700">
+									{preceptorsWithoutTeams().length} selected preceptor(s) are not assigned to any team
+									and won't be available for scheduling. Create teams below to include them.
 								</p>
 							</div>
 						</div>
@@ -814,12 +871,12 @@
 				{/if}
 
 				{#if localEntityData.teams.length === 0}
-					<div class="text-center py-8">
-						<p class="text-gray-500 mb-4">No teams created yet.</p>
+					<div class="py-8 text-center">
+						<p class="mb-4 text-gray-500">No teams created yet.</p>
 						<button
 							type="button"
 							onclick={openTeamForm}
-							class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+							class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 						>
 							+ Create Team
 						</button>
@@ -827,7 +884,7 @@
 				{:else}
 					<EntitySelectionTable
 						entities={localEntityData.teams
-							.filter(t => selectedClerkships.includes(t.clerkship_id || ''))
+							.filter((t) => selectedClerkships.includes(t.clerkship_id || ''))
 							.map((t) => ({ id: t.id, name: t.name || 'Unnamed Team' }))}
 						selectedIds={selectedTeams}
 						onSelectionChange={(ids) => (selectedTeams = ids)}
@@ -838,32 +895,35 @@
 						<button
 							type="button"
 							onclick={openTeamForm}
-							class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+							class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 						>
 							+ Create Team
 						</button>
 					</div>
 				{/if}
 			{/if}
-
 		{:else if currentStep === 6}
 			<!-- Step 6: Students -->
-			<h2 class="text-xl font-semibold mb-6">Select Students</h2>
+			<h2 class="mb-6 text-xl font-semibold">Select Students</h2>
 
 			{#if localEntityData.students.length === 0}
-				<div class="text-center py-8">
-					<p class="text-gray-500 mb-4">No students available yet.</p>
+				<div class="py-8 text-center">
+					<p class="mb-4 text-gray-500">No students available yet.</p>
 					<button
 						type="button"
-						onclick={() => showStudentForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showStudentForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Student
 					</button>
 				</div>
 			{:else}
 				<EntitySelectionTable
-					entities={localEntityData.students.map((s) => ({ id: s.id, name: s.name, email: s.email }))}
+					entities={localEntityData.students.map((s) => ({
+						id: s.id,
+						name: s.name,
+						email: s.email
+					}))}
 					selectedIds={selectedStudents}
 					onSelectionChange={(ids) => (selectedStudents = ids)}
 					searchPlaceholder="Search students..."
@@ -872,30 +932,29 @@
 				<div class="mt-4">
 					<button
 						type="button"
-						onclick={() => showStudentForm = true}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						onclick={() => (showStudentForm = true)}
+						class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 					>
 						+ Add Student
 					</button>
 				</div>
 			{/if}
-
 		{:else if currentStep === 7}
 			<!-- Step 7: Review -->
-			<h2 class="text-xl font-semibold mb-1">Review & Create</h2>
-			<p class="text-sm text-gray-500 mb-6">
+			<h2 class="mb-1 text-xl font-semibold">Review & Create</h2>
+			<p class="mb-6 text-sm text-gray-500">
 				After you create this schedule you'll land in it, and you can add, remove, or edit any of
 				these entities anytime from the Students, Preceptors, Clerkships, and Locations pages.
 			</p>
 
 			<!-- Scheduling Warnings -->
 			{#if selectedTeams.length === 0 || selectedStudents.length === 0 || selectedClerkships.length === 0}
-				<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+				<div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
 					<div class="flex gap-3">
-						<div class="text-amber-600 text-xl">⚠️</div>
+						<div class="text-xl text-amber-600">⚠️</div>
 						<div>
-							<p class="text-amber-800 font-medium">Schedule generation may not work</p>
-							<ul class="text-amber-700 text-sm mt-2 list-disc list-inside">
+							<p class="font-medium text-amber-800">Schedule generation may not work</p>
+							<ul class="mt-2 list-inside list-disc text-sm text-amber-700">
 								{#if selectedClerkships.length === 0}
 									<li>No clerkships selected - nothing to schedule</li>
 								{/if}
@@ -906,7 +965,7 @@
 									<li>No teams selected - preceptors won't be available for assignment</li>
 								{/if}
 							</ul>
-							<p class="text-amber-700 text-sm mt-2">
+							<p class="mt-2 text-sm text-amber-700">
 								You can still create the schedule and add these later.
 							</p>
 						</div>
@@ -915,8 +974,8 @@
 			{/if}
 
 			<div class="space-y-4">
-				<div class="bg-gray-50 p-4 rounded-lg">
-					<h3 class="font-medium text-gray-900 mb-2">Schedule Details</h3>
+				<div class="rounded-lg bg-gray-50 p-4">
+					<h3 class="mb-2 font-medium text-gray-900">Schedule Details</h3>
 					<dl class="grid grid-cols-2 gap-2 text-sm">
 						<dt class="text-gray-500">Name:</dt>
 						<dd class="text-gray-900">{name || '(not set)'}</dd>
@@ -927,21 +986,29 @@
 					</dl>
 				</div>
 
-				<div class="bg-gray-50 p-4 rounded-lg">
-					<h3 class="font-medium text-gray-900 mb-2">Selected Entities</h3>
+				<div class="rounded-lg bg-gray-50 p-4">
+					<h3 class="mb-2 font-medium text-gray-900">Selected Entities</h3>
 					<dl class="grid grid-cols-2 gap-2 text-sm">
 						<dt class="text-gray-500">Health Systems:</dt>
-						<dd class="text-gray-900">{selectedHealthSystems.length} of {localEntityData.healthSystems.length}</dd>
+						<dd class="text-gray-900">
+							{selectedHealthSystems.length} of {localEntityData.healthSystems.length}
+						</dd>
 						<dt class="text-gray-500">Sites:</dt>
 						<dd class="text-gray-900">{selectedSites.length} of {localEntityData.sites.length}</dd>
 						<dt class="text-gray-500">Clerkships:</dt>
-						<dd class="text-gray-900">{selectedClerkships.length} of {localEntityData.clerkships.length}</dd>
+						<dd class="text-gray-900">
+							{selectedClerkships.length} of {localEntityData.clerkships.length}
+						</dd>
 						<dt class="text-gray-500">Preceptors:</dt>
-						<dd class="text-gray-900">{selectedPreceptors.length} of {localEntityData.preceptors.length}</dd>
+						<dd class="text-gray-900">
+							{selectedPreceptors.length} of {localEntityData.preceptors.length}
+						</dd>
 						<dt class="text-gray-500">Teams:</dt>
 						<dd class="text-gray-900">{selectedTeams.length} of {localEntityData.teams.length}</dd>
 						<dt class="text-gray-500">Students:</dt>
-						<dd class="text-gray-900">{selectedStudents.length} of {localEntityData.students.length}</dd>
+						<dd class="text-gray-900">
+							{selectedStudents.length} of {localEntityData.students.length}
+						</dd>
 					</dl>
 				</div>
 			</div>
@@ -954,7 +1021,7 @@
 			type="button"
 			onclick={prevStep}
 			disabled={currentStep === 0}
-			class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+			class="rounded-lg bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			Previous
 		</button>
@@ -964,7 +1031,7 @@
 				type="button"
 				onclick={handleSubmit}
 				disabled={submitting || !canProceed()}
-				class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+				class="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{#if submitting}
 					<span class="animate-spin">⏳</span>
@@ -978,7 +1045,7 @@
 				type="button"
 				onclick={nextStep}
 				disabled={!canProceed()}
-				class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+				class="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				Next
 			</button>
@@ -990,23 +1057,24 @@
 {#if showSkipConfirmation}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
 		<div class="absolute inset-0 bg-black/50"></div>
-		<div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-			<h3 class="text-lg font-semibold mb-4">Continue without {skipEntityType}?</h3>
-			<p class="text-gray-600 mb-6">
-				You haven't selected any {skipEntityType.toLowerCase()}. You can add them later, but some features may not work without them.
+		<div class="relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+			<h3 class="mb-4 text-lg font-semibold">Continue without {skipEntityType}?</h3>
+			<p class="mb-6 text-gray-600">
+				You haven't selected any {skipEntityType.toLowerCase()}. You can add them later, but some
+				features may not work without them.
 			</p>
 			<div class="flex justify-end gap-3">
 				<button
 					type="button"
 					onclick={cancelSkip}
-					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+					class="rounded-lg bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200"
 				>
 					Go Back
 				</button>
 				<button
 					type="button"
 					onclick={confirmSkip}
-					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+					class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 				>
 					Continue Anyway
 				</button>
@@ -1018,11 +1086,18 @@
 <!-- Health System Form Modal -->
 {#if showHealthSystemForm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<button type="button" class="absolute inset-0 bg-black/50" onclick={() => showHealthSystemForm = false} aria-label="Close modal"></button>
-		<div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/50"
+			onclick={() => (showHealthSystemForm = false)}
+			aria-label="Close modal"
+		></button>
+		<div
+			class="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
+		>
 			<HealthSystemForm
 				onSuccess={handleHealthSystemCreated}
-				onCancel={() => showHealthSystemForm = false}
+				onCancel={() => (showHealthSystemForm = false)}
 			/>
 		</div>
 	</div>
@@ -1031,12 +1106,19 @@
 <!-- Site Form Modal -->
 {#if showSiteForm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<button type="button" class="absolute inset-0 bg-black/50" onclick={() => showSiteForm = false} aria-label="Close modal"></button>
-		<div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/50"
+			onclick={() => (showSiteForm = false)}
+			aria-label="Close modal"
+		></button>
+		<div
+			class="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
+		>
 			<SiteForm
 				healthSystems={localEntityData.healthSystems}
 				onSuccess={handleSiteCreated}
-				onCancel={() => showSiteForm = false}
+				onCancel={() => (showSiteForm = false)}
 			/>
 		</div>
 	</div>
@@ -1045,11 +1127,18 @@
 <!-- Clerkship Form Modal -->
 {#if showClerkshipForm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<button type="button" class="absolute inset-0 bg-black/50" onclick={() => showClerkshipForm = false} aria-label="Close modal"></button>
-		<div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/50"
+			onclick={() => (showClerkshipForm = false)}
+			aria-label="Close modal"
+		></button>
+		<div
+			class="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
+		>
 			<ClerkshipForm
 				onSuccess={handleClerkshipCreated}
-				onCancel={() => showClerkshipForm = false}
+				onCancel={() => (showClerkshipForm = false)}
 			/>
 		</div>
 	</div>
@@ -1058,13 +1147,20 @@
 <!-- Preceptor Form Modal -->
 {#if showPreceptorForm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<button type="button" class="absolute inset-0 bg-black/50" onclick={() => showPreceptorForm = false} aria-label="Close modal"></button>
-		<div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/50"
+			onclick={() => (showPreceptorForm = false)}
+			aria-label="Close modal"
+		></button>
+		<div
+			class="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
+		>
 			<PreceptorForm
 				healthSystems={localEntityData.healthSystems}
 				sites={sitesForPreceptorForm}
 				onSuccess={handlePreceptorCreated}
-				onCancel={() => showPreceptorForm = false}
+				onCancel={() => (showPreceptorForm = false)}
 			/>
 		</div>
 	</div>
@@ -1073,12 +1169,16 @@
 <!-- Student Form Modal -->
 {#if showStudentForm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<button type="button" class="absolute inset-0 bg-black/50" onclick={() => showStudentForm = false} aria-label="Close modal"></button>
-		<div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-			<StudentForm
-				onSuccess={handleStudentCreated}
-				onCancel={() => showStudentForm = false}
-			/>
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/50"
+			onclick={() => (showStudentForm = false)}
+			aria-label="Close modal"
+		></button>
+		<div
+			class="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
+		>
+			<StudentForm onSuccess={handleStudentCreated} onCancel={() => (showStudentForm = false)} />
 		</div>
 	</div>
 {/if}

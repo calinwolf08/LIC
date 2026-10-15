@@ -83,7 +83,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Calendar query validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

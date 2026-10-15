@@ -35,6 +35,6 @@ export async function createPostgresTestDatabaseWithMigrations(): Promise<Postgr
 
 	return {
 		db,
-		destroy: () => db.destroy(),
+		destroy: () => db.destroy()
 	};
 }

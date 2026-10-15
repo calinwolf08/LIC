@@ -25,12 +25,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('location', 'text')
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for name lookups
@@ -49,12 +45,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('address', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for health system lookups
@@ -79,9 +71,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	// Add site_id column
 	await db.schema
 		.alterTable('preceptors')
-		.addColumn('site_id', 'text', (col) =>
-			col.references('sites.id').onDelete('set null')
-		)
+		.addColumn('site_id', 'text', (col) => col.references('sites.id').onDelete('set null'))
 		.execute();
 
 	// Index for health system filtering
@@ -92,11 +82,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 
 	// Index for site filtering
-	await db.schema
-		.createIndex('idx_preceptors_site')
-		.on('preceptors')
-		.column('site_id')
-		.execute();
+	await db.schema.createIndex('idx_preceptors_site').on('preceptors').column('site_id').execute();
 
 	// ========================================
 	// Global Defaults Tables
@@ -109,23 +95,41 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('school_id', 'text', (col) => col.notNull().defaultTo('default'))
 		// Assignment Strategy
 		.addColumn('assignment_strategy', 'text', (col) =>
-			col.notNull().check(sql`assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation')`)
+			col
+				.notNull()
+				.check(
+					sql`assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation')`
+				)
 		)
 		// Health System Rules
 		.addColumn('health_system_rule', 'text', (col) =>
-			col.notNull().check(sql`health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference')`)
+			col
+				.notNull()
+				.check(
+					sql`health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference')`
+				)
 		)
 		// Capacity Defaults
 		.addColumn('default_max_students_per_day', 'integer', (col) =>
-			col.notNull().defaultTo(1).check(sql`default_max_students_per_day > 0`)
+			col
+				.notNull()
+				.defaultTo(1)
+				.check(sql`default_max_students_per_day > 0`)
 		)
 		.addColumn('default_max_students_per_year', 'integer', (col) =>
-			col.notNull().defaultTo(3).check(sql`default_max_students_per_year > 0`)
+			col
+				.notNull()
+				.defaultTo(3)
+				.check(sql`default_max_students_per_year > 0`)
 		)
 		// Team Settings
 		.addColumn('allow_teams', 'integer', (col) => col.notNull().defaultTo(0)) // SQLite boolean
-		.addColumn('team_size_min', 'integer', (col) => col.check(sql`team_size_min > 0 OR team_size_min IS NULL`))
-		.addColumn('team_size_max', 'integer', (col) => col.check(sql`team_size_max > 0 OR team_size_max IS NULL`))
+		.addColumn('team_size_min', 'integer', (col) =>
+			col.check(sql`team_size_min > 0 OR team_size_min IS NULL`)
+		)
+		.addColumn('team_size_max', 'integer', (col) =>
+			col.check(sql`team_size_max > 0 OR team_size_max IS NULL`)
+		)
 		.addColumn('team_require_same_health_system', 'integer')
 		.addColumn('team_require_same_specialty', 'integer')
 		// Fallback Settings
@@ -133,12 +137,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('fallback_requires_approval', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('fallback_allow_cross_system', 'integer', (col) => col.notNull().defaultTo(0))
 		// Timestamps
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint on school_id (one default per school)
@@ -156,22 +156,38 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('school_id', 'text', (col) => col.notNull().defaultTo('default'))
 		// Assignment Strategy
 		.addColumn('assignment_strategy', 'text', (col) =>
-			col.notNull().check(sql`assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation')`)
+			col
+				.notNull()
+				.check(
+					sql`assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation')`
+				)
 		)
 		// Block Settings
-		.addColumn('block_size_days', 'integer', (col) => col.check(sql`block_size_days > 0 OR block_size_days IS NULL`))
+		.addColumn('block_size_days', 'integer', (col) =>
+			col.check(sql`block_size_days > 0 OR block_size_days IS NULL`)
+		)
 		.addColumn('allow_partial_blocks', 'integer')
 		.addColumn('prefer_continuous_blocks', 'integer')
 		// Health System Rules
 		.addColumn('health_system_rule', 'text', (col) =>
-			col.notNull().check(sql`health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference')`)
+			col
+				.notNull()
+				.check(
+					sql`health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference')`
+				)
 		)
 		// Capacity Defaults
 		.addColumn('default_max_students_per_day', 'integer', (col) =>
-			col.notNull().defaultTo(2).check(sql`default_max_students_per_day > 0`)
+			col
+				.notNull()
+				.defaultTo(2)
+				.check(sql`default_max_students_per_day > 0`)
 		)
 		.addColumn('default_max_students_per_year', 'integer', (col) =>
-			col.notNull().defaultTo(4).check(sql`default_max_students_per_year > 0`)
+			col
+				.notNull()
+				.defaultTo(4)
+				.check(sql`default_max_students_per_year > 0`)
 		)
 		.addColumn('default_max_students_per_block', 'integer', (col) =>
 			col.check(sql`default_max_students_per_block > 0 OR default_max_students_per_block IS NULL`)
@@ -181,8 +197,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		// Team Settings
 		.addColumn('allow_teams', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('team_size_min', 'integer', (col) => col.check(sql`team_size_min > 0 OR team_size_min IS NULL`))
-		.addColumn('team_size_max', 'integer', (col) => col.check(sql`team_size_max > 0 OR team_size_max IS NULL`))
+		.addColumn('team_size_min', 'integer', (col) =>
+			col.check(sql`team_size_min > 0 OR team_size_min IS NULL`)
+		)
+		.addColumn('team_size_max', 'integer', (col) =>
+			col.check(sql`team_size_max > 0 OR team_size_max IS NULL`)
+		)
 		.addColumn('team_require_same_health_system', 'integer')
 		.addColumn('team_require_same_specialty', 'integer')
 		// Fallback Settings
@@ -190,12 +210,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('fallback_requires_approval', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('fallback_allow_cross_system', 'integer', (col) => col.notNull().defaultTo(0))
 		// Timestamps
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint on school_id
@@ -213,18 +229,32 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('school_id', 'text', (col) => col.notNull().defaultTo('default'))
 		// Assignment Strategy
 		.addColumn('assignment_strategy', 'text', (col) =>
-			col.notNull().check(sql`assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation')`)
+			col
+				.notNull()
+				.check(
+					sql`assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation')`
+				)
 		)
 		// Health System Rules
 		.addColumn('health_system_rule', 'text', (col) =>
-			col.notNull().check(sql`health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference')`)
+			col
+				.notNull()
+				.check(
+					sql`health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference')`
+				)
 		)
 		// Capacity Defaults
 		.addColumn('default_max_students_per_day', 'integer', (col) =>
-			col.notNull().defaultTo(2).check(sql`default_max_students_per_day > 0`)
+			col
+				.notNull()
+				.defaultTo(2)
+				.check(sql`default_max_students_per_day > 0`)
 		)
 		.addColumn('default_max_students_per_year', 'integer', (col) =>
-			col.notNull().defaultTo(10).check(sql`default_max_students_per_year > 0`)
+			col
+				.notNull()
+				.defaultTo(10)
+				.check(sql`default_max_students_per_year > 0`)
 		)
 		// Team Settings (simpler for electives)
 		.addColumn('allow_teams', 'integer', (col) => col.notNull().defaultTo(0))
@@ -233,12 +263,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('fallback_requires_approval', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('fallback_allow_cross_system', 'integer', (col) => col.notNull().defaultTo(1))
 		// Timestamps
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint on school_id
@@ -261,12 +287,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().unique().references('clerkships.id').onDelete('cascade')
 		)
 		// Metadata
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for clerkship lookups
@@ -287,19 +309,24 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('requirement_type', 'text', (col) =>
 			col.notNull().check(sql`requirement_type IN ('outpatient', 'inpatient', 'elective')`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		// Override Control
 		.addColumn('override_mode', 'text', (col) =>
-			col.notNull().defaultTo('inherit').check(sql`override_mode IN ('inherit', 'override_fields', 'override_section')`)
+			col
+				.notNull()
+				.defaultTo('inherit')
+				.check(sql`override_mode IN ('inherit', 'override_fields', 'override_section')`)
 		)
 		// Override Values (only used if override_mode != 'inherit')
 		.addColumn('override_assignment_strategy', 'text', (col) =>
-			col.check(sql`override_assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation') OR override_assignment_strategy IS NULL`)
+			col.check(
+				sql`override_assignment_strategy IN ('continuous_single', 'continuous_team', 'block_based', 'daily_rotation') OR override_assignment_strategy IS NULL`
+			)
 		)
 		.addColumn('override_health_system_rule', 'text', (col) =>
-			col.check(sql`override_health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference') OR override_health_system_rule IS NULL`)
+			col.check(
+				sql`override_health_system_rule IN ('enforce_same_system', 'prefer_same_system', 'no_preference') OR override_health_system_rule IS NULL`
+			)
 		)
 		.addColumn('override_max_students_per_day', 'integer', (col) =>
 			col.check(sql`override_max_students_per_day > 0 OR override_max_students_per_day IS NULL`)
@@ -323,12 +350,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('override_fallback_requires_approval', 'integer')
 		.addColumn('override_fallback_allow_cross_system', 'integer')
 		// Timestamps
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint: one requirement per type per clerkship
@@ -355,9 +378,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('field_name', 'text', (col) => col.notNull())
 		.addColumn('is_overridden', 'integer', (col) => col.notNull().defaultTo(1))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint: one override per field per requirement
@@ -376,16 +397,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().references('clerkship_requirements.id').onDelete('cascade')
 		)
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('minimum_days', 'integer', (col) =>
-			col.notNull().check(sql`minimum_days > 0`)
-		)
+		.addColumn('minimum_days', 'integer', (col) => col.notNull().check(sql`minimum_days > 0`))
 		.addColumn('specialty', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for requirement lookups
@@ -411,12 +426,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('require_same_site', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('require_same_specialty', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('requires_admin_approval', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for clerkship lookups
@@ -438,9 +449,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('role', 'text')
 		.addColumn('priority', 'integer', (col) => col.notNull().defaultTo(1))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint: preceptor can only be in team once
@@ -468,18 +477,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('fallback_preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('clerkship_id', 'text', (col) =>
-			col.references('clerkships.id').onDelete('cascade')
-		)
+		.addColumn('clerkship_id', 'text', (col) => col.references('clerkships.id').onDelete('cascade'))
 		.addColumn('priority', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('requires_approval', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('allow_different_health_system', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for primary preceptor lookups
@@ -503,11 +506,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('clerkship_id', 'text', (col) =>
-			col.references('clerkships.id').onDelete('cascade')
-		)
+		.addColumn('clerkship_id', 'text', (col) => col.references('clerkships.id').onDelete('cascade'))
 		.addColumn('requirement_type', 'text', (col) =>
-			col.check(sql`requirement_type IN ('outpatient', 'inpatient', 'elective') OR requirement_type IS NULL`)
+			col.check(
+				sql`requirement_type IN ('outpatient', 'inpatient', 'elective') OR requirement_type IS NULL`
+			)
 		)
 		.addColumn('max_students_per_day', 'integer', (col) =>
 			col.notNull().check(sql`max_students_per_day > 0`)
@@ -521,12 +524,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('max_blocks_per_year', 'integer', (col) =>
 			col.check(sql`max_blocks_per_year > 0 OR max_blocks_per_year IS NULL`)
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for preceptor lookups
@@ -560,7 +559,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			allow_teams: 0,
 			allow_fallbacks: 1,
 			fallback_requires_approval: 0,
-			fallback_allow_cross_system: 0,
+			fallback_allow_cross_system: 0
 		})
 		.execute();
 
@@ -582,7 +581,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			allow_teams: 0,
 			allow_fallbacks: 1,
 			fallback_requires_approval: 0,
-			fallback_allow_cross_system: 0,
+			fallback_allow_cross_system: 0
 		})
 		.execute();
 
@@ -599,7 +598,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			allow_teams: 0,
 			allow_fallbacks: 1,
 			fallback_requires_approval: 0,
-			fallback_allow_cross_system: 1,
+			fallback_allow_cross_system: 1
 		})
 		.execute();
 }

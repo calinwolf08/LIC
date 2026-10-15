@@ -6,11 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	errorResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, errorResponse, notFoundResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { ConfigurationService } from '$lib/features/scheduling-config/services/configuration.service';

@@ -273,7 +273,13 @@ describe('getEligibleOptions', () => {
 		const ts = new Date().toISOString();
 		await db
 			.insertInto('preceptors')
-			.values({ id: 'prec-new', name: 'Dr New', email: 'new@x.com', created_at: ts, updated_at: ts })
+			.values({
+				id: 'prec-new',
+				name: 'Dr New',
+				email: 'new@x.com',
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 		await db
 			.insertInto('schedule_preceptors')

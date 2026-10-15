@@ -38,24 +38,24 @@ cannot ship late. Do them first, in order, and do not batch them with anything e
                                   33 (integrated regression)
 ```
 
-| Step | Title | Depends on | Priority | Status |
-|---|---|---|---|---|
-| 25 | Dev data commands (reset one user / reset everything) | — | Do first (unblocks manual QA) | ✅ shipped |
-| 26 | Tenant isolation — every read scoped to the active schedule | 25 | **Critical** | ✅ shipped |
-| 27 | Tenant isolation — every mutation ownership-guarded | 26 | **Critical** | ✅ shipped |
-| 28 | Edit-mode validation correctness + note copy | 26 | High | ✅ shipped |
-| 29 | Date-picker clarity + required site | 26 | High | ✅ shipped |
-| 30 | Calendar rendering: student identity, per-student colour, clerkship link | 26 | Medium | ✅ shipped |
-| 31 | Entity list row navigation + Manage button consistency | — | Low | ✅ shipped |
-| 32 | Schedule health: accurate counts, stale overrides, pagination + filter | 26 | High | ✅ shipped |
-| 33 | Integrated regression | all | — | ✅ shipped |
+| Step | Title                                                                    | Depends on | Priority                      | Status     |
+| ---- | ------------------------------------------------------------------------ | ---------- | ----------------------------- | ---------- |
+| 25   | Dev data commands (reset one user / reset everything)                    | —          | Do first (unblocks manual QA) | ✅ shipped |
+| 26   | Tenant isolation — every read scoped to the active schedule              | 25         | **Critical**                  | ✅ shipped |
+| 27   | Tenant isolation — every mutation ownership-guarded                      | 26         | **Critical**                  | ✅ shipped |
+| 28   | Edit-mode validation correctness + note copy                             | 26         | High                          | ✅ shipped |
+| 29   | Date-picker clarity + required site                                      | 26         | High                          | ✅ shipped |
+| 30   | Calendar rendering: student identity, per-student colour, clerkship link | 26         | Medium                        | ✅ shipped |
+| 31   | Entity list row navigation + Manage button consistency                   | —          | Low                           | ✅ shipped |
+| 32   | Schedule health: accurate counts, stale overrides, pagination + filter   | 26         | High                          | ✅ shipped |
+| 33   | Integrated regression                                                    | all        | —                             | ✅ shipped |
 
 ## Root causes (verified in code)
 
 Six findings explain the whole list. Read these before picking up any step.
 
-1. **There is no tenant boundary on reads.** Round 2 scoped the *schedule range*, not the *entity
-   sets*. Confirmed unscoped today:
+1. **There is no tenant boundary on reads.** Round 2 scoped the _schedule range_, not the _entity
+   sets_. Confirmed unscoped today:
    - `(app)/dashboard/+page.server.ts:42-59` — all four counts are bare
      `selectFrom('students'|'preceptors'|'clerkships'|'schedule_assignments')` with **no join** to the
      `schedule_*` junctions.
@@ -65,8 +65,8 @@ Six findings explain the whole list. Read these before picking up any step.
      `getClerkships(db)` (the unscoped variants) feed the filter dropdowns.
    - `calendar-service.ts` `getEnrichedAssignments` — filters by date and optional ids only; never
      joins `schedule_students`. This is why other users' assignments appear on the calendar.
-   Scoped variants (`getStudentsBySchedule`, `getPreceptorsBySchedule`, …) already exist from earlier
-   work — the callers simply don't use them. **Step 26.**
+     Scoped variants (`getStudentsBySchedule`, `getPreceptorsBySchedule`, …) already exist from earlier
+     work — the callers simply don't use them. **Step 26.**
 
 2. **There is no ownership check on any entity mutation.** `PATCH`/`DELETE` for
    `students|preceptors|clerkships|sites|health-systems/[id]` contain **zero** references to
@@ -80,7 +80,7 @@ Six findings explain the whole list. Read these before picking up any step.
    required". **Step 28.**
 
 4. **Selection styling erases the conflict signal.** In `assignment-date-picker.svelte` the
-   `selected.includes(date)` branch (line 98) returns `bg-primary` *before* the booked/busy branches
+   `selected.includes(date)` branch (line 98) returns `bg-primary` _before_ the booked/busy branches
    are reached, so picking an already-taken day turns it solid dark and the warning colour is lost.
    A preceptor's taken days are also only distinguished by `bg-slate-200` plus a first name in the
    cell. **Step 29.**
@@ -92,37 +92,36 @@ Six findings explain the whole list. Read these before picking up any step.
 
 6. **Capacity violations are counted per assignment, not per over-subscribed slot.**
    `schedule-validation.ts:171-179` runs inside the per-assignment loop, so a day where two students
-   share a max-1 preceptor yields **two** `preceptor_capacity` violations. Four double-booked days →
-   8. Separately, `listOverrides` returns any row with non-empty `override_codes` and never
+   share a max-1 preceptor yields **two** `preceptor_capacity` violations. Four double-booked days → 8. Separately, `listOverrides` returns any row with non-empty `override_codes` and never
    re-evaluates them, so a `not_onboarded` exception still appears after the student is onboarded.
    **Step 32.**
 
 ## Issue → step traceability
 
-| # | Reported issue | Step |
-|---|---|---|
-| 1 | Need a command to clear one test user without wiping the DB | 25 |
-| 2 | Need a command to clear everything for a fresh start | 25 |
-| 3 | Dashboard totals (students/preceptors/clerkships/assignments) are global | 26 |
-| 4 | Locations shows other users' health systems and sites | 26 |
-| 5 | Student → Progress tab shows other users' clerkships | 26 |
-| 6 | Calendar shows other users' assignments | 26 |
-| 7 | Can modify or delete other users' data | 27 |
-| 8 | Edit assignment falsely reports "Student already has an assignment" | 28 |
-| 9 | Edit assignment falsely warns "More days than required" | 28 |
-| 10 | Note placeholder implies an exception is being made when none is | 28 |
-| 11 | Preceptor's already-taken days are not clearly indicated | 29 |
-| 12 | Selecting an already-taken day turns it black, hiding the overlap | 29 |
-| 13 | Site should be required when adding an assignment | 29 |
-| 14 | Calendar cells omit the student; colour should be per student | 30 |
-| 15 | Calendar list view: clerkship is not a link (student/preceptor are) | 30 |
-| 16 | Student/Preceptor/Clerkship list rows should be clickable like Locations | 31 |
-| 17 | Manage button is black on Clerkships only; make it black everywhere | 31 |
-| 18 | Resolved `not_onboarded` overrides still listed | 32 |
-| 19 | Capacity conflict count doubles (8 instead of 4) | 32 |
-| 20 | Conflict pill count is wrong for the same reason | 32 |
-| 21 | Only capacity appears under "Conflicts by type"; others only under "Overrides" | 32 |
-| 22 | Override list is unpaginated/overflowing and has no type filter | 32 |
+| #   | Reported issue                                                                 | Step |
+| --- | ------------------------------------------------------------------------------ | ---- |
+| 1   | Need a command to clear one test user without wiping the DB                    | 25   |
+| 2   | Need a command to clear everything for a fresh start                           | 25   |
+| 3   | Dashboard totals (students/preceptors/clerkships/assignments) are global       | 26   |
+| 4   | Locations shows other users' health systems and sites                          | 26   |
+| 5   | Student → Progress tab shows other users' clerkships                           | 26   |
+| 6   | Calendar shows other users' assignments                                        | 26   |
+| 7   | Can modify or delete other users' data                                         | 27   |
+| 8   | Edit assignment falsely reports "Student already has an assignment"            | 28   |
+| 9   | Edit assignment falsely warns "More days than required"                        | 28   |
+| 10  | Note placeholder implies an exception is being made when none is               | 28   |
+| 11  | Preceptor's already-taken days are not clearly indicated                       | 29   |
+| 12  | Selecting an already-taken day turns it black, hiding the overlap              | 29   |
+| 13  | Site should be required when adding an assignment                              | 29   |
+| 14  | Calendar cells omit the student; colour should be per student                  | 30   |
+| 15  | Calendar list view: clerkship is not a link (student/preceptor are)            | 30   |
+| 16  | Student/Preceptor/Clerkship list rows should be clickable like Locations       | 31   |
+| 17  | Manage button is black on Clerkships only; make it black everywhere            | 31   |
+| 18  | Resolved `not_onboarded` overrides still listed                                | 32   |
+| 19  | Capacity conflict count doubles (8 instead of 4)                               | 32   |
+| 20  | Conflict pill count is wrong for the same reason                               | 32   |
+| 21  | Only capacity appears under "Conflicts by type"; others only under "Overrides" | 32   |
+| 22  | Override list is unpaginated/overflowing and has no type filter                | 32   |
 
 ## Standing requirements
 

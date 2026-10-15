@@ -16,7 +16,7 @@
 import {
 	findDialectAdapterForUrlScheme,
 	getDialectAdapter,
-	listDialectNames,
+	listDialectNames
 } from './dialects/index';
 import { DEFAULT_SQLITE_PATH } from './dialects/sqlite';
 import type { DbConfig, DbEnv } from './dialects/types';

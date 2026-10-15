@@ -20,8 +20,20 @@ import type { DB } from '$lib/db/types';
 export async function createTestClerkship(
 	db: Kysely<DB>,
 	name: string,
-	clerkshipTypeOrOptions?: 'inpatient' | 'outpatient' | string | { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number; schedulingKind?: 'block' | 'scattered' },
-	options?: { clerkshipType?: 'inpatient' | 'outpatient'; requiredDays?: number; schedulingKind?: 'block' | 'scattered' }
+	clerkshipTypeOrOptions?:
+		| 'inpatient'
+		| 'outpatient'
+		| string
+		| {
+				clerkshipType?: 'inpatient' | 'outpatient';
+				requiredDays?: number;
+				schedulingKind?: 'block' | 'scattered';
+		  },
+	options?: {
+		clerkshipType?: 'inpatient' | 'outpatient';
+		requiredDays?: number;
+		schedulingKind?: 'block' | 'scattered';
+	}
 ) {
 	const id = nanoid();
 
@@ -38,9 +50,10 @@ export async function createTestClerkship(
 		schedulingKind = clerkshipTypeOrOptions.schedulingKind || 'scattered';
 	} else if (typeof clerkshipTypeOrOptions === 'string') {
 		// Legacy signature: string type in third param
-		clerkshipType = (clerkshipTypeOrOptions === 'inpatient' || clerkshipTypeOrOptions === 'outpatient')
-			? clerkshipTypeOrOptions
-			: 'outpatient';
+		clerkshipType =
+			clerkshipTypeOrOptions === 'inpatient' || clerkshipTypeOrOptions === 'outpatient'
+				? clerkshipTypeOrOptions
+				: 'outpatient';
 		// Check if fourth param has options
 		if (options) {
 			requiredDays = options.requiredDays || 28;
@@ -81,7 +94,7 @@ export async function createTestStudents(db: Kysely<DB>, count: number) {
 			.values({
 				id,
 				name: `Test Student ${i + 1}`,
-				email: `student-${id}@test.edu`, // Use unique ID in email to avoid conflicts
+				email: `student-${id}@test.edu` // Use unique ID in email to avoid conflicts
 			})
 			.execute();
 
@@ -113,7 +126,7 @@ export async function createTestPreceptors(
 		const values: any = {
 			id,
 			name: `Dr. Test Preceptor ${i + 1}`,
-			email: `preceptor${i + 1}@test.edu`,
+			email: `preceptor${i + 1}@test.edu`
 		};
 
 		if (options?.maxStudents !== undefined) {
@@ -127,10 +140,13 @@ export async function createTestPreceptors(
 
 		// If siteId is provided, create the site association via junction table
 		if (options?.siteId) {
-			await db.insertInto('preceptor_sites').values({
-				preceptor_id: id,
-				site_id: options.siteId,
-			}).execute();
+			await db
+				.insertInto('preceptor_sites')
+				.values({
+					preceptor_id: id,
+					site_id: options.siteId
+				})
+				.execute();
 		}
 
 		preceptorIds.push(id);
@@ -139,21 +155,27 @@ export async function createTestPreceptors(
 	// If clerkshipId is provided, create a team and add all preceptors to it
 	if (options?.clerkshipId && preceptorIds.length > 0) {
 		const teamId = nanoid();
-		await db.insertInto('preceptor_teams').values({
-			id: teamId,
-			name: `Test Team for ${options.clerkshipId}`,
-			clerkship_id: options.clerkshipId,
-		}).execute();
+		await db
+			.insertInto('preceptor_teams')
+			.values({
+				id: teamId,
+				name: `Test Team for ${options.clerkshipId}`,
+				clerkship_id: options.clerkshipId
+			})
+			.execute();
 
 		// Add all preceptors as team members
 		for (let i = 0; i < preceptorIds.length; i++) {
-			await db.insertInto('preceptor_team_members').values({
-				id: nanoid(),
-				team_id: teamId,
-				preceptor_id: preceptorIds[i],
-				role: i === 0 ? 'lead' : 'member',
-				priority: i + 1,
-			}).execute();
+			await db
+				.insertInto('preceptor_team_members')
+				.values({
+					id: nanoid(),
+					team_id: teamId,
+					preceptor_id: preceptorIds[i],
+					role: i === 0 ? 'lead' : 'member',
+					priority: i + 1
+				})
+				.execute();
 		}
 	}
 
@@ -178,7 +200,7 @@ export async function createTestPreceptor(
 	const values: any = {
 		id,
 		name: options.name ?? `Dr. Test ${id.slice(0, 6)}`,
-		email: options.email ?? `preceptor-${id}@test.edu`,
+		email: options.email ?? `preceptor-${id}@test.edu`
 	};
 
 	if (options.maxStudents !== undefined) {
@@ -195,10 +217,13 @@ export async function createTestPreceptor(
 
 	// If siteId is provided, create the site association via junction table
 	if (options.siteId) {
-		await db.insertInto('preceptor_sites').values({
-			preceptor_id: id,
-			site_id: options.siteId,
-		}).execute();
+		await db
+			.insertInto('preceptor_sites')
+			.values({
+				preceptor_id: id,
+				site_id: options.siteId
+			})
+			.execute();
 	}
 
 	return id;
@@ -207,19 +232,15 @@ export async function createTestPreceptor(
 /**
  * Creates a test health system with sites
  */
-export async function createTestHealthSystem(
-	db: Kysely<DB>,
-	name: string,
-	siteCount: number = 1
-) {
+export async function createTestHealthSystem(db: Kysely<DB>, name: string, siteCount: number = 1) {
 	const healthSystemId = nanoid();
 	await db
 		.insertInto('health_systems')
 		.values({
 			id: healthSystemId,
 			name,
-			location: 'Test City',
-					})
+			location: 'Test City'
+		})
 		.execute();
 
 	const siteIds: string[] = [];
@@ -232,7 +253,7 @@ export async function createTestHealthSystem(
 				health_system_id: healthSystemId,
 				name: `${name} - Site ${i + 1}`,
 				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
 			})
 			.execute();
 
@@ -291,8 +312,8 @@ export async function createCapacityRule(
 			max_students_per_day: options.maxStudentsPerDay,
 			max_students_per_year: options.maxStudentsPerYear ?? 20,
 			clerkship_id: options.clerkshipId,
-			requirement_type: options.requirementType,
-					})
+			requirement_type: options.requirementType
+		})
 		.execute();
 
 	return id;
@@ -337,7 +358,7 @@ export async function createTestTeam(
 			require_same_site: options?.requireSameSite ? 1 : 0,
 			require_same_specialty: options?.requireSameSpecialty ? 1 : 0,
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
 		})
 		.execute();
 
@@ -360,7 +381,7 @@ export async function createTestTeam(
 				priority: member.priority!,
 				role: member.role ?? null,
 				is_fallback_only: member.isFallbackOnly ? 1 : 0,
-				created_at: new Date().toISOString(),
+				created_at: new Date().toISOString()
 			})
 			.execute();
 	}
@@ -388,7 +409,7 @@ export async function createFallbackChain(
 				fallback_preceptor_id: fallbackPreceptorIds[i],
 				priority: i + 1,
 				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
 			})
 			.execute();
 
@@ -422,7 +443,7 @@ export async function createBlackoutDates(
 				.values({
 					id,
 					date: currentDate.toISOString().split('T')[0],
-					reason: range.reason || 'Test blackout',
+					reason: range.reason || 'Test blackout'
 				})
 				.execute();
 
@@ -513,7 +534,7 @@ export async function createPreceptorAvailability(
 		is_available: 1, // SQLite boolean
 		session,
 		credit_value: session === 'full' ? 1 : 0.5,
-		created_at: new Date().toISOString(),
+		created_at: new Date().toISOString()
 	}));
 
 	if (values.length > 0) {
@@ -625,16 +646,19 @@ export async function createTestUser(
 	const id = nanoid();
 	const timestamp = new Date().toISOString();
 
-	await db.insertInto('user').values({
-		id,
-		name: options.name ?? `Test User ${id.slice(0, 6)}`,
-		email: options.email ?? `user-${id}@test.edu`,
-		emailVerified: 0,
-		createdAt: timestamp,
-		updatedAt: timestamp,
-		image: null,
-		active_schedule_id: null,
-	}).execute();
+	await db
+		.insertInto('user')
+		.values({
+			id,
+			name: options.name ?? `Test User ${id.slice(0, 6)}`,
+			email: options.email ?? `user-${id}@test.edu`,
+			emailVerified: 0,
+			createdAt: timestamp,
+			updatedAt: timestamp,
+			image: null,
+			active_schedule_id: null
+		})
+		.execute();
 
 	return id;
 }
@@ -655,17 +679,20 @@ export async function createTestSchedule(
 	const id = nanoid();
 	const timestamp = new Date().toISOString();
 
-	await db.insertInto('scheduling_periods').values({
-		id,
-		name: options.name ?? `Test Schedule ${id.slice(0, 6)}`,
-		start_date: options.startDate ?? '2025-01-01',
-		end_date: options.endDate ?? '2025-12-31',
-		user_id: options.userId ?? null,
-		is_active: 0,
-		year: null,
-		created_at: timestamp,
-		updated_at: timestamp,
-	}).execute();
+	await db
+		.insertInto('scheduling_periods')
+		.values({
+			id,
+			name: options.name ?? `Test Schedule ${id.slice(0, 6)}`,
+			start_date: options.startDate ?? '2025-01-01',
+			end_date: options.endDate ?? '2025-12-31',
+			user_id: options.userId ?? null,
+			is_active: 0,
+			year: null,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 
 	// Set as user's active schedule if requested
 	if (options.setAsActive && options.userId) {
@@ -687,12 +714,15 @@ export async function associateStudentWithSchedule(
 	studentId: string,
 	scheduleId: string
 ): Promise<void> {
-	await db.insertInto('schedule_students').values({
-		id: nanoid(),
-		student_id: studentId,
-		schedule_id: scheduleId,
-		created_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('schedule_students')
+		.values({
+			id: nanoid(),
+			student_id: studentId,
+			schedule_id: scheduleId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
 }
 
 /**
@@ -703,12 +733,15 @@ export async function associatePreceptorWithSchedule(
 	preceptorId: string,
 	scheduleId: string
 ): Promise<void> {
-	await db.insertInto('schedule_preceptors').values({
-		id: nanoid(),
-		preceptor_id: preceptorId,
-		schedule_id: scheduleId,
-		created_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('schedule_preceptors')
+		.values({
+			id: nanoid(),
+			preceptor_id: preceptorId,
+			schedule_id: scheduleId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
 }
 
 /**
@@ -719,12 +752,15 @@ export async function associateSiteWithSchedule(
 	siteId: string,
 	scheduleId: string
 ): Promise<void> {
-	await db.insertInto('schedule_sites').values({
-		id: nanoid(),
-		site_id: siteId,
-		schedule_id: scheduleId,
-		created_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('schedule_sites')
+		.values({
+			id: nanoid(),
+			site_id: siteId,
+			schedule_id: scheduleId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
 }
 
 /**
@@ -735,12 +771,15 @@ export async function associateHealthSystemWithSchedule(
 	healthSystemId: string,
 	scheduleId: string
 ): Promise<void> {
-	await db.insertInto('schedule_health_systems').values({
-		id: nanoid(),
-		health_system_id: healthSystemId,
-		schedule_id: scheduleId,
-		created_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('schedule_health_systems')
+		.values({
+			id: nanoid(),
+			health_system_id: healthSystemId,
+			schedule_id: scheduleId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
 }
 
 /**
@@ -751,12 +790,15 @@ export async function associateClerkshipWithSchedule(
 	clerkshipId: string,
 	scheduleId: string
 ): Promise<void> {
-	await db.insertInto('schedule_clerkships').values({
-		id: nanoid(),
-		clerkship_id: clerkshipId,
-		schedule_id: scheduleId,
-		created_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('schedule_clerkships')
+		.values({
+			id: nanoid(),
+			clerkship_id: clerkshipId,
+			schedule_id: scheduleId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
 }
 
 /**
@@ -767,10 +809,13 @@ export async function associateTeamWithSchedule(
 	teamId: string,
 	scheduleId: string
 ): Promise<void> {
-	await db.insertInto('schedule_teams').values({
-		id: nanoid(),
-		team_id: teamId,
-		schedule_id: scheduleId,
-		created_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('schedule_teams')
+		.values({
+			id: nanoid(),
+			team_id: teamId,
+			schedule_id: scheduleId,
+			created_at: new Date().toISOString()
+		})
+		.execute();
 }

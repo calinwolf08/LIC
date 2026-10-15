@@ -13,18 +13,22 @@ The LIC Scheduling App helps medical school administrators manage schedules for 
 The product has **two stages**, delivered as two tiers:
 
 ### Stage 1 — Core Scheduling Tool (all users)
+
 A manual scheduling and validation tool. Users:
+
 - Manage the roster: students, preceptors, clerkships, sites, health systems.
 - Define requirements: required days per clerkship per student, blackout dates, preceptor availability.
 - **Build and adjust schedules manually**: create, edit, move, swap, and delete individual assignments.
-- **Validate continuously**: the app detects conflicts (double-booking, unavailable preceptor, blackout date, capacity) and tracks requirement completion per student, split by date into *completed*, *scheduled*, and *unscheduled*.
+- **Validate continuously**: the app detects conflicts (double-booking, unavailable preceptor, blackout date, capacity) and tracks requirement completion per student, split by date into _completed_, _scheduled_, and _unscheduled_.
 - Navigate fluidly between overall calendar, per-student, and per-preceptor views, and drill into any related entity in one click.
 - Export schedules to Excel.
 
 Stage 1 must be fully usable **without ever running the auto-generation engine**. It is the primary focus of current development.
 
 ### Stage 2 — Auto-Generation (paid/authorized tier)
+
 The constraint-based scheduling engine that generates or completes schedules automatically. It is **fully gated by user authorization** (entitlement flag on the user/organization). Includes:
+
 - One-click generation, smart regeneration (preserve past assignments), completion mode.
 - Violation statistics, blocking-constraint analysis, fix suggestions.
 - Advanced per-clerkship configuration: assignment strategies, team formation, fallback preceptors, capacity rules, block-based scheduling, health-system continuity.
@@ -38,8 +42,9 @@ Users without the entitlement never see Stage 2 configuration or actions. Stage 
 **Primary user:** medical school LIC program administrator/coordinator. Non-technical. Manages ~5–50 students, ~10–100 preceptors, ~5–15 clerkships per academic year. There are no student or preceptor logins.
 
 **Success criteria:**
+
 - A new user can complete setup and produce a valid schedule with **little or no assistance** — the UI itself explains order of operations, required data, and errors.
-- The user can always answer: *"Is student X on track? What's missing? What do I need to fix?"* in ≤ 2 clicks from anywhere.
+- The user can always answer: _"Is student X on track? What's missing? What do I need to fix?"_ in ≤ 2 clicks from anywhere.
 - No dead ends: every workflow returns the user to where they started or somewhere sensible.
 
 ---
@@ -66,6 +71,7 @@ User (admin) ──owns──► Schedule (scheduling_periods: name, start_date,
 ```
 
 Key rules:
+
 - **Schedule-first**: the user must have an active schedule; all entity lists and the calendar are scoped to it. New entities auto-associate with the active schedule.
 - A student cannot have two assignments on the same date (hard conflict).
 - An assignment on a date where the preceptor is unavailable, a blackout date, or beyond capacity is a **violation** — allowed to exist (user can override) but always visibly flagged.
@@ -81,11 +87,13 @@ Key rules:
 ## 4. Stage 1 Functional Requirements
 
 ### 4.1 Authentication & schedules
+
 - R1.1 Email/password auth (better-auth). Unauthenticated users see only public pages.
 - R1.2 A user with no schedule is routed into schedule creation; all app pages require an active schedule.
 - R1.3 Schedules: list, create, edit (name/dates), duplicate, switch active, delete (with dependency explanation). All five actions work — no dead links.
 
 ### 4.2 Students
+
 - R2.1 CRUD with unique email; deletion blocked while assignments exist (with explanation and a path to resolve).
 - R2.2 Student list shows, per student: scheduling status (fully / partially / unscheduled), requirement completion %, and a warning indicator for conflicts.
 - R2.3 Student detail page is the hub for one student:
@@ -96,6 +104,7 @@ Key rules:
   - Inline editing of student details.
 
 ### 4.3 Preceptors
+
 - R3.1 CRUD; creation collects contact info, site associations, and availability in one flow.
 - R3.2 Availability: pattern-based (weekly patterns, date ranges, exceptions, notes) with a **calendar visualization** of resulting availability (feedback F5).
 - R3.3 Preceptor list shows availability-configured indicator (F4) and assignment load.
@@ -106,16 +115,19 @@ Key rules:
   - **Stage 2 (auto-generation)** is strict: the engine places a day **only** on an explicit `is_available = 1` row at an allowed site. A preceptor with no availability rows (or only pattern rows that were never materialised into `preceptor_availability`) is never auto-scheduled. Coordinators must materialise availability before generating; the setup/readiness checklist (R7.3) flags preceptors in the schedule that lack any availability row, and — for entitled users — flags any clerkship with no workable preceptor (a team member, or with no team any preceptor, that has availability at an allowed site inside the schedule's date range). Pattern rows (`preceptor_availability_patterns`) do not count toward generation unless expanded into `preceptor_availability`.
 
 ### 4.4 Clerkships
+
 - R4.1 CRUD for core fields: name, type (inpatient/outpatient), required days, description, allowed sites, electives.
 - R4.2 Every configuration option visible in Stage 1 must have a clear user-facing meaning documented in the UI (label + help text). Options that only affect auto-generation live exclusively in the gated Stage 2 configuration area.
 - R4.3 Clerkship detail shows: which preceptors/sites can serve it, aggregate progress across students (how many students complete/at-risk), with drill-through.
 - R4.4 Elective day accounting. An elective is **required** (`is_required = 1`) or **optional** (`is_required = 0`). A clerkship's `required_days` is the total clinical days a student must complete for that clerkship. Only **required** electives' `minimum_days` are carved out of that total; the remainder is scheduled as ordinary (non-elective) clerkship days. **Optional** electives do **not** reduce the clerkship's day count — they are additional, self-standing requirements a student may complete on top of the clerkship's days, and are never subtracted from `required_days`. Requirement tracking counts required-elective days toward each elective's `minimum_days` and the remaining clerkship days toward the clerkship; optional-elective days are tracked against that elective only and never toward the clerkship total (review finding F-09).
 
 ### 4.5 Sites & health systems
+
 - R5.1 CRUD for health systems and sites (site belongs to one health system). Explanatory text for the hierarchy (U10).
 - R5.2 Deletions blocked by dependencies with in-UI explanation (no browser `alert()`/`confirm()`).
 
 ### 4.6 Manual scheduling (the core workflow)
+
 - R6.1 Create a single assignment (student, clerkship, preceptor, site, date) from: an empty calendar day, the student schedule page, and the preceptor schedule page. Pickers pre-filtered by context.
 - R6.2 Create assignments in bulk over a date range (e.g., "Mon–Fri for 3 weeks"), skipping blackout dates/weekends optionally.
 - R6.3 Real-time validation while creating/editing: hard-block student double-booking; warn (with override) on availability, blackout, capacity, site-mismatch violations.
@@ -128,6 +140,7 @@ Key rules:
 - R6.7 Elective assignment (Stage 1). A manual assignment may be tied to one of its clerkship's electives (`elective_id`); the assignment dialog offers that clerkship's electives, and the day counts toward that elective's `minimum_days` as well as (for a required elective) the clerkship total per R4.4. An `elective_id` that does not belong to the assignment's clerkship is a hard rejection, never silently dropped (review finding P-01).
 
 ### 4.7 Validation & requirement tracking
+
 - R7.1 A standalone validation engine (independent of generation) computes, for the active schedule: all conflicts/violations with type, entities, and date; per-student requirement status (completed/scheduled/unscheduled per clerkship).
 - R7.2 Validation results surface: on the dashboard (summary), on the calendar (per-day markers), on student list/detail, on preceptor detail.
 - R7.3 A **setup/readiness checklist** (U12, F8) tells the user what's missing before scheduling is meaningful (no students, clerkship without required days, preceptor without availability, etc.) — phrased for Stage 1 (manual) semantics, with Stage 2 readiness items appearing only for entitled users.
@@ -137,6 +150,7 @@ Key rules:
   - Every mutation route (create, reassign, change-date, swap) and the generator's proposal check answer through the **same** validator, so a code means the same thing and is accepted the same way everywhere.
 
 ### 4.8 Calendar
+
 - R8.1 Schedule-wide calendar with month grid and list views, defaulting to the schedule's full date range.
 - R8.2 Filters (student/preceptor/clerkship/date range) clearly labeled as display filters (U15/U16).
 - R8.3 Blackout date management available from the calendar; blackout days visually distinct.
@@ -144,10 +158,12 @@ Key rules:
 - R8.5 Export to Excel honoring current filters.
 
 ### 4.9 Dashboard
+
 - R9.1 Entity counts, student scheduling status breakdown, validation summary (top problems), and the setup checklist.
 - R9.2 Quick links into each area; items in the checklist deep-link to the exact page that fixes them.
 
 ### 4.10 Cross-cutting UX requirements
+
 - R10.1 **One interaction grammar** (see §6): consistent choice of full page vs. dialog per task type across the whole app.
 - R10.2 No dead-end navigation: detail pages have breadcrumbs; cross-entity flows (e.g., clerkship → sites) return to origin.
 - R10.3 Unsaved-changes warning on all multi-field forms (U9).
@@ -179,22 +195,24 @@ Key rules:
 
 These rules resolve the modal-vs-page inconsistency. Every feature must follow them.
 
-| Task | Pattern |
-|---|---|
-| Browse entities | List page with table, search/filter, primary "Add" button (one button, one label) |
-| Create complex entity (student, preceptor, clerkship, schedule, team) | **Full page** at `/{entity}/new` (wizard if multi-step, e.g., preceptor availability) |
-| Create simple entity (health system, site, blackout date) | **Dialog** from the list page |
-| View/edit an entity | **Full detail page** at `/{entity}/{id}` with tabs; editing is inline on the detail page (no separate `/edit` routes) |
-| Quick action on a row (delete, set active, duplicate) | Row action → shared confirmation dialog when destructive |
-| Create/edit an assignment | **Dialog** (assignments are small, context-heavy objects created from calendars) |
-| Cross-entity side quest (e.g., need a site while creating a preceptor) | Inline creation dialog inside the current form — never navigate away from a half-filled form |
+| Task                                                                   | Pattern                                                                                                               |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Browse entities                                                        | List page with table, search/filter, primary "Add" button (one button, one label)                                     |
+| Create complex entity (student, preceptor, clerkship, schedule, team)  | **Full page** at `/{entity}/new` (wizard if multi-step, e.g., preceptor availability)                                 |
+| Create simple entity (health system, site, blackout date)              | **Dialog** from the list page                                                                                         |
+| View/edit an entity                                                    | **Full detail page** at `/{entity}/{id}` with tabs; editing is inline on the detail page (no separate `/edit` routes) |
+| Quick action on a row (delete, set active, duplicate)                  | Row action → shared confirmation dialog when destructive                                                              |
+| Create/edit an assignment                                              | **Dialog** (assignments are small, context-heavy objects created from calendars)                                      |
+| Cross-entity side quest (e.g., need a site while creating a preceptor) | Inline creation dialog inside the current form — never navigate away from a half-filled form                          |
 
 Navigation rules:
+
 - Sidebar order = user's mental model: Dashboard → Calendar → Students → Preceptors → Clerkships → Locations (Sites & Health Systems) → Schedules → (gated) Auto-Generate.
 - Every detail page: breadcrumb to its list; every entity name shown anywhere is a link to its detail page.
 - Route names match sidebar labels; one term per concept everywhere: **Schedule** (the period + its data), **Calendar** (the view), **Assignment** (one student-preceptor-day), **Requirement** (days needed per clerkship).
 
 Visual/feedback rules:
+
 - shadcn-svelte components only; shared `PageHeader`, `EntityTabs`, `ConfirmDialog`, `EmptyState`, toast notifications.
 - Status colors: green = complete/valid, amber = partial/warning, red = conflict/missing, gray = not applicable.
 - All forms: superforms + Zod, disabled submit while pending, inline field errors, unsaved-changes guard.

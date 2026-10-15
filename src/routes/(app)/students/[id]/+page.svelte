@@ -306,8 +306,12 @@
 				</ul>
 			</div>
 		{:else if status && status.conflict_count > 0}
-			<div class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-				This student has {status.conflict_count} scheduling conflict{status.conflict_count > 1 ? 's' : ''}.
+			<div
+				class="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+			>
+				This student has {status.conflict_count} scheduling conflict{status.conflict_count > 1
+					? 's'
+					: ''}.
 			</div>
 		{/if}
 
@@ -334,7 +338,9 @@
 			{:else}
 				<div class="max-h-48 space-y-1 overflow-y-auto">
 					{#each data.preceptors as p (p.id)}
-						<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50">
+						<label
+							class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
+						>
 							<input
 								type="checkbox"
 								checked={corePreceptorIds.includes(p.id)}
@@ -376,16 +382,27 @@
 		</div>
 
 		<Card class="p-6">
-			<h2 class="mb-4 text-xl font-semibold">Clerkship progress <span class="text-sm font-normal text-muted-foreground">({overallPct}% overall)</span></h2>
+			<h2 class="mb-4 text-xl font-semibold">
+				Clerkship progress <span class="text-sm font-normal text-muted-foreground"
+					>({overallPct}% overall)</span
+				>
+			</h2>
 			{#if !status || status.per_clerkship.length === 0}
-				<EmptyState icon="📋" title="No clerkship requirements" description="Add clerkships with required days to track this student's progress." />
+				<EmptyState
+					icon="📋"
+					title="No clerkship requirements"
+					description="Add clerkships with required days to track this student's progress."
+				/>
 			{:else}
 				<div class="space-y-4">
 					{#each status.per_clerkship as c (c.clerkship_id)}
 						{@const total = Math.max(c.required, c.completed + c.scheduled)}
 						<div class="rounded-lg border p-4">
 							<div class="mb-2 flex items-center justify-between">
-								<a href="/clerkships/{c.clerkship_id}" class="font-medium text-primary hover:underline">
+								<a
+									href="/clerkships/{c.clerkship_id}"
+									class="font-medium text-primary hover:underline"
+								>
 									{c.clerkship_name}
 								</a>
 								<span class="text-sm text-muted-foreground">
@@ -395,7 +412,10 @@
 							</div>
 							<!-- Segmented progress bar -->
 							<div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
-								<div class="h-full bg-green-500" style="width: {(c.completed / total) * 100}%"></div>
+								<div
+									class="h-full bg-green-500"
+									style="width: {(c.completed / total) * 100}%"
+								></div>
 								<div class="h-full bg-blue-500" style="width: {(c.scheduled / total) * 100}%"></div>
 							</div>
 							{#if c.unscheduled > 0}
@@ -415,7 +435,8 @@
 			<Card class="mt-6 p-6" data-testid="standalone-electives">
 				<h2 class="mb-1 text-xl font-semibold">Standalone electives</h2>
 				<p class="mb-4 text-sm text-muted-foreground">
-					Optional electives that aren't part of a clerkship. Their days count toward the elective only.
+					Optional electives that aren't part of a clerkship. Their days count toward the elective
+					only.
 				</p>
 				<div class="space-y-4">
 					{#each status.standalone_electives as e (e.elective_id)}
@@ -428,7 +449,10 @@
 								</span>
 							</div>
 							<div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
-								<div class="h-full bg-green-500" style="width: {(e.completed / total) * 100}%"></div>
+								<div
+									class="h-full bg-green-500"
+									style="width: {(e.completed / total) * 100}%"
+								></div>
 								<div class="h-full bg-blue-500" style="width: {(e.scheduled / total) * 100}%"></div>
 							</div>
 						</div>
@@ -495,7 +519,12 @@
 						</thead>
 						<tbody>
 							{#each assignments as a (a.id)}
-								<tr class="border-t" data-testid={a.kind !== 'clinical' ? `student-assignment-${a.kind}-${a.date}` : undefined}>
+								<tr
+									class="border-t"
+									data-testid={a.kind !== 'clinical'
+										? `student-assignment-${a.kind}-${a.date}`
+										: undefined}
+								>
 									<td class="px-3 py-2">{a.date}</td>
 									<td class="px-3 py-2">
 										{#if a.kind === 'free_day'}
@@ -619,7 +648,11 @@
 	{:else if activeTab === 'details'}
 		<Card class="p-6">
 			<h2 class="mb-4 text-xl font-semibold">Student information</h2>
-			<SharedEntityWarning entityType="students" entityId={data.studentId} entityName={data.student.name} />
+			<SharedEntityWarning
+				entityType="students"
+				entityId={data.studentId}
+				entityName={data.student.name}
+			/>
 			{#if successMessage}
 				<div class="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
 					{successMessage}
@@ -651,9 +684,15 @@
 				Students must complete onboarding at a health system before being scheduled there.
 			</p>
 			{#if data.healthSystems.length === 0}
-				<EmptyState icon="🏥" title="No health systems" description="Add health systems in Locations.">
+				<EmptyState
+					icon="🏥"
+					title="No health systems"
+					description="Add health systems in Locations."
+				>
 					{#snippet action()}
-						<Button variant="outline" onclick={() => goto('/locations?tab=health-systems')}>Manage locations</Button>
+						<Button variant="outline" onclick={() => goto('/locations?tab=health-systems')}
+							>Manage locations</Button
+						>
 					{/snippet}
 				</EmptyState>
 			{:else}
@@ -661,7 +700,9 @@
 					{#each data.healthSystems as healthSystem (healthSystem.id)}
 						{@const record = data.onboardingStatus[healthSystem.id]}
 						{@const isCompleted = record?.is_completed === 1}
-						<div class="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50">
+						<div
+							class="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
+						>
 							<div class="flex items-center gap-4">
 								<input
 									type="checkbox"

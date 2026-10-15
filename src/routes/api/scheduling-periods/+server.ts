@@ -7,15 +7,9 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, ConflictError, handleApiError } from '$lib/api/errors';
-import {
-	createSchedulingPeriod
-} from '$lib/features/scheduling/services/scheduling-period-service';
+import { createSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
 import { createSchedulingPeriodSchema } from '$lib/features/preceptors/pattern-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -94,7 +88,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Scheduling period validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

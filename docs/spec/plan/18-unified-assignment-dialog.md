@@ -1,15 +1,19 @@
 # Step 18 — One Assignment Dialog Everywhere (cascading, availability-aware, override flows)
 
 ## Objective
+
 Replace the current thin dialog with a single component used identically from the student page, the calendar, and the preceptor page — cascading selections, a real date picker driven by preceptor availability, guided override conversations, and requirement feedback.
 
 ## Context (verified in code)
+
 `create-assignment-dialog.svelte` today: four unfiltered `<select>`s, a raw date input, a "Lock this assignment" checkbox **visible to every user** (must be Stage-2 gated), and a debounced dry-run that can only say "No conflicts" / warn / block. `edit-assignment-modal.svelte` is a separate, differently-shaped component. The user's requirement is that all three entry points behave the same, differing only in which field is pre-filled and locked.
 
 ## Prerequisites
+
 Step 17 (all data comes from its endpoints).
 
 ## Scope
+
 **In:** one create/edit dialog component + override sub-dialogs + entitlement gating.
 **Out:** page-level integration (steps 19–21) beyond exporting a ready component.
 
@@ -22,15 +26,16 @@ Step 17 (all data comes from its endpoints).
 3. **Date picker (replaces `<input type="date">`).** A month grid over the schedule range, fed by `/day-states`, with three selection modes matching the availability builder's vocabulary: **Single**, **Range** (+ weekday filter), **Individual days** (click to toggle). Each day is colour/legend coded: available · unavailable · unset · blackout · preceptor already booked (shows the occupying student) · student already busy · out of range · past. Days outside the schedule are not selectable. Selecting an unavailable/booked day is permitted but flags the day for an override conversation on submit.
 4. **Requirement feedback.** Live strip under the clerkship select from `/requirement-preview`: "Assigning 3 days · 2 of 3 remaining for Pediatrics". If the selection exceeds the requirement, show an amber **"1 day more than required"** warning (soft, overridable) — this is the user's over-assignment warning.
 5. **Override conversations.** On submit, group flagged days and ask once per category, each a `ConfirmDialog` with explicit choices (no `window.confirm`):
-   - **Preceptor unavailable** → *Cancel* / *Assign anyway (one-time exception)* / *Assign and mark the preceptor available on these dates* (→ `mark_preceptor_available`).
-   - **Preceptor already has a student** → *Cancel* / *Double-book this day* / *Move the other student off this day* (→ `remove_conflicting_assignment`, naming the student). If double-booking is chosen, ask a second question: *Allow just this exception* vs *Raise this preceptor's student limit* (→ `bump_preceptor_capacity`).
+   - **Preceptor unavailable** → _Cancel_ / _Assign anyway (one-time exception)_ / _Assign and mark the preceptor available on these dates_ (→ `mark_preceptor_available`).
+   - **Preceptor already has a student** → _Cancel_ / _Double-book this day_ / _Move the other student off this day_ (→ `remove_conflicting_assignment`, naming the student). If double-booking is chosen, ask a second question: _Allow just this exception_ vs _Raise this preceptor's student limit_ (→ `bump_preceptor_capacity`).
    - **Blackout / not onboarded / over-required / past date** → single accept-or-cancel.
-   Accepted categories are submitted as `override_codes` (+ optional note); chosen side effects as `side_effects[]`. **Hard** conflicts (student double-booked) are never overridable — the affected days are listed and excluded.
+     Accepted categories are submitted as `override_codes` (+ optional note); chosen side effects as `side_effects[]`. **Hard** conflicts (student double-booked) are never overridable — the affected days are listed and excluded.
 6. **Stage-2 gating.** Render the "Lock this assignment" checkbox only when `$page.data.entitlements.includes('autogen')`. The server must also ignore `locked` from non-entitled callers — gate on both sides (GUIDELINES).
 7. **Context panel.** The dialog shows a compact read-only summary of the selected student's clerkship progress and their currently assigned preceptors, so the user has that context while assigning (the deeper view lives on the student page — step 19).
 8. Delete the old component only after all call sites migrate; keep the export name stable via `features/schedules/components/index.ts`.
 
 ## Testing
+
 - **Component:** ineligible options disabled with reasons; changing preceptor clears an now-invalid site; day grid renders one cell per in-range date and none outside; past/out-of-range days unselectable; lock checkbox absent without the entitlement and present with it; requirement strip updates with selection count.
 - **Unit:** the submit payload builder — selected days + accepted categories → correct `override_codes` and `side_effects`; hard-conflict days excluded from the payload.
 - **E2E (new journeys):**
@@ -42,6 +47,7 @@ Step 17 (all data comes from its endpoints).
   6. Non-entitled user sees no lock checkbox; a forged `locked: true` POST is ignored.
 
 ## Acceptance criteria
+
 - [ ] One component serves student, calendar and preceptor entry points; edit mode edits a single day.
 - [ ] Selections filter each other; invalid options are visible, disabled and explained.
 - [ ] Dates reflect real preceptor availability and existing bookings; range/individual/single selection all work.

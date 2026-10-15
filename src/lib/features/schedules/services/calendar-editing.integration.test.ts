@@ -152,7 +152,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.execute();
 
-		await db.schema
+	await db.schema
 		.createTable('scheduling_periods')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
@@ -220,7 +220,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('max_blocks_per_year', 'integer')
 		.execute();
 
-await db.schema
+	await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('schedule_id', 'text')
@@ -239,7 +239,7 @@ await db.schema
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	await db.schema
@@ -270,7 +270,7 @@ await db.schema
 		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 }

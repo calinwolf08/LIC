@@ -122,8 +122,8 @@
 			<div class="space-y-2">
 				<Label for="name">Name</Label>
 				<p class="text-xs text-muted-foreground">
-					The name you'll recognize this clerkship by throughout the app (e.g. "Internal
-					Medicine"). Use your program's official course name if you want it to match your catalog.
+					The name you'll recognize this clerkship by throughout the app (e.g. "Internal Medicine").
+					Use your program's official course name if you want it to match your catalog.
 				</p>
 				<Input
 					id="name"
@@ -141,7 +141,7 @@
 			<div class="space-y-2">
 				<Label>Clerkship Type</Label>
 				<div class="flex gap-6">
-					<label class="flex items-center gap-2 cursor-pointer">
+					<label class="flex cursor-pointer items-center gap-2">
 						<input
 							type="radio"
 							name="clerkship_type"
@@ -152,7 +152,7 @@
 						/>
 						<span>Inpatient</span>
 					</label>
-					<label class="flex items-center gap-2 cursor-pointer">
+					<label class="flex cursor-pointer items-center gap-2">
 						<input
 							type="radio"
 							name="clerkship_type"
@@ -210,7 +210,7 @@
 			<div class="space-y-2" data-testid="clerkship-scheduling-kind">
 				<Label>How it's scheduled</Label>
 				<div class="flex flex-col gap-2">
-					<label class="flex items-center gap-2 cursor-pointer">
+					<label class="flex cursor-pointer items-center gap-2">
 						<input
 							type="radio"
 							name="scheduling_kind"
@@ -221,7 +221,7 @@
 						/>
 						<span>Scattered (outpatient) — individual days across the schedule</span>
 					</label>
-					<label class="flex items-center gap-2 cursor-pointer">
+					<label class="flex cursor-pointer items-center gap-2">
 						<input
 							type="radio"
 							name="scheduling_kind"

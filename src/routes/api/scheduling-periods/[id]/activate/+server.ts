@@ -6,11 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { activateSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
 import { assertScheduleOwnedByUser } from '$lib/api/schedule-context';
@@ -49,7 +45,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Validation failed for activate', {
 				periodId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

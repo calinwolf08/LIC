@@ -4,10 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Card } from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
-	import {
-		addPreceptorToElective,
-		removePreceptorFromElective
-	} from '../services/elective-client';
+	import { addPreceptorToElective, removePreceptorFromElective } from '../services/elective-client';
 
 	interface Preceptor {
 		id: string;
@@ -76,12 +73,7 @@
 								class="ml-1 rounded-full hover:bg-destructive/20"
 								aria-label="Remove {preceptor.name}"
 							>
-								<svg
-									class="h-3 w-3"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
+								<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"

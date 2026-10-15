@@ -71,6 +71,7 @@
 ### API Endpoints
 
 #### Health Systems
+
 - `GET /api/scheduling-config/health-systems` - List all
 - `POST /api/scheduling-config/health-systems` - Create
 - `GET /api/scheduling-config/health-systems/[id]` - Get one
@@ -78,9 +79,11 @@
 - `DELETE /api/scheduling-config/health-systems/[id]` - Delete
 
 #### Clerkship Configuration
+
 - `GET /api/scheduling-config/clerkships/[id]` - Get complete configuration
 
 #### Requirements
+
 - `GET /api/scheduling-config/requirements` - List (with clerkshipId query)
 - `POST /api/scheduling-config/requirements` - Create
 - `GET /api/scheduling-config/requirements/[id]` - Get one
@@ -88,44 +91,52 @@
 - `DELETE /api/scheduling-config/requirements/[id]` - Delete
 
 #### Teams
+
 - `GET /api/scheduling-config/teams` - List (with clerkshipId query)
 - `POST /api/scheduling-config/teams` - Create
 - `POST /api/scheduling-config/teams/validate` - Validate team composition
 
 #### Capacity Rules
+
 - `GET /api/scheduling-config/capacity-rules` - List (with preceptorId query)
 - `POST /api/scheduling-config/capacity-rules` - Create
 - `PUT /api/scheduling-config/capacity-rules/[id]` - Update
 - `DELETE /api/scheduling-config/capacity-rules/[id]` - Delete
 
 #### Fallbacks
+
 - `GET /api/scheduling-config/fallbacks` - List (with primaryPreceptorId query)
 - `POST /api/scheduling-config/fallbacks` - Create
 - `DELETE /api/scheduling-config/fallbacks/[id]` - Delete
 
 #### Electives
+
 - `GET /api/scheduling-config/electives` - List (with requirementId query)
 - `POST /api/scheduling-config/electives` - Create
 - `DELETE /api/scheduling-config/electives/[id]` - Delete
 
 #### Scheduling Execution
+
 - `POST /api/scheduling/execute` - Execute scheduling engine
 
 ## Manual Validation Steps
 
 ### 1. Homepage & Navigation
+
 - [ ] Visit http://localhost:5173/
 - [ ] Verify dashboard loads
 - [ ] Check navigation menu includes "Scheduling Config" link
 - [ ] Test navigation to each main section
 
 ### 2. Scheduling Configuration Main Page
+
 - [ ] Visit `/scheduling-config`
 - [ ] Verify health systems list loads
 - [ ] Verify clerkships list loads
 - [ ] Click "Configure" on a clerkship → Should navigate to detail page
 
 ### 3. Clerkship Configuration Detail
+
 - [ ] Visit `/scheduling-config/clerkships/[id]`
 - [ ] Verify 4 tabs display: Requirements, Teams, Capacity Rules, Fallbacks
 - [ ] Check Requirements tab shows clerkship requirements
@@ -134,6 +145,7 @@
 - [ ] Check Fallbacks tab shows fallback chains
 
 ### 4. Scheduling Execution
+
 - [ ] Visit `/scheduling-config/execute`
 - [ ] Verify student selection checkboxes
 - [ ] Verify clerkship selection checkboxes
@@ -147,6 +159,7 @@
 - [ ] Verify results display
 
 ### 5. API Endpoints (using browser DevTools or curl)
+
 ```bash
 # Health Systems
 curl http://localhost:5173/api/scheduling-config/health-systems
@@ -185,6 +198,7 @@ These errors exist in the original codebase and do not affect functionality.
 ## Notes
 
 The application is auth-protected, so you may need to:
+
 1. Register a new account at `/register`
 2. Login at `/login`
 3. Then access the protected routes

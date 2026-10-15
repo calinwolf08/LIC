@@ -20,7 +20,7 @@ import {
 	createTestPreceptor,
 	createTestTeam,
 	clearAllTestData,
-	generateDateRange,
+	generateDateRange
 } from '$lib/testing/integration-helpers';
 import {
 	createSchedulingPeriod,
@@ -74,7 +74,7 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			// Verify association
 			const associatedStudents = await getScheduleEntities(db, schedule.id!, 'students');
 			expect(associatedStudents).toHaveLength(3);
-			studentIds.forEach(id => expect(associatedStudents).toContain(id));
+			studentIds.forEach((id) => expect(associatedStudents).toContain(id));
 		});
 
 		it('should associate preceptors with a schedule', async () => {
@@ -87,7 +87,10 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			});
 
 			// Create preceptors
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Test Health System', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Test Health System', 1);
 			const preceptor1 = await createTestPreceptor(db, { name: 'Dr. One', healthSystemId, siteId });
 			const preceptor2 = await createTestPreceptor(db, { name: 'Dr. Two', healthSystemId, siteId });
 
@@ -249,7 +252,7 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			// Verify entities were copied
 			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(4);
-			studentIds.forEach(id => expect(newStudents).toContain(id));
+			studentIds.forEach((id) => expect(newStudents).toContain(id));
 
 			const newSites = await getScheduleEntities(db, result.schedule.id!, 'sites');
 			expect(newSites).toHaveLength(2);
@@ -366,10 +369,15 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 			});
 
 			// Create health system and site
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 
 			// Create clerkship
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 5
+			});
 
 			// Create preceptor
 			const preceptorId = await createTestPreceptor(db, {
@@ -408,7 +416,7 @@ describe('Integration Suite 14: Multi-Schedule Support', () => {
 
 			// Verify each student got assignments
 			for (const studentId of studentIds) {
-				const assignments = result.assignments.filter(a => a.studentId === studentId);
+				const assignments = result.assignments.filter((a) => a.studentId === studentId);
 				expect(assignments.length).toBeGreaterThan(0);
 			}
 		});

@@ -19,9 +19,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		team: teamData.success ? teamData.data : null,
 		sites: sitesData.success ? sitesData.data : [],
 		preceptors: preceptorsData.success ? preceptorsData.data : [],
-		serveable: serveableData.success
-			? serveableData.data
-			: { serveable: [], overlap: true },
+		serveable: serveableData.success ? serveableData.data : { serveable: [], overlap: true },
 		teamId: params.id
 	};
 };

@@ -66,7 +66,11 @@ export const createSiteSchema = z.object({
  */
 export const updateSiteSchema = z
 	.object({
-		name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long').optional(),
+		name: z
+			.string()
+			.min(2, 'Name must be at least 2 characters')
+			.max(100, 'Name is too long')
+			.optional(),
 		// An empty string means "leave unchanged" (partial updates send every
 		// field). A site can therefore never have its health system cleared —
 		// only switched to another valid one.
@@ -122,8 +126,18 @@ export const siteCapacityRuleSchema = z.object({
 	clerkship_id: cuid2Schema.optional().nullable(),
 	requirement_type: z.enum(['inpatient', 'outpatient', 'elective']).optional().nullable(),
 	max_students_per_day: z.number().int().positive('Must be a positive number'),
-	max_students_per_year: z.number().int().positive('Must be a positive number').optional().nullable(),
-	max_students_per_block: z.number().int().positive('Must be a positive number').optional().nullable(),
+	max_students_per_year: z
+		.number()
+		.int()
+		.positive('Must be a positive number')
+		.optional()
+		.nullable(),
+	max_students_per_block: z
+		.number()
+		.int()
+		.positive('Must be a positive number')
+		.optional()
+		.nullable(),
 	max_blocks_per_year: z.number().int().positive('Must be a positive number').optional().nullable()
 });
 

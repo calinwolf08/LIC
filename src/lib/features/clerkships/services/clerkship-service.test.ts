@@ -75,7 +75,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 
@@ -516,13 +516,33 @@ describe('Clerkship Service - Multi-tenancy', () => {
 			const userAId = await createTestUser(db, { name: 'User A' });
 			const userBId = await createTestUser(db, { name: 'User B' });
 
-			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
-			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+			const scheduleAId = await createTestSchedule(db, {
+				userId: userAId,
+				name: 'Schedule A',
+				setAsActive: true
+			});
+			const scheduleBId = await createTestSchedule(db, {
+				userId: userBId,
+				name: 'Schedule B',
+				setAsActive: true
+			});
 
 			// Create clerkships
-			const clerkshipA1 = await createClerkship(db, { name: 'Clerkship A1', clerkship_type: 'outpatient', required_days: 5 });
-			const clerkshipA2 = await createClerkship(db, { name: 'Clerkship A2', clerkship_type: 'inpatient', required_days: 10 });
-			const clerkshipB1 = await createClerkship(db, { name: 'Clerkship B1', clerkship_type: 'outpatient', required_days: 5 });
+			const clerkshipA1 = await createClerkship(db, {
+				name: 'Clerkship A1',
+				clerkship_type: 'outpatient',
+				required_days: 5
+			});
+			const clerkshipA2 = await createClerkship(db, {
+				name: 'Clerkship A2',
+				clerkship_type: 'inpatient',
+				required_days: 10
+			});
+			const clerkshipB1 = await createClerkship(db, {
+				name: 'Clerkship B1',
+				clerkship_type: 'outpatient',
+				required_days: 5
+			});
 
 			// Associate clerkships with schedules
 			await associateClerkshipWithSchedule(db, clerkshipA1.id, scheduleAId);
@@ -532,22 +552,30 @@ describe('Clerkship Service - Multi-tenancy', () => {
 			// Get clerkships for Schedule A
 			const clerkshipsA = await getClerkshipsBySchedule(db, scheduleAId);
 			expect(clerkshipsA).toHaveLength(2);
-			expect(clerkshipsA.map(c => c.id)).toContain(clerkshipA1.id);
-			expect(clerkshipsA.map(c => c.id)).toContain(clerkshipA2.id);
-			expect(clerkshipsA.map(c => c.id)).not.toContain(clerkshipB1.id);
+			expect(clerkshipsA.map((c) => c.id)).toContain(clerkshipA1.id);
+			expect(clerkshipsA.map((c) => c.id)).toContain(clerkshipA2.id);
+			expect(clerkshipsA.map((c) => c.id)).not.toContain(clerkshipB1.id);
 
 			// Get clerkships for Schedule B
 			const clerkshipsB = await getClerkshipsBySchedule(db, scheduleBId);
 			expect(clerkshipsB).toHaveLength(1);
-			expect(clerkshipsB.map(c => c.id)).toContain(clerkshipB1.id);
+			expect(clerkshipsB.map((c) => c.id)).toContain(clerkshipB1.id);
 		});
 
 		it('returns empty array when schedule has no associated clerkships', async () => {
 			const userId = await createTestUser(db, { name: 'User' });
-			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+			const scheduleId = await createTestSchedule(db, {
+				userId,
+				name: 'Empty Schedule',
+				setAsActive: true
+			});
 
 			// Create clerkship but don't associate with the schedule
-			await createClerkship(db, { name: 'Some Clerkship', clerkship_type: 'outpatient', required_days: 5 });
+			await createClerkship(db, {
+				name: 'Some Clerkship',
+				clerkship_type: 'outpatient',
+				required_days: 5
+			});
 
 			const clerkships = await getClerkshipsBySchedule(db, scheduleId);
 			expect(clerkships).toEqual([]);

@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Invalid preceptor ID format', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -133,7 +133,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Preceptor update validation failed', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -176,7 +176,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Invalid preceptor ID format for deletion', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

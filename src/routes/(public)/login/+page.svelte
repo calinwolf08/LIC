@@ -1,6 +1,6 @@
 <script lang="ts">
-	import LoginForm from "$lib/features/auth/login/components/login-form.svelte";
-	import * as Card from "$lib/components/ui/card";
+	import LoginForm from '$lib/features/auth/login/components/login-form.svelte';
+	import * as Card from '$lib/components/ui/card';
 
 	let { data } = $props();
 </script>

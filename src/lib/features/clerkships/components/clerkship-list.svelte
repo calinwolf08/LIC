@@ -57,7 +57,7 @@
 			<thead>
 				<tr class="border-b bg-muted/50">
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('name')}
 					>
 						<div class="flex items-center gap-2">
@@ -71,7 +71,7 @@
 					</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Type</th>
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('required_days')}
 					>
 						<div class="flex items-center gap-2">
@@ -91,9 +91,7 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
-							Loading...
-						</td>
+						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground"> Loading... </td>
 					</tr>
 				{:else if sortedClerkships().length === 0}
 					<tr>
@@ -104,7 +102,9 @@
 				{:else}
 					{#each sortedClerkships() as clerkship}
 						<tr
-							class="border-b transition-colors hover:bg-muted/50 {onConfigure ? 'cursor-pointer' : ''}"
+							class="border-b transition-colors hover:bg-muted/50 {onConfigure
+								? 'cursor-pointer'
+								: ''}"
 							onclick={() => onConfigure?.(clerkship)}
 						>
 							<td class="px-4 py-3 text-sm font-medium">
@@ -146,11 +146,7 @@
 										</Button>
 									{/if}
 									{#if onDelete}
-										<Button
-											size="sm"
-											variant="destructive"
-											onclick={() => onDelete?.(clerkship)}
-										>
+										<Button size="sm" variant="destructive" onclick={() => onDelete?.(clerkship)}>
 											Delete
 										</Button>
 									{/if}

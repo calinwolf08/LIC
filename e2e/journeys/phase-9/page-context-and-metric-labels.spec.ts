@@ -37,8 +37,8 @@ test.describe('CF-N1 page context + metric subjects', { tag: ['@stage1'] }, () =
 
 		// The preceptor capacity panel is explicitly about this preceptor.
 		await asAdmin.goto(`/preceptors/${roster.preceptors[0].id}`);
-		await expect(
-			asAdmin.getByText("This preceptor's availability and assigned days")
-		).toBeVisible({ timeout: 15000 });
+		await expect(asAdmin.getByText("This preceptor's availability and assigned days")).toBeVisible({
+			timeout: 15000
+		});
 	});
 });

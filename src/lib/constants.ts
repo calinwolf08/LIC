@@ -1,5 +1,5 @@
 export const PageSlugs = {
-    home: '/',
-    login: '/login',
-    register: '/register',
-}
+	home: '/',
+	login: '/login',
+	register: '/register'
+};

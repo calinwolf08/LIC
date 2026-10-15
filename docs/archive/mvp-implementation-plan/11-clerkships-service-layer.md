@@ -1,9 +1,11 @@
 # Step 11: Clerkships - Service Layer
 
 ## Overview
+
 Implement the service layer for clerkship management. Clerkships represent rotation types (e.g., Internal Medicine, Surgery) with specific duration requirements. This layer handles CRUD operations, validation, and business logic for clerkship types.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -11,7 +13,9 @@ Implement the service layer for clerkship management. Clerkships represent rotat
 ## Requirements
 
 ### Database Operations
+
 Implement CRUD operations for clerkships:
+
 - Get all clerkships
 - Get single clerkship by ID
 - Create new clerkship
@@ -20,6 +24,7 @@ Implement CRUD operations for clerkships:
 - Get clerkships by specialty
 
 ### Business Rules
+
 - Name must be unique across all clerkships
 - required_days must be positive integer
 - Specialty is required and cannot be empty
@@ -27,6 +32,7 @@ Implement CRUD operations for clerkships:
 - Description is optional
 
 ### Validation
+
 - Zod schemas for create and update operations
 - Name uniqueness validation
 - required_days validation (positive integer)
@@ -35,6 +41,7 @@ Implement CRUD operations for clerkships:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/clerkships/
 ├── services/
@@ -52,6 +59,7 @@ Implement CRUD operations for clerkships:
 Zod validation schemas for clerkship operations.
 
 **Exports:**
+
 ```typescript
 import { z } from 'zod';
 import { nameSchema, uuidSchema, positiveIntSchema } from '$lib/validation/common-schemas';
@@ -59,23 +67,25 @@ import { nameSchema, uuidSchema, positiveIntSchema } from '$lib/validation/commo
 export const specialtySchema = z.string().min(1, 'Specialty is required');
 
 export const createClerkshipSchema = z.object({
-  name: nameSchema,
-  specialty: specialtySchema,
-  required_days: positiveIntSchema,
-  description: z.string().optional(),
+	name: nameSchema,
+	specialty: specialtySchema,
+	required_days: positiveIntSchema,
+	description: z.string().optional()
 });
 
-export const updateClerkshipSchema = z.object({
-  name: nameSchema.optional(),
-  specialty: specialtySchema.optional(),
-  required_days: positiveIntSchema.optional(),
-  description: z.string().optional(),
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided for update',
-});
+export const updateClerkshipSchema = z
+	.object({
+		name: nameSchema.optional(),
+		specialty: specialtySchema.optional(),
+		required_days: positiveIntSchema.optional(),
+		description: z.string().optional()
+	})
+	.refine((data) => Object.keys(data).length > 0, {
+		message: 'At least one field must be provided for update'
+	});
 
 export const clerkshipIdSchema = z.object({
-  id: uuidSchema,
+	id: uuidSchema
 });
 
 export type CreateClerkshipInput = z.infer<typeof createClerkshipSchema>;
@@ -83,6 +93,7 @@ export type UpdateClerkshipInput = z.infer<typeof updateClerkshipSchema>;
 ```
 
 **Requirements:**
+
 - Use common schemas from shared validation utilities
 - Export both schemas and TypeScript types
 - required_days must be positive
@@ -95,62 +106,55 @@ export type UpdateClerkshipInput = z.infer<typeof updateClerkshipSchema>;
 Service functions for clerkship database operations.
 
 **Exports:**
+
 ```typescript
 import type { Kysely } from 'kysely';
 import type { Database, ClerkshipsTable } from '$lib/db/types';
 import type { CreateClerkshipInput, UpdateClerkshipInput } from '../schemas';
 
-export async function getClerkships(db: Kysely<Database>): Promise<ClerkshipsTable[]>
+export async function getClerkships(db: Kysely<Database>): Promise<ClerkshipsTable[]>;
 
 export async function getClerkshipById(
-  db: Kysely<Database>,
-  id: string
-): Promise<ClerkshipsTable | null>
+	db: Kysely<Database>,
+	id: string
+): Promise<ClerkshipsTable | null>;
 
 export async function getClerkshipsBySpecialty(
-  db: Kysely<Database>,
-  specialty: string
-): Promise<ClerkshipsTable[]>
+	db: Kysely<Database>,
+	specialty: string
+): Promise<ClerkshipsTable[]>;
 
 export async function getClerkshipByName(
-  db: Kysely<Database>,
-  name: string
-): Promise<ClerkshipsTable | null>
+	db: Kysely<Database>,
+	name: string
+): Promise<ClerkshipsTable | null>;
 
 export async function createClerkship(
-  db: Kysely<Database>,
-  data: CreateClerkshipInput
-): Promise<ClerkshipsTable>
+	db: Kysely<Database>,
+	data: CreateClerkshipInput
+): Promise<ClerkshipsTable>;
 
 export async function updateClerkship(
-  db: Kysely<Database>,
-  id: string,
-  data: UpdateClerkshipInput
-): Promise<ClerkshipsTable>
+	db: Kysely<Database>,
+	id: string,
+	data: UpdateClerkshipInput
+): Promise<ClerkshipsTable>;
 
-export async function deleteClerkship(
-  db: Kysely<Database>,
-  id: string
-): Promise<void>
+export async function deleteClerkship(db: Kysely<Database>, id: string): Promise<void>;
 
-export async function canDeleteClerkship(
-  db: Kysely<Database>,
-  id: string
-): Promise<boolean>
+export async function canDeleteClerkship(db: Kysely<Database>, id: string): Promise<boolean>;
 
-export async function clerkshipExists(
-  db: Kysely<Database>,
-  id: string
-): Promise<boolean>
+export async function clerkshipExists(db: Kysely<Database>, id: string): Promise<boolean>;
 
 export async function isNameTaken(
-  db: Kysely<Database>,
-  name: string,
-  excludeId?: string
-): Promise<boolean>
+	db: Kysely<Database>,
+	name: string,
+	excludeId?: string
+): Promise<boolean>;
 ```
 
 **Requirements:**
+
 - All functions accept database instance as first parameter
 - Use Kysely type-safe queries
 - Throw appropriate errors (NotFoundError, ConflictError)
@@ -166,6 +170,7 @@ export async function isNameTaken(
 Retrieve all clerkships from database.
 
 **Logic:**
+
 - Query all clerkships from clerkships table
 - Order by name alphabetically
 - Return array of clerkships (empty array if none)
@@ -175,6 +180,7 @@ Retrieve all clerkships from database.
 **Errors:** None (returns empty array if no clerkships)
 
 **Example:**
+
 ```typescript
 const clerkships = await getClerkships(db);
 // [{ id: '...', name: 'Internal Medicine', specialty: 'Internal Medicine', required_days: 28, ... }]
@@ -187,10 +193,12 @@ const clerkships = await getClerkships(db);
 Retrieve single clerkship by ID.
 
 **Logic:**
+
 - Query clerkship by ID
 - Return clerkship if found, null if not found
 
 **Parameters:**
+
 - `id`: Clerkship UUID
 
 **Returns:** Clerkship object or null
@@ -198,10 +206,11 @@ Retrieve single clerkship by ID.
 **Errors:** None (returns null if not found)
 
 **Example:**
+
 ```typescript
 const clerkship = await getClerkshipById(db, '123-456-789');
 if (!clerkship) {
-  throw new NotFoundError('Clerkship');
+	throw new NotFoundError('Clerkship');
 }
 ```
 
@@ -212,12 +221,14 @@ if (!clerkship) {
 Retrieve all clerkships for a specific medical specialty.
 
 **Logic:**
+
 - Query clerkships by specialty
 - Case-sensitive match
 - Order by name alphabetically
 - Return array of matching clerkships
 
 **Parameters:**
+
 - `specialty`: Medical specialty (e.g., "Internal Medicine")
 
 **Returns:** Array of clerkships with matching specialty
@@ -225,6 +236,7 @@ Retrieve all clerkships for a specific medical specialty.
 **Errors:** None (returns empty array if no matches)
 
 **Example:**
+
 ```typescript
 const clerkships = await getClerkshipsBySpecialty(db, 'Internal Medicine');
 ```
@@ -236,10 +248,12 @@ const clerkships = await getClerkshipsBySpecialty(db, 'Internal Medicine');
 Retrieve clerkship by name.
 
 **Logic:**
+
 - Query clerkship by name (case-insensitive)
 - Return clerkship if found, null if not found
 
 **Parameters:**
+
 - `name`: Clerkship name
 
 **Returns:** Clerkship object or null
@@ -247,6 +261,7 @@ Retrieve clerkship by name.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const clerkship = await getClerkshipByName(db, 'Internal Medicine');
 ```
@@ -258,6 +273,7 @@ const clerkship = await getClerkshipByName(db, 'Internal Medicine');
 Create new clerkship.
 
 **Logic:**
+
 1. Check if name is already taken
 2. Throw ConflictError if name exists
 3. Generate UUID for new clerkship
@@ -266,20 +282,23 @@ Create new clerkship.
 6. Return created clerkship
 
 **Parameters:**
+
 - `data`: Object with name, specialty, required_days, and optional description
 
 **Returns:** Created clerkship object
 
 **Errors:**
+
 - `ConflictError`: Name already exists
 
 **Example:**
+
 ```typescript
 const clerkship = await createClerkship(db, {
-  name: 'Internal Medicine',
-  specialty: 'Internal Medicine',
-  required_days: 28,
-  description: 'Four-week internal medicine rotation'
+	name: 'Internal Medicine',
+	specialty: 'Internal Medicine',
+	required_days: 28,
+	description: 'Four-week internal medicine rotation'
 });
 ```
 
@@ -290,6 +309,7 @@ const clerkship = await createClerkship(db, {
 Update existing clerkship.
 
 **Logic:**
+
 1. Check if clerkship exists
 2. Throw NotFoundError if not found
 3. If name is being updated, check if new name is taken
@@ -299,20 +319,23 @@ Update existing clerkship.
 7. Return updated clerkship
 
 **Parameters:**
+
 - `id`: Clerkship UUID
 - `data`: Object with optional name, specialty, required_days, and/or description
 
 **Returns:** Updated clerkship object
 
 **Errors:**
+
 - `NotFoundError`: Clerkship not found
 - `ConflictError`: Name already exists
 
 **Example:**
+
 ```typescript
 const updated = await updateClerkship(db, '123-456-789', {
-  required_days: 56,
-  description: 'Eight-week internal medicine rotation'
+	required_days: 56,
+	description: 'Eight-week internal medicine rotation'
 });
 ```
 
@@ -323,6 +346,7 @@ const updated = await updateClerkship(db, '123-456-789', {
 Delete clerkship.
 
 **Logic:**
+
 1. Check if clerkship exists
 2. Throw NotFoundError if not found
 3. Check if clerkship can be deleted (no assignments)
@@ -330,15 +354,18 @@ Delete clerkship.
 5. Delete clerkship from database
 
 **Parameters:**
+
 - `id`: Clerkship UUID
 
 **Returns:** void
 
 **Errors:**
+
 - `NotFoundError`: Clerkship not found
 - `ConflictError`: Clerkship has schedule assignments
 
 **Example:**
+
 ```typescript
 await deleteClerkship(db, '123-456-789');
 ```
@@ -350,11 +377,13 @@ await deleteClerkship(db, '123-456-789');
 Check if clerkship can be deleted (has no assignments).
 
 **Logic:**
+
 - Query schedule_assignments table for clerkship_id
 - Return false if any assignments exist
 - Return true if no assignments
 
 **Parameters:**
+
 - `id`: Clerkship UUID
 
 **Returns:** Boolean indicating if deletion is allowed
@@ -362,10 +391,11 @@ Check if clerkship can be deleted (has no assignments).
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const canDelete = await canDeleteClerkship(db, '123-456-789');
 if (!canDelete) {
-  throw new ConflictError('Cannot delete clerkship with existing schedule assignments');
+	throw new ConflictError('Cannot delete clerkship with existing schedule assignments');
 }
 ```
 
@@ -376,10 +406,12 @@ if (!canDelete) {
 Check if clerkship exists.
 
 **Logic:**
+
 - Query clerkship by ID
 - Return true if found, false if not
 
 **Parameters:**
+
 - `id`: Clerkship UUID
 
 **Returns:** Boolean
@@ -387,9 +419,10 @@ Check if clerkship exists.
 **Errors:** None
 
 **Example:**
+
 ```typescript
-if (!await clerkshipExists(db, '123-456-789')) {
-  throw new NotFoundError('Clerkship');
+if (!(await clerkshipExists(db, '123-456-789'))) {
+	throw new NotFoundError('Clerkship');
 }
 ```
 
@@ -400,11 +433,13 @@ if (!await clerkshipExists(db, '123-456-789')) {
 Check if clerkship name is already in use.
 
 **Logic:**
+
 - Query clerkships by name (case-insensitive)
 - If excludeId provided, exclude that clerkship from check (for updates)
 - Return true if name exists, false if not
 
 **Parameters:**
+
 - `name`: Clerkship name to check
 - `excludeId`: Optional clerkship ID to exclude from check
 
@@ -413,6 +448,7 @@ Check if clerkship name is already in use.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 // Check if name is available
 const taken = await isNameTaken(db, 'Internal Medicine');
@@ -430,6 +466,7 @@ const takenByOther = await isNameTaken(db, 'Internal Medicine', currentClerkship
 #### `/src/lib/features/clerkships/schemas.test.ts`
 
 **Schema Validation Tests:**
+
 - ✅ createClerkshipSchema validates valid input
 - ✅ createClerkshipSchema requires name
 - ✅ createClerkshipSchema requires specialty
@@ -447,27 +484,32 @@ const takenByOther = await isNameTaken(db, 'Internal Medicine', currentClerkship
 **Service Function Tests:**
 
 **getClerkships():**
+
 - ✅ Returns all clerkships
 - ✅ Returns empty array when no clerkships
 - ✅ Returns clerkships ordered by name
 
 **getClerkshipById():**
+
 - ✅ Returns clerkship when found
 - ✅ Returns null when not found
 - ✅ Returns correct clerkship data
 
 **getClerkshipsBySpecialty():**
+
 - ✅ Returns clerkships matching specialty
 - ✅ Returns empty array when no matches
 - ✅ Case-sensitive specialty matching
 - ✅ Returns clerkships ordered by name
 
 **getClerkshipByName():**
+
 - ✅ Returns clerkship when found
 - ✅ Returns null when not found
 - ✅ Case-insensitive name matching
 
 **createClerkship():**
+
 - ✅ Creates clerkship with valid data
 - ✅ Generates UUID for new clerkship
 - ✅ Sets created_at and updated_at timestamps
@@ -476,6 +518,7 @@ const takenByOther = await isNameTaken(db, 'Internal Medicine', currentClerkship
 - ✅ Creates clerkship with optional description
 
 **updateClerkship():**
+
 - ✅ Updates clerkship name
 - ✅ Updates clerkship specialty
 - ✅ Updates clerkship required_days
@@ -488,20 +531,24 @@ const takenByOther = await isNameTaken(db, 'Internal Medicine', currentClerkship
 - ✅ Returns updated clerkship
 
 **deleteClerkship():**
+
 - ✅ Deletes clerkship successfully
 - ✅ Throws NotFoundError if clerkship not found
 - ✅ Throws ConflictError if clerkship has assignments
 - ✅ Actually removes clerkship from database
 
 **canDeleteClerkship():**
+
 - ✅ Returns true when clerkship has no assignments
 - ✅ Returns false when clerkship has assignments
 
 **clerkshipExists():**
+
 - ✅ Returns true when clerkship exists
 - ✅ Returns false when clerkship doesn't exist
 
 **isNameTaken():**
+
 - ✅ Returns true when name exists
 - ✅ Returns false when name doesn't exist
 - ✅ Case-insensitive name check
@@ -557,7 +604,11 @@ After completion, API routes will use the service like this:
 
 ```typescript
 import { db } from '$lib/db';
-import { getClerkships, createClerkship, getClerkshipsBySpecialty } from '$lib/features/clerkships/services/clerkship-service';
+import {
+	getClerkships,
+	createClerkship,
+	getClerkshipsBySpecialty
+} from '$lib/features/clerkships/services/clerkship-service';
 import { createClerkshipSchema } from '$lib/features/clerkships/schemas';
 
 // Get all clerkships
@@ -568,10 +619,10 @@ const internalMedClerkships = await getClerkshipsBySpecialty(db, 'Internal Medic
 
 // Create clerkship
 const input = createClerkshipSchema.parse({
-  name: 'Internal Medicine',
-  specialty: 'Internal Medicine',
-  required_days: 28,
-  description: 'Four-week rotation'
+	name: 'Internal Medicine',
+	specialty: 'Internal Medicine',
+	required_days: 28,
+	description: 'Four-week rotation'
 });
 const newClerkship = await createClerkship(db, input);
 ```

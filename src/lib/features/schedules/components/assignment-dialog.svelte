@@ -369,8 +369,7 @@
 			return;
 		}
 		const count = selectedDates.length;
-		const excludeParam =
-			mode === 'edit' && assignmentId ? `&excludeId=${assignmentId}` : '';
+		const excludeParam = mode === 'edit' && assignmentId ? `&excludeId=${assignmentId}` : '';
 		const electiveParam = electiveId ? `&electiveId=${electiveId}` : '';
 		let cancelled = false;
 		fetch(
@@ -448,7 +447,8 @@
 			...own,
 			studentBusy: false,
 			preceptorBookings: bookings,
-			preceptorAtCapacity: own.preceptorAtCapacity && bookings.length === own.preceptorBookings.length
+			preceptorAtCapacity:
+				own.preceptorAtCapacity && bookings.length === own.preceptorBookings.length
 		});
 		return patched;
 	});
@@ -645,7 +645,9 @@
 			const skippedHere = results.filter((r) => !r.created).length;
 			const skipped = analysis!.blockedDates.length + skippedHere;
 			toast.success(
-				skipped > 0 ? `${created} day(s) assigned · ${skipped} skipped` : `${created} day(s) assigned`
+				skipped > 0
+					? `${created} day(s) assigned · ${skipped} skipped`
+					: `${created} day(s) assigned`
 			);
 			contextKey += 1;
 			open = false;
@@ -774,8 +776,8 @@
 						</select>
 						{#if !isClinical}
 							<p class="text-xs text-muted-foreground">
-								A {assignmentKind === 'exam' ? 'exam' : 'free'} day takes up the student's day but has no
-								preceptor, clerkship or site and doesn't count toward clinical requirements.
+								A {assignmentKind === 'exam' ? 'exam' : 'free'} day takes up the student's day but has
+								no preceptor, clerkship or site and doesn't count toward clinical requirements.
 							</p>
 						{/if}
 					</div>
@@ -828,7 +830,9 @@
 
 					{#if options.electives.length > 0}
 						<div class="space-y-1">
-							<Label for="ad-elective">Elective <span class="text-muted-foreground">(optional)</span></Label>
+							<Label for="ad-elective"
+								>Elective <span class="text-muted-foreground">(optional)</span></Label
+							>
 							<select
 								id="ad-elective"
 								bind:value={electiveId}
@@ -837,7 +841,8 @@
 								<option value="">No elective (counts as clerkship day)</option>
 								{#each options.electives as e (e.id)}
 									<option value={e.id}>
-										{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays === 1
+										{e.name}{e.isRequired ? ' — required' : ''} ({e.minimumDays} day{e.minimumDays ===
+										1
 											? ''
 											: 's'})
 									</option>
@@ -868,9 +873,9 @@
 				{#if range}
 					{#if preceptor}
 						<p class="text-xs text-muted-foreground" data-testid="availability-hint">
-							Green days are within this preceptor's availability. Days they're not marked
-							available appear amber — you can still pick them and confirm the override. If no days
-							look available, this preceptor may have no availability set yet.
+							Green days are within this preceptor's availability. Days they're not marked available
+							appear amber — you can still pick them and confirm the override. If no days look
+							available, this preceptor may have no availability set yet.
 						</p>
 					{/if}
 					<AssignmentDatePicker
@@ -924,7 +929,7 @@
 								// has already typed a custom credit.
 								credit = session === 'full' ? 1 : 0.5;
 							}}
-							class="border-input bg-background focus-visible:ring-ring flex h-9 w-40 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+							class="flex h-9 w-40 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
 						>
 							<option value="full">{SESSION_LABEL.full}</option>
 							<option value="am">{SESSION_LABEL.am}</option>
@@ -948,7 +953,7 @@
 								credit = Number((e.currentTarget as HTMLInputElement).value);
 								sessionTouched = true;
 							}}
-							class="border-input bg-background focus-visible:ring-ring flex h-9 w-32 rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+							class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
 						/>
 					</div>
 				</div>
@@ -973,12 +978,12 @@
 					<div class="space-y-1">
 						<Label for="ad-note">Note <span class="text-muted-foreground">(optional)</span></Label>
 						<Input
-								id="ad-note"
-								bind:value={note}
-								placeholder={liveAnalysis.categories.length > 0
-									? 'Why this exception is being made'
-									: 'Optional note about this assignment'}
-							/>
+							id="ad-note"
+							bind:value={note}
+							placeholder={liveAnalysis.categories.length > 0
+								? 'Why this exception is being made'
+								: 'Optional note about this assignment'}
+						/>
 					</div>
 				{/if}
 
@@ -1055,8 +1060,8 @@
 						Already with this preceptor: {current.occupants.map((o) => o.studentName).join(', ')}.
 					</p>
 					<Button variant="outline" size="sm" class="mt-2" onclick={moveOtherStudent}>
-						Move {current.occupants.map((o) => o.studentName).join(', ')} off {current.dates.length ===
-						1
+						Move {current.occupants.map((o) => o.studentName).join(', ')} off {current.dates
+							.length === 1
 							? 'this day'
 							: 'these days'}
 					</Button>

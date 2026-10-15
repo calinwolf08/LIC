@@ -1,10 +1,10 @@
 <script lang="ts">
-	import RegisterForm from "$lib/features/auth/register/components/register-form.svelte";
-	import * as Card from "$lib/components/ui/card";
-	import { page } from "$app/stores";
+	import RegisterForm from '$lib/features/auth/register/components/register-form.svelte';
+	import * as Card from '$lib/components/ui/card';
+	import { page } from '$app/stores';
 
 	// Prefill the email carried over from the sign-in page's "Sign up" link (A1).
-	const initialEmail = $page.url.searchParams.get("email") ?? "";
+	const initialEmail = $page.url.searchParams.get('email') ?? '';
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-muted/40 p-4">

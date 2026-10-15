@@ -1,10 +1,12 @@
 # Step 29 — Date-Picker Clarity & Required Site
 
 ## Objective
-Make it obvious which days a preceptor already has taken, and which of the days you have *selected*
+
+Make it obvious which days a preceptor already has taken, and which of the days you have _selected_
 are conflicting. Make the site a required part of an assignment.
 
 ## Context (verified in code)
+
 In `assignment-date-picker.svelte`:
 
 - The selected branch wins over every conflict branch:
@@ -25,16 +27,18 @@ site-scoped and the `mark_preceptor_available` side effect needs a `site_id`, wh
 unavailable-day override currently degrades to "pick a site to also update availability".
 
 ## Prerequisites
+
 Step 26; step 28 is a natural pair (both touch the picker/dialog) but not a hard dependency.
 
 ## Scope
+
 **In:** day-cell visual language, legend, and making site required.
 **Out:** the override conversations themselves (already shipped).
 
 ## Implementation
 
-1. **Selection must compose with state, not replace it.** Restructure `dayClass` so the *state*
-   determines the fill and the *selection* adds an unmistakable overlay — e.g. keep the state colour
+1. **Selection must compose with state, not replace it.** Restructure `dayClass` so the _state_
+   determines the fill and the _selection_ adds an unmistakable overlay — e.g. keep the state colour
    and add `ring-2 ring-primary ring-offset-1` plus a checkmark for selected. A day that is both
    selected and conflicting must read as "selected **and** a problem" at a glance.
 2. **Distinguish the three cases explicitly**, with distinct colour + iconography (not colour
@@ -43,7 +47,7 @@ Step 26; step 28 is a natural pair (both touch the picker/dialog) but not a hard
      small person/lock glyph and the occupying student(s) in the tooltip.
    - **Full** (`preceptorAtCapacity`) — stronger amber/orange with a "full" marker.
    - **This student is busy** (`studentBusy`) — red, hard conflict, not selectable-without-warning.
-   Keep the name text, but make it secondary to the colour/glyph rather than the only signal.
+     Keep the name text, but make it secondary to the colour/glyph rather than the only signal.
 3. **Selected-and-conflicting deserves its own affordance.** Under the grid, list the selected days
    that carry a conflict (date + reason), so a multi-day selection doesn't hide one bad day among
    twenty. `data-testid="selected-conflicts"`.
@@ -52,7 +56,7 @@ Step 26; step 28 is a natural pair (both touch the picker/dialog) but not a hard
 5. **Require the site.**
    - Add `!!site` to `canSubmit`, and mark the field required in the label.
    - Server-side: make `site_id` required in the create/bulk assignment schemas — a client-only rule
-     is not a rule (GUIDELINES). Keep it optional on the *edit* payload only if an existing row may
+     is not a rule (GUIDELINES). Keep it optional on the _edit_ payload only if an existing row may
      legitimately have none; if so, backfill or require it on save and say which in the PR.
    - **Check the data first:** if existing assignments have `site_id IS NULL`, decide explicitly
      between a backfill migration and tolerating null on edit. Do not let the UI require something
@@ -61,19 +65,21 @@ Step 26; step 28 is a natural pair (both touch the picker/dialog) but not a hard
      "Assign and mark available" rather than the "pick a site first" degraded path.
 
 ## Testing
+
 - **Component (picker):** for each state, the rendered class/`data-state` is the expected one; a day
-  that is *both* selected and booked keeps its conflict colour **and** gains the selected ring
+  that is _both_ selected and booked keeps its conflict colour **and** gains the selected ring
   (assert both, since this is the reported bug); the legend lists every state the grid can render.
 - **Component:** `selected-conflicts` lists exactly the conflicting members of a multi-day
   selection, with reasons.
 - **Unit/API:** creating an assignment without `site_id` is rejected (400) with a field-level
   message; with a site it succeeds.
 - **E2E:** open the dialog, select a day already taken by another student → the cell is visibly
-  flagged (assert `data-state` and that it is *not* the plain selected state) and appears in the
+  flagged (assert `data-state` and that it is _not_ the plain selected state) and appears in the
   conflict list; Create is disabled until a site is chosen; choosing a site enables it; the
   unavailable-day override offers "Assign and mark available" without the site caveat.
 
 ## Acceptance criteria
+
 - [ ] A selected day never loses its conflict indication.
 - [ ] Taken / full / student-busy are visually distinct and legended, not colour-only.
 - [ ] Conflicting days within a selection are listed explicitly.

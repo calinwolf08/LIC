@@ -9,6 +9,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 ### Test Utilities (`src/lib/testing/`)
 
 **Integration Helpers** (`integration-helpers.ts`)
+
 - `createTestClerkship()` - Creates test clerkships with proper schema
 - `createTestStudents()` - Generates test student records
 - `createTestPreceptors()` - Creates preceptors with health system associations
@@ -21,6 +22,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 - `clearAllTestData()` - Cleans up test database between runs
 
 **Assertion Helpers** (`assertion-helpers.ts`)
+
 - `assertStudentHasCompleteAssignments()` - Verifies all required days covered
 - `assertContinuousSingleStrategy()` - Validates continuous single preceptor assignment
 - `assertBlockBasedStrategy()` - Confirms proper block-based assignments
@@ -37,6 +39,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 **Purpose**: Test complete lifecycle of configuration creation, update, and deletion
 
 **Tests**:
+
 1. **Create Complete Configuration from Scratch**
    - Creates health systems, sites, preceptors, clerkships
    - Configures requirements with strategies
@@ -75,6 +78,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 **Purpose**: Validate scheduling engine with all strategies working end-to-end
 
 **Tests**:
+
 1. **Continuous Single Strategy**
    - Assigns students to one preceptor per clerkship
    - Verifies continuity across rotation
@@ -115,6 +119,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 **Purpose**: Validate complete realistic medical school scenarios
 
 **Scenarios**:
+
 1. **Traditional Medical School**
    - Continuous single preceptor model
    - Strong health system continuity
@@ -150,6 +155,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 **Purpose**: Ensure system handles edge cases gracefully
 
 **Tests**:
+
 1. **Insufficient Preceptor Capacity**
    - More students than available capacity
    - Partial scheduling success
@@ -203,6 +209,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 ## Test Coverage
 
 ### Components Tested
+
 - ✅ Configuration Services (Health Systems, Requirements, Teams, Fallbacks, Capacity)
 - ✅ Scheduling Engine (All 4 strategies)
 - ✅ Capacity Resolution (5-level hierarchy)
@@ -212,6 +219,7 @@ Comprehensive integration test suites have been implemented to validate the comp
 - ✅ Error Handling (Graceful failures, helpful messages)
 
 ### User Flows Validated
+
 1. **Administrator configures clerkship** → Creates requirements → Sets strategies → Defines capacity rules
 2. **Administrator creates teams** → Adds members → Sets formation rules → Validates composition
 3. **Scheduler runs engine** → Selects students/clerkships → Configures options → Reviews results
@@ -220,11 +228,13 @@ Comprehensive integration test suites have been implemented to validate the comp
 ## Running the Tests
 
 ### All Integration Tests
+
 ```bash
 npm test -- --run src/lib/features/scheduling/integration
 ```
 
 ### Individual Test Suites
+
 ```bash
 # Configuration workflows
 npx vitest --run src/lib/features/scheduling/integration/01-configuration-workflows.test.ts
@@ -249,6 +259,7 @@ npx vitest --run src/lib/features/scheduling/integration/07-edge-cases.test.ts
 ## Assertions
 
 Tests use custom assertion helpers that provide:
+
 - Clear failure messages
 - Detailed context on what went wrong
 - Specific validation of business rules
@@ -257,6 +268,7 @@ Tests use custom assertion helpers that provide:
 ## Next Steps
 
 ### Test Refinement
+
 1. Fix remaining schema mismatches in helper functions
 2. Add performance benchmarks to Suite 6 scenarios
 3. Implement Suite 3 (Team and Fallback Integration)
@@ -264,12 +276,14 @@ Tests use custom assertion helpers that provide:
 5. Implement Suite 5 (Constraint Integration)
 
 ### Coverage Expansion
+
 1. Add mutation testing
 2. Test concurrent scheduling requests
 3. Validate transaction isolation
 4. Test database constraint enforcement
 
 ### Documentation
+
 1. Add test data fixtures documentation
 2. Create troubleshooting guide
 3. Document common test patterns
@@ -289,6 +303,7 @@ Tests use custom assertion helpers that provide:
 **Status**: 4 test suites implemented with 30+ integration tests covering complete user flows
 
 **Test Files**:
+
 - `src/lib/testing/integration-helpers.ts` - Test data creation utilities
 - `src/lib/testing/assertion-helpers.ts` - Custom validation assertions
 - `src/lib/features/scheduling/integration/01-configuration-workflows.test.ts`

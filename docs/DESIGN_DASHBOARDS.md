@@ -69,11 +69,13 @@ Display a student's complete schedule, progress in each clerkship, and assigned 
 ### Components
 
 #### 1. Student Header
+
 - Student name (as page title)
 - Contact information (email, phone if available)
 - Link to edit student details
 
 #### 2. Schedule Calendar
+
 - Full calendar view of current month
 - Days with assignments highlighted with clerkship color
 - Hover shows assignment details (clerkship, preceptor)
@@ -82,7 +84,9 @@ Display a student's complete schedule, progress in each clerkship, and assigned 
 - Legend showing clerkship colors
 
 #### 3. Clerkship Progress Table
+
 Columns:
+
 - **Clerkship:** Name with link to clerkship page
 - **Progress:**
   - "X/Y days" (X = days completed, Y = required days)
@@ -95,6 +99,7 @@ Columns:
 Sorting: Default by progress (highest first), allow sorting by name or percentage
 
 #### 4. Upcoming Assignments List
+
 - Next 5-10 upcoming assignments
 - Format: "Date: Clerkship with Preceptor"
 - Links to clerkship and preceptor pages
@@ -104,42 +109,42 @@ Sorting: Default by progress (highest first), allow sorting by name or percentag
 
 ```typescript
 interface StudentDashboardData {
-  student: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string | null;
-  };
+	student: {
+		id: string;
+		name: string;
+		email: string;
+		phone: string | null;
+	};
 
-  clerkshipProgress: Array<{
-    clerkship: {
-      id: string;
-      name: string;
-      required_days: number;
-    };
-    days_completed: number;
-    percentage: number;
-    preceptors: Array<{
-      id: string;
-      name: string;
-    }>;
-  }>;
+	clerkshipProgress: Array<{
+		clerkship: {
+			id: string;
+			name: string;
+			required_days: number;
+		};
+		days_completed: number;
+		percentage: number;
+		preceptors: Array<{
+			id: string;
+			name: string;
+		}>;
+	}>;
 
-  calendar: Array<{
-    date: string;
-    clerkship_id: string;
-    clerkship_name: string;
-    clerkship_color: string;
-    preceptor_id: string;
-    preceptor_name: string;
-    assignment_id: string;
-  }>;
+	calendar: Array<{
+		date: string;
+		clerkship_id: string;
+		clerkship_name: string;
+		clerkship_color: string;
+		preceptor_id: string;
+		preceptor_name: string;
+		assignment_id: string;
+	}>;
 
-  upcomingAssignments: Array<{
-    date: string;
-    clerkship: { id: string; name: string };
-    preceptor: { id: string; name: string };
-  }>;
+	upcomingAssignments: Array<{
+		date: string;
+		clerkship: { id: string; name: string };
+		preceptor: { id: string; name: string };
+	}>;
 }
 ```
 
@@ -206,6 +211,7 @@ Display a preceptor's teaching schedule showing when students are assigned to th
 ### Components
 
 #### 1. Preceptor Header
+
 - Preceptor name
 - Specialty
 - Contact information
@@ -213,6 +219,7 @@ Display a preceptor's teaching schedule showing when students are assigned to th
 - Link to edit preceptor details
 
 #### 2. Teaching Schedule Calendar
+
 - Full calendar view
 - Days with assigned students highlighted
 - Visual capacity indicator:
@@ -223,7 +230,9 @@ Display a preceptor's teaching schedule showing when students are assigned to th
 - Click to see assignment details
 
 #### 3. Current Students Table
+
 Shows students currently assigned (assignments overlapping current date):
+
 - **Student:** Name with link
 - **Clerkship:** Name with link
 - **Date Range:** "Start - End" with status indicator
@@ -232,11 +241,13 @@ Shows students currently assigned (assignments overlapping current date):
 Sorting: Default by start date
 
 #### 4. Upcoming Students List
+
 - Next 5-10 future assignments
 - Format: "Date: Student - Clerkship"
 - Links to student and clerkship pages
 
 #### 5. Availability Summary
+
 - Max students capacity
 - Days available this month/period
 - Days scheduled
@@ -246,49 +257,49 @@ Sorting: Default by start date
 
 ```typescript
 interface PreceptorDashboardData {
-  preceptor: {
-    id: string;
-    name: string;
-    specialty: string;
-    email: string;
-    phone: string | null;
-    max_students: number;
-    health_system?: { id: string; name: string };
-    site?: { id: string; name: string };
-  };
+	preceptor: {
+		id: string;
+		name: string;
+		specialty: string;
+		email: string;
+		phone: string | null;
+		max_students: number;
+		health_system?: { id: string; name: string };
+		site?: { id: string; name: string };
+	};
 
-  calendar: Array<{
-    date: string;
-    students: Array<{
-      id: string;
-      name: string;
-      clerkship_id: string;
-      clerkship_name: string;
-    }>;
-    capacity_used: number;
-    capacity_available: number;
-  }>;
+	calendar: Array<{
+		date: string;
+		students: Array<{
+			id: string;
+			name: string;
+			clerkship_id: string;
+			clerkship_name: string;
+		}>;
+		capacity_used: number;
+		capacity_available: number;
+	}>;
 
-  currentStudents: Array<{
-    student: { id: string; name: string };
-    clerkship: { id: string; name: string };
-    start_date: string;
-    end_date: string;
-    status: 'active' | 'completed' | 'upcoming';
-  }>;
+	currentStudents: Array<{
+		student: { id: string; name: string };
+		clerkship: { id: string; name: string };
+		start_date: string;
+		end_date: string;
+		status: 'active' | 'completed' | 'upcoming';
+	}>;
 
-  upcomingStudents: Array<{
-    start_date: string;
-    student: { id: string; name: string };
-    clerkship: { id: string; name: string };
-  }>;
+	upcomingStudents: Array<{
+		start_date: string;
+		student: { id: string; name: string };
+		clerkship: { id: string; name: string };
+	}>;
 
-  availabilitySummary: {
-    max_students: number;
-    days_available_this_month: number;
-    days_scheduled: number;
-    utilization_percentage: number;
-  };
+	availabilitySummary: {
+		max_students: number;
+		days_available_this_month: number;
+		days_scheduled: number;
+		utilization_percentage: number;
+	};
 }
 ```
 
@@ -365,13 +376,16 @@ Display all students' progress in a specific clerkship, associated preceptors, a
 ### Components
 
 #### 1. Clerkship Header
+
 - Clerkship name
 - Specialty
 - Required days
 - Link to edit clerkship
 
 #### 2. Student Progress Table
+
 Shows all students enrolled in this clerkship:
+
 - **Student:** Name with link
 - **Days Completed:** "X/Y" format
 - **Progress:** Visual progress bar and percentage
@@ -383,17 +397,21 @@ Shows all students enrolled in this clerkship:
 Sorting: Default by progress percentage, allow sorting by name or completion
 
 Status indicators:
+
 - 🟢 Completed (100%)
 - 🟡 In Progress (1-99%)
 - ⚪ Not Started (0%)
 
 Summary row at bottom:
+
 - Total students
 - Average completion percentage
 - Number completed vs in progress vs not started
 
 #### 3. Preceptors Table
+
 Lists all preceptors teaching this clerkship:
+
 - **Preceptor:** Name with link
 - **Site/Health System:** Location with link
 - **Current Students:** Number of students currently assigned
@@ -402,12 +420,14 @@ Lists all preceptors teaching this clerkship:
 Sorting: Default by name
 
 #### 4. Associated Electives
+
 - List of elective options within this clerkship
 - Format: "Elective Name (X days minimum)"
 - Links to elective configuration
 - If none: "No electives configured"
 
 #### 5. Configuration Summary
+
 - Key configuration details:
   - Required days
   - Assignment strategy (if configured)
@@ -419,53 +439,53 @@ Sorting: Default by name
 
 ```typescript
 interface ClerkshipDashboardData {
-  clerkship: {
-    id: string;
-    name: string;
-    specialty: string;
-    required_days: number;
-  };
+	clerkship: {
+		id: string;
+		name: string;
+		specialty: string;
+		required_days: number;
+	};
 
-  studentProgress: Array<{
-    student: { id: string; name: string };
-    days_completed: number;
-    days_required: number;
-    percentage: number;
-    status: 'not_started' | 'in_progress' | 'completed';
-    current_preceptor: {
-      id: string;
-      name: string;
-    } | null;
-  }>;
+	studentProgress: Array<{
+		student: { id: string; name: string };
+		days_completed: number;
+		days_required: number;
+		percentage: number;
+		status: 'not_started' | 'in_progress' | 'completed';
+		current_preceptor: {
+			id: string;
+			name: string;
+		} | null;
+	}>;
 
-  summary: {
-    total_students: number;
-    average_completion: number;
-    completed_count: number;
-    in_progress_count: number;
-    not_started_count: number;
-  };
+	summary: {
+		total_students: number;
+		average_completion: number;
+		completed_count: number;
+		in_progress_count: number;
+		not_started_count: number;
+	};
 
-  preceptors: Array<{
-    id: string;
-    name: string;
-    site: { id: string; name: string } | null;
-    health_system: { id: string; name: string } | null;
-    current_students: number;
-    max_students: number;
-  }>;
+	preceptors: Array<{
+		id: string;
+		name: string;
+		site: { id: string; name: string } | null;
+		health_system: { id: string; name: string } | null;
+		current_students: number;
+		max_students: number;
+	}>;
 
-  electives: Array<{
-    id: string;
-    name: string;
-    minimum_days: number;
-  }>;
+	electives: Array<{
+		id: string;
+		name: string;
+		minimum_days: number;
+	}>;
 
-  configuration: {
-    required_days: number;
-    assignment_strategy: string | null;
-    requirements: string[];
-  };
+	configuration: {
+		required_days: number;
+		assignment_strategy: string | null;
+		requirements: string[];
+	};
 }
 ```
 
@@ -479,116 +499,109 @@ interface ClerkshipDashboardData {
 
 ```typescript
 export async function getStudentDashboardData(
-  db: Kysely<DB>,
-  accountId: string,
-  scheduleId: string,
-  studentId: string
+	db: Kysely<DB>,
+	accountId: string,
+	scheduleId: string,
+	studentId: string
 ): Promise<StudentDashboardData> {
-  const currentDate = new Date().toISOString().split('T')[0];
+	const currentDate = new Date().toISOString().split('T')[0];
 
-  // Fetch student info
-  const student = await db
-    .selectFrom('students')
-    .selectAll()
-    .where('id', '=', studentId)
-    .where('account_id', '=', accountId)
-    .where('schedule_id', '=', scheduleId)
-    .executeTakeFirstOrThrow();
+	// Fetch student info
+	const student = await db
+		.selectFrom('students')
+		.selectAll()
+		.where('id', '=', studentId)
+		.where('account_id', '=', accountId)
+		.where('schedule_id', '=', scheduleId)
+		.executeTakeFirstOrThrow();
 
-  // Calculate clerkship progress
-  const clerkshipProgress = await calculateClerkshipProgress(
-    db,
-    studentId,
-    scheduleId,
-    currentDate
-  );
+	// Calculate clerkship progress
+	const clerkshipProgress = await calculateClerkshipProgress(
+		db,
+		studentId,
+		scheduleId,
+		currentDate
+	);
 
-  // Get calendar events
-  const calendar = await getStudentCalendar(db, studentId, scheduleId);
+	// Get calendar events
+	const calendar = await getStudentCalendar(db, studentId, scheduleId);
 
-  // Get upcoming assignments
-  const upcomingAssignments = await getUpcomingAssignments(
-    db,
-    studentId,
-    scheduleId,
-    currentDate
-  );
+	// Get upcoming assignments
+	const upcomingAssignments = await getUpcomingAssignments(db, studentId, scheduleId, currentDate);
 
-  return {
-    student: {
-      id: student.id,
-      name: student.name,
-      email: student.email,
-      phone: student.phone
-    },
-    clerkshipProgress,
-    calendar,
-    upcomingAssignments
-  };
+	return {
+		student: {
+			id: student.id,
+			name: student.name,
+			email: student.email,
+			phone: student.phone
+		},
+		clerkshipProgress,
+		calendar,
+		upcomingAssignments
+	};
 }
 
 async function calculateClerkshipProgress(
-  db: Kysely<DB>,
-  studentId: string,
-  scheduleId: string,
-  currentDate: string
+	db: Kysely<DB>,
+	studentId: string,
+	scheduleId: string,
+	currentDate: string
 ): Promise<ClerkshipProgress[]> {
-  // Get all assignments for student up to current date
-  const assignments = await db
-    .selectFrom('schedule_assignments as sa')
-    .innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
-    .select([
-      'c.id as clerkship_id',
-      'c.name as clerkship_name',
-      'c.required_days',
-      'sa.date',
-      'sa.preceptor_id'
-    ])
-    .where('sa.student_id', '=', studentId)
-    .where('sa.date', '<=', currentDate)
-    .execute();
+	// Get all assignments for student up to current date
+	const assignments = await db
+		.selectFrom('schedule_assignments as sa')
+		.innerJoin('clerkships as c', 'c.id', 'sa.clerkship_id')
+		.select([
+			'c.id as clerkship_id',
+			'c.name as clerkship_name',
+			'c.required_days',
+			'sa.date',
+			'sa.preceptor_id'
+		])
+		.where('sa.student_id', '=', studentId)
+		.where('sa.date', '<=', currentDate)
+		.execute();
 
-  // Group by clerkship and count days
-  const progressMap = new Map<string, any>();
+	// Group by clerkship and count days
+	const progressMap = new Map<string, any>();
 
-  for (const assignment of assignments) {
-    if (!progressMap.has(assignment.clerkship_id)) {
-      progressMap.set(assignment.clerkship_id, {
-        clerkship: {
-          id: assignment.clerkship_id,
-          name: assignment.clerkship_name,
-          required_days: assignment.required_days
-        },
-        days_completed: 0,
-        preceptor_ids: new Set()
-      });
-    }
+	for (const assignment of assignments) {
+		if (!progressMap.has(assignment.clerkship_id)) {
+			progressMap.set(assignment.clerkship_id, {
+				clerkship: {
+					id: assignment.clerkship_id,
+					name: assignment.clerkship_name,
+					required_days: assignment.required_days
+				},
+				days_completed: 0,
+				preceptor_ids: new Set()
+			});
+		}
 
-    const progress = progressMap.get(assignment.clerkship_id);
-    progress.days_completed++;
-    progress.preceptor_ids.add(assignment.preceptor_id);
-  }
+		const progress = progressMap.get(assignment.clerkship_id);
+		progress.days_completed++;
+		progress.preceptor_ids.add(assignment.preceptor_id);
+	}
 
-  // Fetch preceptor details and format results
-  const results = [];
-  for (const [clerkshipId, data] of progressMap) {
-    const preceptors = await db
-      .selectFrom('preceptors')
-      .select(['id', 'name'])
-      .where('id', 'in', Array.from(data.preceptor_ids))
-      .execute();
+	// Fetch preceptor details and format results
+	const results = [];
+	for (const [clerkshipId, data] of progressMap) {
+		const preceptors = await db
+			.selectFrom('preceptors')
+			.select(['id', 'name'])
+			.where('id', 'in', Array.from(data.preceptor_ids))
+			.execute();
 
-    results.push({
-      clerkship: data.clerkship,
-      days_completed: data.days_completed,
-      percentage: Math.round(
-        (data.days_completed / data.clerkship.required_days) * 100
-      ),
-      preceptors
-    });
-  }
+		results.push({
+			clerkship: data.clerkship,
+			days_completed: data.days_completed,
+			percentage: Math.round((data.days_completed / data.clerkship.required_days) * 100),
+			preceptors
+		});
+	}
 
-  return results;
+	return results;
 }
 ```
 
@@ -605,14 +618,17 @@ Similar pattern for clerkship dashboard data.
 ## API Endpoints
 
 **GET /api/students/:id/dashboard**
+
 - Returns complete student dashboard data
 - Response: `{ success: true, data: StudentDashboardData }`
 
 **GET /api/preceptors/:id/dashboard**
+
 - Returns complete preceptor dashboard data
 - Response: `{ success: true, data: PreceptorDashboardData }`
 
 **GET /api/clerkships/:id/dashboard**
+
 - Returns complete clerkship dashboard data
 - Response: `{ success: true, data: ClerkshipDashboardData }`
 
@@ -621,30 +637,35 @@ Similar pattern for clerkship dashboard data.
 ## Implementation Checklist
 
 ### Phase 1: Service Layer
+
 - [ ] Create student dashboard service
 - [ ] Create preceptor dashboard service
 - [ ] Create clerkship dashboard service
 - [ ] Write unit tests for all services
 
 ### Phase 2: API Endpoints
+
 - [ ] Implement student dashboard endpoint
 - [ ] Implement preceptor dashboard endpoint
 - [ ] Implement clerkship dashboard endpoint
 - [ ] Write E2E tests
 
 ### Phase 3: UI Components
+
 - [ ] Create calendar component (reusable)
 - [ ] Create progress bar component
 - [ ] Create progress table component
 - [ ] Create upcoming assignments list component
 
 ### Phase 4: Dashboard Pages
+
 - [ ] Build student dashboard page
 - [ ] Build preceptor dashboard page
 - [ ] Build clerkship dashboard page
 - [ ] Add navigation links from list views
 
 ### Phase 5: Polish
+
 - [ ] Add loading states
 - [ ] Add error handling
 - [ ] Responsive design

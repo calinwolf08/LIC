@@ -20,7 +20,11 @@ export const load: PageLoad = async ({ fetch }) => {
 
 		return {
 			clerkships: (clerkshipsResult.data || []) as Array<{ id: string; name: string }>,
-			sites: (sitesResult.data || []) as Array<{ id: string; name: string; health_system_id: string | null }>,
+			sites: (sitesResult.data || []) as Array<{
+				id: string;
+				name: string;
+				health_system_id: string | null;
+			}>,
 			healthSystems: (healthSystemsResult.data || []) as Array<{ id: string; name: string }>
 		};
 	} catch (error) {

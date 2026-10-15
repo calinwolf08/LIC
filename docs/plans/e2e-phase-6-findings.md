@@ -11,13 +11,12 @@ of each test.
 ### P6-a — A gated write inside a try/catch leaked as 500 instead of 403 _(fixed)_
 
 Endpoints that call `requireAutogen` (or any SvelteKit `error(status, …)`)
-*inside* their `try` block routed the thrown `HttpError` through
+_inside_ their `try` block routed the thrown `HttpError` through
 `handleApiError`, which did not recognise it and returned "Internal server
 error" (500). So a non-entitled write to, e.g., `POST
 /api/scheduling-config/electives/[id]/preceptors` was correctly blocked but
 surfaced as a 500 rather than a clean 403 envelope. **Fix:** `handleApiError`
-now preserves an `HttpError`'s status (via `isHttpError`), so those writes return
-403. This is a central fix covering every endpoint that gates inside its
+now preserves an `HttpError`'s status (via `isHttpError`), so those writes return 403. This is a central fix covering every endpoint that gates inside its
 try/catch. Asserted in J6.2.
 
 ## Journeys
@@ -34,7 +33,7 @@ try/catch. Asserted in J6.2.
   grant reveals the nav on the next navigation without re-login.
 - **J6.3 — Parity without teams.** Team-less preceptors with materialised
   availability generate once entitled (G11 / P-02); readiness reflects
-  *materialised* availability (a preceptor with none re-opens the availability
+  _materialised_ availability (a preceptor with none re-opens the availability
   item).
 - **J6.4 — Validation payload equality.** Identically-shaped schedules across
   tiers yield equal id-free Stage 1 payloads (validation counts, calendar

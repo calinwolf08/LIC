@@ -1,15 +1,18 @@
 # Step 10: Preceptors - UI
 
 ## Overview
+
 Implement the user interface for preceptor management, including list view with data table, create/edit forms, availability calendar interface, and delete confirmation. This provides the frontend for managing preceptors and their availability.
 
 ## Dependencies
+
 - ✅ Step 03: Shared Utilities & Test Helpers
 - ✅ Step 09: Preceptors - API Routes
 
 ## Requirements
 
 ### Pages
+
 - **Preceptor List Page** (`/preceptors`)
   - Data table with all preceptors
   - Search/filter functionality
@@ -29,6 +32,7 @@ Implement the user interface for preceptor management, including list view with 
   - Bulk update capability
 
 ### UI Components
+
 - Data table (shadcn/ui)
 - Form components (shadcn/ui)
 - Calendar/date picker (shadcn/ui)
@@ -36,6 +40,7 @@ Implement the user interface for preceptor management, including list view with 
 - Alert/toast for feedback (shadcn/ui)
 
 ### User Experience
+
 - Loading states during API calls
 - Success/error notifications
 - Confirmation dialogs for destructive actions
@@ -45,6 +50,7 @@ Implement the user interface for preceptor management, including list view with 
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/routes/(app)/preceptors/
 ├── +page.svelte                        # Preceptor list page (NEW)
@@ -65,20 +71,22 @@ Implement the user interface for preceptor management, including list view with 
 Page load function to fetch preceptors.
 
 **Exports:**
+
 ```typescript
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch }) => {
-  const response = await fetch('/api/preceptors');
-  const { data: preceptors } = await response.json();
+	const response = await fetch('/api/preceptors');
+	const { data: preceptors } = await response.json();
 
-  return {
-    preceptors
-  };
+	return {
+		preceptors
+	};
 };
 ```
 
 **Requirements:**
+
 - Use SvelteKit's fetch for SSR compatibility
 - Handle loading states
 - Handle errors gracefully
@@ -91,6 +99,7 @@ export const load: PageLoad = async ({ fetch }) => {
 Main preceptor management page.
 
 **Features:**
+
 - Display PreceptorTable component
 - "Add Preceptor" button
 - Modal/dialog for PreceptorForm
@@ -98,6 +107,7 @@ Main preceptor management page.
 - Loading spinner during operations
 
 **State Management:**
+
 ```typescript
 let preceptors = data.preceptors;
 let isFormOpen = false;
@@ -106,74 +116,75 @@ let isAvailabilityOpen = false;
 let selectedForAvailability: PreceptorsTable | null = null;
 
 function openCreateForm() {
-  selectedPreceptor = null;
-  isFormOpen = true;
+	selectedPreceptor = null;
+	isFormOpen = true;
 }
 
 function openEditForm(preceptor: PreceptorsTable) {
-  selectedPreceptor = preceptor;
-  isFormOpen = true;
+	selectedPreceptor = preceptor;
+	isFormOpen = true;
 }
 
 function openAvailability(preceptor: PreceptorsTable) {
-  selectedForAvailability = preceptor;
-  isAvailabilityOpen = true;
+	selectedForAvailability = preceptor;
+	isAvailabilityOpen = true;
 }
 
 async function handleFormSubmit(event: CustomEvent) {
-  // Handle create/update
-  // Refresh preceptor list
-  // Show success toast
+	// Handle create/update
+	// Refresh preceptor list
+	// Show success toast
 }
 
 async function handleDelete(preceptorId: string) {
-  // Confirm and delete
-  // Refresh list
-  // Show success toast
+	// Confirm and delete
+	// Refresh list
+	// Show success toast
 }
 ```
 
 **Layout:**
+
 ```svelte
 <script lang="ts">
-  import PreceptorTable from './components/PreceptorTable.svelte';
-  import PreceptorForm from './components/PreceptorForm.svelte';
-  import AvailabilityCalendar from './components/AvailabilityCalendar.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import { Dialog } from '$lib/components/ui/dialog';
+	import PreceptorTable from './components/PreceptorTable.svelte';
+	import PreceptorForm from './components/PreceptorForm.svelte';
+	import AvailabilityCalendar from './components/AvailabilityCalendar.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Dialog } from '$lib/components/ui/dialog';
 
-  export let data;
-  // ... state variables
+	export let data;
+	// ... state variables
 </script>
 
 <div class="container mx-auto py-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-3xl font-bold">Preceptors</h1>
-    <Button on:click={openCreateForm}>Add Preceptor</Button>
-  </div>
+	<div class="mb-6 flex items-center justify-between">
+		<h1 class="text-3xl font-bold">Preceptors</h1>
+		<Button on:click={openCreateForm}>Add Preceptor</Button>
+	</div>
 
-  <PreceptorTable
-    {preceptors}
-    on:edit={handleEdit}
-    on:delete={handleDelete}
-    on:availability={handleAvailability}
-  />
+	<PreceptorTable
+		{preceptors}
+		on:edit={handleEdit}
+		on:delete={handleDelete}
+		on:availability={handleAvailability}
+	/>
 
-  <Dialog open={isFormOpen} on:close={() => isFormOpen = false}>
-    <PreceptorForm
-      preceptor={selectedPreceptor}
-      on:submit={handleFormSubmit}
-      on:cancel={() => isFormOpen = false}
-    />
-  </Dialog>
+	<Dialog open={isFormOpen} on:close={() => (isFormOpen = false)}>
+		<PreceptorForm
+			preceptor={selectedPreceptor}
+			on:submit={handleFormSubmit}
+			on:cancel={() => (isFormOpen = false)}
+		/>
+	</Dialog>
 
-  <Dialog open={isAvailabilityOpen} on:close={() => isAvailabilityOpen = false}>
-    <AvailabilityCalendar
-      preceptor={selectedForAvailability}
-      on:save={handleAvailabilitySave}
-      on:cancel={() => isAvailabilityOpen = false}
-    />
-  </Dialog>
+	<Dialog open={isAvailabilityOpen} on:close={() => (isAvailabilityOpen = false)}>
+		<AvailabilityCalendar
+			preceptor={selectedForAvailability}
+			on:save={handleAvailabilitySave}
+			on:cancel={() => (isAvailabilityOpen = false)}
+		/>
+	</Dialog>
 </div>
 ```
 
@@ -184,20 +195,23 @@ async function handleDelete(preceptorId: string) {
 Data table for displaying preceptors.
 
 **Props:**
+
 ```typescript
 export let preceptors: PreceptorsTable[];
 ```
 
 **Events:**
+
 ```typescript
 createEventDispatcher<{
-  edit: PreceptorsTable;
-  delete: string;
-  availability: PreceptorsTable;
+	edit: PreceptorsTable;
+	delete: string;
+	availability: PreceptorsTable;
 }>();
 ```
 
 **Features:**
+
 - Sortable columns (name, email, specialty)
 - Search/filter by name or specialty
 - Action buttons (Edit, Delete, Set Availability)
@@ -205,6 +219,7 @@ createEventDispatcher<{
 - Empty state when no preceptors
 
 **Columns:**
+
 - Name
 - Email
 - Specialty
@@ -212,58 +227,54 @@ createEventDispatcher<{
 - Actions (Edit | Delete | Availability)
 
 **Implementation:**
+
 ```svelte
 <script lang="ts">
-  import { DataTable } from '$lib/components/ui/data-table';
-  import { Button } from '$lib/components/ui/button';
-  import type { PreceptorsTable } from '$lib/db/types';
+	import { DataTable } from '$lib/components/ui/data-table';
+	import { Button } from '$lib/components/ui/button';
+	import type { PreceptorsTable } from '$lib/db/types';
 
-  export let preceptors: PreceptorsTable[];
+	export let preceptors: PreceptorsTable[];
 
-  const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher();
 
-  let searchTerm = '';
+	let searchTerm = '';
 
-  $: filteredPreceptors = preceptors.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.specialty.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+	$: filteredPreceptors = preceptors.filter(
+		(p) =>
+			p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			p.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+	);
 
-  const columns = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-    { key: 'specialty', label: 'Specialty', sortable: true },
-    { key: 'max_students', label: 'Max Students', sortable: false },
-    { key: 'actions', label: 'Actions', sortable: false }
-  ];
+	const columns = [
+		{ key: 'name', label: 'Name', sortable: true },
+		{ key: 'email', label: 'Email', sortable: true },
+		{ key: 'specialty', label: 'Specialty', sortable: true },
+		{ key: 'max_students', label: 'Max Students', sortable: false },
+		{ key: 'actions', label: 'Actions', sortable: false }
+	];
 </script>
 
 <div class="space-y-4">
-  <Input
-    type="search"
-    placeholder="Search preceptors..."
-    bind:value={searchTerm}
-  />
+	<Input type="search" placeholder="Search preceptors..." bind:value={searchTerm} />
 
-  <DataTable {columns} data={filteredPreceptors}>
-    <svelte:fragment slot="cell" let:row let:column>
-      {#if column.key === 'actions'}
-        <div class="flex gap-2">
-          <Button size="sm" variant="outline" on:click={() => dispatch('edit', row)}>
-            Edit
-          </Button>
-          <Button size="sm" variant="outline" on:click={() => dispatch('availability', row)}>
-            Availability
-          </Button>
-          <Button size="sm" variant="destructive" on:click={() => dispatch('delete', row.id)}>
-            Delete
-          </Button>
-        </div>
-      {:else}
-        {row[column.key]}
-      {/if}
-    </svelte:fragment>
-  </DataTable>
+	<DataTable {columns} data={filteredPreceptors}>
+		<svelte:fragment slot="cell" let:row let:column>
+			{#if column.key === 'actions'}
+				<div class="flex gap-2">
+					<Button size="sm" variant="outline" on:click={() => dispatch('edit', row)}>Edit</Button>
+					<Button size="sm" variant="outline" on:click={() => dispatch('availability', row)}>
+						Availability
+					</Button>
+					<Button size="sm" variant="destructive" on:click={() => dispatch('delete', row.id)}>
+						Delete
+					</Button>
+				</div>
+			{:else}
+				{row[column.key]}
+			{/if}
+		</svelte:fragment>
+	</DataTable>
 </div>
 ```
 
@@ -274,104 +285,105 @@ createEventDispatcher<{
 Form for creating/editing preceptors.
 
 **Props:**
+
 ```typescript
 export let preceptor: PreceptorsTable | null = null; // null = create, object = edit
 ```
 
 **Events:**
+
 ```typescript
 createEventDispatcher<{
-  submit: PreceptorsTable;
-  cancel: void;
+	submit: PreceptorsTable;
+	cancel: void;
 }>();
 ```
 
 **Form Fields:**
+
 - Name (required, text input)
 - Email (required, email input)
 - Specialty (required, text input or select)
 - Max Students (optional, number input, default 1)
 
 **Validation:**
+
 - Client-side validation using Zod schema
 - Display field-level errors
 - Disable submit when invalid
 - Show loading state during submission
 
 **Implementation:**
+
 ```svelte
 <script lang="ts">
-  import { superForm } from 'sveltekit-superforms';
-  import { zod } from 'sveltekit-superforms/adapters';
-  import { createPreceptorSchema, updatePreceptorSchema } from '$lib/features/preceptors/schemas';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
+	import { superForm } from 'sveltekit-superforms';
+	import { zod } from 'sveltekit-superforms/adapters';
+	import { createPreceptorSchema, updatePreceptorSchema } from '$lib/features/preceptors/schemas';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 
-  export let preceptor: PreceptorsTable | null = null;
+	export let preceptor: PreceptorsTable | null = null;
 
-  const isEdit = !!preceptor;
-  const schema = isEdit ? updatePreceptorSchema : createPreceptorSchema;
+	const isEdit = !!preceptor;
+	const schema = isEdit ? updatePreceptorSchema : createPreceptorSchema;
 
-  const { form, errors, enhance, submitting } = superForm(
-    { ...preceptor },
-    {
-      validators: zod(schema),
-      async onUpdate({ form }) {
-        if (form.valid) {
-          const endpoint = isEdit
-            ? `/api/preceptors/${preceptor!.id}`
-            : '/api/preceptors';
+	const { form, errors, enhance, submitting } = superForm(
+		{ ...preceptor },
+		{
+			validators: zod(schema),
+			async onUpdate({ form }) {
+				if (form.valid) {
+					const endpoint = isEdit ? `/api/preceptors/${preceptor!.id}` : '/api/preceptors';
 
-          const response = await fetch(endpoint, {
-            method: isEdit ? 'PATCH' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(form.data)
-          });
+					const response = await fetch(endpoint, {
+						method: isEdit ? 'PATCH' : 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(form.data)
+					});
 
-          if (response.ok) {
-            const { data } = await response.json();
-            dispatch('submit', data);
-          }
-        }
-      }
-    }
-  );
+					if (response.ok) {
+						const { data } = await response.json();
+						dispatch('submit', data);
+					}
+				}
+			}
+		}
+	);
 </script>
 
 <form method="POST" use:enhance class="space-y-4">
-  <div>
-    <Label for="name">Name</Label>
-    <Input id="name" bind:value={$form.name} />
-    {#if $errors.name}<span class="text-red-500">{$errors.name}</span>{/if}
-  </div>
+	<div>
+		<Label for="name">Name</Label>
+		<Input id="name" bind:value={$form.name} />
+		{#if $errors.name}<span class="text-red-500">{$errors.name}</span>{/if}
+	</div>
 
-  <div>
-    <Label for="email">Email</Label>
-    <Input id="email" type="email" bind:value={$form.email} />
-    {#if $errors.email}<span class="text-red-500">{$errors.email}</span>{/if}
-  </div>
+	<div>
+		<Label for="email">Email</Label>
+		<Input id="email" type="email" bind:value={$form.email} />
+		{#if $errors.email}<span class="text-red-500">{$errors.email}</span>{/if}
+	</div>
 
-  <div>
-    <Label for="specialty">Specialty</Label>
-    <Input id="specialty" bind:value={$form.specialty} />
-    {#if $errors.specialty}<span class="text-red-500">{$errors.specialty}</span>{/if}
-  </div>
+	<div>
+		<Label for="specialty">Specialty</Label>
+		<Input id="specialty" bind:value={$form.specialty} />
+		{#if $errors.specialty}<span class="text-red-500">{$errors.specialty}</span>{/if}
+	</div>
 
-  <div>
-    <Label for="max_students">Max Students</Label>
-    <Input id="max_students" type="number" bind:value={$form.max_students} />
-    {#if $errors.max_students}<span class="text-red-500">{$errors.max_students}</span>{/if}
-  </div>
+	<div>
+		<Label for="max_students">Max Students</Label>
+		<Input id="max_students" type="number" bind:value={$form.max_students} />
+		{#if $errors.max_students}<span class="text-red-500">{$errors.max_students}</span>{/if}
+	</div>
 
-  <div class="flex justify-end gap-2">
-    <Button type="button" variant="outline" on:click={() => dispatch('cancel')}>
-      Cancel
-    </Button>
-    <Button type="submit" disabled={$submitting}>
-      {isEdit ? 'Update' : 'Create'} Preceptor
-    </Button>
-  </div>
+	<div class="flex justify-end gap-2">
+		<Button type="button" variant="outline" on:click={() => dispatch('cancel')}>Cancel</Button>
+		<Button type="submit" disabled={$submitting}>
+			{isEdit ? 'Update' : 'Create'} Preceptor
+		</Button>
+	</div>
 </form>
 ```
 
@@ -382,19 +394,22 @@ createEventDispatcher<{
 Interface for managing preceptor availability periods.
 
 **Props:**
+
 ```typescript
 export let preceptor: PreceptorsTable;
 ```
 
 **Events:**
+
 ```typescript
 createEventDispatcher<{
-  save: PreceptorAvailabilityTable[];
-  cancel: void;
+	save: PreceptorAvailabilityTable[];
+	cancel: void;
 }>();
 ```
 
 **Features:**
+
 - Display current availability periods
 - Add new period (date range picker)
 - Remove period
@@ -403,95 +418,81 @@ createEventDispatcher<{
 - Bulk save
 
 **State:**
+
 ```typescript
 let periods: Array<{ start_date: string; end_date: string }> = [];
 let isLoading = true;
 
 onMount(async () => {
-  const response = await fetch(`/api/preceptors/${preceptor.id}/availability`);
-  const { data } = await response.json();
-  periods = data.map(p => ({ start_date: p.start_date, end_date: p.end_date }));
-  isLoading = false;
+	const response = await fetch(`/api/preceptors/${preceptor.id}/availability`);
+	const { data } = await response.json();
+	periods = data.map((p) => ({ start_date: p.start_date, end_date: p.end_date }));
+	isLoading = false;
 });
 
 function addPeriod() {
-  periods = [...periods, { start_date: '', end_date: '' }];
+	periods = [...periods, { start_date: '', end_date: '' }];
 }
 
 function removePeriod(index: number) {
-  periods = periods.filter((_, i) => i !== index);
+	periods = periods.filter((_, i) => i !== index);
 }
 
 async function handleSave() {
-  const response = await fetch(`/api/preceptors/${preceptor.id}/availability`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ periods })
-  });
+	const response = await fetch(`/api/preceptors/${preceptor.id}/availability`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ periods })
+	});
 
-  if (response.ok) {
-    const { data } = await response.json();
-    dispatch('save', data);
-  }
+	if (response.ok) {
+		const { data } = await response.json();
+		dispatch('save', data);
+	}
 }
 ```
 
 **Implementation:**
+
 ```svelte
 <script lang="ts">
-  import { Calendar } from '$lib/components/ui/calendar';
-  import { Button } from '$lib/components/ui/button';
-  import { DatePicker } from '$lib/components/ui/date-picker';
-  import { Trash2 } from 'lucide-svelte';
+	import { Calendar } from '$lib/components/ui/calendar';
+	import { Button } from '$lib/components/ui/button';
+	import { DatePicker } from '$lib/components/ui/date-picker';
+	import { Trash2 } from 'lucide-svelte';
 
-  export let preceptor: PreceptorsTable;
-  // ... state and functions
+	export let preceptor: PreceptorsTable;
+	// ... state and functions
 </script>
 
 <div class="space-y-4">
-  <h3 class="text-lg font-semibold">
-    Availability for {preceptor.name}
-  </h3>
+	<h3 class="text-lg font-semibold">
+		Availability for {preceptor.name}
+	</h3>
 
-  {#if isLoading}
-    <p>Loading...</p>
-  {:else}
-    <div class="space-y-2">
-      {#each periods as period, i}
-        <div class="flex gap-2 items-center">
-          <DatePicker
-            label="Start Date"
-            bind:value={period.start_date}
-          />
-          <span>to</span>
-          <DatePicker
-            label="End Date"
-            bind:value={period.end_date}
-          />
-          <Button
-            size="icon"
-            variant="ghost"
-            on:click={() => removePeriod(i)}
-          >
-            <Trash2 class="h-4 w-4" />
-          </Button>
-        </div>
-      {/each}
-    </div>
+	{#if isLoading}
+		<p>Loading...</p>
+	{:else}
+		<div class="space-y-2">
+			{#each periods as period, i}
+				<div class="flex items-center gap-2">
+					<DatePicker label="Start Date" bind:value={period.start_date} />
+					<span>to</span>
+					<DatePicker label="End Date" bind:value={period.end_date} />
+					<Button size="icon" variant="ghost" on:click={() => removePeriod(i)}>
+						<Trash2 class="h-4 w-4" />
+					</Button>
+				</div>
+			{/each}
+		</div>
 
-    <Button variant="outline" on:click={addPeriod}>
-      Add Period
-    </Button>
+		<Button variant="outline" on:click={addPeriod}>Add Period</Button>
 
-    <div class="flex justify-end gap-2 pt-4">
-      <Button variant="outline" on:click={() => dispatch('cancel')}>
-        Cancel
-      </Button>
-      <Button on:click={handleSave}>
-        Save Availability
-      </Button>
-    </div>
-  {/if}
+		<div class="flex justify-end gap-2 pt-4">
+			<Button variant="outline" on:click={() => dispatch('cancel')}>Cancel</Button>
+			<Button on:click={handleSave}>Save Availability</Button>
+		</div>
+	{/if}
 </div>
 ```
 
@@ -502,20 +503,23 @@ async function handleSave() {
 Confirmation dialog for deleting preceptors.
 
 **Props:**
+
 ```typescript
 export let preceptor: PreceptorsTable;
 export let open: boolean = false;
 ```
 
 **Events:**
+
 ```typescript
 createEventDispatcher<{
-  confirm: string;
-  cancel: void;
+	confirm: string;
+	cancel: void;
 }>();
 ```
 
 **Features:**
+
 - Display preceptor name
 - Warning message
 - Confirm/Cancel buttons
@@ -528,6 +532,7 @@ createEventDispatcher<{
 ### Component Tests
 
 #### PreceptorTable.svelte
+
 - ✅ Renders preceptors in table
 - ✅ Displays empty state when no preceptors
 - ✅ Search filters preceptors by name
@@ -538,6 +543,7 @@ createEventDispatcher<{
 - ✅ Sortable columns work correctly
 
 #### PreceptorForm.svelte
+
 - ✅ Renders empty form for create mode
 - ✅ Renders populated form for edit mode
 - ✅ Validates required fields
@@ -550,6 +556,7 @@ createEventDispatcher<{
 - ✅ Emits cancel event
 
 #### AvailabilityCalendar.svelte
+
 - ✅ Loads existing availability on mount
 - ✅ Displays availability periods
 - ✅ Adds new period
@@ -564,6 +571,7 @@ createEventDispatcher<{
 ### Integration Tests
 
 #### `/src/routes/(app)/preceptors/+page.test.ts`
+
 - ✅ Page loads preceptors
 - ✅ Opens create form on button click
 - ✅ Creates new preceptor
@@ -600,6 +608,7 @@ createEventDispatcher<{
 ## Usage Example
 
 User workflow:
+
 1. Navigate to `/preceptors`
 2. View list of all preceptors in table
 3. Search for specific preceptor

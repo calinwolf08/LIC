@@ -2,11 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ScheduleCalendarGrid from './schedule-calendar-grid.svelte';
 import { getStudentColor } from '../utils/entity-colors';
-import type {
-	CalendarMonth,
-	CalendarDay,
-	CalendarDayAssignment
-} from '../types/schedule-views';
+import type { CalendarMonth, CalendarDay, CalendarDayAssignment } from '../types/schedule-views';
 
 function assignment(over: Partial<CalendarDayAssignment> = {}): CalendarDayAssignment {
 	return {
@@ -22,7 +18,10 @@ function assignment(over: Partial<CalendarDayAssignment> = {}): CalendarDayAssig
 	};
 }
 
-function dayWith(assignments: CalendarDayAssignment[], over: Partial<CalendarDay> = {}): CalendarDay {
+function dayWith(
+	assignments: CalendarDayAssignment[],
+	over: Partial<CalendarDay> = {}
+): CalendarDay {
 	return {
 		date: '2026-03-04',
 		dayOfMonth: 4,
@@ -120,9 +119,7 @@ describe('ScheduleCalendarGrid — colour semantics', () => {
 			months: [month([dayWith([assignment({ studentName: 'Alice Johnson' })])])],
 			mode: 'schedule'
 		});
-		expect(
-			(container as HTMLElement).querySelector('[data-testid="student-initials"]')
-		).toBeNull();
+		expect((container as HTMLElement).querySelector('[data-testid="student-initials"]')).toBeNull();
 	});
 
 	it('colorBy="clerkship" (default) keeps the service-provided colour', () => {

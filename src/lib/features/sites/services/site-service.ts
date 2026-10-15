@@ -28,11 +28,7 @@ export class SiteService {
 	 * seed/scripts.
 	 */
 	async getAllSites() {
-		return await this.db
-			.selectFrom('sites')
-			.selectAll()
-			.orderBy('name', 'asc')
-			.execute();
+		return await this.db.selectFrom('sites').selectAll().orderBy('name', 'asc').execute();
 	}
 
 	/**
@@ -160,7 +156,10 @@ export class SiteService {
 				.executeTakeFirst();
 
 			if (!healthSystem) {
-				log.warn('Health system not found for site update', { id, healthSystemId: input.health_system_id });
+				log.warn('Health system not found for site update', {
+					id,
+					healthSystemId: input.health_system_id
+				});
 				throw new NotFoundError(`Health system with ID ${input.health_system_id} not found`);
 			}
 		}
@@ -175,7 +174,8 @@ export class SiteService {
 		if (input.name !== undefined) updateData.name = input.name;
 		if (input.address !== undefined) updateData.address = input.address || null;
 		if (input.office_phone !== undefined) updateData.office_phone = input.office_phone || null;
-		if (input.contact_person !== undefined) updateData.contact_person = input.contact_person || null;
+		if (input.contact_person !== undefined)
+			updateData.contact_person = input.contact_person || null;
 		if (input.contact_email !== undefined) updateData.contact_email = input.contact_email || null;
 		// Allow clearing health_system_id by setting to null
 		if ('health_system_id' in input) updateData.health_system_id = input.health_system_id || null;
@@ -190,7 +190,7 @@ export class SiteService {
 		log.info('Site updated', {
 			id: site.id,
 			name: site.name,
-			updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+			updatedFields: Object.keys(updateData).filter((k) => k !== 'updated_at')
 		});
 
 		return site;

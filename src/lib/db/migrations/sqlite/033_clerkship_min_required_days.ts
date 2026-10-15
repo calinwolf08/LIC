@@ -11,10 +11,7 @@ import { Kysely } from 'kysely';
  */
 
 export async function up(db: Kysely<any>): Promise<void> {
-	await db.schema
-		.alterTable('clerkships')
-		.addColumn('min_required_days', 'integer')
-		.execute();
+	await db.schema.alterTable('clerkships').addColumn('min_required_days', 'integer').execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {

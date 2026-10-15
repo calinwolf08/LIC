@@ -30,11 +30,11 @@ const log = createServerLogger('api:scheduling-config:electives:sites');
 const service = new ElectiveService(db);
 
 const addSiteSchema = z.object({
-	siteId: z.string().min(1, 'Site ID is required'),
+	siteId: z.string().min(1, 'Site ID is required')
 });
 
 const setSitesSchema = z.object({
-	siteIds: z.array(z.string()),
+	siteIds: z.array(z.string())
 });
 
 /**
@@ -112,7 +112,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Site addition validation failed', {
 				electiveId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -161,7 +161,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Site set validation failed', {
 				electiveId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

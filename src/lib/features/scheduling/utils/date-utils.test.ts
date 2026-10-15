@@ -322,13 +322,7 @@ describe('getDaysBetween()', () => {
 
 	it('returns consecutive days for multi-day range', () => {
 		const result = getDaysBetween('2024-01-01', '2024-01-05');
-		expect(result).toEqual([
-			'2024-01-01',
-			'2024-01-02',
-			'2024-01-03',
-			'2024-01-04',
-			'2024-01-05'
-		]);
+		expect(result).toEqual(['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05']);
 	});
 
 	it('handles month boundary', () => {
@@ -383,13 +377,7 @@ describe('getSchedulingDates()', () => {
 	it('returns all dates when no blackouts', () => {
 		const blackouts = new Set<string>();
 		const result = getSchedulingDates('2024-01-01', '2024-01-05', blackouts);
-		expect(result).toEqual([
-			'2024-01-01',
-			'2024-01-02',
-			'2024-01-03',
-			'2024-01-04',
-			'2024-01-05'
-		]);
+		expect(result).toEqual(['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05']);
 	});
 
 	it('excludes blackout dates', () => {
@@ -407,13 +395,7 @@ describe('getSchedulingDates()', () => {
 	it('ignores blackout dates outside the range', () => {
 		const blackouts = new Set(['2023-12-31', '2024-01-10']);
 		const result = getSchedulingDates('2024-01-01', '2024-01-05', blackouts);
-		expect(result).toEqual([
-			'2024-01-01',
-			'2024-01-02',
-			'2024-01-03',
-			'2024-01-04',
-			'2024-01-05'
-		]);
+		expect(result).toEqual(['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05']);
 	});
 
 	it('handles single day range with no blackout', () => {

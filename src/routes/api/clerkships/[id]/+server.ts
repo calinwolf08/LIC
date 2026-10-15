@@ -55,7 +55,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Invalid clerkship ID format', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -97,7 +97,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Clerkship update validation failed', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -140,7 +140,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Invalid clerkship ID format for deletion', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

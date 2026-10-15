@@ -122,7 +122,7 @@
 			<thead>
 				<tr class="border-b bg-muted/50">
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('name')}
 					>
 						<div class="flex items-center gap-2">
@@ -133,7 +133,7 @@
 						</div>
 					</th>
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('location')}
 					>
 						<div class="flex items-center gap-2">
@@ -146,7 +146,7 @@
 					<th class="px-4 py-3 text-left text-sm font-medium">Sites</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Preceptors</th>
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('created_at')}
 					>
 						<div class="flex items-center gap-2">
@@ -163,7 +163,10 @@
 				{#if healthSystems.length === 0}
 					<tr>
 						<td colspan="6" class="px-4 py-8 text-center text-muted-foreground">
-							No health systems found. <a href="/health-systems/new" class="text-primary hover:underline">Add one</a>.
+							No health systems found. <a
+								href="/health-systems/new"
+								class="text-primary hover:underline">Add one</a
+							>.
 						</td>
 					</tr>
 				{:else}
@@ -171,7 +174,7 @@
 						{@const hsId = hs.id || ''}
 						{@const deps = hsId ? dependenciesMap.get(hsId) : undefined}
 						<tr
-							class="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+							class="cursor-pointer border-b transition-colors hover:bg-muted/50"
 							onclick={() => handleRowClick(hs)}
 						>
 							<td class="px-4 py-3 text-sm font-medium">{hs.name}</td>
@@ -193,7 +196,11 @@
 							</td>
 							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="default" onclick={() => goto(`/health-systems/${hs.id}`)}>
+									<Button
+										size="sm"
+										variant="default"
+										onclick={() => goto(`/health-systems/${hs.id}`)}
+									>
 										Manage
 									</Button>
 									{#if loadingDependencies}
@@ -205,24 +212,21 @@
 										<div class="flex items-center gap-2">
 											<span class="text-xs text-muted-foreground">
 												{#if deps}
-													Has {deps.sites > 0 ? `${deps.sites} site${deps.sites > 1 ? 's' : ''}` : ''}{deps.sites > 0 && deps.preceptors > 0 ? ', ' : ''}{deps.preceptors > 0 ? `${deps.preceptors} preceptor${deps.preceptors > 1 ? 's' : ''}` : ''}
+													Has {deps.sites > 0
+														? `${deps.sites} site${deps.sites > 1 ? 's' : ''}`
+														: ''}{deps.sites > 0 && deps.preceptors > 0
+														? ', '
+														: ''}{deps.preceptors > 0
+														? `${deps.preceptors} preceptor${deps.preceptors > 1 ? 's' : ''}`
+														: ''}
 												{/if}
 											</span>
-											<Button
-												size="sm"
-												variant="destructive"
-												disabled
-												title={getDeleteTooltip(hs)}
-											>
+											<Button size="sm" variant="destructive" disabled title={getDeleteTooltip(hs)}>
 												Delete
 											</Button>
 										</div>
 									{:else}
-										<Button
-											size="sm"
-											variant="destructive"
-											onclick={() => onDelete(hs)}
-										>
+										<Button size="sm" variant="destructive" onclick={() => onDelete(hs)}>
 											Delete
 										</Button>
 									{/if}

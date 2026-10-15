@@ -39,7 +39,11 @@
 	// Unsaved-changes guard (finding P1-e).
 	$effect(() =>
 		registerUnsavedGuard(
-			() => !saved && (Object.keys(initial) as Array<keyof typeof initial>).some((k) => formData[k] !== initial[k])
+			() =>
+				!saved &&
+				(Object.keys(initial) as Array<keyof typeof initial>).some(
+					(k) => formData[k] !== initial[k]
+				)
 		)
 	);
 	let healthSystemsList = $state([...healthSystems]);
@@ -172,7 +176,9 @@
 					bind:value={formData.health_system_id}
 					onchange={handleHealthSystemChange}
 					disabled={isSubmitting}
-					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id ? 'border-destructive' : ''}"
+					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id
+						? 'border-destructive'
+						: ''}"
 				>
 					<option value="">Select a health system...</option>
 					{#each healthSystemsList as hs}
@@ -195,7 +201,9 @@
 					placeholder="123 Main Street, City, State 12345"
 					rows="3"
 					disabled={isSubmitting}
-					class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.address ? 'border-destructive' : ''}"
+					class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 {errors.address
+						? 'border-destructive'
+						: ''}"
 				></textarea>
 				{#if errors.address}
 					<p class="text-sm text-destructive">{errors.address}</p>
@@ -276,9 +284,7 @@
 		onclick={handleHealthSystemFormCancel}
 		role="presentation"
 	></div>
-	<div
-		class="fixed left-1/2 top-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2"
-	>
+	<div class="fixed top-1/2 left-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
 		<HealthSystemForm
 			onSuccess={handleHealthSystemCreated}
 			onCancel={handleHealthSystemFormCancel}

@@ -6,7 +6,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Card } from '$lib/components/ui/card';
-	import { teamsClient, formatApiError } from '$lib/features/scheduling-config/clients/teams-client';
+	import {
+		teamsClient,
+		formatApiError
+	} from '$lib/features/scheduling-config/clients/teams-client';
 	import { createClientLogger } from '$lib/utils/logger.client';
 
 	const log = createClientLogger('team-new');
@@ -59,7 +62,9 @@
 	let error = $state<string | null>(null);
 
 	// Sites filtered by selected clerkship
-	let clerkshipSites = $state<Array<{ id: string; name: string; health_system_id: string | null }>>([]);
+	let clerkshipSites = $state<Array<{ id: string; name: string; health_system_id: string | null }>>(
+		[]
+	);
 	let loadingClerkshipSites = $state(false);
 
 	// Get clerkship name
@@ -309,7 +314,7 @@
 	);
 </script>
 
-<div class="container mx-auto py-8 max-w-4xl">
+<div class="container mx-auto max-w-4xl py-8">
 	<div class="mb-6">
 		<a href={backUrl} class="text-sm text-muted-foreground hover:text-foreground">
 			{#if fromClerkship}
@@ -318,16 +323,18 @@
 				&larr; Back to Preceptors & Teams
 			{/if}
 		</a>
-		<h1 class="text-3xl font-bold mt-2">Create New Team</h1>
+		<h1 class="mt-2 text-3xl font-bold">Create New Team</h1>
 		<p class="mt-2 max-w-2xl text-sm text-muted-foreground" data-testid="team-explainer">
-			A team is a <strong>coverage group</strong> of preceptors who can cover the same clerkship's
-			days — a primary plus backups. When you assign, you can pick any member; in the paid
-			Auto-Generate tier, scheduling falls back down the list automatically.
+			A team is a <strong>coverage group</strong> of preceptors who can cover the same clerkship's days
+			— a primary plus backups. When you assign, you can pick any member; in the paid Auto-Generate tier,
+			scheduling falls back down the list automatically.
 		</p>
 	</div>
 
 	{#if error}
-		<div class="mb-6 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+		<div
+			class="mb-6 rounded border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+		>
 			{error}
 		</div>
 	{/if}
@@ -335,7 +342,7 @@
 	<form onsubmit={handleSubmit} class="space-y-6">
 		<!-- Step 1: Select Clerkship -->
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">1. Select Clerkship</h2>
+			<h2 class="mb-4 text-xl font-semibold">1. Select Clerkship</h2>
 			<div class="space-y-2">
 				<Label for="clerkship">Clerkship *</Label>
 				<select
@@ -356,8 +363,8 @@
 		<!-- Step 2: Select Sites -->
 		{#if selectedClerkshipId}
 			<Card class="p-6">
-				<h2 class="text-xl font-semibold mb-4">2. Select Sites</h2>
-				<p class="text-sm text-muted-foreground mb-4">
+				<h2 class="mb-4 text-xl font-semibold">2. Select Sites</h2>
+				<p class="mb-4 text-sm text-muted-foreground">
 					Select the sites where this team will operate. Sites shown are those that offer {selectedClerkshipName}.
 				</p>
 
@@ -374,13 +381,14 @@
 					<Label for="sameHealthSystem" class="cursor-pointer">
 						Only show sites from the same health system
 						<span class="block text-xs font-normal text-muted-foreground">
-							When enabled, selecting a site will filter to only show other sites from the same health system
+							When enabled, selecting a site will filter to only show other sites from the same
+							health system
 						</span>
 					</Label>
 				</div>
 
 				{#if lockedHealthSystemId}
-					<div class="mb-4 text-sm bg-muted p-2 rounded">
+					<div class="mb-4 rounded bg-muted p-2 text-sm">
 						Showing sites from: <strong>{getHealthSystemName(lockedHealthSystemId)}</strong>
 					</div>
 				{/if}
@@ -394,9 +402,11 @@
 							: 'No sites available with current filter.'}
 					</p>
 				{:else}
-					<div class="max-h-48 overflow-y-auto space-y-1 border rounded p-2">
+					<div class="max-h-48 space-y-1 overflow-y-auto rounded border p-2">
 						{#each availableSites() as site}
-							<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-2 cursor-pointer">
+							<label
+								class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted/50"
+							>
 								<input
 									type="checkbox"
 									checked={selectedSiteIds.includes(site.id)}
@@ -404,7 +414,7 @@
 									disabled={isSubmitting}
 									class="h-4 w-4 rounded border-gray-300"
 								/>
-								<span class="text-sm flex-1">{site.name}</span>
+								<span class="flex-1 text-sm">{site.name}</span>
 								<span class="text-xs text-muted-foreground">
 									{getHealthSystemName(site.health_system_id)}
 								</span>
@@ -423,15 +433,15 @@
 		<!-- Step 3: Select Preceptors -->
 		{#if selectedSiteIds.length > 0}
 			<Card class="p-6">
-				<h2 class="text-xl font-semibold mb-4">3. Add Team Members</h2>
-				<p class="text-sm text-muted-foreground mb-4">
+				<h2 class="mb-4 text-xl font-semibold">3. Add Team Members</h2>
+				<p class="mb-4 text-sm text-muted-foreground">
 					Add preceptors to the team. Showing preceptors who work at the selected sites.
 				</p>
 
 				<!-- Add Member -->
-				<div class="flex flex-wrap gap-2 mb-4 items-end">
-					<div class="flex-1 min-w-[200px]">
-						<Label class="text-xs text-muted-foreground mb-1">Preceptor</Label>
+				<div class="mb-4 flex flex-wrap items-end gap-2">
+					<div class="min-w-[200px] flex-1">
+						<Label class="mb-1 text-xs text-muted-foreground">Preceptor</Label>
 						<select
 							bind:value={selectedPreceptorId}
 							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -446,7 +456,7 @@
 						</select>
 					</div>
 					<div class="w-36">
-						<Label class="text-xs text-muted-foreground mb-1">Role (optional)</Label>
+						<Label class="mb-1 text-xs text-muted-foreground">Role (optional)</Label>
 						<Input
 							type="text"
 							bind:value={newMemberRole}
@@ -466,24 +476,36 @@
 							Backup only
 						</Label>
 					</div>
-					<Button type="button" variant="outline" onclick={addMember} disabled={isSubmitting || !selectedPreceptorId}>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={addMember}
+						disabled={isSubmitting || !selectedPreceptorId}
+					>
 						Add
 					</Button>
 				</div>
-				<p class="text-xs text-muted-foreground mb-4">
-					<strong>Backup only:</strong> This preceptor will only be assigned when primary members reach capacity.
+				<p class="mb-4 text-xs text-muted-foreground">
+					<strong>Backup only:</strong> This preceptor will only be assigned when primary members reach
+					capacity.
 				</p>
 
 				<!-- Member List -->
 				{#if members.length > 0}
 					<div class="space-y-2">
 						{#each members as member, index}
-							<div class="flex items-center justify-between rounded border p-3 {member.isFallbackOnly ? 'bg-muted/50 border-dashed' : ''}">
+							<div
+								class="flex items-center justify-between rounded border p-3 {member.isFallbackOnly
+									? 'border-dashed bg-muted/50'
+									: ''}"
+							>
 								<div class="flex-1">
-									<p class="font-medium flex items-center gap-2">
+									<p class="flex items-center gap-2 font-medium">
 										{index + 1}. {getPreceptorName(member.preceptorId)}
 										{#if member.isFallbackOnly}
-											<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Backup</span>
+											<span class="rounded bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-800"
+												>Backup</span
+											>
 										{/if}
 									</p>
 									<div class="mt-1 flex gap-3 text-xs text-muted-foreground">
@@ -534,7 +556,7 @@
 		<!-- Step 4: Team Details -->
 		{#if members.length > 0}
 			<Card class="p-6">
-				<h2 class="text-xl font-semibold mb-4">4. Team Details</h2>
+				<h2 class="mb-4 text-xl font-semibold">4. Team Details</h2>
 
 				<!-- Team Name -->
 				<div class="mb-4">
@@ -555,8 +577,8 @@
 				<div class="space-y-3">
 					<h3 class="font-medium">Team Formation Rules (optional)</h3>
 					<p class="text-xs text-muted-foreground">
-						These are optional guides, not hard blocks. If members don't match, you'll get a
-						warning you can override — the team still saves.
+						These are optional guides, not hard blocks. If members don't match, you'll get a warning
+						you can override — the team still saves.
 					</p>
 
 					<div class="flex items-center gap-2">
@@ -580,9 +602,7 @@
 							class="h-4 w-4 rounded border-gray-300"
 							disabled={isSubmitting}
 						/>
-						<Label for="requireSameSite" class="cursor-pointer">
-							Require Same Site
-						</Label>
+						<Label for="requireSameSite" class="cursor-pointer">Require Same Site</Label>
 					</div>
 				</div>
 			</Card>

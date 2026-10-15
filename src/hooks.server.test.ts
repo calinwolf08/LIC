@@ -167,7 +167,10 @@ describe('hooks: central Stage 2 (autogen) gating', () => {
 
 	it('does not gate an open Stage 1 route for a non-autogen user', async () => {
 		getSession.mockResolvedValue(signedIn('[]'));
-		const res = await handle({ event: event('/api/scheduling-config/electives'), resolve } as never);
+		const res = await handle({
+			event: event('/api/scheduling-config/electives'),
+			resolve
+		} as never);
 		expect(res.status).toBe(200);
 		expect(handleRequest).toHaveBeenCalledOnce();
 	});

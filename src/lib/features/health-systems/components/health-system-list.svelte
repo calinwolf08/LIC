@@ -99,14 +99,14 @@
 
 <div class="space-y-4">
 	{#if healthSystems.length === 0}
-		<div class="text-center text-muted-foreground py-8">
+		<div class="py-8 text-center text-muted-foreground">
 			<p>No health systems found.</p>
-			<p class="text-sm mt-2">Create your first health system to get started.</p>
+			<p class="mt-2 text-sm">Create your first health system to get started.</p>
 		</div>
 	{:else}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 			{#each healthSystems as healthSystem}
-				<div class="rounded-lg border p-4 hover:border-primary transition-colors">
+				<div class="rounded-lg border p-4 transition-colors hover:border-primary">
 					<div class="flex items-start justify-between">
 						<div class="flex-1">
 							<h3 class="font-semibold">{healthSystem.name}</h3>
@@ -114,18 +114,16 @@
 								<p class="mt-1 text-sm text-muted-foreground">{healthSystem.location}</p>
 							{/if}
 							{#if healthSystem.description}
-								<p class="mt-2 text-sm text-muted-foreground line-clamp-2">
+								<p class="mt-2 line-clamp-2 text-sm text-muted-foreground">
 									{healthSystem.description}
 								</p>
 							{/if}
 						</div>
 					</div>
-					<div class="mt-4 flex gap-2 items-center">
+					<div class="mt-4 flex items-center gap-2">
 						<Button size="sm" variant="outline" onclick={() => onEdit(healthSystem)}>Edit</Button>
 						{#if loadingDependencies}
-							<Button size="sm" variant="destructive" disabled>
-								Delete
-							</Button>
+							<Button size="sm" variant="destructive" disabled>Delete</Button>
 						{:else}
 							{@const depInfo = getDependencyInfo(healthSystem.id || '')}
 							<div class="flex items-center gap-2">
@@ -139,10 +137,7 @@
 									Delete
 								</Button>
 								{#if depInfo.displayText}
-									<span
-										class="text-xs text-muted-foreground"
-										title={depInfo.tooltip}
-									>
+									<span class="text-xs text-muted-foreground" title={depInfo.tooltip}>
 										{depInfo.displayText}
 									</span>
 								{/if}

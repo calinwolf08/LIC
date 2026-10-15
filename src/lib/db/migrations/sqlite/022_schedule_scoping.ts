@@ -14,10 +14,7 @@ import { sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
 	// Add year column to scheduling_periods
-	await db.schema
-		.alterTable('scheduling_periods')
-		.addColumn('year', 'integer')
-		.execute();
+	await db.schema.alterTable('scheduling_periods').addColumn('year', 'integer').execute();
 
 	// Create schedule_students junction table
 	await db.schema
@@ -54,9 +51,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('schedule_id', 'text', (col) =>
 			col.notNull().references('scheduling_periods.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
 		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addUniqueConstraint('schedule_sites_unique', ['schedule_id', 'site_id'])
 		.execute();
@@ -205,7 +200,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				year: currentYear,
 				is_active: 1,
 				created_at: sql`CURRENT_TIMESTAMP`,
-				updated_at: sql`CURRENT_TIMESTAMP`,
+				updated_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -219,7 +214,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				student_id: student.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -233,7 +228,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				preceptor_id: preceptor.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -247,7 +242,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				site_id: site.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -261,7 +256,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				health_system_id: hs.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -275,7 +270,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				clerkship_id: clerkship.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -289,7 +284,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				team_id: team.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}
@@ -303,7 +298,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				id: sql`lower(hex(randomblob(10)))`,
 				schedule_id: scheduleId,
 				configuration_id: config.id,
-				created_at: sql`CURRENT_TIMESTAMP`,
+				created_at: sql`CURRENT_TIMESTAMP`
 			})
 			.execute();
 	}

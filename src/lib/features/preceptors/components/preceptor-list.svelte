@@ -51,7 +51,7 @@
 			<thead>
 				<tr class="border-b bg-muted/50">
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('name')}
 					>
 						<div class="flex items-center gap-2">
@@ -64,7 +64,7 @@
 						</div>
 					</th>
 					<th
-						class="px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-muted"
+						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('email')}
 					>
 						<div class="flex items-center gap-2">
@@ -88,9 +88,7 @@
 			<tbody>
 				{#if loading}
 					<tr>
-						<td colspan="9" class="px-4 py-8 text-center text-muted-foreground">
-							Loading...
-						</td>
+						<td colspan="9" class="px-4 py-8 text-center text-muted-foreground"> Loading... </td>
 					</tr>
 				{:else if sortedPreceptors().length === 0}
 					<tr>
@@ -105,7 +103,10 @@
 							onclick={() => goto(`/preceptors/${preceptor.id}`)}
 						>
 							<td class="px-4 py-3 text-sm">
-								<a href="/preceptors/{preceptor.id}" class="font-medium text-primary hover:underline">
+								<a
+									href="/preceptors/{preceptor.id}"
+									class="font-medium text-primary hover:underline"
+								>
 									{preceptor.name}
 								</a>
 							</td>
@@ -154,11 +155,20 @@
 							</td>
 							<td class="px-4 py-3 text-sm">
 								{#if preceptor.has_availability}
-									<span data-testid="availability-indicator" data-configured="true" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+									<span
+										data-testid="availability-indicator"
+										data-configured="true"
+										class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200"
+									>
 										Configured
 									</span>
 								{:else}
-									<span data-testid="availability-indicator" data-configured="false" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="Availability must be configured for this preceptor to be included in schedule generation">
+									<span
+										data-testid="availability-indicator"
+										data-configured="false"
+										class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+										title="Availability must be configured for this preceptor to be included in schedule generation"
+									>
 										Not Set
 									</span>
 								{/if}
@@ -166,15 +176,15 @@
 							<td class="px-4 py-3 text-sm">{preceptor.max_students}</td>
 							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="default" onclick={() => goto(`/preceptors/${preceptor.id}`)}>
+									<Button
+										size="sm"
+										variant="default"
+										onclick={() => goto(`/preceptors/${preceptor.id}`)}
+									>
 										Manage
 									</Button>
 									{#if onDelete}
-										<Button
-											size="sm"
-											variant="destructive"
-											onclick={() => onDelete?.(preceptor)}
-										>
+										<Button size="sm" variant="destructive" onclick={() => onDelete?.(preceptor)}>
 											Delete
 										</Button>
 									{/if}

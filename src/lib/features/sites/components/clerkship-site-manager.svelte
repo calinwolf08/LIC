@@ -71,9 +71,7 @@
 <div class="space-y-4">
 	<div>
 		<h3 class="text-lg font-semibold">Sites Offering {clerkshipName}</h3>
-		<p class="text-sm text-muted-foreground mt-1">
-			Select which sites offer this clerkship
-		</p>
+		<p class="mt-1 text-sm text-muted-foreground">Select which sites offer this clerkship</p>
 	</div>
 
 	{#if error}
@@ -89,7 +87,7 @@
 	{:else if sites.length === 0}
 		<Card class="p-8 text-center">
 			<p class="text-muted-foreground">No sites found.</p>
-			<p class="text-sm text-muted-foreground mt-2">
+			<p class="mt-2 text-sm text-muted-foreground">
 				Create sites first before associating them with clerkships.
 			</p>
 			<Button href="/sites/new" class="mt-4">Create Site</Button>
@@ -99,7 +97,11 @@
 			<div class="space-y-2">
 				{#each sites as site}
 					{@const isAssociated = associatedSiteIds.has(site.id)}
-					<div class="flex items-center justify-between p-3 rounded-lg border {isAssociated ? 'bg-primary/5 border-primary/20' : ''}">
+					<div
+						class="flex items-center justify-between rounded-lg border p-3 {isAssociated
+							? 'border-primary/20 bg-primary/5'
+							: ''}"
+					>
 						<div>
 							<p class="font-medium">{site.name}</p>
 							{#if site.health_system_name}

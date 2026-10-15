@@ -90,7 +90,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Health system update validation failed', {
 				id: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

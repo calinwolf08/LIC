@@ -80,7 +80,20 @@
 	}
 
 	function getMonthName(month: number): string {
-		const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+		const names = [
+			'Jan',
+			'Feb',
+			'Mar',
+			'Apr',
+			'May',
+			'Jun',
+			'Jul',
+			'Aug',
+			'Sep',
+			'Oct',
+			'Nov',
+			'Dec'
+		];
 		return names[month];
 	}
 
@@ -105,8 +118,8 @@
 		const end = parseLocalDate(endDate);
 		const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-		const availableDates = generatedDates.filter(d => d.is_available).length;
-		const unavailableDates = generatedDates.filter(d => !d.is_available).length;
+		const availableDates = generatedDates.filter((d) => d.is_available).length;
+		const unavailableDates = generatedDates.filter((d) => !d.is_available).length;
 		const notSetDates = totalDays - generatedDates.length;
 
 		return {
@@ -125,31 +138,32 @@
 			<h4 class="text-sm font-semibold">Calendar Preview</h4>
 			<div class="flex items-center gap-4 text-xs">
 				<div class="flex items-center gap-1.5">
-					<div class="w-3 h-3 rounded bg-green-500"></div>
+					<div class="h-3 w-3 rounded bg-green-500"></div>
 					<span>{stats().availableDates} available</span>
 				</div>
 				<div class="flex items-center gap-1.5">
-					<div class="w-3 h-3 rounded bg-red-500"></div>
+					<div class="h-3 w-3 rounded bg-red-500"></div>
 					<span>{stats().unavailableDates} unavailable</span>
 				</div>
 				<div class="flex items-center gap-1.5">
-					<div class="w-3 h-3 rounded bg-gray-300 dark:bg-gray-700"></div>
+					<div class="h-3 w-3 rounded bg-gray-300 dark:bg-gray-700"></div>
 					<span>{stats().notSetDates} not set</span>
 				</div>
 			</div>
 		</div>
 
 		<!-- Calendar Grid -->
-		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+		<div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
 			{#each monthsToDisplay() as { year, month }}
 				<div class="space-y-2">
 					<!-- Month Header -->
 					<div class="text-center text-sm font-medium">
-						{getMonthName(month)} {year}
+						{getMonthName(month)}
+						{year}
 					</div>
 
 					<!-- Day Labels -->
-					<div class="grid grid-cols-7 gap-0.5 text-xs text-center text-muted-foreground mb-1">
+					<div class="mb-1 grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">
 						<div>S</div>
 						<div>M</div>
 						<div>T</div>
@@ -165,7 +179,7 @@
 							{#if day.inMonth && day.date}
 								<button
 									type="button"
-									class={`aspect-square text-xs rounded transition-colors ${getDayClass(day.date)} ${onDateClick ? 'cursor-pointer' : 'cursor-default'}`}
+									class={`aspect-square rounded text-xs transition-colors ${getDayClass(day.date)} ${onDateClick ? 'cursor-pointer' : 'cursor-default'}`}
 									onclick={() => onDateClick?.(day.date)}
 									disabled={!onDateClick}
 									title={day.date}
@@ -182,7 +196,7 @@
 		</div>
 
 		{#if monthsToDisplay().length === 0}
-			<div class="text-center py-8 text-sm text-muted-foreground">
+			<div class="py-8 text-center text-sm text-muted-foreground">
 				Set a date range to preview availability
 			</div>
 		{/if}

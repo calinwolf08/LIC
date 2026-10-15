@@ -124,7 +124,12 @@ describe('analyseSelection', () => {
 	});
 
 	it('keeps selection-wide categories on a clashing (still submittable) day', () => {
-		const r = analyseSelection(['2030-03-05'], [booked('2030-03-05')], { overRequired: true }, 'full');
+		const r = analyseSelection(
+			['2030-03-05'],
+			[booked('2030-03-05')],
+			{ overRequired: true },
+			'full'
+		);
 		// The day is submittable now, so both the session-clash warning and the
 		// selection-wide over-required category apply.
 		expect(r.submittableDates).toEqual(['2030-03-05']);
@@ -193,14 +198,19 @@ describe('buildSubmitPayload', () => {
 	});
 
 	it('includes only the chosen side effects', () => {
-		const payload = buildSubmitPayload(selection, analysis, ['preceptor_unavailable'], [
-			{
-				kind: 'mark_preceptor_available',
-				preceptor_id: 'prec-1',
-				site_id: 'site-1',
-				dates: ['2030-03-05']
-			}
-		]);
+		const payload = buildSubmitPayload(
+			selection,
+			analysis,
+			['preceptor_unavailable'],
+			[
+				{
+					kind: 'mark_preceptor_available',
+					preceptor_id: 'prec-1',
+					site_id: 'site-1',
+					dates: ['2030-03-05']
+				}
+			]
+		);
 		expect(payload.side_effects).toHaveLength(1);
 		expect(payload.side_effects?.[0].kind).toBe('mark_preceptor_available');
 

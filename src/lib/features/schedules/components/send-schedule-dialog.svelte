@@ -216,9 +216,13 @@
 						>
 							<p class="text-sm font-semibold">
 								{v.recipientName}
-								<span class="ml-1 text-xs font-normal text-muted-foreground">({v.recipient.type})</span>
+								<span class="ml-1 text-xs font-normal text-muted-foreground"
+									>({v.recipient.type})</span
+								>
 								{#if v.recipientEmail}
-									<span class="ml-1 text-xs font-normal text-muted-foreground">{v.recipientEmail}</span>
+									<span class="ml-1 text-xs font-normal text-muted-foreground"
+										>{v.recipientEmail}</span
+									>
 								{/if}
 							</p>
 							{#if v.days.length === 0}
@@ -232,7 +236,9 @@
 											{#if d.clerkshipName}· {d.clerkshipName}{/if}
 											{#if d.preceptorName}· {d.preceptorName}{/if}
 											{#if d.siteName}· {d.siteName}{/if}
-											{#if d.kind && d.kind !== 'clinical'}· {d.kind === 'exam' ? 'Exam' : 'Free day'}{/if}
+											{#if d.kind && d.kind !== 'clinical'}· {d.kind === 'exam'
+													? 'Exam'
+													: 'Free day'}{/if}
 										</li>
 									{/each}
 								</ul>

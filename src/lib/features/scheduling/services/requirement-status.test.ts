@@ -243,7 +243,11 @@ describe('getStudentStatuses', () => {
 	// E2: a min_required_days floor marks the student complete at the floor.
 	it('marks a clerkship complete once the min_required_days floor is met', async () => {
 		// Medicine requires 3 days; set an allowable-miss floor of 2.
-		await db.updateTable('clerkships').set({ min_required_days: 2 }).where('id', '=', CLERK).execute();
+		await db
+			.updateTable('clerkships')
+			.set({ min_required_days: 2 })
+			.where('id', '=', CLERK)
+			.execute();
 		await addAssignment(db, 'm1', '2025-05-01');
 		await addAssignment(db, 'm2', '2025-05-02');
 		const [status] = await getStudentStatuses(db, SCHED, TODAY);

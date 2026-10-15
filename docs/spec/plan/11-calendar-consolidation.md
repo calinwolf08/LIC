@@ -1,15 +1,19 @@
 # Step 11 — Calendar Consolidation
 
 ## Objective
+
 Make `/calendar` the polished Stage 1 scheduling workspace: full-range views, clear filters, violation markers, blackout management, click-to-create, export — with all generation controls removed (they move to the Stage 2 hub).
 
 ## Context
+
 DESIGN_REVIEW A7, B3, C7, D4. The calendar exposes the regenerate dialog (with constraint-bypass internals) to everyone, day clicks only open the first assignment, filters were patched with explanatory text rather than designed, and blackout management is a hidden collapsible.
 
 ## Prerequisites
+
 Steps 09 (assignment dialogs), 10 (validation data), 03 (gating). Step 01 primitives.
 
 ## Scope
+
 **In:** `/calendar` page + shared `schedule-calendar-grid` component upgrades (also consumed by student/preceptor pages). **Out:** generation UI (step 13 relocates it; this step deletes it from here).
 
 ## Implementation
@@ -24,11 +28,13 @@ Steps 09 (assignment dialogs), 10 (validation data), 03 (gating). Step 01 primit
 8. **Validation refresh**: after any assignment create/edit/delete, refetch validation + events together; loading skeletons instead of blank flashes.
 
 ## Testing
+
 - Unit: any new grid-view helpers (chip grouping, marker aggregation) — pure functions.
 - E2E: default range = schedule range; filter by student then export (URL params set; export request carries filters); empty-day click opens pre-filled create dialog; seeded violation shows red marker with tooltip text; blackout manager opens from header and adding a blackout shades the day; non-entitled sees no generate anything (regression); entitled sees "Auto-generate…" link only.
 - Visual sanity: month with 0 assignments renders EmptyState guidance ("Click any day to add an assignment").
 
 ## Acceptance criteria
+
 - [ ] Calendar supports the full manual loop: see → filter → create → edit → validate → export, with no generation internals visible (R8.1–R8.5).
 - [ ] Violation markers driven by step 10 data.
 - [ ] Blackouts manageable from the calendar header (B3 closed).

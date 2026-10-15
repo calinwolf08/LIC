@@ -121,7 +121,12 @@ describe('validateSchedule', () => {
 	it('flags blackout and outside-schedule violations', async () => {
 		await db
 			.insertInto('blackout_dates')
-			.values({ id: 'bo', schedule_id: SCHED, date: '2025-03-04', created_at: new Date().toISOString() })
+			.values({
+				id: 'bo',
+				schedule_id: SCHED,
+				date: '2025-03-04',
+				created_at: new Date().toISOString()
+			})
 			.execute();
 		await addAssignment(db, 'a1', '2025-03-04'); // blackout
 		await addAssignment(db, 'a2', '2030-01-01'); // outside range
@@ -206,9 +211,7 @@ describe('validateSchedule', () => {
 		expect(cap[0].assignment_ids.sort()).toEqual(['a1', 'a2']);
 		expect(r.byDate['2025-03-03']?.some((v) => v.code === 'preceptor_capacity')).toBe(true);
 		// The top-level pill (violations.length) equals the sum of the by-code counts.
-		expect(r.violations.length).toBe(
-			Object.values(r.counts).reduce((a, b) => a + b, 0)
-		);
+		expect(r.violations.length).toBe(Object.values(r.counts).reduce((a, b) => a + b, 0));
 	});
 
 	it('emits one capacity finding per day (four double-booked days ⇒ 4, not 8)', async () => {
@@ -223,7 +226,14 @@ describe('validateSchedule', () => {
 			.execute();
 		await db
 			.insertInto('student_health_system_onboarding')
-			.values({ id: 'ob2', student_id: 'stu-2', health_system_id: HS, is_completed: 1, created_at: ts, updated_at: ts })
+			.values({
+				id: 'ob2',
+				student_id: 'stu-2',
+				health_system_id: HS,
+				is_completed: 1,
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 
 		const days = ['2025-03-03', '2025-03-04', '2025-03-05', '2025-03-06'];
@@ -346,7 +356,12 @@ describe('validateSchedule', () => {
 		const [a, b] = x <= y ? [x, y] : [y, x];
 		await db
 			.insertInto('preceptor_mutual_exclusions')
-			.values({ id: `me-${a}-${b}`, preceptor_a_id: a, preceptor_b_id: b, created_at: new Date().toISOString() })
+			.values({
+				id: `me-${a}-${b}`,
+				preceptor_a_id: a,
+				preceptor_b_id: b,
+				created_at: new Date().toISOString()
+			})
 			.execute();
 	}
 
@@ -471,7 +486,13 @@ describe('getSetupChecklist', () => {
 		const ts = new Date().toISOString();
 		await db
 			.insertInto('sites')
-			.values({ id: 'site-1', name: 'Clinic', health_system_id: HS, created_at: ts, updated_at: ts })
+			.values({
+				id: 'site-1',
+				name: 'Clinic',
+				health_system_id: HS,
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 		await db
 			.insertInto('preceptor_availability')

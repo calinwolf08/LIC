@@ -176,9 +176,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (isDateList || isRange) {
 			const input = isDateList ? datesSchema.parse(body) : bulkSchema.parse(body);
 			const kind = input.kind ?? 'clinical';
-			if (kind === 'clinical' && !input.preceptor_id) return errorResponse('Select a preceptor', 400);
+			if (kind === 'clinical' && !input.preceptor_id)
+				return errorResponse('Select a preceptor', 400);
 			if (kind === 'clinical' && !input.site_id) return errorResponse('Select a site', 400);
-			await guardCreatePayload(scheduleId, input as unknown as Parameters<typeof guardCreatePayload>[1]);
+			await guardCreatePayload(
+				scheduleId,
+				input as unknown as Parameters<typeof guardCreatePayload>[1]
+			);
 			const previewDate = isDateList
 				? (input as z.infer<typeof datesSchema>).dates[0]
 				: (input as z.infer<typeof bulkSchema>).start_date;
@@ -226,7 +230,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const kind = input.kind ?? 'clinical';
 		if (kind === 'clinical' && !input.preceptor_id) return errorResponse('Select a preceptor', 400);
 		if (kind === 'clinical' && !input.site_id) return errorResponse('Select a site', 400);
-		await guardCreatePayload(scheduleId, input as unknown as Parameters<typeof guardCreatePayload>[1]);
+		await guardCreatePayload(
+			scheduleId,
+			input as unknown as Parameters<typeof guardCreatePayload>[1]
+		);
 		const candidate = {
 			student_id: input.student_id,
 			preceptor_id: input.preceptor_id ?? '',

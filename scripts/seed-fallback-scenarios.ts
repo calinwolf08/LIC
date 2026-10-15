@@ -38,50 +38,56 @@ async function seed() {
 	const uniMedId = nanoid();
 	const communityHealthId = nanoid();
 
-	await db.insertInto('health_systems').values([
-		{
-			id: uniMedId,
-			name: 'University Medical Center',
-			description: 'Academic medical center for fallback testing',
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: communityHealthId,
-			name: 'Community Health Network',
-			description: 'Community healthcare for cross-system testing',
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-	]).execute();
+	await db
+		.insertInto('health_systems')
+		.values([
+			{
+				id: uniMedId,
+				name: 'University Medical Center',
+				description: 'Academic medical center for fallback testing',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: communityHealthId,
+				name: 'Community Health Network',
+				description: 'Community healthcare for cross-system testing',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			}
+		])
+		.execute();
 
 	const mainCampusSiteId = nanoid();
 	const downtownSiteId = nanoid();
 	const communitySiteId = nanoid();
 
-	await db.insertInto('sites').values([
-		{
-			id: mainCampusSiteId,
-			name: 'Main Campus',
-			health_system_id: uniMedId,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: downtownSiteId,
-			name: 'Downtown Clinic',
-			health_system_id: uniMedId,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: communitySiteId,
-			name: 'Community Care Center',
-			health_system_id: communityHealthId,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-	]).execute();
+	await db
+		.insertInto('sites')
+		.values([
+			{
+				id: mainCampusSiteId,
+				name: 'Main Campus',
+				health_system_id: uniMedId,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: downtownSiteId,
+				name: 'Downtown Clinic',
+				health_system_id: uniMedId,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: communitySiteId,
+				name: 'Community Care Center',
+				health_system_id: communityHealthId,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			}
+		])
+		.execute();
 
 	console.log('  ✓ Created 2 health systems and 3 sites\n');
 
@@ -91,25 +97,31 @@ async function seed() {
 	console.log('📋 Creating test clerkship...');
 
 	const fallbackTestClerkshipId = nanoid();
-	await db.insertInto('clerkships').values({
-		id: fallbackTestClerkshipId,
-		name: 'Fallback Test Clerkship',
-		clerkship_type: 'outpatient',
-		required_days: 5,
-		description: 'Clerkship for testing fallback gap filling',
-	}).execute();
+	await db
+		.insertInto('clerkships')
+		.values({
+			id: fallbackTestClerkshipId,
+			name: 'Fallback Test Clerkship',
+			clerkship_type: 'outpatient',
+			required_days: 5,
+			description: 'Clerkship for testing fallback gap filling'
+		})
+		.execute();
 
 	// Create requirement
 	const requirementId = nanoid();
-	await db.insertInto('clerkship_requirements').values({
-		id: requirementId,
-		clerkship_id: fallbackTestClerkshipId,
-		requirement_type: 'outpatient',
-		required_days: 5,
-		override_mode: 'inherit',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('clerkship_requirements')
+		.values({
+			id: requirementId,
+			clerkship_id: fallbackTestClerkshipId,
+			requirement_type: 'outpatient',
+			required_days: 5,
+			override_mode: 'inherit',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
 	console.log('  ✓ Created "Fallback Test Clerkship" with 5-day requirement\n');
 
@@ -129,29 +141,58 @@ async function seed() {
 	const drMichaelId = nanoid();
 
 	const preceptors = [
-		{ id: drAmandaId, name: 'Dr. Amanda Chen', email: 'amanda.chen@unimedical.edu', healthSystemId: uniMedId },
-		{ id: drJamesId, name: 'Dr. James Wilson', email: 'james.wilson@unimedical.edu', healthSystemId: uniMedId },
-		{ id: drSarahId, name: 'Dr. Sarah Johnson', email: 'sarah.johnson@unimedical.edu', healthSystemId: uniMedId },
-		{ id: drMichaelId, name: 'Dr. Michael Brown', email: 'michael.brown@communityhealth.org', healthSystemId: communityHealthId },
+		{
+			id: drAmandaId,
+			name: 'Dr. Amanda Chen',
+			email: 'amanda.chen@unimedical.edu',
+			healthSystemId: uniMedId
+		},
+		{
+			id: drJamesId,
+			name: 'Dr. James Wilson',
+			email: 'james.wilson@unimedical.edu',
+			healthSystemId: uniMedId
+		},
+		{
+			id: drSarahId,
+			name: 'Dr. Sarah Johnson',
+			email: 'sarah.johnson@unimedical.edu',
+			healthSystemId: uniMedId
+		},
+		{
+			id: drMichaelId,
+			name: 'Dr. Michael Brown',
+			email: 'michael.brown@communityhealth.org',
+			healthSystemId: communityHealthId
+		}
 	];
 
 	for (const p of preceptors) {
-		await db.insertInto('preceptors').values({
-			id: p.id,
-			name: p.name,
-			email: p.email,
-			health_system_id: p.healthSystemId,
-			max_students: 2,
-		}).execute();
+		await db
+			.insertInto('preceptors')
+			.values({
+				id: p.id,
+				name: p.name,
+				email: p.email,
+				health_system_id: p.healthSystemId,
+				max_students: 2
+			})
+			.execute();
 
 		// Create site association
-		const siteId = p.healthSystemId === uniMedId
-			? (p.id === drSarahId ? downtownSiteId : mainCampusSiteId)
-			: communitySiteId;
-		await db.insertInto('preceptor_sites').values({
-			preceptor_id: p.id,
-			site_id: siteId,
-		}).execute();
+		const siteId =
+			p.healthSystemId === uniMedId
+				? p.id === drSarahId
+					? downtownSiteId
+					: mainCampusSiteId
+				: communitySiteId;
+		await db
+			.insertInto('preceptor_sites')
+			.values({
+				preceptor_id: p.id,
+				site_id: siteId
+			})
+			.execute();
 	}
 
 	console.log('  ✓ Created 4 preceptors across 2 health systems\n');
@@ -163,80 +204,98 @@ async function seed() {
 
 	// Team A: Dr. Amanda (lead) + Dr. James - Main Campus, same health system
 	const teamAId = nanoid();
-	await db.insertInto('preceptor_teams').values({
-		id: teamAId,
-		clerkship_id: fallbackTestClerkshipId,
-		name: 'Team A - Main Campus',
-		description: 'Primary teaching team at Main Campus',
-		require_same_health_system: 1,
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('preceptor_teams')
+		.values({
+			id: teamAId,
+			clerkship_id: fallbackTestClerkshipId,
+			name: 'Team A - Main Campus',
+			description: 'Primary teaching team at Main Campus',
+			require_same_health_system: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
-	await db.insertInto('preceptor_team_members').values([
-		{
-			id: nanoid(),
-			team_id: teamAId,
-			preceptor_id: drAmandaId,
-			priority: 1,
-			role: 'lead',
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: nanoid(),
-			team_id: teamAId,
-			preceptor_id: drJamesId,
-			priority: 2,
-			role: 'member',
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-	]).execute();
+	await db
+		.insertInto('preceptor_team_members')
+		.values([
+			{
+				id: nanoid(),
+				team_id: teamAId,
+				preceptor_id: drAmandaId,
+				priority: 1,
+				role: 'lead',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: nanoid(),
+				team_id: teamAId,
+				preceptor_id: drJamesId,
+				priority: 2,
+				role: 'member',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			}
+		])
+		.execute();
 
 	// Team B: Dr. Sarah - Downtown, same health system
 	const teamBId = nanoid();
-	await db.insertInto('preceptor_teams').values({
-		id: teamBId,
-		clerkship_id: fallbackTestClerkshipId,
-		name: 'Team B - Downtown',
-		description: 'Teaching team at Downtown Clinic',
-		require_same_health_system: 1,
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('preceptor_teams')
+		.values({
+			id: teamBId,
+			clerkship_id: fallbackTestClerkshipId,
+			name: 'Team B - Downtown',
+			description: 'Teaching team at Downtown Clinic',
+			require_same_health_system: 1,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
-	await db.insertInto('preceptor_team_members').values({
-		id: nanoid(),
-		team_id: teamBId,
-		preceptor_id: drSarahId,
-		priority: 1,
-		role: 'lead',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('preceptor_team_members')
+		.values({
+			id: nanoid(),
+			team_id: teamBId,
+			preceptor_id: drSarahId,
+			priority: 1,
+			role: 'lead',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
 	// Team C: Dr. Michael - Community Health (different health system)
 	const teamCId = nanoid();
-	await db.insertInto('preceptor_teams').values({
-		id: teamCId,
-		clerkship_id: fallbackTestClerkshipId,
-		name: 'Team C - Community',
-		description: 'Teaching team at Community Health',
-		require_same_health_system: 0, // Can work with other health systems
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('preceptor_teams')
+		.values({
+			id: teamCId,
+			clerkship_id: fallbackTestClerkshipId,
+			name: 'Team C - Community',
+			description: 'Teaching team at Community Health',
+			require_same_health_system: 0, // Can work with other health systems
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
-	await db.insertInto('preceptor_team_members').values({
-		id: nanoid(),
-		team_id: teamCId,
-		preceptor_id: drMichaelId,
-		priority: 1,
-		role: 'lead',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	}).execute();
+	await db
+		.insertInto('preceptor_team_members')
+		.values({
+			id: nanoid(),
+			team_id: teamCId,
+			preceptor_id: drMichaelId,
+			priority: 1,
+			role: 'lead',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
 	console.log('  ✓ Created 3 teams:\n');
 	console.log('    - Team A (Main Campus): Dr. Amanda (lead) + Dr. James');
@@ -252,7 +311,7 @@ async function seed() {
 	const dec2025Dates = generateDates('2025-12-01', 31);
 
 	// Dr. Amanda: Mon/Wed/Fri only (Dec 1, 3, 5, 8, 10, 12...)
-	const amandaDates = dec2025Dates.filter(d => {
+	const amandaDates = dec2025Dates.filter((d) => {
 		const dayOfWeek = new Date(d).getUTCDay();
 		return dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5; // Mon, Wed, Fri
 	});
@@ -261,7 +320,7 @@ async function seed() {
 	const jamesDates = ['2025-12-12'];
 
 	// Dr. Sarah: Tue/Thu only (Dec 2, 4, 9, 11...)
-	const sarahDates = dec2025Dates.filter(d => {
+	const sarahDates = dec2025Dates.filter((d) => {
 		const dayOfWeek = new Date(d).getUTCDay();
 		return dayOfWeek === 2 || dayOfWeek === 4; // Tue, Thu
 	});
@@ -271,47 +330,59 @@ async function seed() {
 
 	// Insert availability
 	for (const date of amandaDates) {
-		await db.insertInto('preceptor_availability').values({
-			id: nanoid(),
-			preceptor_id: drAmandaId,
-			site_id: mainCampusSiteId,
-			date,
-			is_available: 1,
-			created_at: new Date().toISOString(),
-		}).execute();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: nanoid(),
+				preceptor_id: drAmandaId,
+				site_id: mainCampusSiteId,
+				date,
+				is_available: 1,
+				created_at: new Date().toISOString()
+			})
+			.execute();
 	}
 
 	for (const date of jamesDates) {
-		await db.insertInto('preceptor_availability').values({
-			id: nanoid(),
-			preceptor_id: drJamesId,
-			site_id: mainCampusSiteId,
-			date,
-			is_available: 1,
-			created_at: new Date().toISOString(),
-		}).execute();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: nanoid(),
+				preceptor_id: drJamesId,
+				site_id: mainCampusSiteId,
+				date,
+				is_available: 1,
+				created_at: new Date().toISOString()
+			})
+			.execute();
 	}
 
 	for (const date of sarahDates) {
-		await db.insertInto('preceptor_availability').values({
-			id: nanoid(),
-			preceptor_id: drSarahId,
-			site_id: downtownSiteId,
-			date,
-			is_available: 1,
-			created_at: new Date().toISOString(),
-		}).execute();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: nanoid(),
+				preceptor_id: drSarahId,
+				site_id: downtownSiteId,
+				date,
+				is_available: 1,
+				created_at: new Date().toISOString()
+			})
+			.execute();
 	}
 
 	for (const date of michaelDates) {
-		await db.insertInto('preceptor_availability').values({
-			id: nanoid(),
-			preceptor_id: drMichaelId,
-			site_id: communitySiteId,
-			date,
-			is_available: 1,
-			created_at: new Date().toISOString(),
-		}).execute();
+		await db
+			.insertInto('preceptor_availability')
+			.values({
+				id: nanoid(),
+				preceptor_id: drMichaelId,
+				site_id: communitySiteId,
+				date,
+				is_available: 1,
+				created_at: new Date().toISOString()
+			})
+			.execute();
 	}
 
 	console.log('  ✓ Dr. Amanda: Mon/Wed/Fri (13 days in December)');
@@ -327,17 +398,20 @@ async function seed() {
 	const students = [
 		{ name: 'Alice Student', email: 'alice.student@medschool.edu' },
 		{ name: 'Bob Student', email: 'bob.student@medschool.edu' },
-		{ name: 'Carol Student', email: 'carol.student@medschool.edu' },
+		{ name: 'Carol Student', email: 'carol.student@medschool.edu' }
 	];
 
 	const studentIds: string[] = [];
 	for (const s of students) {
 		const id = nanoid();
-		await db.insertInto('students').values({
-			id,
-			name: s.name,
-			email: s.email,
-		}).execute();
+		await db
+			.insertInto('students')
+			.values({
+				id,
+				name: s.name,
+				email: s.email
+			})
+			.execute();
 		studentIds.push(id);
 	}
 
@@ -348,40 +422,43 @@ async function seed() {
 	// ========================================
 	console.log('🎯 Creating capacity rules...');
 
-	await db.insertInto('preceptor_capacity_rules').values([
-		{
-			id: nanoid(),
-			preceptor_id: drAmandaId,
-			max_students_per_day: 1,
-			max_students_per_year: 20,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: nanoid(),
-			preceptor_id: drJamesId,
-			max_students_per_day: 1,
-			max_students_per_year: 20,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: nanoid(),
-			preceptor_id: drSarahId,
-			max_students_per_day: 2,
-			max_students_per_year: 30,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-		{
-			id: nanoid(),
-			preceptor_id: drMichaelId,
-			max_students_per_day: 2,
-			max_students_per_year: 30,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		},
-	]).execute();
+	await db
+		.insertInto('preceptor_capacity_rules')
+		.values([
+			{
+				id: nanoid(),
+				preceptor_id: drAmandaId,
+				max_students_per_day: 1,
+				max_students_per_year: 20,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: nanoid(),
+				preceptor_id: drJamesId,
+				max_students_per_day: 1,
+				max_students_per_year: 20,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: nanoid(),
+				preceptor_id: drSarahId,
+				max_students_per_day: 2,
+				max_students_per_year: 30,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			},
+			{
+				id: nanoid(),
+				preceptor_id: drMichaelId,
+				max_students_per_day: 2,
+				max_students_per_year: 30,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			}
+		])
+		.execute();
 
 	console.log('  ✓ Created capacity rules:\n');
 	console.log('    - Dr. Amanda: 1/day, 20/year');

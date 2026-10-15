@@ -72,7 +72,9 @@ test.describe('J2.2 preceptor wizard & availability', { tag: ['@stage1'] }, () =
 			await asAdmin.getByRole('button', { name: /^add pattern$/i }).click();
 
 			// Save → materialises dates → lands back on the preceptors list.
-			await asAdmin.getByRole('button', { name: /save availability|save \d+ availability/i }).click();
+			await asAdmin
+				.getByRole('button', { name: /save availability|save \d+ availability/i })
+				.click();
 			await expect(asAdmin).toHaveURL(/\/preceptors$/, { timeout: 20000 });
 
 			// --- The list shows this preceptor with availability configured ---

@@ -24,12 +24,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('elective_id', 'text', (col) =>
 			col.notNull().references('clerkship_electives.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Create unique index on elective_sites
@@ -64,9 +60,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Create unique index on elective_preceptors
@@ -113,10 +107,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 
 	// SQLite doesn't support DROP COLUMN, but Kysely will handle this
 	// by recreating the table without the column
-	await db.schema
-		.alterTable('schedule_assignments')
-		.dropColumn('elective_id')
-		.execute();
+	await db.schema.alterTable('schedule_assignments').dropColumn('elective_id').execute();
 
 	// Drop elective_preceptors table
 	await db.schema.dropTable('elective_preceptors').execute();
@@ -125,8 +116,5 @@ export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable('elective_sites').execute();
 
 	// Drop is_required column from clerkship_electives
-	await db.schema
-		.alterTable('clerkship_electives')
-		.dropColumn('is_required')
-		.execute();
+	await db.schema.alterTable('clerkship_electives').dropColumn('is_required').execute();
 }

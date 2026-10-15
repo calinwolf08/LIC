@@ -31,11 +31,11 @@ const log = createServerLogger('api:scheduling-config:electives:preceptors');
 const service = new ElectiveService(db);
 
 const addPreceptorSchema = z.object({
-	preceptorId: z.string().min(1, 'Preceptor ID is required'),
+	preceptorId: z.string().min(1, 'Preceptor ID is required')
 });
 
 const setPreceptorsSchema = z.object({
-	preceptorIds: z.array(z.string()),
+	preceptorIds: z.array(z.string())
 });
 
 /**
@@ -100,7 +100,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (!result.success) {
 			if (result.error.code === 'NOT_FOUND') {
 				log.warn('Preceptor or elective not found', { electiveId: params.id, preceptorId });
-				return notFoundResponse(result.error.message.includes('Preceptor') ? 'Preceptor' : 'Elective');
+				return notFoundResponse(
+					result.error.message.includes('Preceptor') ? 'Preceptor' : 'Elective'
+				);
 			}
 			log.warn('Failed to add preceptor to elective', {
 				electiveId: params.id,
@@ -116,7 +118,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Preceptor addition validation failed', {
 				electiveId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -166,7 +168,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Preceptor set validation failed', {
 				electiveId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -209,7 +211,11 @@ export const DELETE: RequestHandler = async ({ params, url, locals }) => {
 		log.info('Preceptor removed from elective', { electiveId: params.id, preceptorId });
 		return successResponse({ removed: true });
 	} catch (error) {
-		log.error('Failed to remove preceptor from elective', { electiveId: params.id, preceptorId, error });
+		log.error('Failed to remove preceptor from elective', {
+			electiveId: params.id,
+			preceptorId,
+			error
+		});
 		return handleApiError(error);
 	}
 };

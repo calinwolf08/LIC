@@ -60,13 +60,16 @@ describe('Schedule Entity Association Service', () => {
 	 */
 	async function createTestStudent(name: string): Promise<string> {
 		const id = nanoid();
-		await db.insertInto('students').values({
-			id,
-			name,
-			email: `${name.toLowerCase().replace(/\s/g, '.')}@test.com`,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}).execute();
+		await db
+			.insertInto('students')
+			.values({
+				id,
+				name,
+				email: `${name.toLowerCase().replace(/\s/g, '.')}@test.com`,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 		return id;
 	}
 
@@ -75,13 +78,16 @@ describe('Schedule Entity Association Service', () => {
 	 */
 	async function createTestPreceptor(name: string): Promise<string> {
 		const id = nanoid();
-		await db.insertInto('preceptors').values({
-			id,
-			name,
-			email: `${name.toLowerCase().replace(/\s/g, '.')}@test.com`,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}).execute();
+		await db
+			.insertInto('preceptors')
+			.values({
+				id,
+				name,
+				email: `${name.toLowerCase().replace(/\s/g, '.')}@test.com`,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 		return id;
 	}
 
@@ -90,12 +96,15 @@ describe('Schedule Entity Association Service', () => {
 	 */
 	async function createTestHealthSystem(name: string): Promise<string> {
 		const id = nanoid();
-		await db.insertInto('health_systems').values({
-			id,
-			name,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}).execute();
+		await db
+			.insertInto('health_systems')
+			.values({
+				id,
+				name,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 		return id;
 	}
 
@@ -104,14 +113,17 @@ describe('Schedule Entity Association Service', () => {
 	 */
 	async function createTestSite(name: string, healthSystemId?: string): Promise<string> {
 		const id = nanoid();
-		const hsId = healthSystemId || await createTestHealthSystem(`HS for ${name}`);
-		await db.insertInto('sites').values({
-			id,
-			name,
-			health_system_id: hsId,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}).execute();
+		const hsId = healthSystemId || (await createTestHealthSystem(`HS for ${name}`));
+		await db
+			.insertInto('sites')
+			.values({
+				id,
+				name,
+				health_system_id: hsId,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 		return id;
 	}
 
@@ -179,7 +191,7 @@ describe('Schedule Entity Association Service', () => {
 
 			const entities = await getScheduleEntities(db, scheduleId, 'students');
 			expect(entities).toHaveLength(3);
-			studentIds.forEach(id => expect(entities).toContain(id));
+			studentIds.forEach((id) => expect(entities).toContain(id));
 		});
 
 		it('handles empty array gracefully', async () => {
@@ -287,7 +299,7 @@ describe('Schedule Entity Association Service', () => {
 
 			const entities = await getScheduleEntities(db, scheduleId, 'students');
 			expect(entities).toHaveLength(2);
-			studentIds.forEach(id => expect(entities).toContain(id));
+			studentIds.forEach((id) => expect(entities).toContain(id));
 		});
 
 		it('returns entities only for specified schedule', async () => {
@@ -340,7 +352,7 @@ describe('Schedule Entity Association Service', () => {
 			const schedules = await getSchedulesForEntity(db, 'students', studentId);
 
 			expect(schedules).toHaveLength(2);
-			const scheduleIds = schedules.map(s => s.id);
+			const scheduleIds = schedules.map((s) => s.id);
 			expect(scheduleIds).toContain(scheduleId);
 			expect(scheduleIds).toContain(schedule2Id);
 		});
@@ -401,7 +413,7 @@ describe('Schedule Entity Association Service', () => {
 			'configurations'
 		];
 
-		entityTypes.forEach(entityType => {
+		entityTypes.forEach((entityType) => {
 			it(`supports ${entityType} entity type`, async () => {
 				// Just verify the functions don't throw for this entity type
 				const entities = await getScheduleEntities(db, scheduleId, entityType);

@@ -25,16 +25,23 @@ interface HealthSystem {
 export const load: PageLoad = async ({ params, fetch }) => {
 	try {
 		// Load all required data in parallel
-		const [studentRes, healthSystemsRes, onboardingRes, scheduleRes, statusRes, coreRes, preceptorsRes] =
-			await Promise.all([
-				fetch(`/api/students/${params.id}`),
-				fetch('/api/health-systems'),
-				fetch('/api/student-onboarding'),
-				fetch(`/api/students/${params.id}/schedule`),
-				fetch('/api/schedules/status'),
-				fetch(`/api/students/${params.id}/core-preceptors`),
-				fetch('/api/preceptors')
-			]);
+		const [
+			studentRes,
+			healthSystemsRes,
+			onboardingRes,
+			scheduleRes,
+			statusRes,
+			coreRes,
+			preceptorsRes
+		] = await Promise.all([
+			fetch(`/api/students/${params.id}`),
+			fetch('/api/health-systems'),
+			fetch('/api/student-onboarding'),
+			fetch(`/api/students/${params.id}/schedule`),
+			fetch('/api/schedules/status'),
+			fetch(`/api/students/${params.id}/core-preceptors`),
+			fetch('/api/preceptors')
+		]);
 
 		if (!studentRes.ok) {
 			// A malformed id yields a 400 from the API; from the user's point of
@@ -82,9 +89,9 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		let status = null;
 		if (statusRes.ok) {
 			const statusResult = await statusRes.json();
-			status = (statusResult.data ?? []).find(
-				(s: { student_id: string }) => s.student_id === params.id
-			) ?? null;
+			status =
+				(statusResult.data ?? []).find((s: { student_id: string }) => s.student_id === params.id) ??
+				null;
 		}
 
 		// Core preceptors (F5) and the preceptor roster for the picker.

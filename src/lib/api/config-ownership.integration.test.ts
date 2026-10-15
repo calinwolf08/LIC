@@ -86,19 +86,33 @@ describe('scheduling-config ownership guards', () => {
 	});
 
 	it('assertElectiveInSchedule: own resolves, cross-tenant 404s', async () => {
-		await expect(assertElectiveInSchedule(db, t.a.scheduleId, a.electiveId)).resolves.toBeUndefined();
-		await expect(assertElectiveInSchedule(db, t.a.scheduleId, b.electiveId)).rejects.toBeInstanceOf(NotFoundError);
-		await expect(assertElectiveInSchedule(db, t.a.scheduleId, 'no-such-id')).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			assertElectiveInSchedule(db, t.a.scheduleId, a.electiveId)
+		).resolves.toBeUndefined();
+		await expect(assertElectiveInSchedule(db, t.a.scheduleId, b.electiveId)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
+		await expect(assertElectiveInSchedule(db, t.a.scheduleId, 'no-such-id')).rejects.toBeInstanceOf(
+			NotFoundError
+		);
 	});
 
 	it('assertCapacityRuleInSchedule: own resolves, cross-tenant 404s', async () => {
-		await expect(assertCapacityRuleInSchedule(db, t.a.scheduleId, a.capRuleId)).resolves.toBeUndefined();
-		await expect(assertCapacityRuleInSchedule(db, t.a.scheduleId, b.capRuleId)).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			assertCapacityRuleInSchedule(db, t.a.scheduleId, a.capRuleId)
+		).resolves.toBeUndefined();
+		await expect(
+			assertCapacityRuleInSchedule(db, t.a.scheduleId, b.capRuleId)
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 
 	it('assertFallbackInSchedule: own resolves, cross-tenant 404s', async () => {
-		await expect(assertFallbackInSchedule(db, t.a.scheduleId, a.fallbackId)).resolves.toBeUndefined();
-		await expect(assertFallbackInSchedule(db, t.a.scheduleId, b.fallbackId)).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			assertFallbackInSchedule(db, t.a.scheduleId, a.fallbackId)
+		).resolves.toBeUndefined();
+		await expect(assertFallbackInSchedule(db, t.a.scheduleId, b.fallbackId)).rejects.toBeInstanceOf(
+			NotFoundError
+		);
 	});
 });
 

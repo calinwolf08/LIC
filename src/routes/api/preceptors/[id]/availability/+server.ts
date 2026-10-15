@@ -7,18 +7,17 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import {
 	getAvailability,
 	getAvailabilityByDateRange,
 	bulkUpdateAvailability
 } from '$lib/features/preceptors/services/availability-service.js';
-import { bulkAvailabilitySchema, dateRangeSchema } from '$lib/features/preceptors/availability-schemas';
+import {
+	bulkAvailabilitySchema,
+	dateRangeSchema
+} from '$lib/features/preceptors/availability-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas.js';
 import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -71,7 +70,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		if (error instanceof ZodError) {
 			log.warn('Availability query validation failed', {
 				preceptorId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -118,7 +117,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Availability update validation failed', {
 				preceptorId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

@@ -30,9 +30,7 @@ export function getAvailablePreceptors(
 
 		// 2. Check capacity
 		const assignmentsOnDate =
-			context.assignmentsByDate
-				.get(date)
-				?.filter((a) => a.preceptorId === preceptor.id) || [];
+			context.assignmentsByDate.get(date)?.filter((a) => a.preceptorId === preceptor.id) || [];
 
 		if (assignmentsOnDate.length >= Number(preceptor.max_students)) {
 			return false;

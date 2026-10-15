@@ -266,9 +266,8 @@
 							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 						/>
 						<p class="text-xs text-muted-foreground">
-							Assignments before this date, and any locked assignments, are always
-							preserved. Future assignments that are still valid are kept; only invalid
-							ones are replaced.
+							Assignments before this date, and any locked assignments, are always preserved. Future
+							assignments that are still valid are kept; only invalid ones are replaced.
 						</p>
 					</div>
 				</div>
@@ -280,8 +279,8 @@
 				<div class="mb-4 space-y-2 rounded-lg border border-input p-4">
 					<Label>Relax rules for new assignments (optional)</Label>
 					<p class="text-xs text-muted-foreground">
-						Allow the generator to place days that would otherwise be flagged. Each
-						bypassed day is recorded as an override, exactly like a manual one.
+						Allow the generator to place days that would otherwise be flagged. Each bypassed day is
+						recorded as an override, exactly like a manual one.
 					</p>
 					<div class="grid grid-cols-2 gap-2">
 						{#each BYPASSABLE as b (b.code)}

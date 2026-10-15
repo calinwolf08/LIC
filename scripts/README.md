@@ -9,6 +9,7 @@ This directory contains scripts for seeding and verifying the configurable sched
 Seeds the database with comprehensive sample scheduling configurations.
 
 **What it creates:**
+
 - Health systems and sites
 - Clerkship requirements with different scheduling strategies
 - Hierarchical capacity rules
@@ -16,11 +17,13 @@ Seeds the database with comprehensive sample scheduling configurations.
 - Fallback chains
 
 **Usage:**
+
 ```bash
 tsx scripts/seed-scheduling-config.ts
 ```
 
 **Prerequisites:**
+
 - Existing clerkships in database
 - Existing preceptors in database
 - Migrations applied
@@ -32,11 +35,13 @@ tsx scripts/seed-scheduling-config.ts
 Verifies and displays summary of existing scheduling configurations.
 
 **Usage:**
+
 ```bash
 tsx scripts/verify-scheduling-config.ts
 ```
 
 **Output:**
+
 - Health systems and sites count
 - Clerkship requirements with strategies
 - Capacity rules with hierarchy levels
@@ -57,14 +62,15 @@ Or add to package.json scripts:
 
 ```json
 {
-  "scripts": {
-    "seed:config": "tsx scripts/seed-scheduling-config.ts",
-    "verify:config": "tsx scripts/verify-scheduling-config.ts"
-  }
+	"scripts": {
+		"seed:config": "tsx scripts/seed-scheduling-config.ts",
+		"verify:config": "tsx scripts/verify-scheduling-config.ts"
+	}
 }
 ```
 
 Then run with:
+
 ```bash
 npm run seed:config
 npm run verify:config
@@ -75,11 +81,13 @@ npm run verify:config
 ### Initial Setup
 
 1. **Create base data** (clerkships, preceptors, students):
+
    ```bash
    # Via UI or existing seed scripts
    ```
 
 2. **Seed scheduling configurations**:
+
    ```bash
    tsx scripts/seed-scheduling-config.ts
    ```
@@ -139,11 +147,11 @@ npm install
 
 ```json
 {
-  "compilerOptions": {
-    "paths": {
-      "$lib/*": ["./src/lib/*"]
-    }
-  }
+	"compilerOptions": {
+		"paths": {
+			"$lib/*": ["./src/lib/*"]
+		}
+	}
 }
 ```
 

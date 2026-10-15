@@ -115,7 +115,8 @@ export function analyseSelection(
 		submittableDates.push(date);
 		if (!day) continue;
 
-		const existingSessions = day.studentSessions ?? (day.studentBusy ? ['full' as SessionSlot] : []);
+		const existingSessions =
+			day.studentSessions ?? (day.studentBusy ? ['full' as SessionSlot] : []);
 		if (sessionClashes(existingSessions, session)) {
 			bucket('session_clash').dates.push(date);
 		}

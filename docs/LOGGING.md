@@ -30,6 +30,7 @@ LIC uses a custom logging system with separate server and client implementations
 - **Performance-optimized** for hot code paths
 
 **Core Files:**
+
 - `src/lib/utils/logger.ts` - Base Logger class
 - `src/lib/utils/logger.server.ts` - Server-side logger
 - `src/lib/utils/logger.client.ts` - Client-side logger
@@ -40,14 +41,14 @@ LIC uses a custom logging system with separate server and client implementations
 
 Levels are hierarchical - setting a level enables that level and all lower levels:
 
-| Level | Value | Usage | Example |
-|-------|-------|-------|---------|
-| **OFF** | 0 | No logging | Production silent mode |
-| **ERROR** | 1 | Critical failures | Database errors, unhandled exceptions |
-| **WARN** | 2 | Expected failures, warnings | Validation errors, deprecated code, conflicts |
-| **INFO** | 3 | High-level operations | API requests, successful operations, phase completions |
-| **DEBUG** | 4 | Detailed flow | Function entry/exit, parameter values, phase transitions |
-| **TRACE** | 5 | Very verbose | Loop iterations, constraint details (disabled by default) |
+| Level     | Value | Usage                       | Example                                                   |
+| --------- | ----- | --------------------------- | --------------------------------------------------------- |
+| **OFF**   | 0     | No logging                  | Production silent mode                                    |
+| **ERROR** | 1     | Critical failures           | Database errors, unhandled exceptions                     |
+| **WARN**  | 2     | Expected failures, warnings | Validation errors, deprecated code, conflicts             |
+| **INFO**  | 3     | High-level operations       | API requests, successful operations, phase completions    |
+| **DEBUG** | 4     | Detailed flow               | Function entry/exit, parameter values, phase transitions  |
+| **TRACE** | 5     | Very verbose                | Loop iterations, constraint details (disabled by default) |
 
 **Default Level:** `INFO` (if not configured)
 
@@ -58,6 +59,7 @@ Levels are hierarchical - setting a level enables that level and all lower level
 ### Server-Side
 
 Set in `.env`:
+
 ```bash
 # Production
 LOG_LEVEL=ERROR
@@ -75,6 +77,7 @@ LOG_LEVEL=TRACE
 ### Client-Side
 
 Set in `.env` (must use `VITE_` prefix for Vite):
+
 ```bash
 # Production
 VITE_LOG_LEVEL=ERROR
@@ -106,64 +109,65 @@ import { createServerLogger } from '$lib/utils/logger.server';
 const log = createServerLogger('api:entity-name');
 
 export const GET: RequestHandler = async ({ params }) => {
-  log.debug('Fetching entity', { id: params.id });
+	log.debug('Fetching entity', { id: params.id });
 
-  try {
-    const entity = await getEntity(db, params.id);
+	try {
+		const entity = await getEntity(db, params.id);
 
-    if (!entity) {
-      log.warn('Entity not found', { id: params.id });
-      return notFoundResponse('Entity');
-    }
+		if (!entity) {
+			log.warn('Entity not found', { id: params.id });
+			return notFoundResponse('Entity');
+		}
 
-    log.info('Entity fetched', {
-      id: params.id,
-      name: entity.name
-    });
+		log.info('Entity fetched', {
+			id: params.id,
+			name: entity.name
+		});
 
-    return successResponse(entity);
-  } catch (error) {
-    log.error('Failed to fetch entity', {
-      id: params.id,
-      error
-    });
-    return handleApiError(error);
-  }
+		return successResponse(entity);
+	} catch (error) {
+		log.error('Failed to fetch entity', {
+			id: params.id,
+			error
+		});
+		return handleApiError(error);
+	}
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-  log.debug('Creating entity');
+	log.debug('Creating entity');
 
-  try {
-    const body = await request.json();
-    const validated = schema.parse(body);
+	try {
+		const body = await request.json();
+		const validated = schema.parse(body);
 
-    const entity = await createEntity(db, validated);
+		const entity = await createEntity(db, validated);
 
-    log.info('Entity created', {
-      id: entity.id,
-      name: entity.name
-    });
+		log.info('Entity created', {
+			id: entity.id,
+			name: entity.name
+		});
 
-    return successResponse(entity, 201);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      log.warn('Entity validation failed', {
-        errors: error.errors.map(e => ({
-          path: e.path.join('.'),
-          message: e.message
-        }))
-      });
-      return validationErrorResponse(error);
-    }
+		return successResponse(entity, 201);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			log.warn('Entity validation failed', {
+				errors: error.errors.map((e) => ({
+					path: e.path.join('.'),
+					message: e.message
+				}))
+			});
+			return validationErrorResponse(error);
+		}
 
-    log.error('Failed to create entity', { error });
-    return handleApiError(error);
-  }
+		log.error('Failed to create entity', { error });
+		return handleApiError(error);
+	}
 };
 ```
 
 **Key Points:**
+
 - Use DEBUG at start of handler
 - Use INFO for successful operations with key metrics
 - Use WARN for expected failures (validation, not found, conflicts)
@@ -180,71 +184,66 @@ import { createServerLogger } from '$lib/utils/logger.server';
 
 const log = createServerLogger('service:entity-name');
 
-export async function getEntityById(
-  db: Kysely<DB>,
-  id: string
-): Promise<Entity | null> {
-  log.trace('Querying entity', { id });
+export async function getEntityById(db: Kysely<DB>, id: string): Promise<Entity | null> {
+	log.trace('Querying entity', { id });
 
-  try {
-    const entity = await db
-      .selectFrom('entities')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
+	try {
+		const entity = await db
+			.selectFrom('entities')
+			.selectAll()
+			.where('id', '=', id)
+			.executeTakeFirst();
 
-    if (!entity) {
-      log.debug('Entity not found', { id });
-      return null;
-    }
+		if (!entity) {
+			log.debug('Entity not found', { id });
+			return null;
+		}
 
-    log.debug('Entity retrieved', { id, name: entity.name });
-    return entity;
-  } catch (error) {
-    log.error('Database query failed', { id, error });
-    throw error;
-  }
+		log.debug('Entity retrieved', { id, name: entity.name });
+		return entity;
+	} catch (error) {
+		log.error('Database query failed', { id, error });
+		throw error;
+	}
 }
 
-export async function complexOperation(
-  db: Kysely<DB>,
-  params: ComplexParams
-): Promise<Result> {
-  log.info('Starting complex operation', {
-    paramKey: params.key,
-    itemCount: params.items.length
-  });
+export async function complexOperation(db: Kysely<DB>, params: ComplexParams): Promise<Result> {
+	log.info('Starting complex operation', {
+		paramKey: params.key,
+		itemCount: params.items.length
+	});
 
-  try {
-    log.debug('Phase 1: Validation');
-    const validated = await validateInput(params);
+	try {
+		log.debug('Phase 1: Validation');
+		const validated = await validateInput(params);
 
-    log.debug('Phase 2: Processing', {
-      validatedCount: validated.length
-    });
-    const processed = await processItems(validated);
+		log.debug('Phase 2: Processing', {
+			validatedCount: validated.length
+		});
+		const processed = await processItems(validated);
 
-    log.debug('Phase 3: Saving results');
-    const saved = await saveResults(db, processed);
+		log.debug('Phase 3: Saving results');
+		const saved = await saveResults(db, processed);
 
-    log.info('Complex operation completed', {
-      inputCount: params.items.length,
-      outputCount: saved.length,
-      successRate: (saved.length / params.items.length) * 100
-    });
+		log.info('Complex operation completed', {
+			inputCount: params.items.length,
+			outputCount: saved.length,
+			successRate: (saved.length / params.items.length) * 100
+		});
 
-    return { success: true, results: saved };
-  } catch (error) {
-    log.error('Complex operation failed', {
-      params,
-      error
-    });
-    throw error;
-  }
+		return { success: true, results: saved };
+	} catch (error) {
+		log.error('Complex operation failed', {
+			params,
+			error
+		});
+		throw error;
+	}
 }
 ```
 
 **Key Points:**
+
 - Use TRACE for low-level operations (usually disabled)
 - Use DEBUG for function-level operations
 - Use INFO for high-level summaries with metrics
@@ -304,6 +303,7 @@ async schedule(
 ```
 
 **Key Points:**
+
 - Use INFO for phase boundaries and final results
 - Use DEBUG for phase details
 - **NEVER log inside loops** over students/clerkships/dates
@@ -321,51 +321,52 @@ import { createServerLogger, LogLevel } from '$lib/utils/logger.server';
 const log = createServerLogger('constraint:preceptor-capacity');
 
 export class PreceptorCapacityConstraint implements Constraint {
-  validate(
-    assignment: Assignment,
-    context: SchedulingContext,
-    violationTracker: ViolationTracker
-  ): boolean {
-    // NO DEBUG/INFO logging - constraints are called thousands of times
+	validate(
+		assignment: Assignment,
+		context: SchedulingContext,
+		violationTracker: ViolationTracker
+	): boolean {
+		// NO DEBUG/INFO logging - constraints are called thousands of times
 
-    const preceptor = context.preceptors.find(p => p.id === assignment.preceptorId);
+		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 
-    if (!preceptor) {
-      // Only ERROR for unexpected conditions
-      log.error('Preceptor not found in context', {
-        preceptorId: assignment.preceptorId
-      });
-      return false;
-    }
+		if (!preceptor) {
+			// Only ERROR for unexpected conditions
+			log.error('Preceptor not found in context', {
+				preceptorId: assignment.preceptorId
+			});
+			return false;
+		}
 
-    const currentCapacity = getCurrentCapacity(assignment, context);
-    const isValid = currentCapacity < Number(preceptor.max_students);
+		const currentCapacity = getCurrentCapacity(assignment, context);
+		const isValid = currentCapacity < Number(preceptor.max_students);
 
-    if (!isValid) {
-      // TRACE level ONLY, with explicit check
-      if (log.isLevelEnabled(LogLevel.TRACE)) {
-        log.trace('Capacity constraint violated', {
-          preceptorId: preceptor.id,
-          preceptorName: preceptor.name,
-          date: assignment.date,
-          currentCapacity,
-          maxCapacity: preceptor.max_students
-        });
-      }
+		if (!isValid) {
+			// TRACE level ONLY, with explicit check
+			if (log.isLevelEnabled(LogLevel.TRACE)) {
+				log.trace('Capacity constraint violated', {
+					preceptorId: preceptor.id,
+					preceptorName: preceptor.name,
+					date: assignment.date,
+					currentCapacity,
+					maxCapacity: preceptor.max_students
+				});
+			}
 
-      violationTracker.recordViolation(
-        this.name,
-        assignment,
-        this.getViolationMessage(assignment, context)
-      );
-    }
+			violationTracker.recordViolation(
+				this.name,
+				assignment,
+				this.getViolationMessage(assignment, context)
+			);
+		}
 
-    return isValid;
-  }
+		return isValid;
+	}
 }
 ```
 
 **Key Points:**
+
 - **CRITICAL:** NO DEBUG/INFO logging in constraints
 - Use TRACE only, with `isLevelEnabled()` check
 - Only ERROR for truly exceptional conditions
@@ -384,50 +385,51 @@ const log = createClientLogger('component:schedule-page');
 
 // Component lifecycle
 $effect(() => {
-  log.info('Schedule page loaded', {
-    scheduleId: data.schedule.id,
-    assignmentCount: data.schedule.assignments.length
-  });
+	log.info('Schedule page loaded', {
+		scheduleId: data.schedule.id,
+		assignmentCount: data.schedule.assignments.length
+	});
 
-  return () => {
-    log.debug('Schedule page unmounting');
-  };
+	return () => {
+		log.debug('Schedule page unmounting');
+	};
 });
 
 // User interactions
 function handleAssignmentClick(assignmentId: string) {
-  log.debug('Assignment clicked', { assignmentId });
-  // ... handle click
+	log.debug('Assignment clicked', { assignmentId });
+	// ... handle click
 }
 
 // Successful operations
 async function handleSave() {
-  log.debug('Saving schedule');
+	log.debug('Saving schedule');
 
-  try {
-    const result = await saveSchedule(data.schedule);
+	try {
+		const result = await saveSchedule(data.schedule);
 
-    log.info('Schedule saved', {
-      scheduleId: result.id,
-      changeCount: result.changes.length
-    });
-  } catch (error) {
-    log.error('Failed to save schedule', {
-      scheduleId: data.schedule.id,
-      error
-    });
-  }
+		log.info('Schedule saved', {
+			scheduleId: result.id,
+			changeCount: result.changes.length
+		});
+	} catch (error) {
+		log.error('Failed to save schedule', {
+			scheduleId: data.schedule.id,
+			error
+		});
+	}
 }
 
 // User errors
 function handleInvalidAction() {
-  log.warn('Invalid action attempted', {
-    reason: 'No assignment selected'
-  });
+	log.warn('Invalid action attempted', {
+		reason: 'No assignment selected'
+	});
 }
 ```
 
 **Key Points:**
+
 - Use INFO for user-visible operations
 - Use DEBUG for internal state changes
 - Use WARN for user errors
@@ -440,27 +442,29 @@ function handleInvalidAction() {
 ### Hot Paths - Critical Rules
 
 **DO NOT LOG IN:**
+
 1. ❌ Loops over dates (365+ iterations)
 2. ❌ Loops over students × clerkships (100+ × 10+ iterations)
 3. ❌ Constraint validation (called thousands of times)
 4. ❌ Capacity checks (called for every assignment attempt)
 
 **Instead:**
+
 ```typescript
 // ❌ BAD - logs 365 times
 for (const date of dates) {
-  log.debug('Processing date', { date });
-  processDate(date);
+	log.debug('Processing date', { date });
+	processDate(date);
 }
 
 // ✅ GOOD - logs once before and after
 log.debug('Processing dates', { count: dates.length });
 for (const date of dates) {
-  processDate(date);
+	processDate(date);
 }
 log.info('Dates processed', {
-  count: dates.length,
-  successCount: results.length
+	count: dates.length,
+	successCount: results.length
 });
 ```
 
@@ -470,9 +474,9 @@ Use `isLevelEnabled()` for expensive serialization:
 
 ```typescript
 if (log.isLevelEnabled(LogLevel.DEBUG)) {
-  log.debug('Complex data', {
-    expensive: JSON.stringify(largeObject)
-  });
+	log.debug('Complex data', {
+		expensive: JSON.stringify(largeObject)
+	});
 }
 ```
 
@@ -484,9 +488,9 @@ log.info('Student created', { student });
 
 // ✅ GOOD - just IDs and key fields
 log.info('Student created', {
-  id: student.id,
-  name: student.name,
-  email: student.email
+	id: student.id,
+	name: student.name,
+	email: student.email
 });
 ```
 
@@ -498,11 +502,11 @@ log.info('Student created', {
 
 ```typescript
 // ✅ Correct usage
-log.error('Database connection failed', { error });     // Unexpected failure
-log.warn('Validation failed', { errors });              // Expected failure
-log.info('Schedule generated', { assignmentCount });    // Successful operation
-log.debug('Loading students', { filter });              // Detailed flow
-log.trace('Query result', { rows });                    // Very verbose
+log.error('Database connection failed', { error }); // Unexpected failure
+log.warn('Validation failed', { errors }); // Expected failure
+log.info('Schedule generated', { assignmentCount }); // Successful operation
+log.debug('Loading students', { filter }); // Detailed flow
+log.trace('Query result', { rows }); // Very verbose
 ```
 
 ### 2. Include Relevant Context
@@ -513,10 +517,10 @@ log.error('Failed to create');
 
 // ✅ GOOD - actionable context
 log.error('Failed to create student', {
-  name: data.name,
-  email: data.email,
-  error: error.message,
-  stack: error.stack
+	name: data.name,
+	email: data.email,
+	error: error.message,
+	stack: error.stack
 });
 ```
 
@@ -560,8 +564,8 @@ log.info(`Student ${student.id} created with email ${student.email}`);
 
 // ✅ GOOD - structured context
 log.info('Student created', {
-  id: student.id,
-  email: student.email
+	id: student.id,
+	email: student.email
 });
 ```
 
@@ -572,6 +576,7 @@ log.info('Student created', {
 ### Example: API Route with Full Logging
 
 See `src/routes/api/students/+server.ts` for a complete example showing:
+
 - DEBUG for incoming requests
 - INFO for successful operations
 - WARN for validation failures
@@ -580,6 +585,7 @@ See `src/routes/api/students/+server.ts` for a complete example showing:
 ### Example: Complex Multi-Phase Operation
 
 See `src/routes/api/schedules/generate/+server.ts` for a complex example showing:
+
 - INFO for phase boundaries
 - DEBUG for sub-operations
 - Detailed metrics at each stage
@@ -600,6 +606,7 @@ See `src/lib/features/schedules/clients/schedule-views-client.ts` for client-sid
 ### "Too many logs in development"
 
 Set `LOG_LEVEL=INFO` instead of `DEBUG`:
+
 ```bash
 LOG_LEVEL=INFO
 ```
@@ -607,6 +614,7 @@ LOG_LEVEL=INFO
 ### "Scheduling is slow"
 
 Check that:
+
 1. `LOG_LEVEL=OFF` or `ERROR` in production
 2. Constraints don't log at DEBUG/INFO
 3. No logging inside hot loops
@@ -614,11 +622,13 @@ Check that:
 ### "Can't find error in logs"
 
 Temporarily increase level:
+
 ```bash
 LOG_LEVEL=DEBUG  # or TRACE for very detailed
 ```
 
 Filter by prefix:
+
 ```bash
 # Server logs
 grep "api:students" logs.txt

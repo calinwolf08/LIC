@@ -8,11 +8,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import {
 	getSchedulingPeriodById,
@@ -99,7 +95,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Entity query validation failed', {
 				scheduleId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -145,7 +141,11 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		await addEntitiesToSchedule(db, scheduleId, entityType as ScheduleEntityType, entityIds);
 
 		// Get updated count
-		const updatedEntityIds = await getScheduleEntities(db, scheduleId, entityType as ScheduleEntityType);
+		const updatedEntityIds = await getScheduleEntities(
+			db,
+			scheduleId,
+			entityType as ScheduleEntityType
+		);
 
 		log.info('Entities added to schedule', {
 			scheduleId,
@@ -165,7 +165,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Entity addition validation failed', {
 				scheduleId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -218,7 +218,11 @@ export const DELETE: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		// Get updated count
-		const remainingEntityIds = await getScheduleEntities(db, scheduleId, entityType as ScheduleEntityType);
+		const remainingEntityIds = await getScheduleEntities(
+			db,
+			scheduleId,
+			entityType as ScheduleEntityType
+		);
 
 		log.info('Entities removed from schedule', {
 			scheduleId,
@@ -238,7 +242,7 @@ export const DELETE: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Entity removal validation failed', {
 				scheduleId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

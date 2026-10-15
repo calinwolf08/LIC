@@ -50,9 +50,7 @@ export function weekKey(date: string): string {
  * The set of week keys consumed by block-kind assignments, from rows carrying a
  * date and their clerkship's scheduling kind.
  */
-export function blockWeeksOf(
-	rows: Iterable<{ date: string; kind: SchedulingKind }>
-): Set<string> {
+export function blockWeeksOf(rows: Iterable<{ date: string; kind: SchedulingKind }>): Set<string> {
 	const weeks = new Set<string>();
 	for (const r of rows) {
 		if (r.kind === 'block') weeks.add(weekKey(r.date));

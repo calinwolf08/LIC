@@ -89,7 +89,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 				.updateTable('student_health_system_onboarding')
 				.set({
 					is_completed: is_completed ? 1 : 0,
-					completed_date: is_completed ? (completed_date || now.split('T')[0]) : null,
+					completed_date: is_completed ? completed_date || now.split('T')[0] : null,
 					updated_at: now
 				})
 				.where('id', '=', existing.id)
@@ -109,7 +109,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 					student_id,
 					health_system_id,
 					is_completed: is_completed ? 1 : 0,
-					completed_date: is_completed ? (completed_date || now.split('T')[0]) : null,
+					completed_date: is_completed ? completed_date || now.split('T')[0] : null,
 					notes: null,
 					created_at: now,
 					updated_at: now

@@ -1,28 +1,32 @@
 # Step 26 — Tenant Isolation: Every Read Scoped to the Active Schedule
 
 ## Objective
+
 No route, loader, service or API may return data belonging to another user. This is a privacy
 defect, not a display bug: fix it systematically and lock it with tests that fail loudly if a future
 query forgets to scope.
 
 ## Context (verified in code)
-Round 2 scoped the schedule *range*; it never scoped the *entity sets*. Confirmed leaks:
 
-| Where | Problem |
-|---|---|
-| `(app)/dashboard/+page.server.ts:42-59` | All four totals are bare `selectFrom('students'\|'preceptors'\|'clerkships'\|'schedule_assignments')` with no junction join |
-| `(app)/locations/+page.server.ts:5-9` | `selectFrom('health_systems')` + `siteService.getAllSites()`; the `load` doesn't even receive `locals` |
-| `(app)/calendar/+page.server.ts:43-45` | `getStudents(db)` / `getPreceptors(db)` / `getClerkships(db)` — the unscoped variants — feed filter dropdowns |
-| `calendar-service.ts` `getEnrichedAssignments` | Filters on date + optional ids only; never joins `schedule_students`, so all users' assignments render |
-| Student → Progress tab | Inherits whatever the clerkship source returns; verify it uses the scoped path (`requirement-status.ts:69-73` *is* scoped — confirm the Progress tab reads from there and not a global list) |
+Round 2 scoped the schedule _range_; it never scoped the _entity sets_. Confirmed leaks:
+
+| Where                                          | Problem                                                                                                                                                                                      |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `(app)/dashboard/+page.server.ts:42-59`        | All four totals are bare `selectFrom('students'\|'preceptors'\|'clerkships'\|'schedule_assignments')` with no junction join                                                                  |
+| `(app)/locations/+page.server.ts:5-9`          | `selectFrom('health_systems')` + `siteService.getAllSites()`; the `load` doesn't even receive `locals`                                                                                       |
+| `(app)/calendar/+page.server.ts:43-45`         | `getStudents(db)` / `getPreceptors(db)` / `getClerkships(db)` — the unscoped variants — feed filter dropdowns                                                                                |
+| `calendar-service.ts` `getEnrichedAssignments` | Filters on date + optional ids only; never joins `schedule_students`, so all users' assignments render                                                                                       |
+| Student → Progress tab                         | Inherits whatever the clerkship source returns; verify it uses the scoped path (`requirement-status.ts:69-73` _is_ scoped — confirm the Progress tab reads from there and not a global list) |
 
 Scoped variants already exist (`getStudentsBySchedule`, `getPreceptorsBySchedule`, …) — the callers
 just don't use them.
 
 ## Prerequisites
+
 Step 25 (so the fix can be verified by hand with two accounts).
 
 ## Scope
+
 **In:** every read path — page loaders, API GETs, services. **Out:** mutations (step 27).
 
 ## Implementation
@@ -57,12 +61,13 @@ Step 25 (so the fix can be verified by hand with two accounts).
    404 when the entity is not in the caller's active schedule. **Return 404, not 403** — a 403
    confirms the row exists, which is itself a disclosure.
 5. **Make the boundary hard to forget.** Add
-   `src/lib/features/<x>/services/…` scoped functions as the *only* exported list functions where
+   `src/lib/features/<x>/services/…` scoped functions as the _only_ exported list functions where
    practical: mark the unscoped `getStudents`/`getPreceptors`/`getClerkships`/`getAllSites` as
    `@deprecated — unscoped; use the *BySchedule variant` and leave them only for the seed/scripts.
    A reviewer grepping for the deprecated name should find no route callers.
 
 ## Testing
+
 This is the regression net for a privacy defect; treat it as the deliverable.
 
 - **Integration — a reusable two-tenant fixture.** Add
@@ -82,6 +87,7 @@ This is the regression net for a privacy defect; treat it as the deliverable.
   leakage through any widget, not just the ones we thought to check.
 
 ## Acceptance criteria
+
 - [ ] No read path returns another user's rows; the audit grep is clean or justified line by line.
 - [ ] Dashboard totals match the signed-in user's own data.
 - [ ] Calendar (grid and list), Locations, and the Progress tab show only the caller's data.

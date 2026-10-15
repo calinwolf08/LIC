@@ -20,7 +20,11 @@ import { identity, pickActiveMembership } from '../src/lib/server/identity';
 
 async function main() {
 	const [, , email, planId, intervalArg] = process.argv;
-	if (!email || !isPlanId(planId) || (intervalArg !== undefined && !isBillingInterval(intervalArg))) {
+	if (
+		!email ||
+		!isPlanId(planId) ||
+		(intervalArg !== undefined && !isBillingInterval(intervalArg))
+	) {
 		console.error('Usage: npx tsx scripts/set-plan.ts <email> standard|pro [month|year]');
 		process.exit(1);
 	}

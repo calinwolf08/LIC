@@ -32,7 +32,10 @@ export interface AuthDatabase {
  * missing default schedule is recoverable (the user can create one) while a
  * failed registration is not.
  */
-async function createDefaultScheduleForUser(db: Kysely<DB>, userId: string): Promise<string | null> {
+async function createDefaultScheduleForUser(
+	db: Kysely<DB>,
+	userId: string
+): Promise<string | null> {
 	try {
 		const now = new Date();
 		const currentYear = now.getFullYear();
@@ -56,7 +59,7 @@ async function createDefaultScheduleForUser(db: Kysely<DB>, userId: string): Pro
 				// 0/1 integer on every engine — see DdlTypeMap in db/dialects/types.ts.
 				is_active: 0,
 				created_at: timestamp,
-				updated_at: timestamp,
+				updated_at: timestamp
 			})
 			.execute();
 

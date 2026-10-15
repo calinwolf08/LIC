@@ -153,14 +153,15 @@ export async function getStudentScheduleData(
 	const healthSystemNames = new Map(healthSystemRows.map((h) => [h.id as string, h.name]));
 
 	// Fetch preceptor sites separately (one query, no multiplication)
-	const preceptorSitesData = preceptorIds.length > 0
-		? await db
-				.selectFrom('preceptor_sites as ps')
-				.innerJoin('sites as s', 's.id', 'ps.site_id')
-				.select(['ps.preceptor_id', 's.id as site_id', 's.name as site_name'])
-				.where('ps.preceptor_id', 'in', preceptorIds)
-				.execute()
-		: [];
+	const preceptorSitesData =
+		preceptorIds.length > 0
+			? await db
+					.selectFrom('preceptor_sites as ps')
+					.innerJoin('sites as s', 's.id', 'ps.site_id')
+					.select(['ps.preceptor_id', 's.id as site_id', 's.name as site_name'])
+					.where('ps.preceptor_id', 'in', preceptorIds)
+					.execute()
+			: [];
 
 	// Build a map of preceptor_id -> first site (for display purposes)
 	const preceptorSiteMap = new Map<string, { site_id: string; site_name: string }>();
@@ -188,7 +189,8 @@ export async function getStudentScheduleData(
 		const assignedDays = clerkshipAssignments.length;
 		const requiredDays = clerkship.required_days;
 		const remainingDays = Math.max(0, requiredDays - assignedDays);
-		const percentComplete = requiredDays > 0 ? Math.min(100, (assignedDays / requiredDays) * 100) : 100;
+		const percentComplete =
+			requiredDays > 0 ? Math.min(100, (assignedDays / requiredDays) * 100) : 100;
 
 		// Group by preceptor
 		const preceptorMap = new Map<string, { id: string; name: string; daysAssigned: number }>();
@@ -233,22 +235,26 @@ export async function getStudentScheduleData(
 	const clerkshipsWithNoAssignments = clerkshipProgress.filter((c) => c.assignedDays === 0).length;
 
 	// Build calendar
-	const calendar = buildCalendarMonths(startDate, endDate, enrichedAssignments.map((a) => ({
-		date: a.date,
-		assignment: {
-			id: a.id as string,
-			clerkshipId: a.clerkship_id,
-			clerkshipName: a.clerkship_name,
-			preceptorId: a.preceptor_id ?? '',
-			preceptorName: a.preceptor_name ?? '',
-			studentId: student.id as string,
-			studentName: student.name,
-			color: getClerkshipColor(a.clerkship_specialty ?? 'General'),
-			source: a.source,
-			locked: Boolean(a.locked),
-			electiveName: a.elective_name ?? undefined
-		}
-	})));
+	const calendar = buildCalendarMonths(
+		startDate,
+		endDate,
+		enrichedAssignments.map((a) => ({
+			date: a.date,
+			assignment: {
+				id: a.id as string,
+				clerkshipId: a.clerkship_id,
+				clerkshipName: a.clerkship_name,
+				preceptorId: a.preceptor_id ?? '',
+				preceptorName: a.preceptor_name ?? '',
+				studentId: student.id as string,
+				studentName: student.name,
+				color: getClerkshipColor(a.clerkship_specialty ?? 'General'),
+				source: a.source,
+				locked: Boolean(a.locked),
+				electiveName: a.elective_name ?? undefined
+			}
+		}))
+	);
 
 	// Format assignments list
 	const formattedAssignments: StudentAssignment[] = enrichedAssignments.map((a) => ({
@@ -282,7 +288,8 @@ export async function getStudentScheduleData(
 		totalRequiredDays,
 		clerkshipsComplete,
 		clerkshipsTotal: clerkships.length,
-		overallPercentComplete: totalRequiredDays > 0 ? Math.round((totalAssignedDays / totalRequiredDays) * 100) : 100
+		overallPercentComplete:
+			totalRequiredDays > 0 ? Math.round((totalAssignedDays / totalRequiredDays) * 100) : 100
 	});
 
 	return {
@@ -291,17 +298,20 @@ export async function getStudentScheduleData(
 			name: student.name,
 			email: student.email
 		},
-		period: period ? {
-			id: period.id as string,
-			name: period.name,
-			startDate: period.start_date,
-			endDate: period.end_date
-		} : null,
+		period: period
+			? {
+					id: period.id as string,
+					name: period.name,
+					startDate: period.start_date,
+					endDate: period.end_date
+				}
+			: null,
 		clerkshipProgress,
 		summary: {
 			totalAssignedDays,
 			totalRequiredDays,
-			overallPercentComplete: totalRequiredDays > 0 ? Math.round((totalAssignedDays / totalRequiredDays) * 100) : 100,
+			overallPercentComplete:
+				totalRequiredDays > 0 ? Math.round((totalAssignedDays / totalRequiredDays) * 100) : 100,
 			clerkshipsComplete,
 			clerkshipsTotal: clerkships.length,
 			clerkshipsWithNoAssignments
@@ -397,7 +407,7 @@ export async function getPreceptorScheduleData(
 		.execute();
 
 	// Create assignment lookup by date
-	const assignmentByDate = new Map<string, typeof assignments[0]>();
+	const assignmentByDate = new Map<string, (typeof assignments)[0]>();
 	for (const a of assignments) {
 		assignmentByDate.set(a.date, a);
 	}
@@ -467,7 +477,13 @@ export async function getPreceptorScheduleData(
 	}
 
 	// Build calendar with availability and assignments - use UTC to avoid timezone shifts
-	const calendarData: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; availabilityNote?: string; assignedStudent?: any; assignment?: any }> = [];
+	const calendarData: Array<{
+		date: string;
+		availability?: 'available' | 'unavailable' | 'unset';
+		availabilityNote?: string;
+		assignedStudent?: any;
+		assignment?: any;
+	}> = [];
 
 	const current = parseUTCDate(startDate);
 	const end = parseUTCDate(endDate);
@@ -479,21 +495,26 @@ export async function getPreceptorScheduleData(
 
 		calendarData.push({
 			date: dateStr,
-			availability: isAvailable === true ? 'available' : isAvailable === false ? 'unavailable' : 'unset',
+			availability:
+				isAvailable === true ? 'available' : isAvailable === false ? 'unavailable' : 'unset',
 			availabilityNote: availabilityNoteMap.get(dateStr),
-			assignedStudent: assignment ? {
-				id: assignment.student_id,
-				name: assignment.student_name,
-				initials: getInitials(assignment.student_name)
-			} : undefined,
-			assignment: assignment ? {
-				id: assignment.id as string,
-				clerkshipId: assignment.clerkship_id,
-				clerkshipName: assignment.clerkship_name,
-				preceptorId: preceptorId,
-				preceptorName: preceptor.name,
-				color: getClerkshipColor(assignment.clerkship_specialty ?? 'General')
-			} : undefined
+			assignedStudent: assignment
+				? {
+						id: assignment.student_id,
+						name: assignment.student_name,
+						initials: getInitials(assignment.student_name)
+					}
+				: undefined,
+			assignment: assignment
+				? {
+						id: assignment.id as string,
+						clerkshipId: assignment.clerkship_id,
+						clerkshipName: assignment.clerkship_name,
+						preceptorId: preceptorId,
+						preceptorName: preceptor.name,
+						color: getClerkshipColor(assignment.clerkship_specialty ?? 'General')
+					}
+				: undefined
 		});
 
 		current.setUTCDate(current.getUTCDate() + 1);
@@ -502,13 +523,16 @@ export async function getPreceptorScheduleData(
 	const calendar = buildCalendarMonthsWithAvailability(startDate, endDate, calendarData);
 
 	// Group assignments by student
-	const studentAssignments = new Map<string, {
-		studentId: string;
-		studentName: string;
-		clerkshipId: string;
-		clerkshipName: string;
-		dates: string[]
-	}>();
+	const studentAssignments = new Map<
+		string,
+		{
+			studentId: string;
+			studentName: string;
+			clerkshipId: string;
+			clerkshipName: string;
+			dates: string[];
+		}
+	>();
 
 	for (const a of assignments) {
 		const key = `${a.student_id}-${a.clerkship_id}`;
@@ -575,12 +599,14 @@ export async function getPreceptorScheduleData(
 			email: preceptor.email,
 			healthSystemName: preceptor.health_system_name || undefined
 		},
-		period: period ? {
-			id: period.id as string,
-			name: period.name,
-			startDate: period.start_date,
-			endDate: period.end_date
-		} : null,
+		period: period
+			? {
+					id: period.id as string,
+					name: period.name,
+					startDate: period.start_date,
+					endDate: period.end_date
+				}
+			: null,
 		monthlyCapacity,
 		overallCapacity: {
 			availableDays: totalAvailable,
@@ -738,7 +764,8 @@ export async function getScheduleSummaryData(
 			clerkshipName: c.name,
 			totalAssignments: entry.count,
 			studentsAssigned: entry.students.size,
-			averageDaysPerStudent: entry.students.size > 0 ? Math.round(entry.count / entry.students.size) : 0
+			averageDaysPerStudent:
+				entry.students.size > 0 ? Math.round(entry.count / entry.students.size) : 0
 		};
 	});
 
@@ -757,12 +784,14 @@ export async function getScheduleSummaryData(
 	});
 
 	return {
-		period: period ? {
-			id: period.id as string,
-			name: period.name,
-			startDate: period.start_date,
-			endDate: period.end_date
-		} : null,
+		period: period
+			? {
+					id: period.id as string,
+					name: period.name,
+					startDate: period.start_date,
+					endDate: period.end_date
+				}
+			: null,
 		stats: {
 			totalAssignments: assignments.length,
 			totalStudents: students.length,
@@ -836,7 +865,13 @@ function emptyPreceptorSchedule(preceptor: {
 		},
 		period: null,
 		monthlyCapacity: [],
-		overallCapacity: { availableDays: 0, assignedDays: 0, assignedOutsideAvailability: 0, openSlots: 0, utilizationPercent: 0 },
+		overallCapacity: {
+			availableDays: 0,
+			assignedDays: 0,
+			assignedOutsideAvailability: 0,
+			openSlots: 0,
+			utilizationPercent: 0
+		},
 		calendar: [],
 		assignedStudents: [],
 		assignments: []
@@ -862,8 +897,14 @@ function emptyScheduleSummary(): ScheduleResultsSummary {
 
 function getClerkshipColor(specialty: string): string {
 	const colors = [
-		'#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-		'#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
+		'#3b82f6',
+		'#10b981',
+		'#f59e0b',
+		'#ef4444',
+		'#8b5cf6',
+		'#ec4899',
+		'#06b6d4',
+		'#84cc16'
 	];
 	let hash = 0;
 	for (let i = 0; i < specialty.length; i++) {
@@ -873,7 +914,12 @@ function getClerkshipColor(specialty: string): string {
 }
 
 function getInitials(name: string): string {
-	return name.split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+	return name
+		.split(' ')
+		.map((p) => p[0])
+		.join('')
+		.toUpperCase()
+		.slice(0, 2);
 }
 
 function buildCalendarMonths(
@@ -948,10 +994,16 @@ function buildCalendarMonths(
 function buildCalendarMonthsWithAvailability(
 	startDate: string,
 	endDate: string,
-	data: Array<{ date: string; availability?: 'available' | 'unavailable' | 'unset'; availabilityNote?: string; assignedStudent?: any; assignment?: any }>
+	data: Array<{
+		date: string;
+		availability?: 'available' | 'unavailable' | 'unset';
+		availabilityNote?: string;
+		assignedStudent?: any;
+		assignment?: any;
+	}>
 ): CalendarMonth[] {
 	// Collect all data per date (supports multiple assignments per day)
-	const dataMap = new Map<string, Array<typeof data[0]>>();
+	const dataMap = new Map<string, Array<(typeof data)[0]>>();
 	for (const d of data) {
 		if (!dataMap.has(d.date)) {
 			dataMap.set(d.date, []);
@@ -987,9 +1039,7 @@ function buildCalendarMonthsWithAvailability(
 				const firstDayData = dayDataList[0];
 
 				// Collect all assignments for the day
-				const dayAssignments = dayDataList
-					.filter(d => d.assignment)
-					.map(d => d.assignment);
+				const dayAssignments = dayDataList.filter((d) => d.assignment).map((d) => d.assignment);
 
 				days.push({
 					date: dateStr,

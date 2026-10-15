@@ -119,7 +119,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.execute();
 
 	// Schedule assignments table
-		await db.schema
+	await db.schema
 		.createTable('clerkship_electives')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('clerkship_id', 'text', (col) => col.notNull())
@@ -128,7 +128,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(0))
 		.execute();
 
-await db.schema
+	await db.schema
 		.createTable('schedule_assignments')
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('student_id', 'text', (col) => col.notNull())
@@ -147,7 +147,7 @@ await db.schema
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 
 	// Preceptor availability table
@@ -161,7 +161,7 @@ await db.schema
 		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 

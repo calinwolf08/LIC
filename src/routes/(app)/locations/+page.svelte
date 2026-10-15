@@ -2,7 +2,14 @@
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { PageHeader, EntityTabs, ConfirmDialog, NoActiveSchedule, toast, type EntityTab } from '$lib/components';
+	import {
+		PageHeader,
+		EntityTabs,
+		ConfirmDialog,
+		NoActiveSchedule,
+		toast,
+		type EntityTab
+	} from '$lib/components';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import HealthSystemTable from '$lib/features/health-systems/components/health-system-table.svelte';
@@ -23,7 +30,9 @@
 		{ id: 'health-systems', label: 'Health systems' },
 		{ id: 'sites', label: 'Sites' }
 	];
-	let activeTab = $state($page.url.searchParams.get('tab') === 'sites' ? 'sites' : 'health-systems');
+	let activeTab = $state(
+		$page.url.searchParams.get('tab') === 'sites' ? 'sites' : 'health-systems'
+	);
 
 	// ---- Health system dialogs (create only; editing lives on the detail page) ----
 	let showHsForm = $state(false);
@@ -137,14 +146,18 @@
 <ConfirmDialog
 	bind:open={showHsDelete}
 	title={`Delete ${hsDeleteTarget?.name ?? 'health system'}?`}
-	description={hsDependencyNote ? 'This health system cannot be deleted yet.' : 'This action cannot be undone.'}
+	description={hsDependencyNote
+		? 'This health system cannot be deleted yet.'
+		: 'This action cannot be undone.'}
 	confirmLabel="Delete"
 	confirmDisabled={!!hsDependencyNote}
 	onConfirm={confirmHsDelete}
 >
 	{#snippet details()}
 		{#if hsDependencyNote}
-			<p class="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800">{hsDependencyNote}</p>
+			<p class="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800">
+				{hsDependencyNote}
+			</p>
 		{/if}
 	{/snippet}
 </ConfirmDialog>

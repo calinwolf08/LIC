@@ -23,10 +23,13 @@ import {
 	createPreceptor,
 	createTeam,
 	createAvailability,
-	generateWeekdaysInRange,
+	generateWeekdaysInRange
 } from '../helpers';
 
-export async function partialAvailabilityScenario(userId: string, scheduleId: string): Promise<void> {
+export async function partialAvailabilityScenario(
+	userId: string,
+	scheduleId: string
+): Promise<void> {
 	const SCHEDULE_START = '2026-01-01';
 	const SCHEDULE_END = '2026-01-30';
 
@@ -36,14 +39,18 @@ export async function partialAvailabilityScenario(userId: string, scheduleId: st
 
 	// Create Site
 	console.log('  Creating site...');
-	const siteId = await createSite(healthSystemId, 'Austin Community Clinic', '500 Community Way, Austin');
+	const siteId = await createSite(
+		healthSystemId,
+		'Austin Community Clinic',
+		'500 Community Way, Austin'
+	);
 
 	// Create Clerkship
 	console.log('  Creating clerkship...');
 	const clerkshipId = await createClerkship('Psychiatry', {
 		type: 'outpatient',
 		requiredDays: 15,
-		specialty: 'Psychiatry',
+		specialty: 'Psychiatry'
 	});
 
 	// Create Students
@@ -60,7 +67,7 @@ export async function partialAvailabilityScenario(userId: string, scheduleId: st
 		healthSystemId,
 		siteId,
 		specialty: 'Psychiatry',
-		maxStudents: 2,
+		maxStudents: 2
 	});
 
 	// Dr. Week Two - only available week 2
@@ -68,7 +75,7 @@ export async function partialAvailabilityScenario(userId: string, scheduleId: st
 		healthSystemId,
 		siteId,
 		specialty: 'Psychiatry',
-		maxStudents: 2,
+		maxStudents: 2
 	});
 
 	// Dr. Scattered - available Mon/Wed only across all weeks
@@ -76,7 +83,7 @@ export async function partialAvailabilityScenario(userId: string, scheduleId: st
 		healthSystemId,
 		siteId,
 		specialty: 'Psychiatry',
-		maxStudents: 1,
+		maxStudents: 1
 	});
 
 	// Create Team

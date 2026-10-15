@@ -252,7 +252,7 @@
 					type="button"
 					size="sm"
 					variant={mode === opt.v ? 'default' : 'outline'}
-					disabled={disabled}
+					{disabled}
 					onclick={() => setMode(opt.v as SelectMode)}
 				>
 					{opt.l}
@@ -272,7 +272,7 @@
 					{#each WEEKDAYS as w (w.v)}
 						<button
 							type="button"
-							disabled={disabled}
+							{disabled}
 							onclick={() => toggleWeekday(w.v)}
 							class="rounded-md border px-2 py-1 text-xs {weekdayFilter.includes(w.v)
 								? 'border-primary bg-primary text-primary-foreground'
@@ -360,16 +360,15 @@
 
 	<div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
 		<span class="flex items-center gap-1"
-			><span class="inline-block h-3 w-3 rounded border border-green-200 bg-green-50"></span
-			>Available</span
+			><span class="inline-block h-3 w-3 rounded border border-green-200 bg-green-50"
+			></span>Available</span
 		>
 		<span class="flex items-center gap-1"
-			><span class="inline-block h-3 w-3 rounded border border-red-200 bg-red-50"></span
-			>Unavailable</span
+			><span class="inline-block h-3 w-3 rounded border border-red-200 bg-red-50"
+			></span>Unavailable</span
 		>
 		<span class="flex items-center gap-1"
-			><span class="inline-block h-3 w-3 rounded border border-input bg-background"></span>Not
-			set</span
+			><span class="inline-block h-3 w-3 rounded border border-input bg-background"></span>Not set</span
 		>
 		<span class="flex items-center gap-1"
 			><span class="inline-block h-3 w-3 rounded border border-amber-300 bg-amber-100"></span>👤
@@ -384,16 +383,16 @@
 			busy</span
 		>
 		<span class="flex items-center gap-1"
-			><span class="inline-block h-3 w-3 rounded border border-slate-300 bg-slate-200"></span
-			>Blackout</span
+			><span class="inline-block h-3 w-3 rounded border border-slate-300 bg-slate-200"
+			></span>Blackout</span
 		>
 		<span class="flex items-center gap-1"
 			><span class="inline-block h-3 w-3 rounded border border-muted bg-muted/40"></span>Out of
 			range</span
 		>
 		<span class="flex items-center gap-1"
-			><span class="inline-block h-3 w-3 rounded border border-primary ring-2 ring-primary"></span
-			>Selected</span
+			><span class="inline-block h-3 w-3 rounded border border-primary ring-2 ring-primary"
+			></span>Selected</span
 		>
 	</div>
 </div>

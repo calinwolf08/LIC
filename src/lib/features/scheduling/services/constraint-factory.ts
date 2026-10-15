@@ -137,9 +137,7 @@ export class ConstraintFactory {
 
 			// Student onboarding constraint (if context has onboarding data)
 			if (context.studentOnboarding) {
-				constraints.push(
-					new StudentOnboardingConstraint(clerkship.id, config.clerkshipId)
-				);
+				constraints.push(new StudentOnboardingConstraint(clerkship.id, config.clerkshipId));
 			}
 
 			// Preceptor association constraint (if context has association data)

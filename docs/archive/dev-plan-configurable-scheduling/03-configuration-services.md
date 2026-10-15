@@ -19,6 +19,7 @@ Implement service classes that provide CRUD (Create, Read, Update, Delete) opera
 ### Service Pattern
 
 Each service will follow consistent patterns:
+
 - Constructor accepts database connection
 - Methods return Result types (success/error) for predictable error handling
 - Transaction support for operations affecting multiple tables
@@ -31,22 +32,26 @@ Each service will follow consistent patterns:
 ### 1. Basic CRUD Operations
 
 **Create**
+
 - Validate input against schema
 - Check business rules
 - Insert into database
 - Return created entity with generated ID
 
 **Read (Get by ID)**
+
 - Query database by ID
 - Return entity or null if not found
 - Optionally include related entities (joins)
 
 **Read (List/Query)**
+
 - Support filtering, sorting, pagination
 - Return array of entities
 - Include total count for pagination
 
 **Update**
+
 - Validate input against schema
 - Check business rules
 - Verify entity exists
@@ -54,6 +59,7 @@ Each service will follow consistent patterns:
 - Return updated entity
 
 **Delete**
+
 - Verify entity exists
 - Check for dependencies (prevent orphans)
 - Delete from database
@@ -62,11 +68,13 @@ Each service will follow consistent patterns:
 ### 2. Aggregate Operations
 
 **Get Complete Configuration**
+
 - Fetch clerkship configuration with all related entities
 - Include requirements, electives, teams, fallbacks
 - Denormalized structure for scheduling engine
 
 **Bulk Operations**
+
 - Create multiple related entities in single transaction
 - Update multiple entities atomically
 - Delete cascades with validation
@@ -74,11 +82,13 @@ Each service will follow consistent patterns:
 ### 3. Validation Operations
 
 **Validate Configuration**
+
 - Check configuration completeness
 - Validate business rules across entities
 - Return validation errors without saving
 
 **Check Conflicts**
+
 - Verify no scheduling conflicts exist with new configuration
 - Check team member availability
 - Validate capacity rules don't conflict
@@ -88,6 +98,7 @@ Each service will follow consistent patterns:
 ### 1. ClerkshipConfigurationService
 
 **Methods**
+
 - `createConfiguration(clerkshipId, input)` - Create new configuration for clerkship
 - `getConfiguration(clerkshipId)` - Get configuration by clerkship ID
 - `updateConfiguration(clerkshipId, input)` - Update existing configuration
@@ -97,6 +108,7 @@ Each service will follow consistent patterns:
 - `cloneConfiguration(sourceClerkshipId, targetClerkshipId)` - Copy config to another clerkship
 
 **Business Rules**
+
 - Clerkship can only have one configuration
 - Assignment strategy must be valid for clerkship type
 - Block size required if using block-based strategy
@@ -105,6 +117,7 @@ Each service will follow consistent patterns:
 ### 2. RequirementService
 
 **Methods**
+
 - `createRequirement(clerkshipId, input)` - Add requirement to clerkship
 - `getRequirement(requirementId)` - Get single requirement
 - `getRequirementsByClerkship(clerkshipId)` - Get all requirements for clerkship
@@ -113,6 +126,7 @@ Each service will follow consistent patterns:
 - `validateRequirementSplit(clerkshipId)` - Ensure requirements sum to total
 
 **Business Rules**
+
 - Total required days must equal clerkship.required_days
 - Cannot have duplicate requirement types for same clerkship
 - Assignment mode must be compatible with clerkship configuration strategy
@@ -121,6 +135,7 @@ Each service will follow consistent patterns:
 ### 3. ElectiveService
 
 **Methods**
+
 - `createElective(clerkshipId, input)` - Add elective option
 - `getElective(electiveId)` - Get single elective
 - `getElectivesByClerkship(clerkshipId)` - Get all electives for clerkship
@@ -129,6 +144,7 @@ Each service will follow consistent patterns:
 - `getAvailablePreceptors(electiveId)` - Get preceptors qualified for elective
 
 **Business Rules**
+
 - Electives only valid if clerkship has elective requirement type
 - Minimum days must be less than total elective days
 - Preceptors must have matching specialty
@@ -137,6 +153,7 @@ Each service will follow consistent patterns:
 ### 4. TeamService
 
 **Methods**
+
 - `createTeam(clerkshipId, input)` - Create preceptor team
 - `getTeam(teamId)` - Get team with members
 - `getTeamsByClerkship(clerkshipId)` - Get all teams for clerkship
@@ -147,6 +164,7 @@ Each service will follow consistent patterns:
 - `validateTeamRules(teamId)` - Check if team members satisfy formation rules
 
 **Business Rules**
+
 - Team must have 2+ members
 - If require_same_health_system, all members must share system
 - If require_same_specialty, all members must match
@@ -156,6 +174,7 @@ Each service will follow consistent patterns:
 ### 5. FallbackService
 
 **Methods**
+
 - `createFallback(primaryPreceptorId, fallbackPreceptorId, clerkshipId, input)` - Add fallback
 - `getFallback(fallbackId)` - Get single fallback
 - `getFallbackChain(primaryPreceptorId, clerkshipId)` - Get ordered fallback list
@@ -164,6 +183,7 @@ Each service will follow consistent patterns:
 - `validateFallbackChain(primaryPreceptorId, clerkshipId)` - Check for circular references
 
 **Business Rules**
+
 - Cannot create circular fallback chains
 - Fallback preceptor must have compatible specialty
 - Priority values must be unique within chain
@@ -173,6 +193,7 @@ Each service will follow consistent patterns:
 ### 6. CapacityRuleService
 
 **Methods**
+
 - `createCapacityRule(preceptorId, input)` - Add capacity rule
 - `getCapacityRule(ruleId)` - Get single rule
 - `getCapacityRulesByPreceptor(preceptorId)` - Get all rules for preceptor
@@ -182,6 +203,7 @@ Each service will follow consistent patterns:
 - `checkCapacity(preceptorId, clerkshipId, date)` - Check if preceptor has capacity
 
 **Business Rules**
+
 - All limits must be non-negative
 - max_students_per_day must be > 0
 - max_students_per_block only valid for block-based clerkships
@@ -191,6 +213,7 @@ Each service will follow consistent patterns:
 ### 7. HealthSystemService
 
 **Methods**
+
 - `createHealthSystem(input)` - Create new health system
 - `getHealthSystem(systemId)` - Get health system
 - `listHealthSystems()` - Get all systems
@@ -203,6 +226,7 @@ Each service will follow consistent patterns:
 - `deleteSite(siteId)` - Remove site
 
 **Business Rules**
+
 - Cannot delete health system if preceptors assigned to it
 - Cannot delete site if preceptors assigned to it
 - Site must belong to valid health system
@@ -214,18 +238,17 @@ Each service will follow consistent patterns:
 Use Result type pattern for predictable error handling:
 
 ```typescript
-type ServiceResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: ServiceError }
+type ServiceResult<T> = { success: true; data: T } | { success: false; error: ServiceError };
 
 type ServiceError = {
-  code: string;
-  message: string;
-  details?: unknown;
-}
+	code: string;
+	message: string;
+	details?: unknown;
+};
 ```
 
 ### Error Categories
+
 - `VALIDATION_ERROR` - Input validation failed
 - `NOT_FOUND` - Entity doesn't exist
 - `CONFLICT` - Business rule violation
@@ -296,6 +319,7 @@ type ServiceError = {
 ## Files to Create
 
 ### Service Files
+
 ```
 src/lib/features/scheduling-config/services/index.ts
 src/lib/features/scheduling-config/services/configuration.service.ts
@@ -308,6 +332,7 @@ src/lib/features/scheduling-config/services/health-systems.service.ts
 ```
 
 ### Test Files
+
 ```
 src/lib/features/scheduling-config/services/configuration.service.test.ts
 src/lib/features/scheduling-config/services/requirements.service.test.ts
@@ -320,6 +345,7 @@ src/lib/features/scheduling-config/services/integration.test.ts
 ```
 
 ### Supporting Files
+
 ```
 src/lib/features/scheduling-config/services/service-result.ts
 src/lib/features/scheduling-config/services/service-errors.ts

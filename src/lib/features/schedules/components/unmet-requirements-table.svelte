@@ -15,33 +15,33 @@
 	}
 </script>
 
-<div class="border rounded-lg overflow-hidden">
-	<div class="bg-muted/50 px-4 py-3 border-b">
+<div class="overflow-hidden rounded-lg border">
+	<div class="border-b bg-muted/50 px-4 py-3">
 		<h3 class="font-semibold">Students with Unmet Requirements ({students.length})</h3>
 	</div>
 
 	{#if students.length === 0}
 		<div class="p-8 text-center">
-			<div class="text-green-600 text-lg font-medium">All Students Fully Scheduled</div>
-			<p class="text-sm text-muted-foreground mt-1">
+			<div class="text-lg font-medium text-green-600">All Students Fully Scheduled</div>
+			<p class="mt-1 text-sm text-muted-foreground">
 				Every student has met all clerkship requirements.
 			</p>
 		</div>
 	{:else}
-		<div class="divide-y max-h-96 overflow-y-auto">
+		<div class="max-h-96 divide-y overflow-y-auto">
 			{#each students as student}
 				<button
 					type="button"
-					class="w-full px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+					class="w-full px-4 py-3 text-left transition-colors hover:bg-muted/30"
 					onclick={() => handleStudentClick(student.studentId)}
 				>
 					<div class="flex items-start justify-between">
 						<div>
 							<p class="font-medium">{student.studentName}</p>
-							<div class="flex flex-wrap gap-1 mt-1">
+							<div class="mt-1 flex flex-wrap gap-1">
 								{#each student.unmetClerkships as clerkship}
 									<span
-										class="inline-flex items-center text-xs bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 px-2 py-0.5 rounded"
+										class="inline-flex items-center rounded bg-red-100 px-2 py-0.5 text-xs text-red-800 dark:bg-red-900/30 dark:text-red-200"
 									>
 										{clerkship.clerkshipName}
 										<span class="ml-1 text-red-600 dark:text-red-400">

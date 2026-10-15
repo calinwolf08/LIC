@@ -52,9 +52,10 @@ test.describe('CF-F1 preceptor phone type', { tag: ['@stage1'] }, () => {
 			});
 
 			// --- Persisted with the type ---
-			const list = await apiOf(asAdmin).get<Array<{ id: string; name: string; phone_type: string }>>(
-				'/api/preceptors'
-			);
+			const list =
+				await apiOf(asAdmin).get<Array<{ id: string; name: string; phone_type: string }>>(
+					'/api/preceptors'
+				);
 			const created = list.data?.find((p) => p.name === name);
 			expect(created?.phone_type).toBe('cell');
 

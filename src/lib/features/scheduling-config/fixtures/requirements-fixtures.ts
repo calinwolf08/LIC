@@ -13,25 +13,25 @@
  * @deprecated Use clerkship fixtures instead. Requirements are no longer used.
  */
 export interface LegacyClerkshipRequirement {
-  id: string;
-  clerkshipId: string;
-  requirementType: 'inpatient' | 'outpatient' | 'elective';
-  requiredDays: number;
-  overrideMode: 'inherit' | 'override_fields' | 'override_section';
-  createdAt: Date;
-  updatedAt: Date;
-  // Override fields (optional)
-  overrideAssignmentStrategy?: string;
-  overrideHealthSystemRule?: string;
-  overrideMaxStudentsPerDay?: number;
-  overrideMaxStudentsPerYear?: number;
-  overrideBlockSizeDays?: number;
-  overrideAllowPartialBlocks?: boolean;
-  overridePreferContinuousBlocks?: boolean;
-  overrideAllowTeams?: boolean;
-  overrideAllowFallbacks?: boolean;
-  overrideFallbackRequiresApproval?: boolean;
-  overrideFallbackAllowCrossSystem?: boolean;
+	id: string;
+	clerkshipId: string;
+	requirementType: 'inpatient' | 'outpatient' | 'elective';
+	requiredDays: number;
+	overrideMode: 'inherit' | 'override_fields' | 'override_section';
+	createdAt: Date;
+	updatedAt: Date;
+	// Override fields (optional)
+	overrideAssignmentStrategy?: string;
+	overrideHealthSystemRule?: string;
+	overrideMaxStudentsPerDay?: number;
+	overrideMaxStudentsPerYear?: number;
+	overrideBlockSizeDays?: number;
+	overrideAllowPartialBlocks?: boolean;
+	overridePreferContinuousBlocks?: boolean;
+	overrideAllowTeams?: boolean;
+	overrideAllowFallbacks?: boolean;
+	overrideFallbackRequiresApproval?: boolean;
+	overrideFallbackAllowCrossSystem?: boolean;
 }
 
 /**
@@ -39,5 +39,5 @@ export interface LegacyClerkshipRequirement {
  * reference and backward compatibility during migration.
  */
 export const requirementsFixtures = {
-  // Empty - requirements have been removed from the system
+	// Empty - requirements have been removed from the system
 };

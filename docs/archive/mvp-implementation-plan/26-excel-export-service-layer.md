@@ -1,9 +1,11 @@
 # Step 26: Excel Export - Service Layer
 
 ## Overview
+
 Implement the service layer for exporting schedule data to Excel format. This includes generating formatted Excel workbooks with schedule assignments, using the ExcelJS library for file generation and formatting.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -12,7 +14,9 @@ Implement the service layer for exporting schedule data to Excel format. This in
 ## Requirements
 
 ### Excel Generation
+
 Implement functions to create Excel workbooks:
+
 - Export all assignments for a date range
 - Format with headers and styling
 - Multiple worksheets (by student, by preceptor, summary)
@@ -20,6 +24,7 @@ Implement functions to create Excel workbooks:
 - Cell styling (headers, borders, colors)
 
 ### Data Formatting
+
 - Student schedule worksheet
 - Preceptor schedule worksheet
 - Master schedule worksheet
@@ -28,6 +33,7 @@ Implement functions to create Excel workbooks:
 - Color coding by clerkship type
 
 ### File Generation
+
 - Use ExcelJS library
 - Generate in-memory buffer
 - Return as downloadable file
@@ -36,6 +42,7 @@ Implement functions to create Excel workbooks:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/schedules/
 ├── services/
@@ -55,12 +62,14 @@ Implement functions to create Excel workbooks:
 Service functions for Excel export.
 
 **Dependencies:**
+
 ```bash
 npm install exceljs
 npm install --save-dev @types/exceljs
 ```
 
 **Exports:**
+
 ```typescript
 import ExcelJS from 'exceljs';
 import type { Kysely } from 'kysely';
@@ -68,36 +77,37 @@ import type { Database } from '$lib/db/types';
 import type { EnrichedAssignment, CalendarFilters } from '../types';
 
 export async function generateScheduleExcel(
-  db: Kysely<Database>,
-  filters: CalendarFilters
-): Promise<Buffer>
+	db: Kysely<Database>,
+	filters: CalendarFilters
+): Promise<Buffer>;
 
 export async function generateStudentScheduleWorksheet(
-  workbook: ExcelJS.Workbook,
-  assignments: EnrichedAssignment[]
-): Promise<void>
+	workbook: ExcelJS.Workbook,
+	assignments: EnrichedAssignment[]
+): Promise<void>;
 
 export async function generatePreceptorScheduleWorksheet(
-  workbook: ExcelJS.Workbook,
-  assignments: EnrichedAssignment[]
-): Promise<void>
+	workbook: ExcelJS.Workbook,
+	assignments: EnrichedAssignment[]
+): Promise<void>;
 
 export async function generateMasterScheduleWorksheet(
-  workbook: ExcelJS.Workbook,
-  assignments: EnrichedAssignment[]
-): Promise<void>
+	workbook: ExcelJS.Workbook,
+	assignments: EnrichedAssignment[]
+): Promise<void>;
 
 export async function generateSummaryWorksheet(
-  workbook: ExcelJS.Workbook,
-  assignments: EnrichedAssignment[],
-  startDate: string,
-  endDate: string
-): Promise<void>
+	workbook: ExcelJS.Workbook,
+	assignments: EnrichedAssignment[],
+	startDate: string,
+	endDate: string
+): Promise<void>;
 
-export function getClerkshipColor(clerkshipName: string): string
+export function getClerkshipColor(clerkshipName: string): string;
 ```
 
 **Requirements:**
+
 - Generate multi-worksheet workbook
 - Apply formatting and styling
 - Support filtering
@@ -113,6 +123,7 @@ export function getClerkshipColor(clerkshipName: string): string
 Generate complete Excel workbook with all worksheets.
 
 **Logic:**
+
 1. Fetch enriched assignments using filters
 2. Create new ExcelJS workbook
 3. Generate student schedule worksheet
@@ -123,18 +134,21 @@ Generate complete Excel workbook with all worksheets.
 8. Return buffer
 
 **Parameters:**
+
 - `filters`: Calendar filters (date range, student, preceptor, clerkship)
 
 **Returns:** Buffer containing Excel file
 
 **Errors:**
+
 - Throws error if data fetching fails
 
 **Example:**
+
 ```typescript
 const buffer = await generateScheduleExcel(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31'
+	start_date: '2024-01-01',
+	end_date: '2024-12-31'
 });
 
 // Buffer can be sent as download response
@@ -147,6 +161,7 @@ const buffer = await generateScheduleExcel(db, {
 Create worksheet with student-centric view.
 
 **Logic:**
+
 1. Add new worksheet "Student Schedules"
 2. Set column headers: Student Name, Email, Clerkship, Preceptor, Start Date, End Date, Days
 3. Style header row (bold, background color, borders)
@@ -160,12 +175,14 @@ Create worksheet with student-centric view.
 8. Apply borders and formatting
 
 **Parameters:**
+
 - `workbook`: ExcelJS workbook instance
 - `assignments`: Array of enriched assignments
 
 **Returns:** void (modifies workbook)
 
 **Example Worksheet:**
+
 ```
 | Student Name | Email            | Clerkship          | Preceptor   | Start Date | End Date   | Days |
 |--------------|------------------|--------------------|-------------|------------|------------|------|
@@ -181,6 +198,7 @@ Create worksheet with student-centric view.
 Create worksheet with preceptor-centric view.
 
 **Logic:**
+
 1. Add new worksheet "Preceptor Schedules"
 2. Set column headers: Preceptor Name, Email, Specialty, Student, Clerkship, Start Date, End Date, Days
 3. Style header row
@@ -194,6 +212,7 @@ Create worksheet with preceptor-centric view.
 8. Apply formatting
 
 **Parameters:**
+
 - `workbook`: ExcelJS workbook instance
 - `assignments`: Array of enriched assignments
 
@@ -206,6 +225,7 @@ Create worksheet with preceptor-centric view.
 Create worksheet with complete schedule (all assignments).
 
 **Logic:**
+
 1. Add new worksheet "Master Schedule"
 2. Set column headers: Student, Preceptor, Clerkship, Specialty, Start Date, End Date, Days
 3. Style header row
@@ -217,6 +237,7 @@ Create worksheet with complete schedule (all assignments).
 9. Apply borders
 
 **Parameters:**
+
 - `workbook`: ExcelJS workbook instance
 - `assignments`: Array of enriched assignments
 
@@ -229,6 +250,7 @@ Create worksheet with complete schedule (all assignments).
 Create worksheet with summary statistics.
 
 **Logic:**
+
 1. Add new worksheet "Summary"
 2. Add title and date range
 3. Calculate statistics:
@@ -243,6 +265,7 @@ Create worksheet with summary statistics.
 6. Apply styling
 
 **Parameters:**
+
 - `workbook`: ExcelJS workbook instance
 - `assignments`: Array of enriched assignments
 - `startDate`: Schedule start date
@@ -251,6 +274,7 @@ Create worksheet with summary statistics.
 **Returns:** void (modifies workbook)
 
 **Example Worksheet:**
+
 ```
 Schedule Summary
 Date Range: 2024-01-01 to 2024-12-31
@@ -277,16 +301,19 @@ Average Days per Assignment: 28
 Get Excel color code for clerkship type.
 
 **Logic:**
+
 - Return hex color code based on clerkship name
 - Use predefined color mapping
 - Default to gray if not mapped
 
 **Parameters:**
+
 - `clerkshipName`: Name of clerkship
 
 **Returns:** Hex color string (e.g., "FF3B82F6")
 
 **Example:**
+
 ```typescript
 const color = getClerkshipColor('Internal Medicine'); // "FF3B82F6" (blue)
 const color = getClerkshipColor('Surgery'); // "FFEF4444" (red)
@@ -304,105 +331,105 @@ import { getEnrichedAssignments } from './calendar-service';
 import type { EnrichedAssignment, CalendarFilters } from '../types';
 
 export async function generateScheduleExcel(
-  db: Kysely<Database>,
-  filters: CalendarFilters
+	db: Kysely<Database>,
+	filters: CalendarFilters
 ): Promise<Buffer> {
-  // Fetch assignments
-  const assignments = await getEnrichedAssignments(db, filters);
+	// Fetch assignments
+	const assignments = await getEnrichedAssignments(db, filters);
 
-  // Create workbook
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'LIC Scheduling System';
-  workbook.created = new Date();
+	// Create workbook
+	const workbook = new ExcelJS.Workbook();
+	workbook.creator = 'LIC Scheduling System';
+	workbook.created = new Date();
 
-  // Generate worksheets
-  await generateMasterScheduleWorksheet(workbook, assignments);
-  await generateStudentScheduleWorksheet(workbook, assignments);
-  await generatePreceptorScheduleWorksheet(workbook, assignments);
-  await generateSummaryWorksheet(workbook, assignments, filters.start_date, filters.end_date);
+	// Generate worksheets
+	await generateMasterScheduleWorksheet(workbook, assignments);
+	await generateStudentScheduleWorksheet(workbook, assignments);
+	await generatePreceptorScheduleWorksheet(workbook, assignments);
+	await generateSummaryWorksheet(workbook, assignments, filters.start_date, filters.end_date);
 
-  // Write to buffer
-  const buffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(buffer);
+	// Write to buffer
+	const buffer = await workbook.xlsx.writeBuffer();
+	return Buffer.from(buffer);
 }
 
 export async function generateMasterScheduleWorksheet(
-  workbook: ExcelJS.Workbook,
-  assignments: EnrichedAssignment[]
+	workbook: ExcelJS.Workbook,
+	assignments: EnrichedAssignment[]
 ): Promise<void> {
-  const worksheet = workbook.addWorksheet('Master Schedule');
+	const worksheet = workbook.addWorksheet('Master Schedule');
 
-  // Define columns
-  worksheet.columns = [
-    { header: 'Student', key: 'student', width: 20 },
-    { header: 'Preceptor', key: 'preceptor', width: 20 },
-    { header: 'Clerkship', key: 'clerkship', width: 25 },
-    { header: 'Specialty', key: 'specialty', width: 20 },
-    { header: 'Start Date', key: 'start_date', width: 12 },
-    { header: 'End Date', key: 'end_date', width: 12 },
-    { header: 'Days', key: 'days', width: 8 },
-  ];
+	// Define columns
+	worksheet.columns = [
+		{ header: 'Student', key: 'student', width: 20 },
+		{ header: 'Preceptor', key: 'preceptor', width: 20 },
+		{ header: 'Clerkship', key: 'clerkship', width: 25 },
+		{ header: 'Specialty', key: 'specialty', width: 20 },
+		{ header: 'Start Date', key: 'start_date', width: 12 },
+		{ header: 'End Date', key: 'end_date', width: 12 },
+		{ header: 'Days', key: 'days', width: 8 }
+	];
 
-  // Style header row
-  worksheet.getRow(1).font = { bold: true };
-  worksheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF4B5563' },
-  };
-  worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+	// Style header row
+	worksheet.getRow(1).font = { bold: true };
+	worksheet.getRow(1).fill = {
+		type: 'pattern',
+		pattern: 'solid',
+		fgColor: { argb: 'FF4B5563' }
+	};
+	worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
 
-  // Add data rows
-  assignments.forEach((assignment) => {
-    const startDate = new Date(assignment.start_date);
-    const endDate = new Date(assignment.end_date);
-    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+	// Add data rows
+	assignments.forEach((assignment) => {
+		const startDate = new Date(assignment.start_date);
+		const endDate = new Date(assignment.end_date);
+		const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    const row = worksheet.addRow({
-      student: assignment.student_name,
-      preceptor: assignment.preceptor_name,
-      clerkship: assignment.clerkship_name,
-      specialty: assignment.clerkship_specialty,
-      start_date: assignment.start_date,
-      end_date: assignment.end_date,
-      days: days,
-    });
+		const row = worksheet.addRow({
+			student: assignment.student_name,
+			preceptor: assignment.preceptor_name,
+			clerkship: assignment.clerkship_name,
+			specialty: assignment.clerkship_specialty,
+			start_date: assignment.start_date,
+			end_date: assignment.end_date,
+			days: days
+		});
 
-    // Color code by clerkship
-    const color = getClerkshipColor(assignment.clerkship_name);
-    row.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: color },
-    };
-  });
+		// Color code by clerkship
+		const color = getClerkshipColor(assignment.clerkship_name);
+		row.fill = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: color }
+		};
+	});
 
-  // Freeze header row
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+	// Freeze header row
+	worksheet.views = [{ state: 'frozen', ySplit: 1 }];
 
-  // Apply borders
-  worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' },
-      };
-    });
-  });
+	// Apply borders
+	worksheet.eachRow((row) => {
+		row.eachCell((cell) => {
+			cell.border = {
+				top: { style: 'thin' },
+				left: { style: 'thin' },
+				bottom: { style: 'thin' },
+				right: { style: 'thin' }
+			};
+		});
+	});
 }
 
 export function getClerkshipColor(clerkshipName: string): string {
-  const colors: Record<string, string> = {
-    'Internal Medicine': 'FF3B82F6',
-    'Surgery': 'FFEF4444',
-    'Pediatrics': 'FF10B981',
-    'OB/GYN': 'FFF59E0B',
-    'Psychiatry': 'FF8B5CF6',
-  };
+	const colors: Record<string, string> = {
+		'Internal Medicine': 'FF3B82F6',
+		Surgery: 'FFEF4444',
+		Pediatrics: 'FF10B981',
+		'OB/GYN': 'FFF59E0B',
+		Psychiatry: 'FF8B5CF6'
+	};
 
-  return colors[clerkshipName] || 'FFD1D5DB'; // Default gray
+	return colors[clerkshipName] || 'FFD1D5DB'; // Default gray
 }
 ```
 
@@ -415,6 +442,7 @@ export function getClerkshipColor(clerkshipName: string): string {
 #### `/src/lib/features/schedules/services/export-service.test.ts`
 
 **generateScheduleExcel():**
+
 - ✅ Generates Excel buffer
 - ✅ Buffer is valid Excel file
 - ✅ Contains all worksheets
@@ -422,6 +450,7 @@ export function getClerkshipColor(clerkshipName: string): string {
 - ✅ Handles empty assignments
 
 **generateStudentScheduleWorksheet():**
+
 - ✅ Creates worksheet with correct name
 - ✅ Adds all assignments
 - ✅ Groups by student
@@ -429,12 +458,14 @@ export function getClerkshipColor(clerkshipName: string): string {
 - ✅ Applies formatting
 
 **generatePreceptorScheduleWorksheet():**
+
 - ✅ Creates worksheet with correct name
 - ✅ Adds all assignments
 - ✅ Groups by preceptor
 - ✅ Applies formatting
 
 **generateMasterScheduleWorksheet():**
+
 - ✅ Creates worksheet with correct name
 - ✅ Adds all assignments
 - ✅ Sorts by date
@@ -442,11 +473,13 @@ export function getClerkshipColor(clerkshipName: string): string {
 - ✅ Freezes header
 
 **generateSummaryWorksheet():**
+
 - ✅ Creates worksheet with correct name
 - ✅ Calculates statistics correctly
 - ✅ Formats data appropriately
 
 **getClerkshipColor():**
+
 - ✅ Returns correct colors for known clerkships
 - ✅ Returns default color for unknown clerkships
 
@@ -495,8 +528,8 @@ import { generateScheduleExcel } from '$lib/features/schedules/services/export-s
 
 // Generate Excel file
 const buffer = await generateScheduleExcel(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31'
+	start_date: '2024-01-01',
+	end_date: '2024-12-31'
 });
 
 // Save to file system (server-side)
@@ -505,10 +538,10 @@ fs.writeFileSync('schedule.xlsx', buffer);
 
 // Or send as download (in API route)
 return new Response(buffer, {
-  headers: {
-    'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'Content-Disposition': 'attachment; filename="schedule.xlsx"'
-  }
+	headers: {
+		'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		'Content-Disposition': 'attachment; filename="schedule.xlsx"'
+	}
 });
 ```
 

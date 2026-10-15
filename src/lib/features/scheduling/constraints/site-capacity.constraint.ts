@@ -71,20 +71,15 @@ export class SiteCapacityConstraint implements Constraint {
 			applicableRule.max_students_per_day
 		);
 		if (dailyViolation) {
-			violationTracker.recordViolation(
-				this.name,
-				assignment,
-				dailyViolation,
-				{
-					studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
-					clerkshipName: clerkship?.name,
-					preceptorName: preceptor?.name,
-					siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
-					siteId,
-					date: assignment.date,
-					violationType: 'daily_capacity'
-				}
-			);
+			violationTracker.recordViolation(this.name, assignment, dailyViolation, {
+				studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
+				clerkshipName: clerkship?.name,
+				preceptorName: preceptor?.name,
+				siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
+				siteId,
+				date: assignment.date,
+				violationType: 'daily_capacity'
+			});
 			return false;
 		}
 
@@ -96,20 +91,15 @@ export class SiteCapacityConstraint implements Constraint {
 			applicableRule.max_students_per_year
 		);
 		if (yearlyViolation) {
-			violationTracker.recordViolation(
-				this.name,
-				assignment,
-				yearlyViolation,
-				{
-					studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
-					clerkshipName: clerkship?.name,
-					preceptorName: preceptor?.name,
-					siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
-					siteId,
-					date: assignment.date,
-					violationType: 'yearly_capacity'
-				}
-			);
+			violationTracker.recordViolation(this.name, assignment, yearlyViolation, {
+				studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
+				clerkshipName: clerkship?.name,
+				preceptorName: preceptor?.name,
+				siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
+				siteId,
+				date: assignment.date,
+				violationType: 'yearly_capacity'
+			});
 			return false;
 		}
 
@@ -123,20 +113,15 @@ export class SiteCapacityConstraint implements Constraint {
 				applicableRule.max_blocks_per_year
 			);
 			if (blockViolation) {
-				violationTracker.recordViolation(
-					this.name,
-					assignment,
-					blockViolation,
-					{
-						studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
-						clerkshipName: clerkship?.name,
-						preceptorName: preceptor?.name,
-						siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
-						siteId,
-						date: assignment.date,
-						violationType: 'block_capacity'
-					}
-				);
+				violationTracker.recordViolation(this.name, assignment, blockViolation, {
+					studentName: context.students.find((s) => s.id === assignment.studentId)?.name,
+					clerkshipName: clerkship?.name,
+					preceptorName: preceptor?.name,
+					siteName: context.sites?.find((s) => s.id === siteId)?.name || siteId,
+					siteId,
+					date: assignment.date,
+					violationType: 'block_capacity'
+				});
 				return false;
 			}
 		}

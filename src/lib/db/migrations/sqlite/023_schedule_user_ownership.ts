@@ -19,10 +19,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	// Note: SQLite doesn't support adding foreign key constraints via ALTER TABLE,
 	// so we add the column without the constraint. Referential integrity is
 	// enforced at the application level.
-	await db.schema
-		.alterTable('scheduling_periods')
-		.addColumn('user_id', 'text')
-		.execute();
+	await db.schema.alterTable('scheduling_periods').addColumn('user_id', 'text').execute();
 
 	// Create index for efficient lookup of user's schedules
 	await db.schema
@@ -48,10 +45,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		`.execute(db);
 
 		if (columnExists.rows[0]?.count === 0) {
-			await db.schema
-				.alterTable('user')
-				.addColumn('active_schedule_id', 'text')
-				.execute();
+			await db.schema.alterTable('user').addColumn('active_schedule_id', 'text').execute();
 		} else {
 			console.log('active_schedule_id column already exists in user table, skipping');
 		}

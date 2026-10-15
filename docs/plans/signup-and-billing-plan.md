@@ -9,10 +9,10 @@
    pick a **tier** at sign-up.
 2. Two tiers, billed per organization, monthly or annual:
 
-   | Tier         | Includes                                                            |
-   | ------------ | ------------------------------------------------------------------- |
+   | Tier         | Includes                                                             |
+   | ------------ | -------------------------------------------------------------------- |
    | **Standard** | Stage 1: manual scheduling, validation, requirement tracking, export |
-   | **Pro**      | Standard + Stage 2 auto-generation (`autogen` entitlement)          |
+   | **Pro**      | Standard + Stage 2 auto-generation (`autogen` entitlement)           |
 
 3. Payment infrastructure exists behind a **`PaymentProvider` interface** so a
    Stripe (or other) implementation can be dropped in later. Until then a
@@ -24,23 +24,23 @@
    app.
 6. The org model is designed for the roadmap: **additional admins per org**,
    and **student** and **preceptor** accounts with limited access. Those
-   accounts are *not* built in this plan, but nothing here should block them.
+   accounts are _not_ built in this plan, but nothing here should block them.
 
 ### Decisions captured from the requirements interview
 
-| Question                     | Decision                                                           |
-| ---------------------------- | ------------------------------------------------------------------ |
-| Tiers                        | 2: Standard, Pro (Pro = auto-generation)                           |
-| Billing unit                 | Organization                                                       |
-| Pre-payment behaviour        | Picking either tier activates it immediately, free (`manual` provider) |
-| Tier changes                 | Yes, through `/settings/billing`                                   |
-| Org implementation           | better-auth organization plugin, wrapped by our own abstraction    |
-| Sign-up entry points         | Public `/pricing` page that deep-links to `/register`, where the tier can still be changed |
-| Billing intervals            | Monthly and annual                                                 |
-| Existing users               | Backfill one org per user; Pro if they hold `autogen` today, else Standard |
-| Published pricing            | None: enterprise-style "contact us for pricing"                     |
-| Grace period (lapsed payment) | 30 days (arbitrary for now; one constant)                          |
-| Email verification           | Not needed yet                                                     |
+| Question                      | Decision                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| Tiers                         | 2: Standard, Pro (Pro = auto-generation)                                                   |
+| Billing unit                  | Organization                                                                               |
+| Pre-payment behaviour         | Picking either tier activates it immediately, free (`manual` provider)                     |
+| Tier changes                  | Yes, through `/settings/billing`                                                           |
+| Org implementation            | better-auth organization plugin, wrapped by our own abstraction                            |
+| Sign-up entry points          | Public `/pricing` page that deep-links to `/register`, where the tier can still be changed |
+| Billing intervals             | Monthly and annual                                                                         |
+| Existing users                | Backfill one org per user; Pro if they hold `autogen` today, else Standard                 |
+| Published pricing             | None: enterprise-style "contact us for pricing"                                            |
+| Grace period (lapsed payment) | 30 days (arbitrary for now; one constant)                                                  |
+| Email verification            | Not needed yet                                                                             |
 
 ### Out of scope
 
@@ -111,12 +111,12 @@ Rules:
 Enable `organization()` in `createAuth` and `organizationClient()` in
 `auth-client.ts`. The plugin owns these tables:
 
-| Table          | Key columns                                                          |
-| -------------- | -------------------------------------------------------------------- |
-| `organization` | `id`, `name`, `slug`, `logo`, `metadata`, `createdAt`                |
-| `member`       | `id`, `organizationId`, `userId`, `role`, `createdAt`                |
+| Table          | Key columns                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `organization` | `id`, `name`, `slug`, `logo`, `metadata`, `createdAt`                                                                                  |
+| `member`       | `id`, `organizationId`, `userId`, `role`, `createdAt`                                                                                  |
 | `invitation`   | `id`, `organizationId`, `email`, `role`, `status`, `expiresAt`, `inviterId` (unused for now; created so invites need no schema change) |
-| `session`      | + `activeOrganizationId`                                             |
+| `session`      | + `activeOrganizationId`                                                                                                               |
 
 These tables go into `ensure-auth-tables.ts` with the same per-engine type
 profile as the existing auth tables (idempotent `ifNotExists`, plus a guarded
@@ -181,14 +181,14 @@ export type PlanId = 'standard' | 'pro';
 export type BillingInterval = 'month' | 'year';
 
 export interface Plan {
-  id: PlanId;
-  name: string;
-  description: string;
-  features: readonly Entitlement[];          // pro: ['autogen']
-  pricing:                                    // enterprise: no list price today
-    | { kind: 'contact' }
-    | { kind: 'listed'; prices: Record<BillingInterval, { amountCents: number; currency: 'usd' }> };
-  rank: number;                               // for upgrade/downgrade wording
+	id: PlanId;
+	name: string;
+	description: string;
+	features: readonly Entitlement[]; // pro: ['autogen']
+	pricing: // enterprise: no list price today
+	| { kind: 'contact' }
+		| { kind: 'listed'; prices: Record<BillingInterval, { amountCents: number; currency: 'usd' }> };
+	rank: number; // for upgrade/downgrade wording
 }
 ```
 
@@ -209,19 +209,33 @@ settings). Processor price IDs are **not** in the catalog: each provider maps
 ### 5.1 Identity: `src/lib/server/identity/`
 
 ```ts
-export interface AppUser    { id: string; email: string; name: string }
-export interface AppSession { user: AppUser; activeOrganizationId: string | null }
+export interface AppUser {
+	id: string;
+	email: string;
+	name: string;
+}
+export interface AppSession {
+	user: AppUser;
+	activeOrganizationId: string | null;
+}
 export type Role = 'owner' | 'admin' | 'preceptor' | 'student';
-export interface OrgMembership { organizationId: string; organizationName: string; role: Role }
+export interface OrgMembership {
+	organizationId: string;
+	organizationName: string;
+	role: Role;
+}
 
 export interface IdentityService {
-  getSession(headers: Headers): Promise<AppSession | null>;
-  signUpWithEmail(input: { name: string; email: string; password: string }):
-    Promise<{ user: AppUser; responseHeaders: Headers }>;      // carries Set-Cookie
-  createOrganization(input: { name: string; ownerUserId: string }): Promise<{ id: string }>;
-  listMemberships(userId: string): Promise<OrgMembership[]>;
-  getMembership(userId: string, organizationId: string): Promise<OrgMembership | null>;
-  setActiveOrganization(headers: Headers, organizationId: string): Promise<void>;
+	getSession(headers: Headers): Promise<AppSession | null>;
+	signUpWithEmail(input: {
+		name: string;
+		email: string;
+		password: string;
+	}): Promise<{ user: AppUser; responseHeaders: Headers }>; // carries Set-Cookie
+	createOrganization(input: { name: string; ownerUserId: string }): Promise<{ id: string }>;
+	listMemberships(userId: string): Promise<OrgMembership[]>;
+	getMembership(userId: string, organizationId: string): Promise<OrgMembership | null>;
+	setActiveOrganization(headers: Headers, organizationId: string): Promise<void>;
 }
 ```
 
@@ -233,14 +247,16 @@ lives behind the same adapter.
 
 ```ts
 export type Permission =
-  | 'billing:manage' | 'org:manage_members'
-  | 'schedule:edit'  | 'schedule:view_own';
+	| 'billing:manage'
+	| 'org:manage_members'
+	| 'schedule:edit'
+	| 'schedule:view_own';
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  owner:     ['billing:manage', 'org:manage_members', 'schedule:edit'],
-  admin:     ['billing:manage', 'org:manage_members', 'schedule:edit'],
-  preceptor: ['schedule:view_own'],
-  student:   ['schedule:view_own'],
+	owner: ['billing:manage', 'org:manage_members', 'schedule:edit'],
+	admin: ['billing:manage', 'org:manage_members', 'schedule:edit'],
+	preceptor: ['schedule:view_own'],
+	student: ['schedule:view_own']
 };
 export function can(m: OrgMembership | null, p: Permission): boolean;
 export function requirePermission(locals: App.Locals, p: Permission): void; // 403
@@ -253,39 +269,53 @@ document where future roles plug in.
 
 ```ts
 export interface PaymentProvider {
-  readonly id: 'manual' | 'stripe';
+	readonly id: 'manual' | 'stripe';
 
-  ensureCustomer(org: { id: string; name: string; email: string }):
-    Promise<{ providerCustomerId: string | null }>;
+	ensureCustomer(org: {
+		id: string;
+		name: string;
+		email: string;
+	}): Promise<{ providerCustomerId: string | null }>;
 
-  /** Start a subscription. Either it is active now, or the user must be sent to a hosted checkout. */
-  startSubscription(input: {
-    organizationId: string; providerCustomerId: string | null;
-    planId: PlanId; interval: BillingInterval;
-    successUrl: string; cancelUrl: string;
-  }): Promise<
-    | { kind: 'activated'; subscription: ProviderSubscription }
-    | { kind: 'redirect'; url: string }
-  >;
+	/** Start a subscription. Either it is active now, or the user must be sent to a hosted checkout. */
+	startSubscription(input: {
+		organizationId: string;
+		providerCustomerId: string | null;
+		planId: PlanId;
+		interval: BillingInterval;
+		successUrl: string;
+		cancelUrl: string;
+	}): Promise<
+		{ kind: 'activated'; subscription: ProviderSubscription } | { kind: 'redirect'; url: string }
+	>;
 
-  changeSubscription(input: {
-    subscription: SubscriptionRecord; planId: PlanId; interval: BillingInterval;
-  }): Promise<{ kind: 'updated'; subscription: ProviderSubscription } | { kind: 'redirect'; url: string }>;
+	changeSubscription(input: {
+		subscription: SubscriptionRecord;
+		planId: PlanId;
+		interval: BillingInterval;
+	}): Promise<
+		{ kind: 'updated'; subscription: ProviderSubscription } | { kind: 'redirect'; url: string }
+	>;
 
-  cancelSubscription(input: { subscription: SubscriptionRecord; atPeriodEnd: boolean }):
-    Promise<ProviderSubscription>;
+	cancelSubscription(input: {
+		subscription: SubscriptionRecord;
+		atPeriodEnd: boolean;
+	}): Promise<ProviderSubscription>;
 
-  /** Hosted "manage payment method / invoices" page; null when unsupported. */
-  getCustomerPortalUrl(input: { providerCustomerId: string; returnUrl: string }): Promise<string | null>;
+	/** Hosted "manage payment method / invoices" page; null when unsupported. */
+	getCustomerPortalUrl(input: {
+		providerCustomerId: string;
+		returnUrl: string;
+	}): Promise<string | null>;
 
-  /** Verify and normalize a webhook. Returns null for ignorable events; throws on a bad signature. */
-  parseWebhook(request: Request): Promise<BillingEvent | null>;
+	/** Verify and normalize a webhook. Returns null for ignorable events; throws on a bad signature. */
+	parseWebhook(request: Request): Promise<BillingEvent | null>;
 }
 
 export type BillingEvent =
-  | { type: 'subscription.updated'; providerEventId: string; subscription: ProviderSubscription }
-  | { type: 'subscription.canceled'; providerEventId: string; providerSubscriptionId: string }
-  | { type: 'payment.failed';        providerEventId: string; providerSubscriptionId: string };
+	| { type: 'subscription.updated'; providerEventId: string; subscription: ProviderSubscription }
+	| { type: 'subscription.canceled'; providerEventId: string; providerSubscriptionId: string }
+	| { type: 'payment.failed'; providerEventId: string; providerSubscriptionId: string };
 ```
 
 - **`ManualProvider`**: `startSubscription` and `changeSubscription` return
@@ -343,14 +373,14 @@ fields.
 
 ### 6.2 `(app)/+layout.server.ts` guard order
 
-1. No session: redirect to `/login`. *(existing)*
-2. **No organization: redirect to `/onboarding/organization`.** *(new)* This
+1. No session: redirect to `/login`. _(existing)_
+2. **No organization: redirect to `/onboarding/organization`.** _(new)_ This
    catches half-finished sign-ups and backfill gaps, and later serves
    invite-accepting users.
 3. **No usable subscription (not active, not trialing, and not past_due within the 30-day grace period):
-   redirect to `/settings/billing`.** *(new; can't happen with the `manual`
-   provider, but required for Stripe)*
-4. No schedule: redirect to `/schedules/new`. *(existing)*
+   redirect to `/settings/billing`.** _(new; can't happen with the `manual`
+   provider, but required for Stripe)_
+4. No schedule: redirect to `/schedules/new`. _(existing)_
 
 Exempt `/onboarding/*` from guards 2–4 and `/settings/billing` from guards 3–4.
 
@@ -667,13 +697,13 @@ Original steps:
 
 ## 11. Roadmap this plan prepares for
 
-| Future feature                  | What's already in place                                         | What it will add                                            |
-| ------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- |
-| Additional org admins           | `admin` role, `invitation` table, `org:manage_members` permission | Invite UI and accept flow (onboarding guard already handles it) |
-| Preceptor and student accounts  | Roles and `schedule:view_own` permission; `IdentityService` memberships | Linking a member to a `preceptors.id`/`students.id` row, read-only portals, and route-level permission checks |
-| Org-scoped data (true multi-tenancy) | `locals.organization` on every request; one owner per org today means `user_id` scoping ≡ org scoping | Migrations adding `organization_id` to domain tables, and switching scope helpers from `user_id` to org |
-| Seat-based pricing              | Plan catalog in code; provider maps prices                       | A `seats` quantity on subscriptions                          |
-| Leaving better-auth             | All app code uses `IdentityService` and our own types; import-boundary test | A new adapter plus a data migration of the auth and org tables |
+| Future feature                       | What's already in place                                                                               | What it will add                                                                                              |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Additional org admins                | `admin` role, `invitation` table, `org:manage_members` permission                                     | Invite UI and accept flow (onboarding guard already handles it)                                               |
+| Preceptor and student accounts       | Roles and `schedule:view_own` permission; `IdentityService` memberships                               | Linking a member to a `preceptors.id`/`students.id` row, read-only portals, and route-level permission checks |
+| Org-scoped data (true multi-tenancy) | `locals.organization` on every request; one owner per org today means `user_id` scoping ≡ org scoping | Migrations adding `organization_id` to domain tables, and switching scope helpers from `user_id` to org       |
+| Seat-based pricing                   | Plan catalog in code; provider maps prices                                                            | A `seats` quantity on subscriptions                                                                           |
+| Leaving better-auth                  | All app code uses `IdentityService` and our own types; import-boundary test                           | A new adapter plus a data migration of the auth and org tables                                                |
 
 ## 12. Open questions and risks
 

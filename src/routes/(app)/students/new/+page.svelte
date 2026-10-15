@@ -3,8 +3,8 @@
 	import { goto } from '$app/navigation';
 </script>
 
-<div class="container mx-auto py-8 max-w-2xl">
-	<h1 class="text-3xl font-bold mb-6">Add Student</h1>
+<div class="container mx-auto max-w-2xl py-8">
+	<h1 class="mb-6 text-3xl font-bold">Add Student</h1>
 
 	<StudentForm onSuccess={() => goto('/students')} onCancel={() => goto('/students')} />
 </div>

@@ -99,7 +99,7 @@ export async function assertBlockBasedStrategy(
 
 	// Each block should have a single preceptor (all assignments in block use same preceptor)
 	for (const block of blocks) {
-		const preceptorIds = new Set(block.map(a => a.preceptor_id));
+		const preceptorIds = new Set(block.map((a) => a.preceptor_id));
 		expect(preceptorIds.size).toBe(1);
 		// Each block should be <= blockSizeDays
 		expect(block.length).toBeLessThanOrEqual(blockSizeDays);

@@ -32,10 +32,7 @@ export function inBlockWeek(date: string, blockDates: string[]): boolean {
 }
 
 /** Student already holds a session that overlaps `session` on `date` (→ session_clash). */
-export function dayOccupied(
-	heldSessionsOnDate: Session[],
-	session: Session
-): boolean {
+export function dayOccupied(heldSessionsOnDate: Session[], session: Session): boolean {
 	return heldSessionsOnDate.some((s) => sessionsOverlap(s, session));
 }
 

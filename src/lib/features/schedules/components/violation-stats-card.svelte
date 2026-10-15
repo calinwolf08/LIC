@@ -28,24 +28,24 @@
 </script>
 
 <Card class="overflow-hidden">
-	<div class="bg-muted/50 px-4 py-3 border-b">
+	<div class="border-b bg-muted/50 px-4 py-3">
 		<h3 class="font-semibold">Top Blocking Constraints</h3>
-		<p class="text-sm text-muted-foreground mt-1">
+		<p class="mt-1 text-sm text-muted-foreground">
 			Constraints that prevented the most assignments
 		</p>
 	</div>
 
 	{#if violations.length === 0}
 		<div class="p-8 text-center">
-			<div class="text-green-600 text-lg font-medium">No Constraint Violations</div>
-			<p class="text-sm text-muted-foreground mt-1">
+			<div class="text-lg font-medium text-green-600">No Constraint Violations</div>
+			<p class="mt-1 text-sm text-muted-foreground">
 				All attempted assignments passed constraint validation.
 			</p>
 		</div>
 	{:else}
 		<div class="divide-y">
 			{#each topViolations as violation, index}
-				<div class="px-4 py-3 hover:bg-muted/30 transition-colors">
+				<div class="px-4 py-3 transition-colors hover:bg-muted/30">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
 							<div class="text-lg font-bold text-muted-foreground">
@@ -62,7 +62,7 @@
 						</div>
 						<div class="text-right">
 							<span
-								class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityClass(violation.percentage)}`}
+								class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getSeverityClass(violation.percentage)}`}
 							>
 								{violation.percentage.toFixed(1)}%
 							</span>
@@ -73,7 +73,7 @@
 		</div>
 
 		{#if violations.length > 5}
-			<div class="px-4 py-3 bg-muted/30 text-sm text-muted-foreground text-center">
+			<div class="bg-muted/30 px-4 py-3 text-center text-sm text-muted-foreground">
 				+{violations.length - 5} more constraint type{violations.length - 5 !== 1 ? 's' : ''}
 			</div>
 		{/if}

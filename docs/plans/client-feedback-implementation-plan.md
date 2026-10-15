@@ -574,18 +574,18 @@ batch-create). Delivered as sub-steps, each shippable:
 
 ## Sequencing summary & dependencies
 
-| Phase | Theme                              | Depends on         | Client scenarios closed (primary)                     |
-| ----- | ---------------------------------- | ------------------ | ----------------------------------------------------- |
-| 1     | P0 bugs                            | —                  | A1, B1, C1, G1, H1, I1                                 |
-| 2     | Clarity / context / copy           | 1 (B1, I1)         | N1, B2–B4, C2–C5, D1–D2, E1, F1–F2, H2–H5, I2, I4     |
-| 3     | Teams as coverage groups + core    | 1 (G1)             | G2–G4, F5                                              |
-| 4     | Availability depth                 | 2 (copy)           | H6, H7, H8                                             |
-| 5     | Requirement math                   | —                  | M1/F4, E2, E3                                          |
-| 6     | Calendar workspace                 | 2                  | J1–J3, I3                                              |
-| 7     | Conflict visibility chain          | 3 (F5), 5, 6       | L1, L2, L3                                             |
-| 8     | Non-clinical assignments           | 5 (math)           | M2, M3, M4                                             |
-| 9     | Distribution + FERPA               | 2, K2 spike        | K2, K1                                                 |
-| 10    | Planning assistant (Basic slice)   | 4, 6, 7            | L4                                                     |
+| Phase | Theme                            | Depends on   | Client scenarios closed (primary)                 |
+| ----- | -------------------------------- | ------------ | ------------------------------------------------- |
+| 1     | P0 bugs                          | —            | A1, B1, C1, G1, H1, I1                            |
+| 2     | Clarity / context / copy         | 1 (B1, I1)   | N1, B2–B4, C2–C5, D1–D2, E1, F1–F2, H2–H5, I2, I4 |
+| 3     | Teams as coverage groups + core  | 1 (G1)       | G2–G4, F5                                         |
+| 4     | Availability depth               | 2 (copy)     | H6, H7, H8                                        |
+| 5     | Requirement math                 | —            | M1/F4, E2, E3                                     |
+| 6     | Calendar workspace               | 2            | J1–J3, I3                                         |
+| 7     | Conflict visibility chain        | 3 (F5), 5, 6 | L1, L2, L3                                        |
+| 8     | Non-clinical assignments         | 5 (math)     | M2, M3, M4                                        |
+| 9     | Distribution + FERPA             | 2, K2 spike  | K2, K1                                            |
+| 10    | Planning assistant (Basic slice) | 4, 6, 7      | L4                                                |
 
 **Fastest path to "this client can use it":** Phases 1 → 2 → 7-L1. That closes
 every P0 bug, the comprehension cluster, and the headline conflict-visibility ask.

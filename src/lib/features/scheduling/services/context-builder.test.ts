@@ -7,12 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { buildSchedulingContext } from './context-builder';
-import type {
-	Students,
-	Preceptors,
-	Clerkships,
-	PreceptorAvailability
-} from '$lib/db/types';
+import type { Students, Preceptors, Clerkships, PreceptorAvailability } from '$lib/db/types';
 
 describe('buildSchedulingContext()', () => {
 	it('builds context with all required fields', () => {
@@ -83,7 +78,15 @@ describe('buildSchedulingContext()', () => {
 	it('converts blackout dates array to Set', () => {
 		const blackoutDates = ['2024-12-25', '2024-01-01', '2024-07-04'];
 
-		const context = buildSchedulingContext([], [], [], blackoutDates, [], '2024-01-01', '2024-12-31');
+		const context = buildSchedulingContext(
+			[],
+			[],
+			[],
+			blackoutDates,
+			[],
+			'2024-01-01',
+			'2024-12-31'
+		);
 
 		expect(context.blackoutDates).toBeInstanceOf(Set);
 		expect(context.blackoutDates.size).toBe(3);
@@ -122,15 +125,7 @@ describe('buildSchedulingContext()', () => {
 			}
 		];
 
-		const context = buildSchedulingContext(
-			[],
-			preceptors,
-			[],
-			[],
-			[],
-			'2024-01-01',
-			'2024-12-31'
-		);
+		const context = buildSchedulingContext([], preceptors, [], [], [], '2024-01-01', '2024-12-31');
 
 		// With no availability records, each preceptor has an empty date->site map
 		expect(context.preceptorAvailability).toBeInstanceOf(Map);

@@ -21,12 +21,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('pk_preceptor_sites', ['preceptor_id', 'site_id'])
 		.execute();
 
@@ -36,12 +32,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('team_id', 'text', (col) =>
 			col.notNull().references('preceptor_teams.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('pk_team_sites', ['team_id', 'site_id'])
 		.execute();
 
@@ -58,17 +50,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.column('site_id')
 		.execute();
 
-	await db.schema
-		.createIndex('idx_team_sites_team')
-		.on('team_sites')
-		.column('team_id')
-		.execute();
+	await db.schema.createIndex('idx_team_sites_team').on('team_sites').column('team_id').execute();
 
-	await db.schema
-		.createIndex('idx_team_sites_site')
-		.on('team_sites')
-		.column('site_id')
-		.execute();
+	await db.schema.createIndex('idx_team_sites_site').on('team_sites').column('site_id').execute();
 
 	// Migrate existing preceptor site_id data to the new junction table
 	// This preserves existing site assignments

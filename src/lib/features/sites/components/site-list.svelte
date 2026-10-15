@@ -64,13 +64,17 @@
 							onclick={() => goto(`/sites/${site.id}`)}
 						>
 							<td class="px-4 py-3 text-sm">
-								<a href="/sites/{site.id}" class="font-medium text-primary hover:underline">{site.name}</a>
+								<a href="/sites/{site.id}" class="font-medium text-primary hover:underline"
+									>{site.name}</a
+								>
 							</td>
 							<td class="px-4 py-3 text-sm">{site.health_system_name || '-'}</td>
 							<td class="px-4 py-3 text-sm">{site.address || '-'}</td>
 							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex items-center gap-2">
-									<Button size="sm" variant="default" onclick={() => goto(`/sites/${site.id}`)}>Manage</Button>
+									<Button size="sm" variant="default" onclick={() => goto(`/sites/${site.id}`)}
+										>Manage</Button
+									>
 									<Button size="sm" variant="destructive" onclick={() => handleDeleteClick(site)}>
 										Delete
 									</Button>

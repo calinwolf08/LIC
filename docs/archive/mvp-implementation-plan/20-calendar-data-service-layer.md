@@ -1,9 +1,11 @@
 # Step 20: Calendar Data - Service Layer
 
 ## Overview
+
 Implement the service layer for aggregating and formatting schedule data for calendar display. This includes functions to retrieve assignments with related entity data (student names, preceptor names, clerkship names) and filter/group data for various calendar views.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -12,19 +14,23 @@ Implement the service layer for aggregating and formatting schedule data for cal
 ## Requirements
 
 ### Data Aggregation
+
 Implement functions to retrieve enriched assignment data:
+
 - Get schedule with all related entity data (JOIN queries)
 - Filter by student, preceptor, clerkship, date range
 - Group assignments by day/week/month for calendar views
 - Format data for calendar component consumption
 
 ### Business Logic
+
 - Combine assignment data with student/preceptor/clerkship names
 - Calculate date ranges for calendar views
 - Handle empty states (no assignments for date range)
 - Optimize queries for calendar performance
 
 ### Data Structures
+
 - Enriched assignment type (includes entity names)
 - Calendar event type (for calendar component)
 - Grouped assignments by time period
@@ -32,6 +38,7 @@ Implement functions to retrieve enriched assignment data:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/schedules/
 ├── services/
@@ -50,46 +57,47 @@ Implement functions to retrieve enriched assignment data:
 Type definitions for calendar data.
 
 **Exports:**
+
 ```typescript
 import type { ScheduleAssignmentsTable } from '$lib/db/types';
 
 // Enriched assignment with entity names
 export interface EnrichedAssignment extends ScheduleAssignmentsTable {
-  student_name: string;
-  student_email: string;
-  preceptor_name: string;
-  preceptor_email: string;
-  preceptor_specialty: string;
-  clerkship_name: string;
-  clerkship_specialty: string;
-  clerkship_required_days: number;
+	student_name: string;
+	student_email: string;
+	preceptor_name: string;
+	preceptor_email: string;
+	preceptor_specialty: string;
+	clerkship_name: string;
+	clerkship_specialty: string;
+	clerkship_required_days: number;
 }
 
 // Calendar event format
 export interface CalendarEvent {
-  id: string;
-  title: string;
-  start: string; // ISO date
-  end: string; // ISO date
-  description: string;
-  color: string;
-  assignment: EnrichedAssignment;
+	id: string;
+	title: string;
+	start: string; // ISO date
+	end: string; // ISO date
+	description: string;
+	color: string;
+	assignment: EnrichedAssignment;
 }
 
 // Grouped assignments by date
 export interface DailyAssignments {
-  date: string; // YYYY-MM-DD
-  assignments: EnrichedAssignment[];
-  count: number;
+	date: string; // YYYY-MM-DD
+	assignments: EnrichedAssignment[];
+	count: number;
 }
 
 // Calendar filters
 export interface CalendarFilters {
-  student_id?: string;
-  preceptor_id?: string;
-  clerkship_id?: string;
-  start_date: string;
-  end_date: string;
+	student_id?: string;
+	preceptor_id?: string;
+	clerkship_id?: string;
+	start_date: string;
+	end_date: string;
 }
 ```
 
@@ -100,50 +108,56 @@ export interface CalendarFilters {
 Service functions for calendar data aggregation.
 
 **Exports:**
+
 ```typescript
 import type { Kysely } from 'kysely';
 import type { Database } from '$lib/db/types';
-import type { EnrichedAssignment, CalendarEvent, DailyAssignments, CalendarFilters } from '../types';
+import type {
+	EnrichedAssignment,
+	CalendarEvent,
+	DailyAssignments,
+	CalendarFilters
+} from '../types';
 
 export async function getEnrichedAssignments(
-  db: Kysely<Database>,
-  filters: CalendarFilters
-): Promise<EnrichedAssignment[]>
+	db: Kysely<Database>,
+	filters: CalendarFilters
+): Promise<EnrichedAssignment[]>;
 
 export async function getCalendarEvents(
-  db: Kysely<Database>,
-  filters: CalendarFilters
-): Promise<CalendarEvent[]>
+	db: Kysely<Database>,
+	filters: CalendarFilters
+): Promise<CalendarEvent[]>;
 
 export async function getDailyAssignments(
-  db: Kysely<Database>,
-  filters: CalendarFilters
-): Promise<DailyAssignments[]>
+	db: Kysely<Database>,
+	filters: CalendarFilters
+): Promise<DailyAssignments[]>;
 
 export async function getAssignmentsByStudent(
-  db: Kysely<Database>,
-  studentId: string,
-  startDate?: string,
-  endDate?: string
-): Promise<EnrichedAssignment[]>
+	db: Kysely<Database>,
+	studentId: string,
+	startDate?: string,
+	endDate?: string
+): Promise<EnrichedAssignment[]>;
 
 export async function getAssignmentsByPreceptor(
-  db: Kysely<Database>,
-  preceptorId: string,
-  startDate?: string,
-  endDate?: string
-): Promise<EnrichedAssignment[]>
+	db: Kysely<Database>,
+	preceptorId: string,
+	startDate?: string,
+	endDate?: string
+): Promise<EnrichedAssignment[]>;
 
 export async function getScheduleSummary(
-  db: Kysely<Database>,
-  startDate: string,
-  endDate: string
+	db: Kysely<Database>,
+	startDate: string,
+	endDate: string
 ): Promise<{
-  total_assignments: number;
-  active_students: number;
-  active_preceptors: number;
-  assignments_by_clerkship: { clerkship_name: string; count: number }[];
-}>
+	total_assignments: number;
+	active_students: number;
+	active_preceptors: number;
+	assignments_by_clerkship: { clerkship_name: string; count: number }[];
+}>;
 ```
 
 ---
@@ -155,6 +169,7 @@ export async function getScheduleSummary(
 Get assignments with all related entity data via JOINs.
 
 **Logic:**
+
 - Query schedule_assignments table
 - JOIN with students table (for student name, email)
 - JOIN with preceptors table (for preceptor name, email, specialty)
@@ -164,6 +179,7 @@ Get assignments with all related entity data via JOINs.
 - Return enriched assignment array
 
 **Parameters:**
+
 - `filters`: Object with filter criteria
 
 **Returns:** Array of enriched assignments
@@ -171,11 +187,12 @@ Get assignments with all related entity data via JOINs.
 **Errors:** None (returns empty array if no matches)
 
 **Example:**
+
 ```typescript
 const assignments = await getEnrichedAssignments(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31',
-  student_id: 'student-123'
+	start_date: '2024-01-01',
+	end_date: '2024-12-31',
+	student_id: 'student-123'
 });
 
 console.log(assignments[0].student_name); // "John Doe"
@@ -190,6 +207,7 @@ console.log(assignments[0].clerkship_name); // "Internal Medicine"
 Convert assignments to calendar event format.
 
 **Logic:**
+
 - Call `getEnrichedAssignments()` with filters
 - Transform each assignment to calendar event:
   - id: assignment.id
@@ -202,6 +220,7 @@ Convert assignments to calendar event format.
 - Return array of calendar events
 
 **Parameters:**
+
 - `filters`: Calendar filter criteria
 
 **Returns:** Array of calendar events
@@ -209,10 +228,11 @@ Convert assignments to calendar event format.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const events = await getCalendarEvents(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31'
+	start_date: '2024-01-01',
+	end_date: '2024-12-31'
 });
 
 // Format for calendar component
@@ -236,6 +256,7 @@ const events = await getCalendarEvents(db, {
 Group assignments by day for daily view.
 
 **Logic:**
+
 - Call `getEnrichedAssignments()` with filters
 - For each day in date range:
   - Find assignments that include this date
@@ -243,6 +264,7 @@ Group assignments by day for daily view.
 - Return array of daily assignments
 
 **Parameters:**
+
 - `filters`: Calendar filter criteria
 
 **Returns:** Array of daily assignments
@@ -250,10 +272,11 @@ Group assignments by day for daily view.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const daily = await getDailyAssignments(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-01-07'
+	start_date: '2024-01-01',
+	end_date: '2024-01-07'
 });
 
 // [
@@ -270,11 +293,13 @@ const daily = await getDailyAssignments(db, {
 Get all assignments for a specific student.
 
 **Logic:**
+
 - Call `getEnrichedAssignments()` with student filter
 - Optionally filter by date range
 - Return enriched assignments
 
 **Parameters:**
+
 - `studentId`: Student UUID
 - `startDate`: Optional start date filter
 - `endDate`: Optional end date filter
@@ -284,12 +309,13 @@ Get all assignments for a specific student.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const studentSchedule = await getAssignmentsByStudent(
-  db,
-  'student-123',
-  '2024-01-01',
-  '2024-12-31'
+	db,
+	'student-123',
+	'2024-01-01',
+	'2024-12-31'
 );
 ```
 
@@ -300,11 +326,13 @@ const studentSchedule = await getAssignmentsByStudent(
 Get all assignments for a specific preceptor.
 
 **Logic:**
+
 - Call `getEnrichedAssignments()` with preceptor filter
 - Optionally filter by date range
 - Return enriched assignments
 
 **Parameters:**
+
 - `preceptorId`: Preceptor UUID
 - `startDate`: Optional start date filter
 - `endDate`: Optional end date filter
@@ -314,12 +342,13 @@ Get all assignments for a specific preceptor.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const preceptorSchedule = await getAssignmentsByPreceptor(
-  db,
-  'preceptor-456',
-  '2024-01-01',
-  '2024-12-31'
+	db,
+	'preceptor-456',
+	'2024-01-01',
+	'2024-12-31'
 );
 ```
 
@@ -330,6 +359,7 @@ const preceptorSchedule = await getAssignmentsByPreceptor(
 Get summary statistics for a date range.
 
 **Logic:**
+
 - Query schedule_assignments within date range
 - Calculate:
   - Total number of assignments
@@ -339,6 +369,7 @@ Get summary statistics for a date range.
 - Return summary object
 
 **Parameters:**
+
 - `startDate`: Range start date
 - `endDate`: Range end date
 
@@ -347,6 +378,7 @@ Get summary statistics for a date range.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const summary = await getScheduleSummary(db, '2024-01-01', '2024-12-31');
 
@@ -371,6 +403,7 @@ const summary = await getScheduleSummary(db, '2024-01-01', '2024-12-31');
 #### `/src/lib/features/schedules/services/calendar-service.test.ts`
 
 **getEnrichedAssignments():**
+
 - ✅ Returns enriched assignments with all entity data
 - ✅ Filters by student_id
 - ✅ Filters by preceptor_id
@@ -381,6 +414,7 @@ const summary = await getScheduleSummary(db, '2024-01-01', '2024-12-31');
 - ✅ Orders by start_date
 
 **getCalendarEvents():**
+
 - ✅ Transforms assignments to calendar event format
 - ✅ Sets correct title format
 - ✅ Sets correct description
@@ -388,24 +422,28 @@ const summary = await getScheduleSummary(db, '2024-01-01', '2024-12-31');
 - ✅ Returns empty array when no assignments
 
 **getDailyAssignments():**
+
 - ✅ Groups assignments by day
 - ✅ Includes assignments spanning multiple days
 - ✅ Calculates correct counts
 - ✅ Returns all days in range (even with 0 assignments)
 
 **getAssignmentsByStudent():**
+
 - ✅ Returns all assignments for student
 - ✅ Filters by date range when provided
 - ✅ Returns enriched data
 - ✅ Returns empty array for student with no assignments
 
 **getAssignmentsByPreceptor():**
+
 - ✅ Returns all assignments for preceptor
 - ✅ Filters by date range when provided
 - ✅ Returns enriched data
 - ✅ Returns empty array for preceptor with no assignments
 
 **getScheduleSummary():**
+
 - ✅ Calculates total assignments correctly
 - ✅ Counts unique students correctly
 - ✅ Counts unique preceptors correctly
@@ -453,15 +491,15 @@ const summary = await getScheduleSummary(db, '2024-01-01', '2024-12-31');
 ```typescript
 import { db } from '$lib/db';
 import {
-  getCalendarEvents,
-  getScheduleSummary
+	getCalendarEvents,
+	getScheduleSummary
 } from '$lib/features/schedules/services/calendar-service';
 
 // Get calendar events for display
 const events = await getCalendarEvents(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31',
-  student_id: 'student-123'
+	start_date: '2024-01-01',
+	end_date: '2024-12-31',
+	student_id: 'student-123'
 });
 
 // Get summary statistics

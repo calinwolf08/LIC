@@ -49,15 +49,15 @@ by the `tenant-isolation` e2e journey. The seed is idempotent.
 
 So the calendar, schedule-health panel and override review have content on first
 run, `admin@example.com` starts with a hand-built set of assignments (all dates
-anchored to *today*, so the demo never rots into the past):
+anchored to _today_, so the demo never rots into the past):
 
-| Scenario                      | What it demonstrates                                                   |
-| ----------------------------- | ---------------------------------------------------------------------- |
-| Clean 5-day block             | A normal calendar run and healthy progress bars                        |
-| Partially-complete clerkship  | The requirement strip and the "days left" badge (10 of 28 days)        |
-| Fully-complete clerkship      | The completed state (14 of 14 days)                                    |
-| Preceptor over capacity ×4    | Schedule health counts **4** findings (one per day, not per student) and the override review groups the run into one 4-day row; carries an accepted `preceptor_capacity` override |
-| Resolved `not_onboarded`      | The override review's active/resolved toggle — the student has since onboarded, so the exception reads as resolved |
+| Scenario                     | What it demonstrates                                                                                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clean 5-day block            | A normal calendar run and healthy progress bars                                                                                                                                   |
+| Partially-complete clerkship | The requirement strip and the "days left" badge (10 of 28 days)                                                                                                                   |
+| Fully-complete clerkship     | The completed state (14 of 14 days)                                                                                                                                               |
+| Preceptor over capacity ×4   | Schedule health counts **4** findings (one per day, not per student) and the override review groups the run into one 4-day row; carries an accepted `preceptor_capacity` override |
+| Resolved `not_onboarded`     | The override review's active/resolved toggle — the student has since onboarded, so the exception reads as resolved                                                                |
 
 Tenant B gets the same shape at smaller scale (two students, one accepted
 override) so isolation tests have more than a single row to miss.
@@ -152,7 +152,7 @@ the schema and boots.
 #### SQLite
 
 Put the file on a **persistent volume**, or every redeploy starts from an empty
-database. Point `DATABASE_PATH` at a mounted directory and mount the *directory*
+database. Point `DATABASE_PATH` at a mounted directory and mount the _directory_
 (WAL mode also writes `…-wal` / `…-shm` sidecar files):
 
 ```

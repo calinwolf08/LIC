@@ -25,61 +25,65 @@ import { readValidation, countOf } from '../../oracle/validation';
 import type { Kysely } from 'kysely';
 import type { DB } from '../../../src/lib/db/types';
 
-test.describe('AG-1 full generation honors block/scatter at scale', { tag: ['@stage2', '@long'] }, () => {
-	test('block on its Monday, scattered in the free week, zero conflicts', async ({
-		asAdmin,
-		sandbox,
-		db
-	}) => {
-		test.setTimeout(240000);
-		const kysely = db as Kysely<DB>;
-		const world = await buildWorld(asAdmin, kysely, blockScatterWorld(2));
-		sandbox.register(world.sandbox);
+test.describe(
+	'AG-1 full generation honors block/scatter at scale',
+	{ tag: ['@stage2', '@long'] },
+	() => {
+		test('block on its Monday, scattered in the free week, zero conflicts', async ({
+			asAdmin,
+			sandbox,
+			db
+		}) => {
+			test.setTimeout(240000);
+			const kysely = db as Kysely<DB>;
+			const world = await buildWorld(asAdmin, kysely, blockScatterWorld(2));
+			sandbox.register(world.sandbox);
 
-		const blockMon = world.anchor;
-		const blockWeekWed = addDays(world.anchor, 2);
-		const freeMon = addDays(world.anchor, 7);
-		const imId = world.ids.clerkship['Inpatient Medicine'];
-		const fmId = world.ids.clerkship['Family Medicine'];
+			const blockMon = world.anchor;
+			const blockWeekWed = addDays(world.anchor, 2);
+			const freeMon = addDays(world.anchor, 7);
+			const imId = world.ids.clerkship['Inpatient Medicine'];
+			const fmId = world.ids.clerkship['Family Medicine'];
 
-		// --- Generate through the real dialog (full mode) ---
-		await new GeneratePage(asAdmin).generate('full');
+			// --- Generate through the real dialog (full mode) ---
+			await new GeneratePage(asAdmin).generate('full');
 
-		// --- DB: every student placed correctly, L3 honored ---
-		const rows = await assignmentsForSchedule(kysely, world.scheduleId);
-		expect(rows.length).toBe(4); // 2 students × (block + scatter)
-		expect(rows.every((r) => r.source === 'generated')).toBe(true);
+			// --- DB: every student placed correctly, L3 honored ---
+			const rows = await assignmentsForSchedule(kysely, world.scheduleId);
+			expect(rows.length).toBe(4); // 2 students × (block + scatter)
+			expect(rows.every((r) => r.source === 'generated')).toBe(true);
 
-		for (const name of ['Student 1', 'Student 2']) {
-			const sid = world.ids.student[name];
-			const mine = rows.filter((r) => r.student_id === sid);
-			const block = mine.find((r) => r.clerkship_id === imId);
-			const scatter = mine.find((r) => r.clerkship_id === fmId);
-			expect(block?.date, `${name} block on Monday`).toBe(blockMon);
-			expect(scatter?.date, `${name} scatter in free week`).toBe(freeMon);
-			expect(scatter?.date, `${name} scatter NOT in block week`).not.toBe(blockWeekWed);
-		}
+			for (const name of ['Student 1', 'Student 2']) {
+				const sid = world.ids.student[name];
+				const mine = rows.filter((r) => r.student_id === sid);
+				const block = mine.find((r) => r.clerkship_id === imId);
+				const scatter = mine.find((r) => r.clerkship_id === fmId);
+				expect(block?.date, `${name} block on Monday`).toBe(blockMon);
+				expect(scatter?.date, `${name} scatter in free week`).toBe(freeMon);
+				expect(scatter?.date, `${name} scatter NOT in block week`).not.toBe(blockWeekWed);
+			}
 
-		// --- validation API: clean on the two constraints this world stresses ---
-		const v = await readValidation(asAdmin);
-		expect(countOf(v, 'block_week_conflict')).toBe(0);
-		expect(countOf(v, 'session_clash')).toBe(0);
+			// --- validation API: clean on the two constraints this world stresses ---
+			const v = await readValidation(asAdmin);
+			expect(countOf(v, 'block_week_conflict')).toBe(0);
+			expect(countOf(v, 'session_clash')).toBe(0);
 
-		// --- calendar Schedule-health panel agrees (no conflicts) ---
-		await asAdmin.goto('/calendar');
-		const health = new HealthPanel(asAdmin);
-		expect(await health.violationCount()).toBe(0);
+			// --- calendar Schedule-health panel agrees (no conflicts) ---
+			await asAdmin.goto('/calendar');
+			const health = new HealthPanel(asAdmin);
+			expect(await health.violationCount()).toBe(0);
 
-		// --- each student's own conflict panel shows no block-week conflict ---
-		for (const name of ['Student 1', 'Student 2']) {
-			const page = new StudentSchedulePage(asAdmin);
-			await page.goto(world.ids.student[name]);
-			expect(await page.hasConflict('block_week_conflict')).toBe(false);
-		}
+			// --- each student's own conflict panel shows no block-week conflict ---
+			for (const name of ['Student 1', 'Student 2']) {
+				const page = new StudentSchedulePage(asAdmin);
+				await page.goto(world.ids.student[name]);
+				expect(await page.hasConflict('block_week_conflict')).toBe(false);
+			}
 
-		// --- results page reads complete ---
-		const gen = new GeneratePage(asAdmin);
-		await gen.gotoResults();
-		expect(await gen.resultsComplete()).toBe(true);
-	});
-});
+			// --- results page reads complete ---
+			const gen = new GeneratePage(asAdmin);
+			await gen.gotoResults();
+			expect(await gen.resultsComplete()).toBe(true);
+		});
+	}
+);

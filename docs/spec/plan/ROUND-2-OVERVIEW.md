@@ -25,18 +25,18 @@ Steps are ordered by dependency. **15 must run first** (it fixes a root cause be
                       all ─> 24
 ```
 
-| Step | Title | Depends on | Status |
-|---|---|---|---|
-| 15 | Schedule scoping correctness & range foundation | — | ✅ shipped |
-| 16 | Preceptor availability: crash fix, wizard, layout | 15 | ✅ shipped |
-| 17 | Assignment eligibility, day states, override model (backend) | 15, 16 | ✅ shipped |
-| 18 | One assignment dialog everywhere | 17 | ✅ shipped |
-| 19 | Student page rework | 15, 17, 18 | ✅ shipped |
-| 20 | Calendar page rework | 15, 17, 18 | ✅ shipped |
-| 21 | Preceptor page assignments | 16, 17, 18 | ✅ shipped |
-| 22 | Entity consistency: "Manage" + read-only overviews | — | ✅ shipped |
-| 23 | Navigation: fold Schedules into the switcher | 15 | ✅ shipped |
-| 24 | Integrated regression | all | ✅ shipped |
+| Step | Title                                                        | Depends on | Status     |
+| ---- | ------------------------------------------------------------ | ---------- | ---------- |
+| 15   | Schedule scoping correctness & range foundation              | —          | ✅ shipped |
+| 16   | Preceptor availability: crash fix, wizard, layout            | 15         | ✅ shipped |
+| 17   | Assignment eligibility, day states, override model (backend) | 15, 16     | ✅ shipped |
+| 18   | One assignment dialog everywhere                             | 17         | ✅ shipped |
+| 19   | Student page rework                                          | 15, 17, 18 | ✅ shipped |
+| 20   | Calendar page rework                                         | 15, 17, 18 | ✅ shipped |
+| 21   | Preceptor page assignments                                   | 16, 17, 18 | ✅ shipped |
+| 22   | Entity consistency: "Manage" + read-only overviews           | —          | ✅ shipped |
+| 23   | Navigation: fold Schedules into the switcher                 | 15         | ✅ shipped |
+| 24   | Integrated regression                                        | all        | ✅ shipped |
 
 ## Root causes worth knowing before you start
 
@@ -54,39 +54,39 @@ Also relevant: `schedule_assignments` has **no `schedule_id` column**; assignmen
 
 Every issue reported from the beta session, mapped to where it is fixed. Step 24 requires each row to have a test that fails before the fix.
 
-| # | Reported issue | Step |
-|---|---|---|
-| 1 | Schedule rename doesn't update the sidebar dropdown until refresh | 15 |
-| 2 | Preceptor wizard step 3: no way to actually set availability | 16 |
-| 3 | Wizard says "no sites" though a site was chosen on the previous step | 16 |
-| 4 | Capacity Overview shows months outside the schedule range | 15, 16 |
-| 5 | Availability/schedule tabs show a full year, not the schedule range | 15, 16 |
-| 6 | Must scroll to the bottom to edit availability | 16 |
-| 7 | `TypeError: can't access property "length", $$props.sites is undefined` | 16 |
-| 8 | Details-tab info not visible (read-only) on Overview | 22 |
-| 9 | Add-assignment doesn't filter clerkship/preceptor/site to valid combinations | 17, 18 |
-| 10 | Dates ignore preceptor availability; don't show already-scheduled days | 17, 18 |
-| 11 | No range/block/individual day selection when assigning | 18 |
-| 12 | No availability override prompt (+ option to update the preceptor's availability) | 17, 18 |
-| 13 | No double-book prompt (double-book / move other student; raise limit vs one-time) | 17, 18 |
-| 14 | "Lock this assignment" visible without the autogen entitlement | 18 |
-| 15 | Can't see student progress + assigned preceptors while assigning | 18, 19 |
-| 16 | No warning when assigning more days than a clerkship requires | 17, 18 |
-| 17 | No onboarding warning (linking to the Onboarding tab) on the student page | 19 |
-| 18 | Student schedule tab: Clerkship/Preceptor columns empty | 19 |
-| 19 | Student schedule should default to calendar, with a list toggle | 19 |
-| 20 | Assignments can only be removed, not edited | 19, 20, 21 |
-| 21 | Past-dated assignments: need an override to remove/replace | 17, 19 |
-| 22 | Lists say "View"/"Edit" — should be "Manage"; drop the locations edit dialog | 22 |
-| 23 | Calendar opens in list view | 20 |
-| 24 | Calendar day cells show "Int" instead of student·clerkship·preceptor | 20 |
-| 25 | Calendar edit popup should be the full assignment dialog (single day) | 20 |
-| 26 | Calendar add-assignment = student-page dialog + a student dropdown | 20 |
-| 27 | Preceptor page add-assignment needs the same logic and context | 21 |
-| 28 | Schedule health not visible from the calendar | 20 |
-| 29 | Overrides aren't tracked or reviewable | 17, 20 |
-| 30 | `/schedules` vs `/calendar` is confusing; move to the switcher | 23 |
-| 31 | All of the above need real test coverage | every step + 24 |
+| #   | Reported issue                                                                    | Step            |
+| --- | --------------------------------------------------------------------------------- | --------------- |
+| 1   | Schedule rename doesn't update the sidebar dropdown until refresh                 | 15              |
+| 2   | Preceptor wizard step 3: no way to actually set availability                      | 16              |
+| 3   | Wizard says "no sites" though a site was chosen on the previous step              | 16              |
+| 4   | Capacity Overview shows months outside the schedule range                         | 15, 16          |
+| 5   | Availability/schedule tabs show a full year, not the schedule range               | 15, 16          |
+| 6   | Must scroll to the bottom to edit availability                                    | 16              |
+| 7   | `TypeError: can't access property "length", $$props.sites is undefined`           | 16              |
+| 8   | Details-tab info not visible (read-only) on Overview                              | 22              |
+| 9   | Add-assignment doesn't filter clerkship/preceptor/site to valid combinations      | 17, 18          |
+| 10  | Dates ignore preceptor availability; don't show already-scheduled days            | 17, 18          |
+| 11  | No range/block/individual day selection when assigning                            | 18              |
+| 12  | No availability override prompt (+ option to update the preceptor's availability) | 17, 18          |
+| 13  | No double-book prompt (double-book / move other student; raise limit vs one-time) | 17, 18          |
+| 14  | "Lock this assignment" visible without the autogen entitlement                    | 18              |
+| 15  | Can't see student progress + assigned preceptors while assigning                  | 18, 19          |
+| 16  | No warning when assigning more days than a clerkship requires                     | 17, 18          |
+| 17  | No onboarding warning (linking to the Onboarding tab) on the student page         | 19              |
+| 18  | Student schedule tab: Clerkship/Preceptor columns empty                           | 19              |
+| 19  | Student schedule should default to calendar, with a list toggle                   | 19              |
+| 20  | Assignments can only be removed, not edited                                       | 19, 20, 21      |
+| 21  | Past-dated assignments: need an override to remove/replace                        | 17, 19          |
+| 22  | Lists say "View"/"Edit" — should be "Manage"; drop the locations edit dialog      | 22              |
+| 23  | Calendar opens in list view                                                       | 20              |
+| 24  | Calendar day cells show "Int" instead of student·clerkship·preceptor              | 20              |
+| 25  | Calendar edit popup should be the full assignment dialog (single day)             | 20              |
+| 26  | Calendar add-assignment = student-page dialog + a student dropdown                | 20              |
+| 27  | Preceptor page add-assignment needs the same logic and context                    | 21              |
+| 28  | Schedule health not visible from the calendar                                     | 20              |
+| 29  | Overrides aren't tracked or reviewable                                            | 17, 20          |
+| 30  | `/schedules` vs `/calendar` is confusing; move to the switcher                    | 23              |
+| 31  | All of the above need real test coverage                                          | every step + 24 |
 
 ## Standing requirements
 

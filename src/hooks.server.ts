@@ -29,10 +29,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// session, so a new route cannot forget. `/api/auth/*` (owned by better-auth)
 	// is public; page routes are guarded by `(app)/+layout.server.ts`. Default-deny.
 	if (!building && requiresApiAuthChallenge(event.url.pathname, Boolean(session))) {
-		return json(
-			{ success: false, error: { message: 'Authentication required' } },
-			{ status: 401 }
-		);
+		return json({ success: false, error: { message: 'Authentication required' } }, { status: 401 });
 	}
 
 	// Central Stage 2 gate (05 §3): engine-only `/api/` prefixes return 403 here

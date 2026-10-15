@@ -17,7 +17,7 @@ import {
 	createTestPreceptor,
 	createTestTeam,
 	clearAllTestData,
-	generateDateRange,
+	generateDateRange
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import { nanoid } from 'nanoid';
@@ -63,7 +63,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				is_required: options.isRequired !== false ? 1 : 0,
 				override_mode: 'inherit',
 				created_at: now,
-				updated_at: now,
+				updated_at: now
 			})
 			.execute();
 
@@ -76,7 +76,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 						id: nanoid(),
 						elective_id: electiveId,
 						site_id: siteId,
-						created_at: now,
+						created_at: now
 					}))
 				)
 				.execute();
@@ -91,7 +91,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 						id: nanoid(),
 						elective_id: electiveId,
 						preceptor_id: preceptorId,
-						created_at: now,
+						created_at: now
 					}))
 				)
 				.execute();
@@ -102,22 +102,25 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 1: Elective database structure', () => {
 		it('should create electives with proper is_required flag', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			// Create required and optional electives (now linked directly to clerkship)
 			const requiredElectiveId = await createElective(clerkshipId, {
 				name: 'Required Cardiology',
 				minimumDays: 5,
-				isRequired: true,
+				isRequired: true
 			});
 
 			const optionalElectiveId = await createElective(clerkshipId, {
 				name: 'Optional Neurology',
 				minimumDays: 3,
-				isRequired: false,
+				isRequired: false
 			});
 
 			// Verify electives were created
@@ -139,15 +142,18 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 2: Elective site associations', () => {
 		it('should properly store elective-site associations', async () => {
-			const { healthSystemId, siteIds: [siteId, site2Id] } = await createTestHealthSystem(db, 'Hospital', 2);
+			const {
+				healthSystemId,
+				siteIds: [siteId, site2Id]
+			} = await createTestHealthSystem(db, 'Hospital', 2);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			const electiveId = await createElective(clerkshipId, {
 				name: 'Multi-Site Elective',
 				minimumDays: 5,
-				siteIds: [siteId, site2Id],
+				siteIds: [siteId, site2Id]
 			});
 
 			const associations = await db
@@ -163,27 +169,30 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 3: Elective preceptor associations', () => {
 		it('should properly store elective-preceptor associations', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			const preceptor1Id = await createTestPreceptor(db, {
 				name: 'Dr. Cardio',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			const preceptor2Id = await createTestPreceptor(db, {
 				name: 'Dr. Neuro',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			const electiveId = await createElective(clerkshipId, {
 				name: 'Multi-Preceptor Elective',
 				minimumDays: 5,
-				preceptorIds: [preceptor1Id, preceptor2Id],
+				preceptorIds: [preceptor1Id, preceptor2Id]
 			});
 
 			const associations = await db
@@ -193,28 +202,33 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				.execute();
 
 			expect(associations).toHaveLength(2);
-			expect(associations.map((a) => a.preceptor_id).sort()).toEqual([preceptor1Id, preceptor2Id].sort());
+			expect(associations.map((a) => a.preceptor_id).sort()).toEqual(
+				[preceptor1Id, preceptor2Id].sort()
+			);
 		});
 	});
 
 	describe('Test 4: Cascade delete of elective associations', () => {
 		it('should cascade delete sites and preceptors when elective is deleted', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			const electiveId = await createElective(clerkshipId, {
 				name: 'To Be Deleted',
 				minimumDays: 5,
 				siteIds: [siteId],
-				preceptorIds: [preceptorId],
+				preceptorIds: [preceptorId]
 			});
 
 			// Verify associations exist
@@ -254,15 +268,18 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 5: Schedule assignments table has elective_id column', () => {
 		it('should have elective_id column in schedule_assignments table', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 5,
+				requiredDays: 5
 			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Test',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			// Link preceptor to clerkship via team
@@ -276,7 +293,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);
@@ -297,16 +314,19 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 6: Basic scheduling with elective defined', () => {
 		it('should schedule student even when electives exist', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			// Clerkship with 8 total days: 5 non-elective + 3 elective
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 8,
+				requiredDays: 8
 			});
 
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. General',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			// Create elective (3 days); remaining 5 days are non-elective
@@ -314,7 +334,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				name: 'Cardiology Elective',
 				minimumDays: 3,
 				preceptorIds: [preceptorId],
-				siteIds: [siteId],
+				siteIds: [siteId]
 			});
 
 			// Link preceptor to clerkship via team
@@ -327,7 +347,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			// Scheduling should work: 5 non-elective days + 3 elective days = 8 total
@@ -338,28 +358,31 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 7: Multiple electives for same clerkship', () => {
 		it('should support multiple electives for a clerkship', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			// Create multiple electives (linked directly to clerkship)
 			await createElective(clerkshipId, {
 				name: 'Cardiology',
 				minimumDays: 3,
-				isRequired: true,
+				isRequired: true
 			});
 
 			await createElective(clerkshipId, {
 				name: 'Neurology',
 				minimumDays: 3,
-				isRequired: true,
+				isRequired: true
 			});
 
 			await createElective(clerkshipId, {
 				name: 'Dermatology',
 				minimumDays: 2,
-				isRequired: false, // Optional
+				isRequired: false // Optional
 			});
 
 			const electives = await db
@@ -380,19 +403,22 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 8: Elective minimum days validation', () => {
 		it('should store minimum days correctly', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			await createElective(clerkshipId, {
 				name: 'Short Elective',
-				minimumDays: 3,
+				minimumDays: 3
 			});
 
 			await createElective(clerkshipId, {
 				name: 'Long Elective',
-				minimumDays: 10,
+				minimumDays: 10
 			});
 
 			const electives = await db
@@ -409,9 +435,12 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 9: Elective with specialty', () => {
 		it('should store specialty field correctly', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 20,
+				requiredDays: 20
 			});
 
 			const electiveId = nanoid();
@@ -426,7 +455,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 					is_required: 1,
 					override_mode: 'inherit',
 					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.execute();
 
@@ -442,17 +471,20 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 10: E2E Schedule Generation with Required Elective', () => {
 		it('should generate schedule assignments for required elective', async () => {
-			const { healthSystemId, siteIds: [siteId] } = await createTestHealthSystem(db, 'Hospital', 1);
+			const {
+				healthSystemId,
+				siteIds: [siteId]
+			} = await createTestHealthSystem(db, 'Hospital', 1);
 			// Clerkship with 5 total days, all elective
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 5,
+				requiredDays: 5
 			});
 
 			// Create preceptors
 			const preceptorId = await createTestPreceptor(db, {
 				name: 'Dr. Cardiology',
 				healthSystemId,
-				siteId,
+				siteId
 			});
 
 			// Create required elective (linked directly to clerkship)
@@ -461,7 +493,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				minimumDays: 5,
 				isRequired: true,
 				siteIds: [siteId],
-				preceptorIds: [preceptorId],
+				preceptorIds: [preceptorId]
 			});
 
 			// Create students and availability
@@ -473,7 +505,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			// Verify schedule succeeded
@@ -504,27 +536,26 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 
 	describe('Test 11: E2E Multiple electives for same clerkship', () => {
 		it('should distribute students across multiple required electives', async () => {
-			const { healthSystemId, siteIds: [site1Id, site2Id] } = await createTestHealthSystem(
-				db,
-				'Hospital',
-				2
-			);
+			const {
+				healthSystemId,
+				siteIds: [site1Id, site2Id]
+			} = await createTestHealthSystem(db, 'Hospital', 2);
 			// Clerkship with 10 total days, all elective (5 + 5)
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 10,
+				requiredDays: 10
 			});
 
 			// Create preceptors
 			const preceptor1Id = await createTestPreceptor(db, {
 				name: 'Dr. Cardiology',
 				healthSystemId,
-				siteId: site1Id,
+				siteId: site1Id
 			});
 
 			const preceptor2Id = await createTestPreceptor(db, {
 				name: 'Dr. Neurology',
 				healthSystemId,
-				siteId: site2Id,
+				siteId: site2Id
 			});
 
 			// Create two required electives (linked directly to clerkship)
@@ -533,7 +564,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				minimumDays: 5,
 				isRequired: true,
 				siteIds: [site1Id],
-				preceptorIds: [preceptor1Id],
+				preceptorIds: [preceptor1Id]
 			});
 
 			const neuroId = await createElective(clerkshipId, {
@@ -541,7 +572,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 				minimumDays: 5,
 				isRequired: true,
 				siteIds: [site2Id],
-				preceptorIds: [preceptor2Id],
+				preceptorIds: [preceptor2Id]
 			});
 
 			// Create students and availability
@@ -554,7 +585,7 @@ describe('Integration Suite 12: Elective Scheduling', () => {
 			const engine = new ConfigurableSchedulingEngine(db);
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
-				endDate: '2025-12-31',
+				endDate: '2025-12-31'
 			});
 
 			expect(result.success).toBe(true);

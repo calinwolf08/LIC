@@ -29,6 +29,7 @@ Add schedule management with sidebar selector, data scoping via junction tables,
 **File:** `src/lib/db/migrations/0XX_schedule_scoping.ts`
 
 Create tables:
+
 ```sql
 -- Schedule-Student association
 CREATE TABLE schedule_students (
@@ -121,6 +122,7 @@ ALTER TABLE scheduling_periods ADD COLUMN year INTEGER;
 **File:** `src/lib/features/schedules/services/schedule.service.ts`
 
 Methods:
+
 ```typescript
 // Core CRUD
 createSchedule(name: string, startDate: string, endDate: string, year: number): Promise<Schedule>
@@ -149,6 +151,7 @@ getSchedulesForEntity(entityType: EntityType, entityId: string): Promise<Schedul
 Modify each service to accept optional `scheduleId` parameter:
 
 **Files to modify:**
+
 - `src/lib/features/students/services/student-service.ts`
 - `src/lib/features/preceptors/services/preceptor-service.ts`
 - `src/lib/features/sites/services/site-service.ts`
@@ -157,6 +160,7 @@ Modify each service to accept optional `scheduleId` parameter:
 - `src/lib/features/scheduling-config/services/teams.service.ts`
 
 Changes:
+
 - Add `scheduleId?: string` parameter to list methods
 - Filter by schedule when provided (JOIN with junction table)
 - Auto-add to active schedule on entity creation
@@ -204,22 +208,27 @@ async duplicateToNewSchedule(
 ### 3.1 Schedule management endpoints
 
 **File:** `src/routes/api/schedules/+server.ts`
+
 - `GET` - List all schedules
 - `POST` - Create new schedule
 
 **File:** `src/routes/api/schedules/[id]/+server.ts`
+
 - `GET` - Get schedule details
 - `PATCH` - Update schedule (name, dates)
 - `DELETE` - Delete schedule (with cascade logic)
 
 **File:** `src/routes/api/schedules/[id]/activate/+server.ts`
+
 - `POST` - Set as active schedule
 
 **File:** `src/routes/api/schedules/[id]/duplicate/+server.ts`
+
 - `POST` - Duplicate schedule with options
 - Body: `{ name, startDate, endDate, year, options: DuplicationOptions }`
 
 **File:** `src/routes/api/schedules/[id]/entities/+server.ts`
+
 - `GET` - Get entities for schedule (query param: `type`)
 - `POST` - Add entities to schedule
 - `DELETE` - Remove entities from schedule
@@ -229,6 +238,7 @@ async duplicateToNewSchedule(
 Add `scheduleId` query parameter to filter by schedule:
 
 **Files to modify:**
+
 - `src/routes/api/students/+server.ts`
 - `src/routes/api/preceptors/+server.ts`
 - `src/routes/api/sites/+server.ts`
@@ -236,6 +246,7 @@ Add `scheduleId` query parameter to filter by schedule:
 - `src/routes/api/clerkships/+server.ts`
 
 Changes:
+
 - Accept `?scheduleId=xxx` query parameter
 - Default to active schedule if not provided
 - Auto-associate new entities with active schedule
@@ -255,6 +266,7 @@ Changes:
 **File:** `src/lib/features/schedules/components/schedule-selector.svelte`
 
 Features:
+
 - Dropdown showing all schedules (name + date range)
 - Current/active schedule highlighted with checkmark
 - Date range display for selected schedule
@@ -263,22 +275,22 @@ Features:
 
 ```svelte
 <div class="schedule-selector">
-  <select bind:value={selectedScheduleId} on:change={handleScheduleChange}>
-    {#each schedules as schedule}
-      <option value={schedule.id}>
-        {schedule.name} ({schedule.start_date} - {schedule.end_date})
-      </option>
-    {/each}
-  </select>
+	<select bind:value={selectedScheduleId} on:change={handleScheduleChange}>
+		{#each schedules as schedule}
+			<option value={schedule.id}>
+				{schedule.name} ({schedule.start_date} - {schedule.end_date})
+			</option>
+		{/each}
+	</select>
 
-  <div class="date-range">
-    <span>{activeSchedule.start_date}</span>
-    <span>to</span>
-    <span>{activeSchedule.end_date}</span>
-    <button on:click={openDateEditor}>Edit</button>
-  </div>
+	<div class="date-range">
+		<span>{activeSchedule.start_date}</span>
+		<span>to</span>
+		<span>{activeSchedule.end_date}</span>
+		<button on:click={openDateEditor}>Edit</button>
+	</div>
 
-  <button on:click={openWizard}>+ New Schedule</button>
+	<button on:click={openWizard}>+ New Schedule</button>
 </div>
 ```
 
@@ -368,6 +380,7 @@ Step 9: Review & Create
 **File:** `src/lib/features/schedules/components/entity-selection-table.svelte`
 
 Reusable table with:
+
 - Checkbox column
 - Entity-specific columns
 - Search/filter
@@ -375,6 +388,7 @@ Reusable table with:
 - Selected count display
 
 Props:
+
 ```typescript
 interface Props {
   entityType: 'students' | 'preceptors' | 'sites' | ...;
@@ -410,6 +424,7 @@ interface Props {
 Update all page data loaders:
 
 **Files to modify:**
+
 - `src/routes/students/+page.ts`
 - `src/routes/preceptors/+page.ts`
 - `src/routes/sites/+page.ts`
@@ -419,6 +434,7 @@ Update all page data loaders:
 - `src/routes/schedule/+page.ts`
 
 Changes:
+
 - Get active schedule from store or API
 - Pass scheduleId to API calls
 - Only show entities/assignments for active schedule
@@ -447,25 +463,25 @@ Changes:
 
 ## Files to Create/Modify
 
-| Action | File Path |
-|--------|-----------|
-| Create | `src/lib/db/migrations/0XX_schedule_scoping.ts` |
-| Create | `src/lib/features/schedules/services/schedule.service.ts` |
+| Action | File Path                                                             |
+| ------ | --------------------------------------------------------------------- |
+| Create | `src/lib/db/migrations/0XX_schedule_scoping.ts`                       |
+| Create | `src/lib/features/schedules/services/schedule.service.ts`             |
 | Create | `src/lib/features/schedules/services/schedule-duplication.service.ts` |
-| Create | `src/lib/features/schedules/components/schedule-selector.svelte` |
-| Create | `src/lib/features/schedules/components/new-schedule-wizard.svelte` |
+| Create | `src/lib/features/schedules/components/schedule-selector.svelte`      |
+| Create | `src/lib/features/schedules/components/new-schedule-wizard.svelte`    |
 | Create | `src/lib/features/schedules/components/entity-selection-table.svelte` |
-| Create | `src/lib/stores/schedule-store.ts` |
-| Create | `src/routes/api/schedules/+server.ts` |
-| Create | `src/routes/api/schedules/[id]/+server.ts` |
-| Create | `src/routes/api/schedules/[id]/activate/+server.ts` |
-| Create | `src/routes/api/schedules/[id]/duplicate/+server.ts` |
-| Create | `src/routes/api/schedules/[id]/entities/+server.ts` |
-| Create | `src/routes/schedules/new/+page.svelte` |
-| Modify | `src/routes/+layout.svelte` |
-| Modify | All entity service files |
-| Modify | All entity API routes |
-| Modify | All page data loaders |
+| Create | `src/lib/stores/schedule-store.ts`                                    |
+| Create | `src/routes/api/schedules/+server.ts`                                 |
+| Create | `src/routes/api/schedules/[id]/+server.ts`                            |
+| Create | `src/routes/api/schedules/[id]/activate/+server.ts`                   |
+| Create | `src/routes/api/schedules/[id]/duplicate/+server.ts`                  |
+| Create | `src/routes/api/schedules/[id]/entities/+server.ts`                   |
+| Create | `src/routes/schedules/new/+page.svelte`                               |
+| Modify | `src/routes/+layout.svelte`                                           |
+| Modify | All entity service files                                              |
+| Modify | All entity API routes                                                 |
+| Modify | All page data loaders                                                 |
 
 ---
 

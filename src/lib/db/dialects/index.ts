@@ -17,7 +17,7 @@ import type { DbDialectName, DialectAdapter } from './types';
 
 const adapters: Record<string, DialectAdapter> = {
 	[sqliteAdapter.name]: sqliteAdapter,
-	[postgresAdapter.name]: postgresAdapter,
+	[postgresAdapter.name]: postgresAdapter
 };
 
 /** Registered engine names, sorted for stable error messages and logs. */
@@ -64,5 +64,5 @@ export type {
 	DdlTypeMap,
 	DialectAdapter,
 	PostgresDbConfig,
-	SqliteDbConfig,
+	SqliteDbConfig
 } from './types';

@@ -39,7 +39,7 @@ export class NoDoubleBookingConstraint implements Constraint {
 					studentName: student?.name,
 					date: assignment.date,
 					conflictingPreceptorId: existingAssignment.preceptorId,
-					conflictingPreceptorName: existingPreceptor?.name,
+					conflictingPreceptorName: existingPreceptor?.name
 				}
 			);
 		}

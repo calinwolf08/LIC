@@ -3,12 +3,14 @@
 ## Problem Statement
 
 **User Scenario:**
+
 - Generated schedule for full year but couldn't meet 100% requirements due to strict constraints
 - Want to adjust constraints (relax rules or bypass some) to complete the schedule
 - Need to keep ALL existing assignments unchanged (even for incomplete students)
 - Only generate new assignments to fill gaps using adjusted constraints
 
 **Example:**
+
 ```
 Initial generation:
 - Student A: Cardiology 7/10 days (missing 3 days)
@@ -42,13 +44,16 @@ The `minimal-change` strategy validates and potentially modifies existing assign
 
 ```typescript
 strategy: z.enum([
-  'full-reoptimize',
-  'minimal-change',
-  'completion'  // NEW
-]).optional().default('full-reoptimize')
+	'full-reoptimize',
+	'minimal-change',
+	'completion' // NEW
+])
+	.optional()
+	.default('full-reoptimize');
 ```
 
 **Behavior:**
+
 - **Preserves:** 100% of existing assignments (never validates, never deletes)
 - **Credits:** Past work to requirements (like other strategies)
 - **Generates:** ONLY for students with remaining requirements
@@ -70,86 +75,91 @@ Add new function:
  * - Uses bypassed constraints only for new assignments
  */
 export async function prepareCompletionContext(
-  db: Kysely<DB>,
-  context: SchedulingContext,
-  startDate: string,
-  endDate: string
+	db: Kysely<DB>,
+	context: SchedulingContext,
+	startDate: string,
+	endDate: string
 ): Promise<{
-  allExistingAssignments: Selectable<ScheduleAssignments>[];
-  studentsWithUnmetRequirements: string[];
-  unmetRequirementsByStudent: Map<string, Map<string, number>>;
+	allExistingAssignments: Selectable<ScheduleAssignments>[];
+	studentsWithUnmetRequirements: string[];
+	unmetRequirementsByStudent: Map<string, Map<string, number>>;
 }> {
-  // Get ALL existing assignments
-  const allExistingAssignments = await getAssignmentsByDateRange(db, startDate, endDate);
+	// Get ALL existing assignments
+	const allExistingAssignments = await getAssignmentsByDateRange(db, startDate, endDate);
 
-  // Credit ALL existing assignments to requirements (no date filtering)
-  creditPastAssignmentsToRequirements(context, allExistingAssignments);
+	// Credit ALL existing assignments to requirements (no date filtering)
+	creditPastAssignmentsToRequirements(context, allExistingAssignments);
 
-  // Add ALL existing assignments to context (engine will work around them)
-  for (const assignment of allExistingAssignments) {
-    const preservedAssignment: Assignment = {
-      studentId: assignment.student_id,
-      preceptorId: assignment.preceptor_id,
-      clerkshipId: assignment.clerkship_id,
-      date: assignment.date,
-      siteId: assignment.site_id || undefined
-    };
+	// Add ALL existing assignments to context (engine will work around them)
+	for (const assignment of allExistingAssignments) {
+		const preservedAssignment: Assignment = {
+			studentId: assignment.student_id,
+			preceptorId: assignment.preceptor_id,
+			clerkshipId: assignment.clerkship_id,
+			date: assignment.date,
+			siteId: assignment.site_id || undefined
+		};
 
-    context.assignments.push(preservedAssignment);
+		context.assignments.push(preservedAssignment);
 
-    // Update tracking maps
-    if (!context.assignmentsByDate.has(assignment.date)) {
-      context.assignmentsByDate.set(assignment.date, []);
-    }
-    context.assignmentsByDate.get(assignment.date)!.push(preservedAssignment);
+		// Update tracking maps
+		if (!context.assignmentsByDate.has(assignment.date)) {
+			context.assignmentsByDate.set(assignment.date, []);
+		}
+		context.assignmentsByDate.get(assignment.date)!.push(preservedAssignment);
 
-    if (!context.assignmentsByStudent.has(assignment.student_id)) {
-      context.assignmentsByStudent.set(assignment.student_id, []);
-    }
-    context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
+		if (!context.assignmentsByStudent.has(assignment.student_id)) {
+			context.assignmentsByStudent.set(assignment.student_id, []);
+		}
+		context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
 
-    if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
-      context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
-    }
-    context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
-  }
+		if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
+			context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
+		}
+		context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
+	}
 
-  // Identify students who still have unmet requirements
-  const studentsWithUnmetRequirements: string[] = [];
-  const unmetRequirementsByStudent = new Map<string, Map<string, number>>();
+	// Identify students who still have unmet requirements
+	const studentsWithUnmetRequirements: string[] = [];
+	const unmetRequirementsByStudent = new Map<string, Map<string, number>>();
 
-  for (const student of context.students) {
-    const requirements = context.studentRequirements.get(student.id!);
-    if (!requirements) continue;
+	for (const student of context.students) {
+		const requirements = context.studentRequirements.get(student.id!);
+		if (!requirements) continue;
 
-    let hasUnmet = false;
-    const unmetForStudent = new Map<string, number>();
+		let hasUnmet = false;
+		const unmetForStudent = new Map<string, number>();
 
-    for (const [clerkshipId, daysNeeded] of requirements.entries()) {
-      if (daysNeeded > 0) {
-        hasUnmet = true;
-        unmetForStudent.set(clerkshipId, daysNeeded);
-      }
-    }
+		for (const [clerkshipId, daysNeeded] of requirements.entries()) {
+			if (daysNeeded > 0) {
+				hasUnmet = true;
+				unmetForStudent.set(clerkshipId, daysNeeded);
+			}
+		}
 
-    if (hasUnmet) {
-      studentsWithUnmetRequirements.push(student.id!);
-      unmetRequirementsByStudent.set(student.id!, unmetForStudent);
-    }
-  }
+		if (hasUnmet) {
+			studentsWithUnmetRequirements.push(student.id!);
+			unmetRequirementsByStudent.set(student.id!, unmetForStudent);
+		}
+	}
 
-  log.info('Completion context prepared', {
-    totalExistingAssignments: allExistingAssignments.length,
-    studentsWithUnmetRequirements: studentsWithUnmetRequirements.length,
-    totalStudents: context.students.length,
-    completionRate: ((context.students.length - studentsWithUnmetRequirements.length) / context.students.length * 100).toFixed(1) + '%'
-  });
+	log.info('Completion context prepared', {
+		totalExistingAssignments: allExistingAssignments.length,
+		studentsWithUnmetRequirements: studentsWithUnmetRequirements.length,
+		totalStudents: context.students.length,
+		completionRate:
+			(
+				((context.students.length - studentsWithUnmetRequirements.length) /
+					context.students.length) *
+				100
+			).toFixed(1) + '%'
+	});
 
-  return {
-    allExistingAssignments,
-    studentsWithUnmetRequirements,
-    unmetRequirementsByStudent
-  };
+	return {
+		allExistingAssignments,
+		studentsWithUnmetRequirements,
+		unmetRequirementsByStudent
+	};
 }
 ```
 
@@ -162,56 +172,58 @@ Update the POST handler to support completion mode:
 ```typescript
 // After line 98 (strategy determination)
 if (strategy === 'completion') {
-  log.info('Using completion-only strategy', {
-    startDate: validatedData.startDate,
-    endDate: validatedData.endDate,
-    bypassedConstraints: validatedData.bypassedConstraints
-  });
+	log.info('Using completion-only strategy', {
+		startDate: validatedData.startDate,
+		endDate: validatedData.endDate,
+		bypassedConstraints: validatedData.bypassedConstraints
+	});
 
-  // Prepare completion context
-  const completionResult = await prepareCompletionContext(
-    db,
-    context,
-    validatedData.startDate,
-    validatedData.endDate
-  );
+	// Prepare completion context
+	const completionResult = await prepareCompletionContext(
+		db,
+		context,
+		validatedData.startDate,
+		validatedData.endDate
+	);
 
-  log.info('Completion context ready', {
-    existingAssignments: completionResult.allExistingAssignments.length,
-    studentsWithGaps: completionResult.studentsWithUnmetRequirements.length
-  });
+	log.info('Completion context ready', {
+		existingAssignments: completionResult.allExistingAssignments.length,
+		studentsWithGaps: completionResult.studentsWithUnmetRequirements.length
+	});
 
-  // Run engine with bypassed constraints for gap-filling
-  const engine = new ConfigurableSchedulingEngine({
-    bypassedConstraints: validatedData.bypassedConstraints || []
-  });
+	// Run engine with bypassed constraints for gap-filling
+	const engine = new ConfigurableSchedulingEngine({
+		bypassedConstraints: validatedData.bypassedConstraints || []
+	});
 
-  const result = engine.generateSchedule(context, {
-    startDate: validatedData.startDate,
-    endDate: validatedData.endDate
-  });
+	const result = engine.generateSchedule(context, {
+		startDate: validatedData.startDate,
+		endDate: validatedData.endDate
+	});
 
-  // Filter out preserved assignments from result
-  // (engine includes them in output, but we don't want to re-insert)
-  const existingIds = new Set(completionResult.allExistingAssignments.map(a =>
-    `${a.student_id}-${a.date}-${a.clerkship_id}`
-  ));
+	// Filter out preserved assignments from result
+	// (engine includes them in output, but we don't want to re-insert)
+	const existingIds = new Set(
+		completionResult.allExistingAssignments.map(
+			(a) => `${a.student_id}-${a.date}-${a.clerkship_id}`
+		)
+	);
 
-  const newAssignmentsOnly = result.assignments.filter(a =>
-    !existingIds.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
-  );
+	const newAssignmentsOnly = result.assignments.filter(
+		(a) => !existingIds.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
+	);
 
-  // Save ONLY new assignments (don't touch existing)
-  const saveResult = await bulkCreateAssignments(db, newAssignmentsOnly);
+	// Save ONLY new assignments (don't touch existing)
+	const saveResult = await bulkCreateAssignments(db, newAssignmentsOnly);
 
-  return successResponse({
-    ...result,
-    strategy: 'completion',
-    existingAssignmentsPreserved: completionResult.allExistingAssignments.length,
-    newAssignmentsGenerated: newAssignmentsOnly.length,
-    studentsCompleted: completionResult.studentsWithUnmetRequirements.length,
-    bypassedConstraints: validatedData.bypassedConstraints
-  });
+	return successResponse({
+		...result,
+		strategy: 'completion',
+		existingAssignmentsPreserved: completionResult.allExistingAssignments.length,
+		newAssignmentsGenerated: newAssignmentsOnly.length,
+		studentsCompleted: completionResult.studentsWithUnmetRequirements.length,
+		bypassedConstraints: validatedData.bypassedConstraints
+	});
 }
 ```
 
@@ -222,61 +234,63 @@ if (strategy === 'completion') {
 Add completion mode option:
 
 ```svelte
-<label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
-  <input
-    type="radio"
-    value="completion"
-    bind:group={regenerationMode}
-    disabled={isRegenerating}
-    class="mt-1"
-  />
-  <div class="flex-1">
-    <p class="font-medium">Completion Mode (Fill Gaps Only)</p>
-    <p class="text-sm text-muted-foreground mt-1">
-      Keep ALL existing assignments unchanged. Only generate new assignments to complete
-      students with unmet requirements. Use this after adjusting constraints to finish
-      an incomplete schedule.
-    </p>
-  </div>
+<label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 hover:bg-muted/50">
+	<input
+		type="radio"
+		value="completion"
+		bind:group={regenerationMode}
+		disabled={isRegenerating}
+		class="mt-1"
+	/>
+	<div class="flex-1">
+		<p class="font-medium">Completion Mode (Fill Gaps Only)</p>
+		<p class="mt-1 text-sm text-muted-foreground">
+			Keep ALL existing assignments unchanged. Only generate new assignments to complete students
+			with unmet requirements. Use this after adjusting constraints to finish an incomplete
+			schedule.
+		</p>
+	</div>
 </label>
 
 {#if regenerationMode === 'completion'}
-  <div class="space-y-4 mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-    <h4 class="font-semibold text-blue-900 dark:text-blue-100">
-      Completion Mode Options
-    </h4>
+	<div
+		class="mb-4 space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+	>
+		<h4 class="font-semibold text-blue-900 dark:text-blue-100">Completion Mode Options</h4>
 
-    <div>
-      <Label for="bypassed-constraints">Constraints to Relax (for new assignments only)</Label>
-      <p class="text-sm text-muted-foreground mb-2">
-        Select which constraints to bypass when filling gaps:
-      </p>
+		<div>
+			<Label for="bypassed-constraints">Constraints to Relax (for new assignments only)</Label>
+			<p class="mb-2 text-sm text-muted-foreground">
+				Select which constraints to bypass when filling gaps:
+			</p>
 
-      {#each availableConstraints as constraint}
-        <label class="flex items-center gap-2 py-1">
-          <input
-            type="checkbox"
-            value={constraint.name}
-            bind:group={bypassedConstraints}
-            disabled={isRegenerating}
-          />
-          <span class="text-sm">{constraint.label}</span>
-        </label>
-      {/each}
-    </div>
+			{#each availableConstraints as constraint}
+				<label class="flex items-center gap-2 py-1">
+					<input
+						type="checkbox"
+						value={constraint.name}
+						bind:group={bypassedConstraints}
+						disabled={isRegenerating}
+					/>
+					<span class="text-sm">{constraint.label}</span>
+				</label>
+			{/each}
+		</div>
 
-    <div class="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border border-blue-300 dark:border-blue-700">
-      <p class="text-sm font-medium text-blue-900 dark:text-blue-100">
-        ℹ️ Completion Mode Behavior:
-      </p>
-      <ul class="text-sm text-blue-800 dark:text-blue-200 mt-2 space-y-1 list-disc list-inside">
-        <li>Preserves 100% of existing assignments</li>
-        <li>Generates only for students with unmet requirements</li>
-        <li>Relaxed constraints apply ONLY to new assignments</li>
-        <li>No deletions or modifications to current schedule</li>
-      </ul>
-    </div>
-  </div>
+		<div
+			class="rounded border border-blue-300 bg-blue-100 p-3 dark:border-blue-700 dark:bg-blue-900/30"
+		>
+			<p class="text-sm font-medium text-blue-900 dark:text-blue-100">
+				ℹ️ Completion Mode Behavior:
+			</p>
+			<ul class="mt-2 list-inside list-disc space-y-1 text-sm text-blue-800 dark:text-blue-200">
+				<li>Preserves 100% of existing assignments</li>
+				<li>Generates only for students with unmet requirements</li>
+				<li>Relaxed constraints apply ONLY to new assignments</li>
+				<li>No deletions or modifications to current schedule</li>
+			</ul>
+		</div>
+	</div>
 {/if}
 ```
 
@@ -285,6 +299,7 @@ Add completion mode option:
 **Scenario: Initial generation 95% complete**
 
 #### Step 1: Review Results
+
 ```
 Results Page shows:
 - 95% complete
@@ -293,7 +308,9 @@ Results Page shows:
 ```
 
 #### Step 2: Adjust Constraints
+
 User decides to relax capacity constraint for gap-filling:
+
 ```
 Options:
 1. Increase preceptor capacity permanently (affects future generations)
@@ -302,6 +319,7 @@ Options:
 ```
 
 #### Step 3: Trigger Completion Mode
+
 ```
 Calendar Page → Regenerate Schedule
 
@@ -317,6 +335,7 @@ Constraints to Relax:
 ```
 
 #### Step 4: Backend Processing
+
 ```typescript
 POST /api/schedules/generate
 {
@@ -337,6 +356,7 @@ Backend:
 ```
 
 #### Step 5: Result
+
 ```
 Before:
 - 450 assignments

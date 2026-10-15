@@ -24,6 +24,7 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 ## UI Architecture
 
 ### Technology Stack
+
 - SvelteKit 5 (with Svelte 5 runes)
 - Existing UI component library (shadcn-svelte if available, or custom components)
 - Form handling with Zod validation
@@ -31,6 +32,7 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 - Existing patterns from codebase
 
 ### Design Principles
+
 - Progressive disclosure (show advanced options only when needed)
 - Inline validation with helpful error messages
 - Contextual help text explaining each option
@@ -45,11 +47,13 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 **Purpose**: Entry point for managing clerkship configurations
 
 **Layout**:
+
 - Left sidebar: List of all clerkships
 - Main content: Selected clerkship overview
 - Top actions: New configuration, validate all, export/import
 
 **Features**:
+
 - View all clerkships with configuration status
 - Filter by specialty, configured/unconfigured
 - Quick status indicators (complete, incomplete, has errors)
@@ -57,12 +61,14 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 - Click clerkship to edit configuration
 
 **Information Display**:
+
 - Clerkship name, specialty, total required days
 - Configuration summary (strategy, requirements, teams enabled, etc.)
 - Validation status (green check if valid, red X if errors)
 - Last modified date and user
 
 **Actions**:
+
 - "Configure" button for unconfigured clerkships
 - "Edit" button for configured clerkships
 - "Clone" button to copy configuration
@@ -76,6 +82,7 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 **Sections**:
 
 **Assignment Strategy Section**
+
 - Dropdown to select strategy:
   - Continuous - Single Preceptor
   - Continuous - Team (2-3 preceptors)
@@ -86,12 +93,14 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 - Visual examples (diagrams/illustrations optional)
 
 **Block Settings Section** (only shown if Block-based selected)
+
 - Input: Block size in days
 - Checkbox: Allow partial blocks
 - Checkbox: Prefer continuous blocks (same preceptor)
 - Help text explaining block scheduling
 
 **Health System Continuity Section**
+
 - Radio buttons:
   - Enforce same system (required)
   - Prefer same system (soft preference)
@@ -100,16 +109,19 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 - Warning if "No preference" selected (explain implications)
 
 **Hybrid Configuration** (only shown if Hybrid selected)
+
 - Shows requirement split form inline
 - Allows setting different strategy per requirement type
 - Preview of final configuration
 
 **Form Actions**:
+
 - Save button (validates and saves)
 - Cancel button (discards changes with confirmation)
 - Save & Continue button (saves and moves to next section)
 
 **Validation**:
+
 - Real-time validation as user types
 - Highlight invalid fields in red
 - Show error messages below fields
@@ -121,6 +133,7 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 **Purpose**: Define how clerkship days are split
 
 **Layout**:
+
 - Header showing total required days (from clerkship)
 - List of requirement splits
 - Add requirement button
@@ -128,18 +141,21 @@ Note: Per requirements, NO automated tests for UI components. Testing will be ma
 
 **Requirement List**:
 Each requirement shows:
+
 - Type (Outpatient/Inpatient/Elective)
 - Required days (editable inline)
 - Assignment mode for this requirement type
 - Delete button
 
 **Add Requirement Form**:
+
 - Dropdown: Requirement type
 - Input: Required days
 - Dropdown: Assignment mode (based on parent strategy)
 - Add button
 
 **Validation**:
+
 - Total days must equal clerkship.required_days
 - Show remaining days to allocate
 - Warning if over-allocated
@@ -147,6 +163,7 @@ Each requirement shows:
 - Cannot have duplicate requirement types
 
 **Smart Defaults**:
+
 - Suggest even split if adding first requirement
 - Suggest remaining days when adding subsequent requirements
 - Pre-select assignment mode based on parent strategy
@@ -158,12 +175,14 @@ Each requirement shows:
 **Visibility**: Only shown if clerkship has elective requirement
 
 **Layout**:
+
 - Header showing total elective days available
 - List of elective options
 - Add elective button
 
 **Elective List**:
 Each elective shows:
+
 - Name
 - Minimum days required
 - Available preceptors (multi-select)
@@ -171,6 +190,7 @@ Each elective shows:
 - Edit/Delete buttons
 
 **Add/Edit Elective Form**:
+
 - Input: Elective name
 - Input: Minimum days (validated against total elective days)
 - Multi-select: Available preceptors (filtered by specialty)
@@ -178,6 +198,7 @@ Each elective shows:
 - Save/Cancel buttons
 
 **Validation**:
+
 - Sum of minimum days cannot exceed total elective days
 - At least one preceptor must be selected
 - Selected preceptors must have matching specialty
@@ -187,12 +208,14 @@ Each elective shows:
 **Purpose**: Create and manage preceptor teams
 
 **Layout**:
+
 - Header with team overview
 - List of existing teams
 - Add team button
 
 **Team List**:
 Each team shows:
+
 - Team name
 - Members (with avatars/names)
 - Formation rules (badges: "Same Health System", "Same Specialty", etc.)
@@ -200,6 +223,7 @@ Each team shows:
 - Edit/Delete buttons
 
 **Add/Edit Team Form**:
+
 - Input: Team name (optional, auto-generated if empty)
 - Multi-select: Team members (2-3 preceptors)
 - Checkboxes for formation rules:
@@ -212,12 +236,14 @@ Each team shows:
 - Preview of team composition
 
 **Validation**:
+
 - Real-time check of formation rules
 - Show violations immediately (e.g., "Members have different health systems")
 - Highlight conflicting members
 - Suggest fixes (e.g., "Remove Dr. Smith or change health system rule")
 
 **Features**:
+
 - Filter preceptor list by specialty, health system, site
 - Show preceptor details on hover
 - Drag-and-drop to add members (optional enhancement)
@@ -227,17 +253,20 @@ Each team shows:
 **Purpose**: Configure fallback chains for preceptors
 
 **Layout**:
+
 - Grouped by primary preceptor
 - Each primary shows fallback chain
 - Add fallback button
 
 **Primary Preceptor List**:
 Each primary shows:
+
 - Primary preceptor name
 - Fallback chain (ordered list)
 - Edit chain button
 
 **Fallback Chain Editor**:
+
 - Primary preceptor (read-only)
 - Clerkship filter (which clerkship this chain applies to)
 - Ordered list of fallbacks:
@@ -251,6 +280,7 @@ Each primary shows:
 - Save/Cancel buttons
 
 **Validation**:
+
 - Real-time circular reference detection
 - Show error if adding fallback creates cycle
 - Validate specialty compatibility
@@ -258,6 +288,7 @@ Each primary shows:
 - Show availability comparison (is fallback available when primary typically works?)
 
 **Features**:
+
 - Drag-and-drop to reorder fallbacks
 - Visual indicator of fallback availability
 - "Test fallback chain" button (simulates resolution)
@@ -268,18 +299,21 @@ Each primary shows:
 **Purpose**: Set capacity constraints for preceptors
 
 **Layout**:
+
 - Grouped by preceptor
 - General rules vs clerkship-specific rules
 - Add rule button
 
 **Preceptor List**:
 Each preceptor shows:
+
 - Name and specialty
 - General capacity rules (applies to all clerkships)
 - Clerkship-specific overrides (list)
 - Edit buttons
 
 **Capacity Rule Form**:
+
 - Preceptor selection (read-only when editing)
 - Clerkship filter (optional, null for general rule)
 - Inputs:
@@ -291,12 +325,14 @@ Each preceptor shows:
 - Save/Cancel buttons
 
 **Validation**:
+
 - All limits must be non-negative
 - Max per day must be > 0
 - Warning if reducing capacity below current assignments
 - Cannot save if conflict with existing assignments
 
 **Features**:
+
 - Show current usage (e.g., "Currently 2/5 students assigned today")
 - Preview impact of changes
 - Bulk edit (apply same rule to multiple preceptors)
@@ -306,6 +342,7 @@ Each preceptor shows:
 **Purpose**: Manage health systems and sites
 
 **Layout**:
+
 - Two-panel view:
   - Left: Health systems list
   - Right: Sites within selected system
@@ -314,12 +351,14 @@ Each preceptor shows:
 
 **Health System List**:
 Each system shows:
+
 - Name
 - Number of sites
 - Number of preceptors assigned
 - Edit/Delete buttons
 
 **Add/Edit Health System Form**:
+
 - Input: System name
 - Input: Location
 - Textarea: Description (optional)
@@ -327,18 +366,21 @@ Each system shows:
 
 **Site List** (for selected health system):
 Each site shows:
+
 - Name
 - Address
 - Number of preceptors
 - Edit/Delete buttons
 
 **Add/Edit Site Form**:
+
 - Input: Site name
 - Input: Address
 - Health system (read-only, pre-selected)
 - Save/Cancel buttons
 
 **Validation**:
+
 - Cannot delete system if preceptors assigned
 - Cannot delete site if preceptors assigned
 - Show warning and count of affected preceptors
@@ -348,6 +390,7 @@ Each site shows:
 **Purpose**: Step-by-step guided setup for new clerkships
 
 **Workflow**:
+
 1. Welcome & Overview
 2. Basic Configuration (strategy, health system rules)
 3. Requirements Setup (split days)
@@ -357,6 +400,7 @@ Each site shows:
 7. Confirmation
 
 **Features**:
+
 - Progress indicator (Step 2 of 7)
 - Next/Previous buttons
 - Save draft (exit and resume later)
@@ -365,6 +409,7 @@ Each site shows:
 - "Finish" commits everything
 
 **Benefits**:
+
 - Easier for new admins
 - Ensures all required configurations complete
 - Provides context and examples
@@ -375,6 +420,7 @@ Each site shows:
 **Purpose**: Validate complete configuration and preview impact
 
 **Validation Panel**:
+
 - Run validation on entire configuration
 - Show errors grouped by category:
   - Missing configurations
@@ -388,12 +434,14 @@ Each site shows:
   - Link to edit relevant section
 
 **Preview Panel**:
+
 - Show how scheduling will behave with this configuration
 - Mock schedule generation for sample students
 - Show example assignments
 - Highlight configuration effects
 
 **Actions**:
+
 - Fix errors button (links to relevant forms)
 - Export configuration (JSON)
 - Import configuration (JSON upload)
@@ -402,13 +450,16 @@ Each site shows:
 ## Navigation and Layout
 
 ### Main Navigation
+
 - Dashboard (home)
 - Clerkships (list with configuration status)
 - Health Systems
 - Global Settings (future)
 
 ### Clerkship Configuration Tabs
+
 When editing a clerkship:
+
 - Overview (summary)
 - Basic Settings
 - Requirements
@@ -419,18 +470,22 @@ When editing a clerkship:
 - Validation
 
 ### Breadcrumbs
+
 Show current location:
+
 - Dashboard > Clerkships > Surgery > Basic Settings
 
 ## Implementation Tasks
 
 ### 1. Create Page Components
+
 - Dashboard page component
 - Configuration form components
 - Wizard components
 - Validation panel component
 
 ### 2. Create Reusable Form Components
+
 - Strategy selector component
 - Requirement editor component
 - Elective editor component
@@ -439,12 +494,14 @@ Show current location:
 - Capacity rule form component
 
 ### 3. Create Data Components
+
 - List components (clerkships, teams, fallbacks, etc.)
 - Card components for displaying summaries
 - Status indicators
 - Validation message components
 
 ### 4. Implement Form Handling
+
 - Form state management (Svelte 5 runes)
 - Zod schema integration for validation
 - API integration for CRUD operations
@@ -452,12 +509,14 @@ Show current location:
 - Error handling and display
 
 ### 5. Implement Navigation
+
 - Route structure
 - Tab navigation
 - Wizard navigation
 - Breadcrumb component
 
 ### 6. Styling and Polish
+
 - Consistent styling with TailwindCSS
 - Responsive design
 - Loading states
@@ -483,6 +542,7 @@ Show current location:
 ## Files to Create
 
 ### Page Components
+
 ```
 src/routes/config/+page.svelte (dashboard)
 src/routes/config/+layout.svelte (navigation)
@@ -501,6 +561,7 @@ src/routes/config/health-systems/+page.svelte
 ```
 
 ### Reusable Components
+
 ```
 src/lib/features/scheduling-config/components/StrategySelector.svelte
 src/lib/features/scheduling-config/components/RequirementEditor.svelte
@@ -514,6 +575,7 @@ src/lib/features/scheduling-config/components/HealthSystemSelector.svelte
 ```
 
 ### Supporting Components
+
 ```
 src/lib/features/scheduling-config/components/ConfigurationCard.svelte
 src/lib/features/scheduling-config/components/StatusBadge.svelte
@@ -523,6 +585,7 @@ src/lib/features/scheduling-config/components/ErrorMessage.svelte
 ```
 
 ### Page Load Functions
+
 ```
 src/routes/config/clerkships/[id]/+page.ts
 src/routes/config/clerkships/[id]/+page.server.ts
@@ -534,18 +597,21 @@ src/routes/config/health-systems/+page.ts
 Since no automated UI tests, create comprehensive manual test plan:
 
 ### Configuration Creation Tests
+
 - [ ] Create School A configuration through UI
 - [ ] Create School B configuration through UI
 - [ ] Create School C configuration through UI
 - [ ] Create School D configuration through UI
 
 ### Validation Tests
+
 - [ ] Invalid configurations show errors
 - [ ] Validation panel catches all error types
 - [ ] Error messages are helpful
 - [ ] Fixes clear errors
 
 ### Workflow Tests
+
 - [ ] Complete wizard for new clerkship
 - [ ] Edit existing configuration
 - [ ] Clone configuration
@@ -555,6 +621,7 @@ Since no automated UI tests, create comprehensive manual test plan:
 - [ ] Set capacity rules
 
 ### Edge Case Tests
+
 - [ ] Handle network errors gracefully
 - [ ] Handle concurrent edits
 - [ ] Handle missing data

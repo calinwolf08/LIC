@@ -65,7 +65,10 @@ async function confirmDelete(page: Page, name: string) {
 		page.getByRole('heading', { name: /^delete (student|preceptor|clerkship|elective)$/i })
 	).toBeVisible();
 	// The dialog's confirm button is the last "Delete" in the DOM (rendered after the list).
-	await page.getByRole('button', { name: /^delete$/i }).last().click();
+	await page
+		.getByRole('button', { name: /^delete$/i })
+		.last()
+		.click();
 }
 
 async function attach(
@@ -111,21 +114,30 @@ test.describe('CF-DEL entity deletion', { tag: ['@stage2', '@long'] }, () => {
 		await asAdmin.goto('/students');
 		await confirmDelete(asAdmin, student.name);
 		await expect(asAdmin.getByText(blocked)).toBeVisible({ timeout: 15000 });
-		await asAdmin.getByRole('button', { name: /^cancel$/i }).last().click();
+		await asAdmin
+			.getByRole('button', { name: /^cancel$/i })
+			.last()
+			.click();
 		await expect(rowFor(asAdmin, student.name)).toBeVisible();
 
 		// Preceptor
 		await asAdmin.goto('/preceptors');
 		await confirmDelete(asAdmin, amanda.name);
 		await expect(asAdmin.getByText(blocked)).toBeVisible({ timeout: 15000 });
-		await asAdmin.getByRole('button', { name: /^cancel$/i }).last().click();
+		await asAdmin
+			.getByRole('button', { name: /^cancel$/i })
+			.last()
+			.click();
 		await expect(rowFor(asAdmin, amanda.name)).toBeVisible();
 
 		// Clerkship
 		await asAdmin.goto('/clerkships');
 		await confirmDelete(asAdmin, fm.name);
 		await expect(asAdmin.getByText(blocked)).toBeVisible({ timeout: 15000 });
-		await asAdmin.getByRole('button', { name: /^cancel$/i }).last().click();
+		await asAdmin
+			.getByRole('button', { name: /^cancel$/i })
+			.last()
+			.click();
 		await expect(rowFor(asAdmin, fm.name)).toBeVisible();
 	});
 
@@ -242,7 +254,10 @@ test.describe('CF-DEL entity deletion', { tag: ['@stage2', '@long'] }, () => {
 		await asAdmin.goto(electivesTab);
 		await confirmDelete(asAdmin, usedName);
 		await expect(asAdmin.getByText(/existing assignments/i)).toBeVisible({ timeout: 15000 });
-		await asAdmin.getByRole('button', { name: /^cancel$/i }).last().click();
+		await asAdmin
+			.getByRole('button', { name: /^cancel$/i })
+			.last()
+			.click();
 		await expect(rowFor(asAdmin, usedName)).toBeVisible();
 
 		// Clean: the unused elective deletes and drops out of the list.

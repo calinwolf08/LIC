@@ -272,7 +272,11 @@ export class AssignmentDialog {
 		// dialog's buttons under strict mode.
 		const removeBtn = this.page.getByTestId('ad-remove');
 		if (await removeBtn.isVisible().catch(() => false)) await removeBtn.click();
-		else await this.page.getByRole('button', { name: /^remove$/i }).first().click();
+		else
+			await this.page
+				.getByRole('button', { name: /^remove$/i })
+				.first()
+				.click();
 		// A confirm dialog only appears for special cases (e.g. removing a past day,
 		// "Remove anyway"). Match those explicitly — never the dialog's own "Remove"
 		// (ad-remove), which would otherwise self-match and hang as it detaches.

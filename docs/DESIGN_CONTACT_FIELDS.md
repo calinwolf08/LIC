@@ -17,35 +17,38 @@ Add optional contact information fields to Students, Preceptors, and Sites to en
 ### Students Table
 
 **New Columns:**
+
 ```typescript
 interface Student {
-  // ... existing fields
-  email: string;                 // Already exists (required)
-  phone: string | null;          // NEW: Optional phone number
+	// ... existing fields
+	email: string; // Already exists (required)
+	phone: string | null; // NEW: Optional phone number
 }
 ```
 
 ### Preceptors Table
 
 **New Columns:**
+
 ```typescript
 interface Preceptor {
-  // ... existing fields
-  email: string;                 // Already exists (required)
-  phone: string | null;          // NEW: Optional phone number
+	// ... existing fields
+	email: string; // Already exists (required)
+	phone: string | null; // NEW: Optional phone number
 }
 ```
 
 ### Sites Table
 
 **New Columns:**
+
 ```typescript
 interface Site {
-  // ... existing fields
-  address: string | null;        // NEW: Physical address
-  office_phone: string | null;   // NEW: Main office phone
-  contact_person: string | null; // NEW: Primary contact name
-  contact_email: string | null;  // NEW: Contact email address
+	// ... existing fields
+	address: string | null; // NEW: Physical address
+	office_phone: string | null; // NEW: Main office phone
+	contact_person: string | null; // NEW: Primary contact name
+	contact_email: string | null; // NEW: Contact email address
 }
 ```
 
@@ -59,39 +62,33 @@ interface Site {
 import type { Kysely } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
-  // Add phone to students
-  await db.schema
-    .alterTable('students')
-    .addColumn('phone', 'text')
-    .execute();
+	// Add phone to students
+	await db.schema.alterTable('students').addColumn('phone', 'text').execute();
 
-  // Add phone to preceptors
-  await db.schema
-    .alterTable('preceptors')
-    .addColumn('phone', 'text')
-    .execute();
+	// Add phone to preceptors
+	await db.schema.alterTable('preceptors').addColumn('phone', 'text').execute();
 
-  // Add contact fields to sites
-  await db.schema
-    .alterTable('sites')
-    .addColumn('address', 'text')
-    .addColumn('office_phone', 'text')
-    .addColumn('contact_person', 'text')
-    .addColumn('contact_email', 'text')
-    .execute();
+	// Add contact fields to sites
+	await db.schema
+		.alterTable('sites')
+		.addColumn('address', 'text')
+		.addColumn('office_phone', 'text')
+		.addColumn('contact_person', 'text')
+		.addColumn('contact_email', 'text')
+		.execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.alterTable('students').dropColumn('phone').execute();
-  await db.schema.alterTable('preceptors').dropColumn('phone').execute();
+	await db.schema.alterTable('students').dropColumn('phone').execute();
+	await db.schema.alterTable('preceptors').dropColumn('phone').execute();
 
-  await db.schema
-    .alterTable('sites')
-    .dropColumn('address')
-    .dropColumn('office_phone')
-    .dropColumn('contact_person')
-    .dropColumn('contact_email')
-    .execute();
+	await db.schema
+		.alterTable('sites')
+		.dropColumn('address')
+		.dropColumn('office_phone')
+		.dropColumn('contact_person')
+		.dropColumn('contact_email')
+		.execute();
 }
 ```
 
@@ -106,25 +103,25 @@ export async function down(db: Kysely<any>): Promise<void> {
 import { z } from 'zod';
 
 const phoneSchema = z
-  .string()
-  .regex(/^[\d\s\-\(\)\+\.]+$/, 'Invalid phone number format')
-  .min(10, 'Phone number must be at least 10 digits')
-  .max(20, 'Phone number too long')
-  .optional()
-  .or(z.literal(''));
+	.string()
+	.regex(/^[\d\s\-\(\)\+\.]+$/, 'Invalid phone number format')
+	.min(10, 'Phone number must be at least 10 digits')
+	.max(20, 'Phone number too long')
+	.optional()
+	.or(z.literal(''));
 
 export const createStudentSchema = z.object({
-  name: nameSchema,
-  email: emailSchema,
-  phone: phoneSchema,        // NEW
-  cohort: cohortSchema.optional()
+	name: nameSchema,
+	email: emailSchema,
+	phone: phoneSchema, // NEW
+	cohort: cohortSchema.optional()
 });
 
 export const updateStudentSchema = z.object({
-  name: nameSchema.optional(),
-  email: emailSchema.optional(),
-  phone: phoneSchema,        // NEW
-  cohort: cohortSchema.optional()
+	name: nameSchema.optional(),
+	email: emailSchema.optional(),
+	phone: phoneSchema, // NEW
+	cohort: cohortSchema.optional()
 });
 ```
 
@@ -135,23 +132,23 @@ export const updateStudentSchema = z.object({
 import { z } from 'zod';
 
 export const createPreceptorSchema = z.object({
-  name: nameSchema,
-  email: emailSchema,
-  phone: phoneSchema,        // NEW
-  specialty: specialtySchema,
-  health_system_id: uuidSchema,
-  site_id: uuidSchema.optional(),
-  max_students: maxStudentsSchema
+	name: nameSchema,
+	email: emailSchema,
+	phone: phoneSchema, // NEW
+	specialty: specialtySchema,
+	health_system_id: uuidSchema,
+	site_id: uuidSchema.optional(),
+	max_students: maxStudentsSchema
 });
 
 export const updatePreceptorSchema = z.object({
-  name: nameSchema.optional(),
-  email: emailSchema.optional(),
-  phone: phoneSchema,        // NEW
-  specialty: specialtySchema.optional(),
-  health_system_id: uuidSchema.optional(),
-  site_id: uuidSchema.optional(),
-  max_students: maxStudentsSchema.optional()
+	name: nameSchema.optional(),
+	email: emailSchema.optional(),
+	phone: phoneSchema, // NEW
+	specialty: specialtySchema.optional(),
+	health_system_id: uuidSchema.optional(),
+	site_id: uuidSchema.optional(),
+	max_students: maxStudentsSchema.optional()
 });
 ```
 
@@ -161,34 +158,26 @@ export const updatePreceptorSchema = z.object({
 // src/lib/features/sites/schemas.ts (or wherever sites are defined)
 import { z } from 'zod';
 
-const addressSchema = z
-  .string()
-  .max(500, 'Address too long')
-  .optional()
-  .or(z.literal(''));
+const addressSchema = z.string().max(500, 'Address too long').optional().or(z.literal(''));
 
-const contactPersonSchema = z
-  .string()
-  .max(200, 'Name too long')
-  .optional()
-  .or(z.literal(''));
+const contactPersonSchema = z.string().max(200, 'Name too long').optional().or(z.literal(''));
 
 export const createSiteSchema = z.object({
-  name: nameSchema,
-  health_system_id: uuidSchema.optional(),
-  address: addressSchema,              // NEW
-  office_phone: phoneSchema,           // NEW
-  contact_person: contactPersonSchema, // NEW
-  contact_email: emailSchema.optional() // NEW
+	name: nameSchema,
+	health_system_id: uuidSchema.optional(),
+	address: addressSchema, // NEW
+	office_phone: phoneSchema, // NEW
+	contact_person: contactPersonSchema, // NEW
+	contact_email: emailSchema.optional() // NEW
 });
 
 export const updateSiteSchema = z.object({
-  name: nameSchema.optional(),
-  health_system_id: uuidSchema.optional(),
-  address: addressSchema,              // NEW
-  office_phone: phoneSchema,           // NEW
-  contact_person: contactPersonSchema, // NEW
-  contact_email: emailSchema.optional() // NEW
+	name: nameSchema.optional(),
+	health_system_id: uuidSchema.optional(),
+	address: addressSchema, // NEW
+	office_phone: phoneSchema, // NEW
+	contact_person: contactPersonSchema, // NEW
+	contact_email: emailSchema.optional() // NEW
 });
 ```
 
@@ -202,51 +191,51 @@ export const updateSiteSchema = z.object({
 // src/lib/features/students/services/student-service.ts
 
 export async function createStudent(
-  db: Kysely<DB>,
-  accountId: string,
-  data: CreateStudentInput
+	db: Kysely<DB>,
+	accountId: string,
+	data: CreateStudentInput
 ): Promise<Selectable<Students>> {
-  const timestamp = new Date().toISOString();
-  const newStudent = {
-    id: crypto.randomUUID(),
-    account_id: accountId,
-    name: data.name,
-    email: data.email,
-    phone: data.phone || null,        // NEW
-    cohort: data.cohort || null,
-    created_at: timestamp,
-    updated_at: timestamp
-  };
+	const timestamp = new Date().toISOString();
+	const newStudent = {
+		id: crypto.randomUUID(),
+		account_id: accountId,
+		name: data.name,
+		email: data.email,
+		phone: data.phone || null, // NEW
+		cohort: data.cohort || null,
+		created_at: timestamp,
+		updated_at: timestamp
+	};
 
-  return await db
-    .insertInto('students')
-    .values(newStudent)
-    .returningAll()
-    .executeTakeFirstOrThrow();
+	return await db
+		.insertInto('students')
+		.values(newStudent)
+		.returningAll()
+		.executeTakeFirstOrThrow();
 }
 
 export async function updateStudent(
-  db: Kysely<DB>,
-  accountId: string,
-  id: string,
-  data: UpdateStudentInput
+	db: Kysely<DB>,
+	accountId: string,
+	id: string,
+	data: UpdateStudentInput
 ): Promise<Selectable<Students>> {
-  const updates: any = {
-    updated_at: new Date().toISOString()
-  };
+	const updates: any = {
+		updated_at: new Date().toISOString()
+	};
 
-  if (data.name !== undefined) updates.name = data.name;
-  if (data.email !== undefined) updates.email = data.email;
-  if (data.phone !== undefined) updates.phone = data.phone || null; // NEW
-  if (data.cohort !== undefined) updates.cohort = data.cohort;
+	if (data.name !== undefined) updates.name = data.name;
+	if (data.email !== undefined) updates.email = data.email;
+	if (data.phone !== undefined) updates.phone = data.phone || null; // NEW
+	if (data.cohort !== undefined) updates.cohort = data.cohort;
 
-  return await db
-    .updateTable('students')
-    .set(updates)
-    .where('id', '=', id)
-    .where('account_id', '=', accountId)
-    .returningAll()
-    .executeTakeFirstOrThrow();
+	return await db
+		.updateTable('students')
+		.set(updates)
+		.where('id', '=', id)
+		.where('account_id', '=', accountId)
+		.returningAll()
+		.executeTakeFirstOrThrow();
 }
 ```
 
@@ -268,24 +257,19 @@ Similar updates to site service to handle `address`, `office_phone`, `contact_pe
 
 ```svelte
 <form>
-  <!-- Existing fields -->
-  <input type="text" name="name" required />
-  <input type="email" name="email" required />
+	<!-- Existing fields -->
+	<input type="text" name="name" required />
+	<input type="email" name="email" required />
 
-  <!-- NEW: Phone field -->
-  <label>
-    Phone (optional)
-    <input
-      type="tel"
-      name="phone"
-      placeholder="+1 (555) 123-4567"
-      pattern="[\d\s\-\(\)\+\.]+"
-    />
-  </label>
+	<!-- NEW: Phone field -->
+	<label>
+		Phone (optional)
+		<input type="tel" name="phone" placeholder="+1 (555) 123-4567" pattern="[\d\s\-\(\)\+\.]+" />
+	</label>
 
-  <input type="text" name="cohort" />
+	<input type="text" name="cohort" />
 
-  <button type="submit">Save</button>
+	<button type="submit">Save</button>
 </form>
 ```
 
@@ -299,53 +283,37 @@ Similar addition of phone field to preceptor creation/edit forms.
 
 ```svelte
 <form>
-  <!-- Existing fields -->
-  <input type="text" name="name" required />
-  <select name="health_system_id">...</select>
+	<!-- Existing fields -->
+	<input type="text" name="name" required />
+	<select name="health_system_id">...</select>
 
-  <!-- NEW: Contact fields -->
-  <fieldset>
-    <legend>Contact Information</legend>
+	<!-- NEW: Contact fields -->
+	<fieldset>
+		<legend>Contact Information</legend>
 
-    <label>
-      Address (optional)
-      <textarea
-        name="address"
-        placeholder="123 Main St, City, State ZIP"
-        maxlength="500"
-      ></textarea>
-    </label>
+		<label>
+			Address (optional)
+			<textarea name="address" placeholder="123 Main St, City, State ZIP" maxlength="500"
+			></textarea>
+		</label>
 
-    <label>
-      Office Phone (optional)
-      <input
-        type="tel"
-        name="office_phone"
-        placeholder="+1 (555) 123-4567"
-      />
-    </label>
+		<label>
+			Office Phone (optional)
+			<input type="tel" name="office_phone" placeholder="+1 (555) 123-4567" />
+		</label>
 
-    <label>
-      Contact Person (optional)
-      <input
-        type="text"
-        name="contact_person"
-        placeholder="Dr. Jane Smith"
-        maxlength="200"
-      />
-    </label>
+		<label>
+			Contact Person (optional)
+			<input type="text" name="contact_person" placeholder="Dr. Jane Smith" maxlength="200" />
+		</label>
 
-    <label>
-      Contact Email (optional)
-      <input
-        type="email"
-        name="contact_email"
-        placeholder="contact@site.com"
-      />
-    </label>
-  </fieldset>
+		<label>
+			Contact Email (optional)
+			<input type="email" name="contact_email" placeholder="contact@site.com" />
+		</label>
+	</fieldset>
 
-  <button type="submit">Save</button>
+	<button type="submit">Save</button>
 </form>
 ```
 
@@ -354,21 +322,22 @@ Similar addition of phone field to preceptor creation/edit forms.
 Update detail/list views to display contact information:
 
 **Student Detail Page:**
+
 ```svelte
 <dl>
-  <dt>Name:</dt>
-  <dd>{student.name}</dd>
+	<dt>Name:</dt>
+	<dd>{student.name}</dd>
 
-  <dt>Email:</dt>
-  <dd><a href="mailto:{student.email}">{student.email}</a></dd>
+	<dt>Email:</dt>
+	<dd><a href="mailto:{student.email}">{student.email}</a></dd>
 
-  {#if student.phone}
-    <dt>Phone:</dt>
-    <dd><a href="tel:{student.phone}">{student.phone}</a></dd>
-  {/if}
+	{#if student.phone}
+		<dt>Phone:</dt>
+		<dd><a href="tel:{student.phone}">{student.phone}</a></dd>
+	{/if}
 
-  <dt>Cohort:</dt>
-  <dd>{student.cohort || 'N/A'}</dd>
+	<dt>Cohort:</dt>
+	<dd>{student.cohort || 'N/A'}</dd>
 </dl>
 ```
 
@@ -382,16 +351,16 @@ Similar patterns for preceptor and site detail pages.
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid-here",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "phone": "+1 (555) 123-4567",
-    "cohort": "2024",
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-01T00:00:00.000Z"
-  }
+	"success": true,
+	"data": {
+		"id": "uuid-here",
+		"name": "John Doe",
+		"email": "john@example.com",
+		"phone": "+1 (555) 123-4567",
+		"cohort": "2024",
+		"created_at": "2025-01-01T00:00:00.000Z",
+		"updated_at": "2025-01-01T00:00:00.000Z"
+	}
 }
 ```
 
@@ -399,18 +368,18 @@ Similar patterns for preceptor and site detail pages.
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid-here",
-    "name": "Main Campus",
-    "health_system_id": "uuid-here",
-    "address": "123 Main St, City, State 12345",
-    "office_phone": "+1 (555) 123-4567",
-    "contact_person": "Dr. Jane Smith",
-    "contact_email": "jane@hospital.com",
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-01T00:00:00.000Z"
-  }
+	"success": true,
+	"data": {
+		"id": "uuid-here",
+		"name": "Main Campus",
+		"health_system_id": "uuid-here",
+		"address": "123 Main St, City, State 12345",
+		"office_phone": "+1 (555) 123-4567",
+		"contact_person": "Dr. Jane Smith",
+		"contact_email": "jane@hospital.com",
+		"created_at": "2025-01-01T00:00:00.000Z",
+		"updated_at": "2025-01-01T00:00:00.000Z"
+	}
 }
 ```
 
@@ -424,30 +393,30 @@ Update service tests to include new fields:
 
 ```typescript
 describe('createStudent', () => {
-  it('should create student with phone', async () => {
-    const studentData = {
-      name: 'Test Student',
-      email: 'test@example.com',
-      phone: '+1 (555) 123-4567',
-      cohort: '2024'
-    };
+	it('should create student with phone', async () => {
+		const studentData = {
+			name: 'Test Student',
+			email: 'test@example.com',
+			phone: '+1 (555) 123-4567',
+			cohort: '2024'
+		};
 
-    const student = await createStudent(db, accountId, studentData);
+		const student = await createStudent(db, accountId, studentData);
 
-    expect(student.phone).toBe('+1 (555) 123-4567');
-  });
+		expect(student.phone).toBe('+1 (555) 123-4567');
+	});
 
-  it('should create student without phone', async () => {
-    const studentData = {
-      name: 'Test Student',
-      email: 'test@example.com',
-      cohort: '2024'
-    };
+	it('should create student without phone', async () => {
+		const studentData = {
+			name: 'Test Student',
+			email: 'test@example.com',
+			cohort: '2024'
+		};
 
-    const student = await createStudent(db, accountId, studentData);
+		const student = await createStudent(db, accountId, studentData);
 
-    expect(student.phone).toBeNull();
-  });
+		expect(student.phone).toBeNull();
+	});
 });
 ```
 
@@ -457,16 +426,16 @@ Update API tests:
 
 ```typescript
 test('should create student with phone number', async ({ request }) => {
-  const api = createApiClient(request);
+	const api = createApiClient(request);
 
-  const studentData = fixtures.student({
-    phone: '+1 (555) 123-4567'
-  });
+	const studentData = fixtures.student({
+		phone: '+1 (555) 123-4567'
+	});
 
-  const response = await api.post('/api/students', studentData);
-  const student = await api.expectData(response, 201);
+	const response = await api.post('/api/students', studentData);
+	const student = await api.expectData(response, 201);
 
-  expect(student.phone).toBe('+1 (555) 123-4567');
+	expect(student.phone).toBe('+1 (555) 123-4567');
 });
 ```
 
@@ -475,23 +444,27 @@ test('should create student with phone number', async ({ request }) => {
 ## Implementation Checklist
 
 ### Phase 1: Database & Schema
+
 - [ ] Create migration `014_add_contact_fields.ts`
 - [ ] Run migration
 - [ ] Update TypeScript types (`npm run db:types`)
 
 ### Phase 2: Validation
+
 - [ ] Add `phoneSchema` to common schemas
 - [ ] Update student schemas
 - [ ] Update preceptor schemas
 - [ ] Create/update site schemas
 
 ### Phase 3: Service Layer
+
 - [ ] Update student service (create/update)
 - [ ] Update preceptor service (create/update)
 - [ ] Update site service (create/update)
 - [ ] Update unit tests
 
 ### Phase 4: UI
+
 - [ ] Update student creation form
 - [ ] Update student edit form
 - [ ] Update student detail page
@@ -503,6 +476,7 @@ test('should create student with phone number', async ({ request }) => {
 - [ ] Create/update site detail page
 
 ### Phase 5: Testing
+
 - [ ] Add unit tests for phone validation
 - [ ] Update E2E tests for student API
 - [ ] Update E2E tests for preceptor API
@@ -515,6 +489,7 @@ test('should create student with phone number', async ({ request }) => {
 ### Accepted Formats
 
 The phone validation allows flexible formats:
+
 - `+1 (555) 123-4567`
 - `555-123-4567`
 - `5551234567`

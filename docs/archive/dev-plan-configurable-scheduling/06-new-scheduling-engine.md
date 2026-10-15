@@ -9,6 +9,7 @@ Build the new scheduling engine that orchestrates all components (strategies, te
 ### Engine Architecture
 
 The new engine coordinates multiple subsystems:
+
 1. **Configuration Loader** - Loads all clerkship configurations
 2. **Strategy Executor** - Delegates to appropriate scheduling strategy
 3. **Constraint Validator** - Validates proposed assignments against constraints
@@ -19,12 +20,14 @@ The new engine coordinates multiple subsystems:
 ### Key Differences from Old Engine
 
 **Old Engine (greedy day-by-day)**
+
 - Iterate through dates
 - Assign first available preceptor per day
 - One strategy for all clerkships
 - Limited configuration
 
 **New Engine (configuration-driven)**
+
 - Load configuration per clerkship
 - Select strategy based on configuration
 - Generate assignment plan for entire clerkship
@@ -37,6 +40,7 @@ The new engine coordinates multiple subsystems:
 ### Phase 1: Initialization
 
 **Load Data**
+
 - Load all students needing assignments
 - Load all clerkships with configurations
 - Load all preceptors with availability, capacity, health systems
@@ -44,6 +48,7 @@ The new engine coordinates multiple subsystems:
 - Build scheduling context
 
 **Prepare Structures**
+
 - Build requirement tracking per student
 - Build availability maps per preceptor
 - Index teams by clerkship
@@ -53,6 +58,7 @@ The new engine coordinates multiple subsystems:
 ### Phase 2: Student Prioritization
 
 **Determine Order**
+
 - Sort students by priority criteria
 - Prioritize students with fewer remaining days
 - Prioritize students with more constraints
@@ -60,6 +66,7 @@ The new engine coordinates multiple subsystems:
 - Stable sort for deterministic results
 
 **Why Prioritization Matters**
+
 - High-constraint students scheduled first get better chances
 - Prevents situations where low-constraint students fill all capacity
 - More fair distribution of limited resources
@@ -69,47 +76,55 @@ The new engine coordinates multiple subsystems:
 For each student (in priority order):
 
 **1. Select Next Clerkship**
+
 - Determine which clerkship student needs most
 - Consider requirement gaps (largest gap first)
 - Consider dependency rules (must complete X before Y)
 - Handle electives last (most flexible)
 
 **2. Load Clerkship Configuration**
+
 - Fetch complete clerkship configuration from database
 - Parse requirements, electives, team rules
 - Identify assignment strategy from configuration
 
 **3. Execute Strategy**
+
 - Select appropriate strategy based on configuration
 - Invoke strategy to generate proposed assignments
 - Strategy returns array of proposed assignments (not yet validated)
 - If strategy returns empty array (couldn't find solution), try fallback
 
 **4. Try Team Fallback (if configured)**
+
 - If continuous single strategy fails and team allowed
 - Invoke team formation engine
 - If valid team found, invoke continuous team strategy
 - Generate proposed assignments with team
 
 **5. Try Individual Fallback**
+
 - If primary preceptor unavailable for some dates
 - Invoke fallback resolver for those dates
 - Generate proposed assignments with fallback preceptors
 - May result in mixed preceptor assignments
 
 **6. Validate Proposed Assignments**
+
 - For each proposed assignment in plan
 - Validate against all active constraints
 - Track violations for analysis
 - If any assignment fails validation, mark plan as invalid
 
 **7. Handle Validation Failures**
+
 - If plan invalid, attempt to fix
 - Try alternative preceptors/dates suggested by constraints
 - Try relaxing soft constraints if configured
 - If unfixable, mark clerkship as unschedulable for this student
 
 **8. Commit Valid Assignments**
+
 - If plan valid, commit all assignments to context
 - Update requirement tracking
 - Update availability tracking
@@ -117,6 +132,7 @@ For each student (in priority order):
 - Move to next clerkship for this student
 
 **9. Check Student Completion**
+
 - If student has met all requirements, mark complete
 - Move to next student
 
@@ -125,16 +141,19 @@ For each student (in priority order):
 After all required assignments complete:
 
 **1. Identify Students with Elective Days**
+
 - Filter students with remaining elective requirement
 - Load elective options for each clerkship
 
 **2. Allocate Elective Days**
+
 - Respect minimum days per elective option
 - Balance across available electives
 - Use daily rotation strategy for flexibility
 - Assign to available preceptors with matching specialty
 
 **3. Validate Elective Assignments**
+
 - Check capacity, availability, specialty match
 - Allow health system changes if configured
 - Commit valid elective assignments
@@ -142,11 +161,13 @@ After all required assignments complete:
 ### Phase 5: Conflict Resolution
 
 **Identify Conflicts**
+
 - Double-booking (student or preceptor)
 - Capacity violations
 - Constraint violations not caught earlier
 
 **Resolution Strategies**
+
 - Retry failed assignments with alternative preceptors
 - Shift assignments to different dates within same clerkship
 - Request admin intervention for irresolvable conflicts
@@ -155,18 +176,21 @@ After all required assignments complete:
 ### Phase 6: Optimization (optional)
 
 **Quality Metrics**
+
 - Minimize preceptor transitions per student
 - Balance load across preceptors
 - Maximize health system continuity
 - Minimize violations of soft constraints
 
 **Optimization Techniques**
+
 - Local search (swap assignments to improve quality)
 - Reassign flexible assignments to better dates
 - Consolidate team member assignments
 - Respect hard constraints while optimizing soft ones
 
 **Termination**
+
 - Run for fixed iteration count or time limit
 - Stop when no further improvement found
 - Return best solution found
@@ -174,6 +198,7 @@ After all required assignments complete:
 ### Phase 7: Result Generation
 
 **Build Result Object**
+
 - All successful assignments
 - All unmet requirements (student + clerkship + remaining days)
 - All violations encountered (by constraint, by student, by preceptor)
@@ -181,11 +206,13 @@ After all required assignments complete:
 - Assignments pending approval (for fallbacks requiring approval)
 
 **Success Criteria**
+
 - All students have all requirements met
 - No constraint violations (or only soft constraint violations if allowed)
 - All assignments valid
 
 **Partial Success Handling**
+
 - Some students may have unmet requirements
 - Report which students, which clerkships, how many days short
 - Provide actionable feedback (e.g., "Need 2 more Surgery preceptors")
@@ -195,11 +222,13 @@ After all required assignments complete:
 ### Constraint Phases
 
 **Pre-validation Constraints** (before strategy execution)
+
 - Specialty match (don't even try mismatched preceptors)
 - Blackout dates (remove from available dates)
 - Basic availability (preceptor marked unavailable)
 
 **Post-validation Constraints** (after strategy generates plan)
+
 - Capacity constraints (per-day, per-year, per-block)
 - Team formation rules
 - Health system continuity rules
@@ -214,12 +243,14 @@ After all required assignments complete:
 ### Soft vs Hard Constraints
 
 **Hard Constraints** (cannot violate)
+
 - Specialty match
 - Blackout dates
 - Double-booking
 - Capacity limits
 
 **Soft Constraints** (prefer not to violate, but can if needed)
+
 - Health system continuity (if set to "prefer")
 - Minimize preceptor transitions
 - Load balancing across preceptors
@@ -353,6 +384,7 @@ After all required assignments complete:
 ## Files to Create
 
 ### Engine Files
+
 ```
 src/lib/features/scheduling/engine/index.ts
 src/lib/features/scheduling/engine/configurable-scheduling-engine.ts
@@ -366,6 +398,7 @@ src/lib/features/scheduling/engine/result-builder.ts
 ```
 
 ### Test Files
+
 ```
 src/lib/features/scheduling/engine/configurable-scheduling-engine.test.ts
 src/lib/features/scheduling/engine/configuration-loader.test.ts
@@ -388,11 +421,13 @@ src/lib/features/scheduling/engine/integration/performance.test.ts
 ### Backward Compatibility
 
 **For clerkships without configuration:**
+
 - Default to continuous single strategy
 - Use existing constraints
 - Maintain existing behavior
 
 **For clerkships with configuration:**
+
 - Use new engine with configuration
 - Apply configured strategies
 - Respect all configuration rules

@@ -38,7 +38,7 @@ export class PreceptorAvailabilityConstraint implements Constraint {
 					studentName: student?.name,
 					clerkshipName: clerkship?.name,
 					date: assignment.date,
-					totalAvailableDates: dateToSite?.size || 0,
+					totalAvailableDates: dateToSite?.size || 0
 				}
 			);
 		}

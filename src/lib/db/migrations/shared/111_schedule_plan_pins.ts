@@ -54,10 +54,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('elective_id', 'text')
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('session', 'text', (col) =>
-			col.notNull().defaultTo('full').check(sql`session IN ('full', 'am', 'pm')`)
+			col
+				.notNull()
+				.defaultTo('full')
+				.check(sql`session IN ('full', 'am', 'pm')`)
 		)
 		.addColumn('kind', 'text', (col) =>
-			col.notNull().defaultTo('clinical').check(sql`kind IN ('clinical', 'free_day', 'exam')`)
+			col
+				.notNull()
+				.defaultTo('clinical')
+				.check(sql`kind IN ('clinical', 'free_day', 'exam')`)
 		)
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		// Soft codes the coordinator has chosen to accept for this pin, as a JSON array

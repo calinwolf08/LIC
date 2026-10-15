@@ -1,15 +1,19 @@
 # Step 02 — Schema Consolidation, Entitlements & Seed Data
 
 ## Objective
+
 Reset the database schema to a clean consolidated baseline matching the spec's domain model, add the user-entitlement column for Stage 2 gating, add the assignment `locked` flag, and ship a rich deterministic seed. Also clean repo cruft.
 
 ## Context
+
 25 incremental migrations carry dead concepts (dropped specialty, superseded availability models, `preceptor_site_clerkships`), and there is no entitlement or assignment-lock concept (DESIGN_REVIEW E4, D1, C4). **Existing data does not need to be preserved** — a destructive reset is explicitly allowed.
 
 ## Prerequisites
+
 None (runs independently; step 03 consumes the entitlement column).
 
 ## Scope
+
 **In:** schema baseline, new columns, codegen types, seed script, repo cleanup. **Out:** API/UI gating (step 03), validation logic (step 10).
 
 ## Implementation
@@ -26,11 +30,13 @@ None (runs independently; step 03 consumes the entitlement column).
 7. **Repo cleanup:** delete stray artifacts at root: `e2e-*.log`, `e2e-test-results-summary.md`, `test-verification-report.md`, `e2e-final-results.log`, `COMMANDS_TO_RUN.md`, `TEST_COVERAGE_REPORT.md` (fold anything still relevant into docs). Update `README.md`: current status section replaced with a pointer to `docs/spec/` (fix the stale "9.7% complete").
 
 ## Testing
+
 - Unit: migration applies to a fresh DB without error; seed runs twice without duplicating; a service smoke test per major table (insert/select round-trip through Kysely with generated types).
 - Verify both users can log in via the auth API in an integration test or e2e.
 - Full existing unit suite must pass against the baseline schema (this proves the baseline matches what the code expects).
 
 ## Acceptance criteria
+
 - [ ] `rm -f sqlite.db && npm run db:migrate && npm run db:seed` produces a working app with the demo dataset; login works for both seed users.
 - [ ] `user.entitlements`, `schedule_assignments.locked`, `schedule_assignments.source` exist in `src/lib/db/types.ts` (generated).
 - [ ] Single baseline migration; old migration files removed.

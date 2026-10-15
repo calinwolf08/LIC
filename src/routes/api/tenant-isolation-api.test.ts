@@ -65,12 +65,42 @@ afterAll(async () => {
 });
 
 describe('detail GET endpoints — cross-tenant returns 404', () => {
-	const cases: Array<{ name: string; get: (id: string) => Promise<Response> | Response; own: () => string; other: () => string }> = [
-		{ name: 'students', get: (id) => students.GET(event(id)), own: () => t.a.studentId, other: () => t.b.studentId },
-		{ name: 'preceptors', get: (id) => preceptors.GET(event(id)), own: () => t.a.preceptorId, other: () => t.b.preceptorId },
-		{ name: 'clerkships', get: (id) => clerkships.GET(event(id)), own: () => t.a.clerkshipId, other: () => t.b.clerkshipId },
-		{ name: 'sites', get: (id) => sites.GET(event(id)), own: () => t.a.siteId, other: () => t.b.siteId },
-		{ name: 'health-systems', get: (id) => healthSystems.GET(event(id)), own: () => t.a.healthSystemId, other: () => t.b.healthSystemId }
+	const cases: Array<{
+		name: string;
+		get: (id: string) => Promise<Response> | Response;
+		own: () => string;
+		other: () => string;
+	}> = [
+		{
+			name: 'students',
+			get: (id) => students.GET(event(id)),
+			own: () => t.a.studentId,
+			other: () => t.b.studentId
+		},
+		{
+			name: 'preceptors',
+			get: (id) => preceptors.GET(event(id)),
+			own: () => t.a.preceptorId,
+			other: () => t.b.preceptorId
+		},
+		{
+			name: 'clerkships',
+			get: (id) => clerkships.GET(event(id)),
+			own: () => t.a.clerkshipId,
+			other: () => t.b.clerkshipId
+		},
+		{
+			name: 'sites',
+			get: (id) => sites.GET(event(id)),
+			own: () => t.a.siteId,
+			other: () => t.b.siteId
+		},
+		{
+			name: 'health-systems',
+			get: (id) => healthSystems.GET(event(id)),
+			own: () => t.a.healthSystemId,
+			other: () => t.b.healthSystemId
+		}
 	];
 
 	for (const c of cases) {

@@ -26,7 +26,7 @@ import {
 	createPreceptorAvailability,
 	createTestPreceptor,
 	createTestTeam,
-	clearAllTestData,
+	clearAllTestData
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import { nanoid } from 'nanoid';
@@ -53,16 +53,32 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 
 	// Dr Dude's Mon-Wed-Fri availability (1/5 - 1/30, excluding weekends)
 	const DR_DUDE_DATES = [
-		'2026-01-05', '2026-01-07', '2026-01-09', // Week 1: Mon, Wed, Fri
-		'2026-01-12', '2026-01-14', '2026-01-16', // Week 2: Mon, Wed, Fri
-		'2026-01-19', '2026-01-21', '2026-01-23', // Week 3: Mon, Wed, Fri
-		'2026-01-26', '2026-01-28', '2026-01-30', // Week 4: Mon, Wed, Fri
+		'2026-01-05',
+		'2026-01-07',
+		'2026-01-09', // Week 1: Mon, Wed, Fri
+		'2026-01-12',
+		'2026-01-14',
+		'2026-01-16', // Week 2: Mon, Wed, Fri
+		'2026-01-19',
+		'2026-01-21',
+		'2026-01-23', // Week 3: Mon, Wed, Fri
+		'2026-01-26',
+		'2026-01-28',
+		'2026-01-30' // Week 4: Mon, Wed, Fri
 	];
 
 	// Dr S's block availability (1/5 - 1/16, weekdays only)
 	const DR_S_DATES = [
-		'2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09', // Week 1
-		'2026-01-12', '2026-01-13', '2026-01-14', '2026-01-15', '2026-01-16', // Week 2
+		'2026-01-05',
+		'2026-01-06',
+		'2026-01-07',
+		'2026-01-08',
+		'2026-01-09', // Week 1
+		'2026-01-12',
+		'2026-01-13',
+		'2026-01-14',
+		'2026-01-15',
+		'2026-01-16' // Week 2
 	];
 
 	beforeEach(async () => {
@@ -87,18 +103,21 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 		// Create clerkship with 20 required days
 		clerkshipId = await createTestClerkship(db, 'Internal Medicine', {
 			clerkshipType: 'outpatient',
-			requiredDays: 20,
+			requiredDays: 20
 		});
 
 		// Create students
 		studentIds = [];
 		for (const name of ['Student A', 'Student B', 'Student C']) {
 			const id = nanoid();
-			await db.insertInto('students').values({
-				id,
-				name,
-				email: `${name.toLowerCase().replace(' ', '')}@test.edu`,
-			}).execute();
+			await db
+				.insertInto('students')
+				.values({
+					id,
+					name,
+					email: `${name.toLowerCase().replace(' ', '')}@test.edu`
+				})
+				.execute();
 			studentIds.push(id);
 		}
 
@@ -107,7 +126,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			name: 'Dr Dude',
 			healthSystemId: groupHealthId,
 			siteId: groupHealthSiteId,
-			maxStudents: 1,
+			maxStudents: 1
 		});
 
 		// Create Dr S with max_students=1
@@ -115,11 +134,13 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			name: 'Dr S',
 			healthSystemId: cityHospitalId,
 			siteId: cityHospitalSiteId,
-			maxStudents: 1,
+			maxStudents: 1
 		});
 
 		// Create teams - one for each preceptor
-		drDudeTeamId = await createTestTeam(db, clerkshipId, 'Dr Dude - Group Health Seattle', [drDudeId]);
+		drDudeTeamId = await createTestTeam(db, clerkshipId, 'Dr Dude - Group Health Seattle', [
+			drDudeId
+		]);
 		drSTeamId = await createTestTeam(db, clerkshipId, 'Dr S City Hosp Kaiser', [drSId]);
 
 		// Create preceptor availability
@@ -131,43 +152,55 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 
 		// Elective 1: 5 days, required
 		elective1Id = nanoid();
-		await db.insertInto('clerkship_electives').values({
-			id: elective1Id,
-			clerkship_id: clerkshipId,
-			name: 'Test Elective',
-			minimum_days: 5,
-			is_required: 1,
-			override_mode: 'inherit',
-			created_at: now,
-			updated_at: now,
-		}).execute();
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id: elective1Id,
+				clerkship_id: clerkshipId,
+				name: 'Test Elective',
+				minimum_days: 5,
+				is_required: 1,
+				override_mode: 'inherit',
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
-		await db.insertInto('elective_preceptors').values({
-			id: nanoid(),
-			elective_id: elective1Id,
-			preceptor_id: drSId,
-			created_at: now,
-		}).execute();
+		await db
+			.insertInto('elective_preceptors')
+			.values({
+				id: nanoid(),
+				elective_id: elective1Id,
+				preceptor_id: drSId,
+				created_at: now
+			})
+			.execute();
 
 		// Elective 2: 8 days, required
 		elective2Id = nanoid();
-		await db.insertInto('clerkship_electives').values({
-			id: elective2Id,
-			clerkship_id: clerkshipId,
-			name: 'Test Elective 2',
-			minimum_days: 8,
-			is_required: 1,
-			override_mode: 'inherit',
-			created_at: now,
-			updated_at: now,
-		}).execute();
+		await db
+			.insertInto('clerkship_electives')
+			.values({
+				id: elective2Id,
+				clerkship_id: clerkshipId,
+				name: 'Test Elective 2',
+				minimum_days: 8,
+				is_required: 1,
+				override_mode: 'inherit',
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
-		await db.insertInto('elective_preceptors').values({
-			id: nanoid(),
-			elective_id: elective2Id,
-			preceptor_id: drSId,
-			created_at: now,
-		}).execute();
+		await db
+			.insertInto('elective_preceptors')
+			.values({
+				id: nanoid(),
+				elective_id: elective2Id,
+				preceptor_id: drSId,
+				created_at: now
+			})
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -179,11 +212,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 	 * Helper to get all assignments from DB
 	 */
 	async function getAllAssignments() {
-		return db
-			.selectFrom('schedule_assignments')
-			.selectAll()
-			.orderBy('date', 'asc')
-			.execute();
+		return db.selectFrom('schedule_assignments').selectAll().orderBy('date', 'asc').execute();
 	}
 
 	/**
@@ -205,7 +234,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			expect(result.assignments.length).toBeGreaterThan(0);
@@ -223,20 +252,20 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const assignments = await getAllAssignments();
 
 			// Count Dr Dude assignments
-			const drDudeAssignments = assignments.filter(a => a.preceptor_id === drDudeId);
+			const drDudeAssignments = assignments.filter((a) => a.preceptor_id === drDudeId);
 
 			// Dr Dude should have assignments on all 12 available days
 			// (since we have 3 students and only 1 slot per day, all 12 days should be used)
 			expect(drDudeAssignments.length).toBe(12);
 
 			// Verify each of Dr Dude's available dates is used
-			const usedDates = new Set(drDudeAssignments.map(a => a.date));
+			const usedDates = new Set(drDudeAssignments.map((a) => a.date));
 			for (const date of DR_DUDE_DATES) {
 				expect(usedDates.has(date), `Dr Dude should be assigned on ${date}`).toBe(true);
 			}
@@ -246,19 +275,19 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const assignments = await getAllAssignments();
 
 			// Count Dr S assignments
-			const drSAssignments = assignments.filter(a => a.preceptor_id === drSId);
+			const drSAssignments = assignments.filter((a) => a.preceptor_id === drSId);
 
 			// Dr S should have assignments on all 10 available days
 			expect(drSAssignments.length).toBe(10);
 
 			// Verify each of Dr S's available dates is used
-			const usedDates = new Set(drSAssignments.map(a => a.date));
+			const usedDates = new Set(drSAssignments.map((a) => a.date));
 			for (const date of DR_S_DATES) {
 				expect(usedDates.has(date), `Dr S should be assigned on ${date}`).toBe(true);
 			}
@@ -268,22 +297,24 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const assignments = await getAllAssignments();
 
 			// Dr S assignments should have elective_id set (since Dr S is only for electives)
-			const drSAssignments = assignments.filter(a => a.preceptor_id === drSId);
+			const drSAssignments = assignments.filter((a) => a.preceptor_id === drSId);
 
 			// All Dr S assignments should have an elective_id
-			const electiveAssignments = drSAssignments.filter(a => a.elective_id !== null);
+			const electiveAssignments = drSAssignments.filter((a) => a.elective_id !== null);
 			expect(electiveAssignments.length).toBe(drSAssignments.length);
 
 			// Elective IDs should be one of the two electives we created
 			const validElectiveIds = new Set([elective1Id, elective2Id]);
 			for (const a of electiveAssignments) {
-				expect(validElectiveIds.has(a.elective_id!), `Invalid elective_id: ${a.elective_id}`).toBe(true);
+				expect(validElectiveIds.has(a.elective_id!), `Invalid elective_id: ${a.elective_id}`).toBe(
+					true
+				);
 			}
 		});
 
@@ -291,14 +322,14 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const assignments = await getAllAssignments();
 
 			// Both preceptors should have assignments
-			const drDudeAssignments = assignments.filter(a => a.preceptor_id === drDudeId);
-			const drSAssignments = assignments.filter(a => a.preceptor_id === drSId);
+			const drDudeAssignments = assignments.filter((a) => a.preceptor_id === drDudeId);
+			const drSAssignments = assignments.filter((a) => a.preceptor_id === drSId);
 
 			expect(drDudeAssignments.length, 'Dr Dude should have assignments').toBeGreaterThan(0);
 			expect(drSAssignments.length, 'Dr S should have assignments').toBeGreaterThan(0);
@@ -308,7 +339,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Total capacity: 22 student-days (12 Dr Dude + 10 Dr S)
@@ -326,13 +357,13 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const assignments = await getAllAssignments();
 
 			// Check elective assignment distribution
-			const electiveAssignments = assignments.filter(a => a.elective_id !== null);
+			const electiveAssignments = assignments.filter((a) => a.elective_id !== null);
 
 			// Group by student and elective
 			const studentElectiveDays = new Map<string, Map<string, number>>();
@@ -355,7 +386,10 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			}
 
 			// With 10 available days and 5-day elective, should complete at least 1-2 electives
-			expect(completedElective1Count, 'Should have at least one completed 5-day elective').toBeGreaterThanOrEqual(1);
+			expect(
+				completedElective1Count,
+				'Should have at least one completed 5-day elective'
+			).toBeGreaterThanOrEqual(1);
 		});
 	});
 
@@ -365,7 +399,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const firstGenAssignments = await getAllAssignments();
@@ -377,7 +411,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const secondGenAssignments = await getAllAssignments();
@@ -399,7 +433,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const firstGenAssignments = await getAllAssignments();
@@ -408,10 +442,10 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const cutoffDate = '2026-01-15';
 
 			// Preserve assignments before cutoff
-			const pastAssignments = firstGenAssignments.filter(a => a.date < cutoffDate);
+			const pastAssignments = firstGenAssignments.filter((a) => a.date < cutoffDate);
 			const futureAssignmentIds = firstGenAssignments
-				.filter(a => a.date >= cutoffDate)
-				.map(a => a.id);
+				.filter((a) => a.date >= cutoffDate)
+				.map((a) => a.id);
 
 			// Delete future assignments
 			if (futureAssignmentIds.length > 0) {
@@ -425,14 +459,14 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: cutoffDate,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const finalAssignments = await getAllAssignments();
 
 			// Past assignments should still exist
 			for (const past of pastAssignments) {
-				const found = finalAssignments.find(a => a.id === past.id);
+				const found = finalAssignments.find((a) => a.id === past.id);
 				expect(found, `Past assignment ${past.id} should be preserved`).toBeDefined();
 			}
 
@@ -450,12 +484,12 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			await engine.schedule([studentIds[0]], [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const initialAssignments = await getAllAssignments();
 			const initialCount = initialAssignments.length;
-			const initialIds = new Set(initialAssignments.map(a => a.id));
+			const initialIds = new Set(initialAssignments.map((a) => a.id));
 
 			// Verify first student got some assignments
 			expect(initialCount).toBeGreaterThan(0);
@@ -465,14 +499,14 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			await engine.schedule(studentIds.slice(1), [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const finalAssignments = await getAllAssignments();
 
 			// Original assignments should still exist (not deleted/replaced)
 			for (const initial of initialAssignments) {
-				const found = finalAssignments.find(a => a.id === initial.id);
+				const found = finalAssignments.find((a) => a.id === initial.id);
 				expect(found, `Initial assignment ${initial.id} should be preserved`).toBeDefined();
 			}
 
@@ -483,8 +517,8 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			}
 
 			// Both preceptors should have assignments
-			const drDudeCount = finalAssignments.filter(a => a.preceptor_id === drDudeId).length;
-			const drSCount = finalAssignments.filter(a => a.preceptor_id === drSId).length;
+			const drDudeCount = finalAssignments.filter((a) => a.preceptor_id === drDudeId).length;
+			const drSCount = finalAssignments.filter((a) => a.preceptor_id === drSId).length;
 			expect(drDudeCount, 'Dr Dude should have assignments').toBeGreaterThan(0);
 			expect(drSCount, 'Dr S should have assignments').toBeGreaterThan(0);
 		});
@@ -494,28 +528,24 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			await engine.schedule([studentIds[0]], [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const afterFirstStudent = await getAllAssignments();
 
 			// Dr Dude and Dr S should each have some assignments
 			const drDudeUsedDays = new Set(
-				afterFirstStudent
-					.filter(a => a.preceptor_id === drDudeId)
-					.map(a => a.date)
+				afterFirstStudent.filter((a) => a.preceptor_id === drDudeId).map((a) => a.date)
 			);
 			const drSUsedDays = new Set(
-				afterFirstStudent
-					.filter(a => a.preceptor_id === drSId)
-					.map(a => a.date)
+				afterFirstStudent.filter((a) => a.preceptor_id === drSId).map((a) => a.date)
 			);
 
 			// Schedule second student
 			await engine.schedule([studentIds[1]], [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			const afterSecondStudent = await getAllAssignments();
@@ -528,7 +558,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 
 			// Second student should use different dates than first student
 			const secondStudentAssignments = afterSecondStudent.filter(
-				a => a.student_id === studentIds[1]
+				(a) => a.student_id === studentIds[1]
 			);
 
 			for (const a of secondStudentAssignments) {
@@ -550,12 +580,12 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Should have unmet elective requirements
-			const electiveUnmet = result.unmetRequirements.filter(
-				ur => ur.clerkshipName?.includes('Elective')
+			const electiveUnmet = result.unmetRequirements.filter((ur) =>
+				ur.clerkshipName?.includes('Elective')
 			);
 
 			// Since total elective need (13 days × 3 students = 39 days) > Dr S capacity (10 days),
@@ -571,7 +601,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: SCHEDULE_START,
 				endDate: SCHEDULE_END,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Check result metadata or unmet requirements to verify correct calculation
@@ -582,7 +612,7 @@ describe('Integration Suite 15: User Scenario Validation', () => {
 			// With 12 available days and 1 student/day, can serve 12 student-days
 			// 3 students × 7 days = 21 non-elective student-days needed
 			// So should use all 12 Dr Dude days
-			const drDudeAssignments = assignments.filter(a => a.preceptor_id === drDudeId);
+			const drDudeAssignments = assignments.filter((a) => a.preceptor_id === drDudeId);
 			expect(drDudeAssignments.length).toBe(12);
 
 			// All Dr Dude assignments should have null elective_id (non-elective)

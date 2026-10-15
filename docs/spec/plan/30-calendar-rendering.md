@@ -1,13 +1,15 @@
 # Step 30 — Calendar Rendering: Student Identity, Per-Student Colour, Clerkship Link
 
 ## Objective
+
 On the schedule-wide calendar, every assignment should say **who** it is for, colour should identify
 the student at a glance, and the list view's clerkship should be a link like the other entities.
 
 ## Context (verified in code)
+
 - `(app)/calendar/+page.svelte:688` passes **`mode="student"`** to `ScheduleCalendarGrid`. In that
   mode `primaryLabel` returns `clerkshipName` and `secondaryLabel` returns `preceptorName`
-  (`schedule-calendar-grid.svelte:49-58`) — the student is dropped. The grid's *default* branch
+  (`schedule-calendar-grid.svelte:49-58`) — the student is dropped. The grid's _default_ branch
   already renders `"<student> · <clerkship>"`, so the label logic is fine; the caller passes the
   wrong mode.
 - Cell colour is `assignment.color`, set in the page's mapping (line ~402) from `event.color`, which
@@ -17,9 +19,11 @@ the student at a glance, and the list view's clerkship should be a link like the
   preceptor are links.
 
 ## Prerequisites
+
 Step 26 (the calendar must be showing only the caller's data before its rendering is tuned).
 
 ## Scope
+
 **In:** the schedule-wide calendar's cell content, colour semantics, and list-view links.
 **Out:** the student/preceptor calendars, which keep their current, correct semantics.
 
@@ -44,6 +48,7 @@ Step 26 (the calendar must be showing only the caller's data before its renderin
    label helpers, so it should follow automatically once the mode is right.
 
 ## Testing
+
 - **Component (grid):** in schedule mode a cell renders student, clerkship and preceptor; in student
   mode it still renders clerkship + preceptor (no regression); `colorBy: 'student'` assigns two
   assignments for the same student the same colour and two different students different colours;
@@ -55,6 +60,7 @@ Step 26 (the calendar must be showing only the caller's data before its renderin
   `/clerkships/[id]`; the student page's calendar still shows clerkship + preceptor.
 
 ## Acceptance criteria
+
 - [ ] Schedule-wide calendar cells identify the student.
 - [ ] Colour identifies the student schedule-wide, and clerkship on the student/preceptor views.
 - [ ] Clerkship is a link in list view, like student and preceptor.

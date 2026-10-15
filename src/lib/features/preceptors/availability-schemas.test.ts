@@ -246,7 +246,9 @@ describe('dateRangeSchema', () => {
 		const result = dateRangeSchema.safeParse(invalidInput);
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(result.error.issues[0].message).toContain('start_date must be before or equal to end_date');
+			expect(result.error.issues[0].message).toContain(
+				'start_date must be before or equal to end_date'
+			);
 		}
 	});
 
@@ -279,9 +281,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('requires preceptor_id', () => {
 		const invalidInput = {
 			site_id: 'clq9876543210987654321',
-			availability: [
-				{ date: '2024-01-01', is_available: true }
-			]
+			availability: [{ date: '2024-01-01', is_available: true }]
 		};
 
 		const result = bulkAvailabilitySchema.safeParse(invalidInput);
@@ -291,9 +291,7 @@ describe('bulkAvailabilitySchema', () => {
 	it('requires site_id', () => {
 		const invalidInput = {
 			preceptor_id: 'clq1234567890123456789',
-			availability: [
-				{ date: '2024-01-01', is_available: true }
-			]
+			availability: [{ date: '2024-01-01', is_available: true }]
 		};
 
 		const result = bulkAvailabilitySchema.safeParse(invalidInput);
@@ -325,9 +323,7 @@ describe('bulkAvailabilitySchema', () => {
 		const invalidInput = {
 			preceptor_id: 'clq1234567890123456789',
 			site_id: 'clq9876543210987654321',
-			availability: [
-				{ date: 'invalid-date', is_available: true }
-			]
+			availability: [{ date: 'invalid-date', is_available: true }]
 		};
 
 		const result = bulkAvailabilitySchema.safeParse(invalidInput);
@@ -338,9 +334,7 @@ describe('bulkAvailabilitySchema', () => {
 		const invalidInput = {
 			preceptor_id: 'clq1234567890123456789',
 			site_id: 'clq9876543210987654321',
-			availability: [
-				{ is_available: true }
-			]
+			availability: [{ is_available: true }]
 		};
 
 		const result = bulkAvailabilitySchema.safeParse(invalidInput);
@@ -351,9 +345,7 @@ describe('bulkAvailabilitySchema', () => {
 		const invalidInput = {
 			preceptor_id: 'clq1234567890123456789',
 			site_id: 'clq9876543210987654321',
-			availability: [
-				{ date: '2024-01-01' }
-			]
+			availability: [{ date: '2024-01-01' }]
 		};
 
 		const result = bulkAvailabilitySchema.safeParse(invalidInput);

@@ -57,10 +57,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		await db.transaction().execute(async (trx) => {
-			await trx
-				.deleteFrom('student_core_preceptors')
-				.where('student_id', '=', id)
-				.execute();
+			await trx.deleteFrom('student_core_preceptors').where('student_id', '=', id).execute();
 			if (unique.length > 0) {
 				await trx
 					.insertInto('student_core_preceptors')

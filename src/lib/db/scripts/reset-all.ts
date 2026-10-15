@@ -28,7 +28,7 @@ function parseArgs(argv: string[]) {
 		yes: argv.includes('--yes') || argv.includes('-y'),
 		dryRun: argv.includes('--dry-run'),
 		seed: argv.includes('--seed'),
-		forceProduction: argv.includes('--force-production'),
+		forceProduction: argv.includes('--force-production')
 	};
 }
 
@@ -92,7 +92,7 @@ async function main() {
 		console.log('\nSeeding...');
 		execFileSync('npx', ['tsx', 'src/lib/db/scripts/seed.ts'], {
 			stdio: 'inherit',
-			env: process.env,
+			env: process.env
 		});
 	}
 }

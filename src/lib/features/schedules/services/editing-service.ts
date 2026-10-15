@@ -105,11 +105,7 @@ async function evaluateEdit(
 }
 
 /** Build the `errors` convenience list from a blocked evaluation. */
-function blockingMessages(
-	hard: Violation[],
-	soft: Violation[],
-	opts: EditOptions
-): string[] {
+function blockingMessages(hard: Violation[], soft: Violation[], opts: EditOptions): string[] {
 	const accepted = new Set(opts.overrideCodes ?? []);
 	const blockingSoft =
 		opts.blockOnSoft === true && !opts.force ? soft.filter((s) => !accepted.has(s.code)) : [];
@@ -169,7 +165,12 @@ export async function reassignToPreceptor(
 		return { valid: true, errors: [], hard: [], soft };
 	}
 
-	const updated = await updateAssignmentBase(db, assignmentId, { preceptor_id: newPreceptorId }, true);
+	const updated = await updateAssignmentBase(
+		db,
+		assignmentId,
+		{ preceptor_id: newPreceptorId },
+		true
+	);
 	await persistOverrideCodes(db, assignmentId, persistedCodes, opts.overrideNote);
 
 	log.info('Assignment reassigned', {

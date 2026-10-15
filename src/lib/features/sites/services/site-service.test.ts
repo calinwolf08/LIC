@@ -207,7 +207,10 @@ describe('SiteService', () => {
 			const healthSystem = await createHealthSystemDirect(db);
 			await createSiteDirect(db, { name: 'Zebra Hospital', health_system_id: healthSystem.id });
 			await createSiteDirect(db, { name: 'Alpha Clinic', health_system_id: healthSystem.id });
-			await createSiteDirect(db, { name: 'Beta Medical Center', health_system_id: healthSystem.id });
+			await createSiteDirect(db, {
+				name: 'Beta Medical Center',
+				health_system_id: healthSystem.id
+			});
 
 			const sites = await siteService.getAllSites();
 			expect(sites).toHaveLength(3);
@@ -431,9 +434,9 @@ describe('SiteService', () => {
 				health_system_id: healthSystem.id
 			});
 
-			await expect(
-				siteService.updateSite(site2.id, { name: 'existing site' })
-			).rejects.toThrow(ConflictError);
+			await expect(siteService.updateSite(site2.id, { name: 'existing site' })).rejects.toThrow(
+				ConflictError
+			);
 		});
 
 		it('allows updating site with its own name', async () => {
@@ -848,36 +851,56 @@ describe('Site Service - Multi-tenancy', () => {
 			const userAId = await createTestUser(db, { name: 'User A' });
 			const userBId = await createTestUser(db, { name: 'User B' });
 
-			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
-			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+			const scheduleAId = await createTestSchedule(db, {
+				userId: userAId,
+				name: 'Schedule A',
+				setAsActive: true
+			});
+			const scheduleBId = await createTestSchedule(db, {
+				userId: userBId,
+				name: 'Schedule B',
+				setAsActive: true
+			});
 
 			// Create health system and sites
 			const { healthSystemId } = await createTestHealthSystem(db, 'Test Health System');
 
 			const timestamp = new Date().toISOString();
-			const siteA1 = await db.insertInto('sites').values({
-				id: nanoid(),
-				name: 'Site A1',
-				health_system_id: healthSystemId,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const siteA1 = await db
+				.insertInto('sites')
+				.values({
+					id: nanoid(),
+					name: 'Site A1',
+					health_system_id: healthSystemId,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-			const siteA2 = await db.insertInto('sites').values({
-				id: nanoid(),
-				name: 'Site A2',
-				health_system_id: healthSystemId,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const siteA2 = await db
+				.insertInto('sites')
+				.values({
+					id: nanoid(),
+					name: 'Site A2',
+					health_system_id: healthSystemId,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-			const siteB1 = await db.insertInto('sites').values({
-				id: nanoid(),
-				name: 'Site B1',
-				health_system_id: healthSystemId,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const siteB1 = await db
+				.insertInto('sites')
+				.values({
+					id: nanoid(),
+					name: 'Site B1',
+					health_system_id: healthSystemId,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
 			// Associate sites with schedules
 			await associateSiteWithSchedule(db, siteA1.id, scheduleAId);
@@ -887,30 +910,37 @@ describe('Site Service - Multi-tenancy', () => {
 			// Get sites for Schedule A
 			const sitesA = await siteService.getSitesBySchedule(scheduleAId);
 			expect(sitesA).toHaveLength(2);
-			expect(sitesA.map(s => s.id)).toContain(siteA1.id);
-			expect(sitesA.map(s => s.id)).toContain(siteA2.id);
-			expect(sitesA.map(s => s.id)).not.toContain(siteB1.id);
+			expect(sitesA.map((s) => s.id)).toContain(siteA1.id);
+			expect(sitesA.map((s) => s.id)).toContain(siteA2.id);
+			expect(sitesA.map((s) => s.id)).not.toContain(siteB1.id);
 
 			// Get sites for Schedule B
 			const sitesB = await siteService.getSitesBySchedule(scheduleBId);
 			expect(sitesB).toHaveLength(1);
-			expect(sitesB.map(s => s.id)).toContain(siteB1.id);
+			expect(sitesB.map((s) => s.id)).toContain(siteB1.id);
 		});
 
 		it('returns empty array when schedule has no associated sites', async () => {
 			const userId = await createTestUser(db, { name: 'User' });
-			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+			const scheduleId = await createTestSchedule(db, {
+				userId,
+				name: 'Empty Schedule',
+				setAsActive: true
+			});
 
 			// Create sites but don't associate with the schedule
 			const { healthSystemId } = await createTestHealthSystem(db, 'Test Health System');
 			const timestamp = new Date().toISOString();
-			await db.insertInto('sites').values({
-				id: nanoid(),
-				name: 'Some Site',
-				health_system_id: healthSystemId,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).execute();
+			await db
+				.insertInto('sites')
+				.values({
+					id: nanoid(),
+					name: 'Some Site',
+					health_system_id: healthSystemId,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 
 			const sites = await siteService.getSitesBySchedule(scheduleId);
 			expect(sites).toEqual([]);

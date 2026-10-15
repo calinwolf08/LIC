@@ -49,8 +49,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	try {
 		const patch = patchSchema.parse(body);
 		// Guard any entity the patch newly points at.
-		if (patch.preceptor_id) await assertEntityInSchedule(db, scheduleId, 'preceptor', patch.preceptor_id);
-		if (patch.clerkship_id) await assertEntityInSchedule(db, scheduleId, 'clerkship', patch.clerkship_id);
+		if (patch.preceptor_id)
+			await assertEntityInSchedule(db, scheduleId, 'preceptor', patch.preceptor_id);
+		if (patch.clerkship_id)
+			await assertEntityInSchedule(db, scheduleId, 'clerkship', patch.clerkship_id);
 		if (patch.site_id) await assertEntityInSchedule(db, scheduleId, 'site', patch.site_id);
 
 		const pin = await updatePin(db, scheduleId, userId, params.id, patch);

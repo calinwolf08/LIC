@@ -73,21 +73,61 @@ afterEach(async () => {
 
 async function rowExists(table: keyof DB, id: string): Promise<boolean> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const row = await (db as any).selectFrom(table).select('id').where('id', '=', id).executeTakeFirst();
+	const row = await (db as any)
+		.selectFrom(table)
+		.select('id')
+		.where('id', '=', id)
+		.executeTakeFirst();
 	return Boolean(row);
 }
 
 describe('cross-tenant entity mutations → 404, row intact', () => {
 	const cases = [
-		{ name: 'students', mod: students, table: 'students' as const, other: () => t.b.studentId, own: () => t.a.studentId, kind: 'student' as const },
-		{ name: 'preceptors', mod: preceptors, table: 'preceptors' as const, other: () => t.b.preceptorId, own: () => t.a.preceptorId, kind: 'preceptor' as const },
-		{ name: 'clerkships', mod: clerkships, table: 'clerkships' as const, other: () => t.b.clerkshipId, own: () => t.a.clerkshipId, kind: 'clerkship' as const },
-		{ name: 'sites', mod: sites, table: 'sites' as const, other: () => t.b.siteId, own: () => t.a.siteId, kind: 'site' as const },
-		{ name: 'health-systems', mod: healthSystems, table: 'health_systems' as const, other: () => t.b.healthSystemId, own: () => t.a.healthSystemId, kind: 'health_system' as const }
+		{
+			name: 'students',
+			mod: students,
+			table: 'students' as const,
+			other: () => t.b.studentId,
+			own: () => t.a.studentId,
+			kind: 'student' as const
+		},
+		{
+			name: 'preceptors',
+			mod: preceptors,
+			table: 'preceptors' as const,
+			other: () => t.b.preceptorId,
+			own: () => t.a.preceptorId,
+			kind: 'preceptor' as const
+		},
+		{
+			name: 'clerkships',
+			mod: clerkships,
+			table: 'clerkships' as const,
+			other: () => t.b.clerkshipId,
+			own: () => t.a.clerkshipId,
+			kind: 'clerkship' as const
+		},
+		{
+			name: 'sites',
+			mod: sites,
+			table: 'sites' as const,
+			other: () => t.b.siteId,
+			own: () => t.a.siteId,
+			kind: 'site' as const
+		},
+		{
+			name: 'health-systems',
+			mod: healthSystems,
+			table: 'health_systems' as const,
+			other: () => t.b.healthSystemId,
+			own: () => t.a.healthSystemId,
+			kind: 'health_system' as const
+		}
 	];
 
 	for (const c of cases) {
-		const patch = (c.mod as { PATCH?: unknown; PUT?: unknown }).PATCH ?? (c.mod as { PUT?: unknown }).PUT;
+		const patch =
+			(c.mod as { PATCH?: unknown; PUT?: unknown }).PATCH ?? (c.mod as { PUT?: unknown }).PUT;
 
 		it(`${c.name}: PATCH B → 404 and B unchanged`, async () => {
 			const res = await (patch as (e: never) => Promise<Response>)(
@@ -95,12 +135,18 @@ describe('cross-tenant entity mutations → 404, row intact', () => {
 			);
 			expect(res.status).toBe(404);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const row = await (db as any).selectFrom(c.table).select('name').where('id', '=', c.other()).executeTakeFirst();
+			const row = await (db as any)
+				.selectFrom(c.table)
+				.select('name')
+				.where('id', '=', c.other())
+				.executeTakeFirst();
 			expect(row.name).not.toBe('HACKED');
 		});
 
 		it(`${c.name}: DELETE B → 404 and B still exists`, async () => {
-			const res = await (c.mod.DELETE as (e: never) => Promise<Response>)(event({ params: { id: c.other() } }));
+			const res = await (c.mod.DELETE as (e: never) => Promise<Response>)(
+				event({ params: { id: c.other() } })
+			);
 			expect(res.status).toBe(404);
 			expect(await rowExists(c.table, c.other())).toBe(true);
 		});
@@ -108,7 +154,7 @@ describe('cross-tenant entity mutations → 404, row intact', () => {
 });
 
 describe('assignment mutations', () => {
-	it('DELETE B\'s assignment → 404, assignment intact', async () => {
+	it("DELETE B's assignment → 404, assignment intact", async () => {
 		const res = await (assignmentId.DELETE as (e: never) => Promise<Response>)(
 			event({ params: { id: t.b.assignmentId } })
 		);
@@ -138,7 +184,9 @@ describe("override side_effects cannot reach another tenant's data", () => {
 				request: new Request('http://localhost/', {
 					method: 'POST',
 					body: JSON.stringify({
-						side_effects: [{ kind: 'bump_preceptor_capacity', preceptor_id: t.b.preceptorId, by: 5 }]
+						side_effects: [
+							{ kind: 'bump_preceptor_capacity', preceptor_id: t.b.preceptorId, by: 5 }
+						]
 					}),
 					headers: { 'content-type': 'application/json' }
 				})
@@ -160,7 +208,9 @@ describe("override side_effects cannot reach another tenant's data", () => {
 				request: new Request('http://localhost/', {
 					method: 'POST',
 					body: JSON.stringify({
-						side_effects: [{ kind: 'remove_conflicting_assignment', assignment_id: t.b.assignmentId }]
+						side_effects: [
+							{ kind: 'remove_conflicting_assignment', assignment_id: t.b.assignmentId }
+						]
 					}),
 					headers: { 'content-type': 'application/json' }
 				})

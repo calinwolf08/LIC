@@ -7,11 +7,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { preceptorTeamInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
@@ -59,7 +55,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Apply additional clerkship filter if provided
 		let teams = result.data;
 		if (clerkshipId) {
-			teams = teams.filter(t => t.clerkshipId === clerkshipId);
+			teams = teams.filter((t) => t.clerkshipId === clerkshipId);
 		}
 
 		log.info('Teams fetched', {
@@ -86,12 +82,16 @@ const createTeamBodySchema = z.object({
 	requireSameSite: z.boolean().default(false),
 	requireSameSpecialty: z.boolean().default(false),
 	requiresAdminApproval: z.boolean().default(false),
-	members: z.array(z.object({
-		preceptorId: z.string().min(1, 'Preceptor ID is required'),
-		role: z.string().optional(),
-		priority: z.number().int().min(1, 'Priority must be at least 1'),
-		isFallbackOnly: z.boolean().optional().default(false),
-	})).min(1, 'Team must have at least 1 member'),
+	members: z
+		.array(
+			z.object({
+				preceptorId: z.string().min(1, 'Preceptor ID is required'),
+				role: z.string().optional(),
+				priority: z.number().int().min(1, 'Priority must be at least 1'),
+				isFallbackOnly: z.boolean().optional().default(false)
+			})
+		)
+		.min(1, 'Team must have at least 1 member')
 });
 
 /**
@@ -157,7 +157,7 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Team validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

@@ -171,9 +171,7 @@ export function buildSchedulingContext(
 				if (!preceptorElectiveAssociations.has(record.preceptor_id)) {
 					preceptorElectiveAssociations.set(record.preceptor_id, new Set());
 				}
-				preceptorElectiveAssociations
-					.get(record.preceptor_id)!
-					.add(record.elective_requirement_id);
+				preceptorElectiveAssociations.get(record.preceptor_id)!.add(record.elective_requirement_id);
 			}
 			context.preceptorElectiveAssociations = preceptorElectiveAssociations;
 		}

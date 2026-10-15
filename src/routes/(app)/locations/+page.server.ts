@@ -29,7 +29,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// junction tables.
 	const healthSystems = await db
 		.selectFrom('health_systems')
-		.innerJoin('schedule_health_systems', 'health_systems.id', 'schedule_health_systems.health_system_id')
+		.innerJoin(
+			'schedule_health_systems',
+			'health_systems.id',
+			'schedule_health_systems.health_system_id'
+		)
 		.where('schedule_health_systems.schedule_id', '=', scheduleId)
 		.selectAll('health_systems')
 		.orderBy('health_systems.name', 'asc')

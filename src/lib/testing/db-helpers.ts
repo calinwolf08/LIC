@@ -68,15 +68,26 @@ export async function seedTestDb(db: Kysely<DB>, data?: Partial<SeedData>): Prom
 	);
 
 	// Use provided data or generate defaults
-	const students = data?.students || [createMockStudent(), createMockStudent({ email: 'student2@example.com' })];
+	const students = data?.students || [
+		createMockStudent(),
+		createMockStudent({ email: 'student2@example.com' })
+	];
 
-	const preceptors = data?.preceptors || [createMockPreceptor(), createMockPreceptor({ email: 'preceptor2@example.com' })];
+	const preceptors = data?.preceptors || [
+		createMockPreceptor(),
+		createMockPreceptor({ email: 'preceptor2@example.com' })
+	];
 
-	const clerkships = data?.clerkships || [createMockClerkship(), createMockClerkship({ name: 'Pediatrics' })];
+	const clerkships = data?.clerkships || [
+		createMockClerkship(),
+		createMockClerkship({ name: 'Pediatrics' })
+	];
 
 	// Insert data
 	const insertedStudents = await Promise.all(
-		students.map((student) => db.insertInto('students').values(student).returningAll().executeTakeFirstOrThrow())
+		students.map((student) =>
+			db.insertInto('students').values(student).returningAll().executeTakeFirstOrThrow()
+		)
 	);
 
 	const insertedPreceptors = await Promise.all(

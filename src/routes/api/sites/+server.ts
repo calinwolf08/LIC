@@ -42,7 +42,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Additional filter by health system if provided
 		if (healthSystemId) {
-			sites = sites.filter(s => s.health_system_id === healthSystemId);
+			sites = sites.filter((s) => s.health_system_id === healthSystemId);
 		}
 
 		log.info('Sites fetched', {
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Site validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

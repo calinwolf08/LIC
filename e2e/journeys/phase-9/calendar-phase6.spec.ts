@@ -218,7 +218,9 @@ test.describe('Phase 6 calendar workspace', { tag: ['@stage1'] }, () => {
 		const dialog = new AssignmentDialog(asAdmin);
 		await dialog.waitUntilOpen();
 		await expect(asAdmin.getByTestId('range-mode-help')).toBeVisible();
-		await expect(asAdmin.getByRole('button', { name: 'Range', exact: true })).toHaveClass(/bg-primary/);
+		await expect(asAdmin.getByRole('button', { name: 'Range', exact: true })).toHaveClass(
+			/bg-primary/
+		);
 		const selected = await dialog.selectedDates();
 		expect(selected).toContain(lo);
 		expect(selected).toContain(hi);

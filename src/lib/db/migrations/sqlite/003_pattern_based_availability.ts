@@ -20,12 +20,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('start_date', 'text', (col) => col.notNull())
 		.addColumn('end_date', 'text', (col) => col.notNull())
 		.addColumn('is_active', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`(datetime('now'))`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`(datetime('now'))`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
 		.execute();
 
 	// Ensure only one active period at a time
@@ -53,9 +49,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('pattern_type', 'text', (col) => col.notNull().check(
-			sql`pattern_type IN ('weekly', 'monthly', 'block', 'individual')`
-		))
+		.addColumn('pattern_type', 'text', (col) =>
+			col.notNull().check(sql`pattern_type IN ('weekly', 'monthly', 'block', 'individual')`)
+		)
 		.addColumn('is_available', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('specificity', 'integer', (col) => col.notNull())
 		.addColumn('date_range_start', 'text', (col) => col.notNull())
@@ -63,12 +59,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('config', 'text', (col) => col) // JSON configuration
 		.addColumn('reason', 'text', (col) => col) // Optional reason for individual overrides
 		.addColumn('enabled', 'integer', (col) => col.notNull().defaultTo(1))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`(datetime('now'))`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`(datetime('now'))`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
 		.execute();
 
 	// Index for preceptor lookups

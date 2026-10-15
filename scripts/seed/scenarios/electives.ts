@@ -25,7 +25,7 @@ import {
 	createTeam,
 	createAvailability,
 	linkElectivePreceptor,
-	generateWeekdaysInRange,
+	generateWeekdaysInRange
 } from '../helpers';
 
 export async function electivesScenario(userId: string, scheduleId: string): Promise<void> {
@@ -38,32 +38,40 @@ export async function electivesScenario(userId: string, scheduleId: string): Pro
 
 	// Create Sites
 	console.log('  Creating sites...');
-	const generalClinicId = await createSite(healthSystemId, 'General Medicine Clinic', '200 Main St, Denver');
-	const specialtyCenterId = await createSite(healthSystemId, 'Specialty Care Center', '300 Specialist Dr, Denver');
+	const generalClinicId = await createSite(
+		healthSystemId,
+		'General Medicine Clinic',
+		'200 Main St, Denver'
+	);
+	const specialtyCenterId = await createSite(
+		healthSystemId,
+		'Specialty Care Center',
+		'300 Specialist Dr, Denver'
+	);
 
 	// Create Clerkship
 	console.log('  Creating clerkship...');
 	const clerkshipId = await createClerkship('Pediatrics', {
 		type: 'outpatient',
 		requiredDays: 15,
-		specialty: 'Pediatrics',
+		specialty: 'Pediatrics'
 	});
 
 	// Create Electives
 	console.log('  Creating electives...');
 	const neonatalId = await createElective(clerkshipId, 'Neonatal Care', {
 		minimumDays: 3,
-		isRequired: true,
+		isRequired: true
 	});
 
 	const adolescentId = await createElective(clerkshipId, 'Adolescent Medicine', {
 		minimumDays: 4,
-		isRequired: true,
+		isRequired: true
 	});
 
 	const developmentalId = await createElective(clerkshipId, 'Developmental Pediatrics', {
 		minimumDays: 3,
-		isRequired: false, // Optional elective
+		isRequired: false // Optional elective
 	});
 
 	// Create Students
@@ -81,14 +89,14 @@ export async function electivesScenario(userId: string, scheduleId: string): Pro
 		healthSystemId,
 		siteId: generalClinicId,
 		specialty: 'Pediatrics',
-		maxStudents: 2,
+		maxStudents: 2
 	});
 
 	const drGeneralBId = await createPreceptor('Dr. General B', {
 		healthSystemId,
 		siteId: generalClinicId,
 		specialty: 'Pediatrics',
-		maxStudents: 2,
+		maxStudents: 2
 	});
 
 	// Specialist preceptors (for electives)
@@ -96,14 +104,14 @@ export async function electivesScenario(userId: string, scheduleId: string): Pro
 		healthSystemId,
 		siteId: specialtyCenterId,
 		specialty: 'Neonatal Care',
-		maxStudents: 1,
+		maxStudents: 1
 	});
 
 	const drAdolescentId = await createPreceptor('Dr. Adolescent Specialist', {
 		healthSystemId,
 		siteId: specialtyCenterId,
 		specialty: 'Adolescent Medicine',
-		maxStudents: 2,
+		maxStudents: 2
 	});
 
 	// Create Teams

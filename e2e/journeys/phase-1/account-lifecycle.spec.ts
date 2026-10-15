@@ -8,13 +8,7 @@
  * path + query. Auth is always driven through the real forms.
  */
 
-import {
-	test,
-	expect,
-	uniqueEmail,
-	apiOf,
-	completeOrganizationOnboarding
-} from '../../fixtures';
+import { test, expect, uniqueEmail, apiOf, completeOrganizationOnboarding } from '../../fixtures';
 
 test.describe('J1.1 account lifecycle', { tag: ['@stage1'] }, () => {
 	test('register: inline validation blocks bad input, a clean submit lands schedule-first', async ({

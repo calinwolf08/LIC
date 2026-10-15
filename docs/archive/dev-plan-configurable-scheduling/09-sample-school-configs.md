@@ -14,6 +14,7 @@ Create complete, working configurations for 4 different medical school types (Sc
 4. **School D** - Modern, maximally flexible approach
 
 Each school will have complete configurations across all areas:
+
 - Assignment strategies
 - Requirement structures
 - Team configurations
@@ -25,6 +26,7 @@ Each school will have complete configurations across all areas:
 ## School A: Traditional Conservative
 
 ### Philosophy
+
 - One preceptor per clerkship for entire year
 - Emphasis on continuity and relationship-building
 - Strict health system consistency
@@ -33,12 +35,14 @@ Each school will have complete configurations across all areas:
 ### Configuration Specifications
 
 **General Settings**
+
 - Assignment Strategy: Continuous - Single Preceptor
 - Health System Continuity: Enforce same system (required)
 - Team Formation: Not used
 - Fallback System: Minimal (only for emergencies)
 
 **Sample Clerkship: Family Medicine (60 days)**
+
 - Total Required Days: 60
 - Requirement Structure: No split, single requirement
 - Assignment Mode: Continuous Single
@@ -48,6 +52,7 @@ Each school will have complete configurations across all areas:
 - Fallback Configured: Yes (1-2 emergency fallbacks with approval required)
 
 **Sample Clerkship: Surgery (45 days)**
+
 - Total Required Days: 45
 - Requirement Structure: No split
 - Assignment Mode: Continuous Single
@@ -55,17 +60,20 @@ Each school will have complete configurations across all areas:
 - Teams Allowed: No
 
 **Sample Clerkship: Internal Medicine (60 days)**
+
 - Total Required Days: 60
 - Requirement Structure: No split
 - Assignment Mode: Continuous Single
 - Health System Rule: Enforce same system
 
 **Capacity Rules**
+
 - Conservative: Max 1 student per preceptor per day
 - Max 3 students per preceptor per year
 - No concurrent students
 
 **Health Systems**
+
 - 2 health systems configured
 - All preceptors assigned to systems
 - No cross-system assignments allowed
@@ -73,19 +81,23 @@ Each school will have complete configurations across all areas:
 ### Data to Create
 
 **Health Systems**
+
 - University Hospital System
 - Community Health Network
 
 **Preceptors** (minimum for testing)
+
 - 5 Family Medicine preceptors (3 in UHS, 2 in CHN)
 - 4 Surgery preceptors (2 in each system)
 - 5 Internal Medicine preceptors (3 in UHS, 2 in CHN)
 - Each with conservative capacity rules
 
 **Students** (for testing)
+
 - 6 students needing all clerkships
 
 **Expected Outcome**
+
 - System successfully assigns each student to one preceptor per clerkship
 - All students in same health system throughout year
 - No team assignments
@@ -94,6 +106,7 @@ Each school will have complete configurations across all areas:
 ## School B: Collaborative Team-Based
 
 ### Philosophy
+
 - Students rotate through 3-4 preceptors per clerkship
 - Emphasis on diverse experiences
 - Team-based learning
@@ -102,12 +115,14 @@ Each school will have complete configurations across all areas:
 ### Configuration Specifications
 
 **General Settings**
+
 - Assignment Strategy: Continuous - Team (3-4 preceptors)
 - Health System Continuity: Prefer same system (soft)
 - Team Formation: Pre-configured teams
 - Fallback System: Team substitution
 
 **Sample Clerkship: Family Medicine (60 days)**
+
 - Total Required Days: 60
 - Requirement Structure: No split
 - Assignment Mode: Continuous Team
@@ -119,6 +134,7 @@ Each school will have complete configurations across all areas:
 - Distribution: Balanced (each team member gets ~15-20 days)
 
 **Sample Clerkship: Surgery (45 days)**
+
 - Total Required Days: 45
 - Requirement Structure: No split
 - Assignment Mode: Continuous Team
@@ -126,6 +142,7 @@ Each school will have complete configurations across all areas:
 - Distribution: Balanced
 
 **Sample Clerkship: Pediatrics (40 days)**
+
 - Total Required Days: 40
 - Requirement Structure: No split
 - Assignment Mode: Continuous Team
@@ -133,11 +150,13 @@ Each school will have complete configurations across all areas:
 - Distribution: Balanced
 
 **Capacity Rules**
+
 - Moderate: Max 2 students per preceptor per day
 - Max 6 students per preceptor per year (higher due to shared load)
 - Teams share capacity
 
 **Teams**
+
 - Pre-configured teams for each clerkship
 - Each team has 3-4 members from same health system
 - Team members have coordinated schedules
@@ -145,10 +164,12 @@ Each school will have complete configurations across all areas:
 ### Data to Create
 
 **Health Systems**
+
 - Metro Medical Center
 - Regional Healthcare Alliance
 
 **Teams**
+
 - Family Medicine Team A (3 preceptors in MMC)
 - Family Medicine Team B (4 preceptors in RHA)
 - Surgery Team A (3 preceptors in MMC)
@@ -157,15 +178,18 @@ Each school will have complete configurations across all areas:
 - Pediatrics Team B (3 preceptors in RHA)
 
 **Preceptors** (minimum for testing)
+
 - 7 Family Medicine preceptors (teams of 3 and 4)
 - 6 Surgery preceptors (teams of 3 each)
 - 6 Pediatrics preceptors (teams of 3 each)
 - Each with moderate capacity rules
 
 **Students** (for testing)
+
 - 8 students needing all clerkships
 
 **Expected Outcome**
+
 - Each student assigned to a team for each clerkship
 - Days balanced across team members
 - Students experience 3-4 different preceptors per clerkship
@@ -174,6 +198,7 @@ Each school will have complete configurations across all areas:
 ## School C: Hybrid Flexible
 
 ### Philosophy
+
 - Different approaches for different settings
 - Inpatient uses block scheduling (2-week rotations)
 - Outpatient uses continuous single preceptor
@@ -183,12 +208,14 @@ Each school will have complete configurations across all areas:
 ### Configuration Specifications
 
 **General Settings**
+
 - Assignment Strategy: Hybrid (varies by requirement type)
 - Health System Continuity: Prefer same system
 - Block Size: 14 days (for inpatient)
 - Electives: Supported
 
 **Sample Clerkship: Internal Medicine (70 days)**
+
 - Total Required Days: 70
 - Requirement Structure: Split
   - Outpatient: 30 days (Continuous Single)
@@ -201,6 +228,7 @@ Each school will have complete configurations across all areas:
   - Prefer continuous blocks: Yes (same preceptor for multiple blocks)
 
 **Sample Clerkship: Surgery (60 days)**
+
 - Total Required Days: 60
 - Requirement Structure: Split
   - Outpatient: 20 days (Continuous Single)
@@ -208,6 +236,7 @@ Each school will have complete configurations across all areas:
   - Elective: 5 days (Daily Rotation)
 
 **Sample Clerkship: Pediatrics (50 days)**
+
 - Total Required Days: 50
 - Requirement Structure: Split
   - Outpatient: 30 days (Continuous Single)
@@ -215,12 +244,14 @@ Each school will have complete configurations across all areas:
   - No electives
 
 **Elective Options** (for Internal Medicine)
+
 - Sexual Assault Clinic (min 3 days)
 - Bupe Clinic (min 2 days)
 - Geriatrics (min 2 days)
 - Remaining days distributed as needed
 
 **Capacity Rules**
+
 - Outpatient: Max 1-2 students per day
 - Inpatient: Max 1 student per block
 - Max 4 blocks per preceptor per year
@@ -229,11 +260,13 @@ Each school will have complete configurations across all areas:
 ### Data to Create
 
 **Health Systems**
+
 - Academic Medical Center
 - Community Practice Network
 - Specialty Clinics Network (for electives)
 
 **Preceptors** (minimum for testing)
+
 - Internal Medicine:
   - 4 outpatient preceptors
   - 3 inpatient preceptors
@@ -247,9 +280,11 @@ Each school will have complete configurations across all areas:
 - Each with appropriate capacity rules based on setting
 
 **Students** (for testing)
+
 - 5 students needing all clerkships
 
 **Expected Outcome**
+
 - Each student assigned to:
   - One continuous preceptor for outpatient
   - Block-based assignments for inpatient (rotating every 2 weeks)
@@ -260,6 +295,7 @@ Each school will have complete configurations across all areas:
 ## School D: Modern Maximally Flexible
 
 ### Philosophy
+
 - Day-by-day assignment flexibility
 - No requirements for continuity
 - Optimize for preceptor availability
@@ -269,12 +305,14 @@ Each school will have complete configurations across all areas:
 ### Configuration Specifications
 
 **General Settings**
+
 - Assignment Strategy: Daily Rotation
 - Health System Continuity: No preference
 - Team Formation: Dynamic (formed as needed)
 - Fallback System: Extensive
 
 **Sample Clerkship: Family Medicine (50 days)**
+
 - Total Required Days: 50
 - Requirement Structure: No split
 - Assignment Mode: Daily Rotation
@@ -283,23 +321,27 @@ Each school will have complete configurations across all areas:
 - Load balancing: Yes (distribute across available preceptors)
 
 **Sample Clerkship: Emergency Medicine (30 days)**
+
 - Total Required Days: 30
 - Requirement Structure: No split
 - Assignment Mode: Daily Rotation
 - Health System Rule: No preference
 
 **Sample Clerkship: Psychiatry (40 days)**
+
 - Total Required Days: 40
 - Requirement Structure: No split
 - Assignment Mode: Daily Rotation
 - Health System Rule: No preference
 
 **Capacity Rules**
+
 - Liberal: Max 2-3 students per preceptor per day
 - Max 10 students per preceptor per year
 - High capacity to support flexibility
 
 **Fallback Configuration**
+
 - Extensive fallback chains (3-4 deep)
 - Auto-assignment (no approval required)
 - Health system override allowed
@@ -308,11 +350,13 @@ Each school will have complete configurations across all areas:
 ### Data to Create
 
 **Health Systems**
+
 - City Hospital Network
 - Suburban Medical Group
 - Rural Health Partnership
 
 **Preceptors** (minimum for testing)
+
 - 6 Family Medicine preceptors (across all systems)
 - 4 Emergency Medicine preceptors (across all systems)
 - 5 Psychiatry preceptors (across all systems)
@@ -320,14 +364,17 @@ Each school will have complete configurations across all areas:
 - Each with 2-3 fallbacks configured
 
 **Fallback Chains**
+
 - Every preceptor has 2-3 fallbacks
 - Cross-system fallbacks allowed
 - Auto-assignment enabled
 
 **Students** (for testing)
+
 - 10 students needing all clerkships
 
 **Expected Outcome**
+
 - Each student assigned day-by-day
 - Students may see different preceptor each day
 - Assignments span multiple health systems
@@ -339,12 +386,14 @@ Each school will have complete configurations across all areas:
 ### 1. Create Seed Data Scripts
 
 **Script Structure**
+
 - Separate script per school
 - Idempotent (can run multiple times)
 - Clean database first (optional flag)
 - Create in dependency order (health systems → preceptors → teams → configs)
 
 **Script Content**
+
 - Health system creation
 - Site creation
 - Preceptor creation with health system assignment
@@ -359,6 +408,7 @@ Each school will have complete configurations across all areas:
 ### 2. Create Validation Scripts
 
 **Validation Checks**
+
 - All configurations are complete
 - All configurations pass validation rules
 - Sample scheduling runs successfully
@@ -368,6 +418,7 @@ Each school will have complete configurations across all areas:
 ### 3. Create Documentation
 
 **Configuration Guides**
+
 - Document each school's philosophy
 - Explain configuration choices
 - Provide step-by-step recreation guide
@@ -375,6 +426,7 @@ Each school will have complete configurations across all areas:
 - Create comparison matrix
 
 **Comparison Matrix**
+
 - Table comparing all 4 schools across all dimensions
 - Highlight differences
 - Show use cases for each approach
@@ -382,6 +434,7 @@ Each school will have complete configurations across all areas:
 ### 4. Create Demo/Testing Helpers
 
 **Demo Mode**
+
 - Quick setup script for demos
 - Reset script to clean state
 - Sample data visualization
@@ -458,6 +511,7 @@ Each school will have complete configurations across all areas:
 ## Files to Create
 
 ### Seed Scripts
+
 ```
 src/lib/testing/seeds/school-a-config.ts
 src/lib/testing/seeds/school-b-config.ts
@@ -467,6 +521,7 @@ src/lib/testing/seeds/index.ts
 ```
 
 ### Test Files
+
 ```
 src/lib/testing/integration/school-a.integration.test.ts
 src/lib/testing/integration/school-b.integration.test.ts
@@ -476,6 +531,7 @@ src/lib/testing/integration/cross-school-comparison.test.ts
 ```
 
 ### Documentation
+
 ```
 docs/sample-schools/README.md
 docs/sample-schools/school-a-traditional.md
@@ -486,6 +542,7 @@ docs/sample-schools/comparison-matrix.md
 ```
 
 ### Helper Scripts
+
 ```
 scripts/seed-school.ts (CLI to load any school)
 scripts/demo-mode.ts (quick demo setup)

@@ -43,11 +43,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 
 		// Get schedules for this entity
-		const schedules = await getSchedulesForEntity(
-			db,
-			entityType as ScheduleEntityType,
-			entityId
-		);
+		const schedules = await getSchedulesForEntity(db, entityType as ScheduleEntityType, entityId);
 
 		log.info('Schedules for entity fetched', {
 			entityType,

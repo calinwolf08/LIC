@@ -16,42 +16,42 @@ import { DailyRotationStrategy } from './daily-rotation.strategy';
  * Chooses the appropriate scheduling strategy based on clerkship configuration.
  */
 export class StrategySelector {
-  private strategies: SchedulingStrategy[];
+	private strategies: SchedulingStrategy[];
 
-  constructor() {
-    // Order matters - specific strategies first, then default (team_continuity) last
-    this.strategies = [
-      new BlockBasedStrategy(),
-      new DailyRotationStrategy(),
-      new TeamContinuityStrategy(), // Default strategy (handles undefined and continuous_single)
-    ];
-  }
+	constructor() {
+		// Order matters - specific strategies first, then default (team_continuity) last
+		this.strategies = [
+			new BlockBasedStrategy(),
+			new DailyRotationStrategy(),
+			new TeamContinuityStrategy() // Default strategy (handles undefined and continuous_single)
+		];
+	}
 
-  /**
-   * Select strategy based on configuration
-   */
-  selectStrategy(config: ResolvedRequirementConfiguration): SchedulingStrategy | null {
-    for (const strategy of this.strategies) {
-      if (strategy.canHandle(config)) {
-        return strategy;
-      }
-    }
+	/**
+	 * Select strategy based on configuration
+	 */
+	selectStrategy(config: ResolvedRequirementConfiguration): SchedulingStrategy | null {
+		for (const strategy of this.strategies) {
+			if (strategy.canHandle(config)) {
+				return strategy;
+			}
+		}
 
-    // Default to team_continuity if no strategy matches
-    return new TeamContinuityStrategy();
-  }
+		// Default to team_continuity if no strategy matches
+		return new TeamContinuityStrategy();
+	}
 
-  /**
-   * Get all available strategies
-   */
-  getAvailableStrategies(): SchedulingStrategy[] {
-    return this.strategies;
-  }
+	/**
+	 * Get all available strategies
+	 */
+	getAvailableStrategies(): SchedulingStrategy[] {
+		return this.strategies;
+	}
 
-  /**
-   * Get strategy by name
-   */
-  getStrategyByName(name: string): SchedulingStrategy | null {
-    return this.strategies.find(s => s.getName() === name) || null;
-  }
+	/**
+	 * Get strategy by name
+	 */
+	getStrategyByName(name: string): SchedulingStrategy | null {
+		return this.strategies.find((s) => s.getName() === name) || null;
+	}
 }

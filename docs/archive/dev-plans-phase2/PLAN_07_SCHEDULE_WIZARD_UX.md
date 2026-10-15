@@ -3,6 +3,7 @@
 ## Overview
 
 Improve the new schedule wizard for first-time users by:
+
 1. Reordering steps to respect entity dependencies
 2. Adding inline entity creation at each step
 3. Removing redundant Year field
@@ -20,6 +21,7 @@ Improve the new schedule wizard for first-time users by:
 ## Design Decisions
 
 Based on discussion:
+
 - Each step allows creating **multiple** entities inline
 - Use **existing form components** (all are reusable)
 - Show **confirmation modal** when skipping with 0 selections
@@ -35,6 +37,7 @@ Based on discussion:
 **File**: `src/lib/features/schedules/components/new-schedule-wizard.svelte`
 
 Remove:
+
 - Line 48: `let year = $state(new Date().getFullYear());`
 - Lines 71-76: `$effect` that auto-calculates year
 - Lines 314-326: Year input field in Step 0
@@ -46,30 +49,32 @@ Remove:
 **File**: `src/lib/features/schedules/components/new-schedule-wizard.svelte`
 
 Change `steps` array from:
+
 ```javascript
 const steps = [
-  { name: 'Details', icon: '📝' },
-  { name: 'Students', icon: '👨‍🎓' },
-  { name: 'Preceptors', icon: '👨‍⚕️' },
-  { name: 'Sites', icon: '📍' },
-  { name: 'Health Systems', icon: '🏥' },
-  { name: 'Clerkships', icon: '📚' },
-  { name: 'Teams', icon: '👥' },
-  { name: 'Review', icon: '✅' }
+	{ name: 'Details', icon: '📝' },
+	{ name: 'Students', icon: '👨‍🎓' },
+	{ name: 'Preceptors', icon: '👨‍⚕️' },
+	{ name: 'Sites', icon: '📍' },
+	{ name: 'Health Systems', icon: '🏥' },
+	{ name: 'Clerkships', icon: '📚' },
+	{ name: 'Teams', icon: '👥' },
+	{ name: 'Review', icon: '✅' }
 ];
 ```
 
 To:
+
 ```javascript
 const steps = [
-  { name: 'Details', icon: '📝' },
-  { name: 'Health Systems', icon: '🏥' },
-  { name: 'Sites', icon: '📍' },
-  { name: 'Clerkships', icon: '📚' },
-  { name: 'Preceptors', icon: '👨‍⚕️' },
-  { name: 'Teams', icon: '👥' },
-  { name: 'Students', icon: '👨‍🎓' },
-  { name: 'Review', icon: '✅' }
+	{ name: 'Details', icon: '📝' },
+	{ name: 'Health Systems', icon: '🏥' },
+	{ name: 'Sites', icon: '📍' },
+	{ name: 'Clerkships', icon: '📚' },
+	{ name: 'Preceptors', icon: '👨‍⚕️' },
+	{ name: 'Teams', icon: '👥' },
+	{ name: 'Students', icon: '👨‍🎓' },
+	{ name: 'Review', icon: '✅' }
 ];
 ```
 
@@ -78,6 +83,7 @@ Update all step content `{#if currentStep === X}` blocks to match new order.
 ### Phase 3: Add Inline Entity Creation
 
 For each entity step, add:
+
 1. Import the existing form component
 2. Add modal state: `let showXForm = $state(false)`
 3. Add "Add New" button (primary style) when list is empty or below table
@@ -85,6 +91,7 @@ For each entity step, add:
 5. On success: refresh entity list, auto-select new entity
 
 **Components to import**:
+
 ```javascript
 import HealthSystemForm from '$lib/features/health-systems/components/health-system-form.svelte';
 import SiteForm from '$lib/features/sites/components/site-form.svelte';
@@ -95,6 +102,7 @@ import TeamFormDialog from '$lib/features/teams/components/team-form-dialog.svel
 ```
 
 **Pattern for each step**:
+
 ```svelte
 {#if currentStep === X}
   <h2 class="text-xl font-semibold mb-6">Select [Entities]</h2>
@@ -140,27 +148,29 @@ import TeamFormDialog from '$lib/features/teams/components/team-form-dialog.svel
 ```
 
 **Entity-specific handlers**:
+
 ```javascript
 async function handleHealthSystemCreated() {
-  showHealthSystemForm = false;
-  await refreshHealthSystems();
+	showHealthSystemForm = false;
+	await refreshHealthSystems();
 }
 
 async function handleSiteCreated() {
-  showSiteForm = false;
-  await refreshSites();
+	showSiteForm = false;
+	await refreshSites();
 }
 // ... etc for each entity type
 ```
 
 **Refresh functions** - fetch updated entity lists from API:
+
 ```javascript
 async function refreshHealthSystems() {
-  const response = await fetch('/api/health-systems');
-  const result = await response.json();
-  if (result.success) {
-    entityData.healthSystems = result.data;
-  }
+	const response = await fetch('/api/health-systems');
+	const result = await response.json();
+	if (result.success) {
+		entityData.healthSystems = result.data;
+	}
 }
 // ... etc for each entity type
 ```
@@ -168,6 +178,7 @@ async function refreshHealthSystems() {
 ### Phase 4: Skip Confirmation Modal
 
 Add state:
+
 ```javascript
 let showSkipConfirmation = $state(false);
 let skipEntityType = $state('');
@@ -175,6 +186,7 @@ let pendingNextStep = $state<(() => void) | null>(null);
 ```
 
 Modify `nextStep()`:
+
 ```javascript
 function nextStep(): void {
   // Check if current step has 0 selections
@@ -212,166 +224,173 @@ function cancelSkip(): void {
 ```
 
 Skip confirmation modal:
+
 ```svelte
 {#if showSkipConfirmation}
-  <div class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-black/50"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-      <h3 class="text-lg font-semibold mb-4">Continue without {skipEntityType}?</h3>
-      <p class="text-gray-600 mb-6">
-        You haven't selected any {skipEntityType.toLowerCase()}. You can add them later, but some features may not work without them.
-      </p>
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          onclick={cancelSkip}
-          class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-        >
-          Go Back
-        </button>
-        <button
-          type="button"
-          onclick={confirmSkip}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Continue Anyway
-        </button>
-      </div>
-    </div>
-  </div>
+	<div class="fixed inset-0 z-50 flex items-center justify-center">
+		<div class="absolute inset-0 bg-black/50"></div>
+		<div class="relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+			<h3 class="mb-4 text-lg font-semibold">Continue without {skipEntityType}?</h3>
+			<p class="mb-6 text-gray-600">
+				You haven't selected any {skipEntityType.toLowerCase()}. You can add them later, but some
+				features may not work without them.
+			</p>
+			<div class="flex justify-end gap-3">
+				<button
+					type="button"
+					onclick={cancelSkip}
+					class="rounded-lg bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200"
+				>
+					Go Back
+				</button>
+				<button
+					type="button"
+					onclick={confirmSkip}
+					class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+				>
+					Continue Anyway
+				</button>
+			</div>
+		</div>
+	</div>
 {/if}
 ```
 
 ### Phase 5: Teams Step with Prerequisites
 
 Teams step logic:
+
 ```javascript
 let teamsPrerequisitesMet = $derived(
-  selectedClerkships.length > 0 && selectedPreceptors.length > 0
+	selectedClerkships.length > 0 && selectedPreceptors.length > 0
 );
 
 let preceptorsWithoutTeams = $derived(() => {
-  const preceptorIdsInTeams = new Set(
-    entityData.teams.flatMap(t => t.members?.map(m => m.preceptor_id) || [])
-  );
-  return selectedPreceptors.filter(id => !preceptorIdsInTeams.has(id));
+	const preceptorIdsInTeams = new Set(
+		entityData.teams.flatMap((t) => t.members?.map((m) => m.preceptor_id) || [])
+	);
+	return selectedPreceptors.filter((id) => !preceptorIdsInTeams.has(id));
 });
 ```
 
 Teams step content:
+
 ```svelte
 {#if currentStep === 5}
-  <h2 class="text-xl font-semibold mb-6">Select Teams</h2>
+	<h2 class="mb-6 text-xl font-semibold">Select Teams</h2>
 
-  {#if !teamsPrerequisitesMet}
-    <div class="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
-      <div class="text-amber-600 text-4xl mb-4">⚠️</div>
-      <h3 class="text-lg font-medium text-amber-800 mb-2">Prerequisites Required</h3>
-      <p class="text-amber-700 mb-4">
-        Teams connect preceptors to clerkships for scheduling. You need at least one clerkship and one preceptor to create a team.
-      </p>
-      <div class="flex justify-center gap-3">
-        <button
-          type="button"
-          onclick={() => currentStep = 3}
-          class="px-4 py-2 text-amber-700 bg-amber-100 rounded-lg hover:bg-amber-200"
-        >
-          ← Add Clerkships
-        </button>
-        <button
-          type="button"
-          onclick={() => currentStep = 4}
-          class="px-4 py-2 text-amber-700 bg-amber-100 rounded-lg hover:bg-amber-200"
-        >
-          ← Add Preceptors
-        </button>
-      </div>
-    </div>
-  {:else}
-    <!-- Warning about preceptors without teams -->
-    {#if preceptorsWithoutTeams().length > 0}
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div class="flex gap-3">
-          <div class="text-blue-600">ℹ️</div>
-          <div>
-            <p class="text-blue-800 font-medium">Teams are required for scheduling</p>
-            <p class="text-blue-700 text-sm mt-1">
-              {preceptorsWithoutTeams().length} preceptor(s) are not assigned to any team and won't be available for scheduling. Create teams below to include them.
-            </p>
-          </div>
-        </div>
-      </div>
-    {/if}
+	{#if !teamsPrerequisitesMet}
+		<div class="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
+			<div class="mb-4 text-4xl text-amber-600">⚠️</div>
+			<h3 class="mb-2 text-lg font-medium text-amber-800">Prerequisites Required</h3>
+			<p class="mb-4 text-amber-700">
+				Teams connect preceptors to clerkships for scheduling. You need at least one clerkship and
+				one preceptor to create a team.
+			</p>
+			<div class="flex justify-center gap-3">
+				<button
+					type="button"
+					onclick={() => (currentStep = 3)}
+					class="rounded-lg bg-amber-100 px-4 py-2 text-amber-700 hover:bg-amber-200"
+				>
+					← Add Clerkships
+				</button>
+				<button
+					type="button"
+					onclick={() => (currentStep = 4)}
+					class="rounded-lg bg-amber-100 px-4 py-2 text-amber-700 hover:bg-amber-200"
+				>
+					← Add Preceptors
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- Warning about preceptors without teams -->
+		{#if preceptorsWithoutTeams().length > 0}
+			<div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+				<div class="flex gap-3">
+					<div class="text-blue-600">ℹ️</div>
+					<div>
+						<p class="font-medium text-blue-800">Teams are required for scheduling</p>
+						<p class="mt-1 text-sm text-blue-700">
+							{preceptorsWithoutTeams().length} preceptor(s) are not assigned to any team and won't be
+							available for scheduling. Create teams below to include them.
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
 
-    {#if entityData.teams.length === 0}
-      <div class="text-center py-8">
-        <p class="text-gray-500 mb-4">No teams created yet.</p>
-        <button
-          type="button"
-          onclick={() => showTeamForm = true}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          + Create Team
-        </button>
-      </div>
-    {:else}
-      <EntitySelectionTable ... />
-      <div class="mt-4">
-        <button
-          type="button"
-          onclick={() => showTeamForm = true}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          + Create Team
-        </button>
-      </div>
-    {/if}
-  {/if}
+		{#if entityData.teams.length === 0}
+			<div class="py-8 text-center">
+				<p class="mb-4 text-gray-500">No teams created yet.</p>
+				<button
+					type="button"
+					onclick={() => (showTeamForm = true)}
+					class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+				>
+					+ Create Team
+				</button>
+			</div>
+		{:else}
+			<EntitySelectionTable ... />
+			<div class="mt-4">
+				<button
+					type="button"
+					onclick={() => (showTeamForm = true)}
+					class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+				>
+					+ Create Team
+				</button>
+			</div>
+		{/if}
+	{/if}
 
-  <!-- Team Form Dialog -->
-  <TeamFormDialog
-    open={showTeamForm}
-    onClose={() => showTeamForm = false}
-    onSuccess={handleTeamCreated}
-  />
+	<!-- Team Form Dialog -->
+	<TeamFormDialog
+		open={showTeamForm}
+		onClose={() => (showTeamForm = false)}
+		onSuccess={handleTeamCreated}
+	/>
 {/if}
 ```
 
 ### Phase 6: Review Step Warnings
 
 Add warnings to Review step:
+
 ```svelte
 {#if currentStep === 7}
-  <h2 class="text-xl font-semibold mb-6">Review & Create</h2>
+	<h2 class="mb-6 text-xl font-semibold">Review & Create</h2>
 
-  <!-- Scheduling Warnings -->
-  {#if selectedTeams.length === 0 || selectedStudents.length === 0 || selectedClerkships.length === 0}
-    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-      <div class="flex gap-3">
-        <div class="text-amber-600 text-xl">⚠️</div>
-        <div>
-          <p class="text-amber-800 font-medium">Schedule generation may not work</p>
-          <ul class="text-amber-700 text-sm mt-2 list-disc list-inside">
-            {#if selectedClerkships.length === 0}
-              <li>No clerkships selected - nothing to schedule</li>
-            {/if}
-            {#if selectedStudents.length === 0}
-              <li>No students selected - no one to assign</li>
-            {/if}
-            {#if selectedTeams.length === 0}
-              <li>No teams selected - preceptors won't be available for assignment</li>
-            {/if}
-          </ul>
-          <p class="text-amber-700 text-sm mt-2">
-            You can still create the schedule and add these later.
-          </p>
-        </div>
-      </div>
-    </div>
-  {/if}
+	<!-- Scheduling Warnings -->
+	{#if selectedTeams.length === 0 || selectedStudents.length === 0 || selectedClerkships.length === 0}
+		<div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+			<div class="flex gap-3">
+				<div class="text-xl text-amber-600">⚠️</div>
+				<div>
+					<p class="font-medium text-amber-800">Schedule generation may not work</p>
+					<ul class="mt-2 list-inside list-disc text-sm text-amber-700">
+						{#if selectedClerkships.length === 0}
+							<li>No clerkships selected - nothing to schedule</li>
+						{/if}
+						{#if selectedStudents.length === 0}
+							<li>No students selected - no one to assign</li>
+						{/if}
+						{#if selectedTeams.length === 0}
+							<li>No teams selected - preceptors won't be available for assignment</li>
+						{/if}
+					</ul>
+					<p class="mt-2 text-sm text-amber-700">
+						You can still create the schedule and add these later.
+					</p>
+				</div>
+			</div>
+		</div>
+	{/if}
 
-  <!-- Existing review content -->
-  ...
+	<!-- Existing review content -->
+	...
 {/if}
 ```
 
@@ -380,30 +399,32 @@ Add warnings to Review step:
 **File**: `src/lib/components/navigation/sidebar.svelte`
 
 Change `navItems` from:
+
 ```javascript
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: '📊' },
-  { href: '/schedules', label: 'Schedules', icon: '📆' },
-  { href: '/students', label: 'Students', icon: '👨‍🎓' },
-  { href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
-  { href: '/clerkships', label: 'Clerkships', icon: '📚' },
-  { href: '/health-systems', label: 'Health Systems', icon: '🏥' },
-  { href: '/sites', label: 'Sites', icon: '📍' },
-  { href: '/calendar', label: 'Calendar', icon: '📅' }
+	{ href: '/', label: 'Dashboard', icon: '📊' },
+	{ href: '/schedules', label: 'Schedules', icon: '📆' },
+	{ href: '/students', label: 'Students', icon: '👨‍🎓' },
+	{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
+	{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
+	{ href: '/health-systems', label: 'Health Systems', icon: '🏥' },
+	{ href: '/sites', label: 'Sites', icon: '📍' },
+	{ href: '/calendar', label: 'Calendar', icon: '📅' }
 ];
 ```
 
 To:
+
 ```javascript
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: '📊' },
-  { href: '/schedules', label: 'Schedules', icon: '📆' },
-  { href: '/health-systems', label: 'Health Systems', icon: '🏥' },
-  { href: '/sites', label: 'Sites', icon: '📍' },
-  { href: '/clerkships', label: 'Clerkships', icon: '📚' },
-  { href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
-  { href: '/students', label: 'Students', icon: '👨‍🎓' },
-  { href: '/calendar', label: 'Calendar', icon: '📅' }
+	{ href: '/', label: 'Dashboard', icon: '📊' },
+	{ href: '/schedules', label: 'Schedules', icon: '📆' },
+	{ href: '/health-systems', label: 'Health Systems', icon: '🏥' },
+	{ href: '/sites', label: 'Sites', icon: '📍' },
+	{ href: '/clerkships', label: 'Clerkships', icon: '📚' },
+	{ href: '/preceptors', label: 'Preceptors', icon: '👨‍⚕️' },
+	{ href: '/students', label: 'Students', icon: '👨‍🎓' },
+	{ href: '/calendar', label: 'Calendar', icon: '📅' }
 ];
 ```
 

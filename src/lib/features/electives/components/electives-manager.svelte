@@ -49,7 +49,9 @@
 
 	// Detail view state
 	let viewingElective = $state<ElectiveWithDetails | null>(null);
-	let availablePreceptorsForElective = $state<Array<{ id: string; name: string; siteId: string; siteName: string }>>([]);
+	let availablePreceptorsForElective = $state<
+		Array<{ id: string; name: string; siteId: string; siteName: string }>
+	>([]);
 
 	async function loadElectives() {
 		loading = true;
@@ -178,7 +180,7 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<h2 class="text-2xl font-bold">Electives</h2>
-			<p class="text-sm text-muted-foreground mt-1">
+			<p class="mt-1 text-sm text-muted-foreground">
 				Configure elective rotations for this clerkship
 			</p>
 		</div>
@@ -191,8 +193,10 @@
 
 	<!-- Days Summary -->
 	{#if daysSummary}
-		{@const electivePercent = (daysSummary.totalElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
-		{@const nonElectivePercent = (daysSummary.nonElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
+		{@const electivePercent =
+			(daysSummary.totalElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
+		{@const nonElectivePercent =
+			(daysSummary.nonElectiveDays / daysSummary.clerkshipRequiredDays) * 100}
 		<Card class="p-4">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-6">
@@ -211,24 +215,28 @@
 				</div>
 				<div class="text-right">
 					<span class="text-sm text-muted-foreground">Available for new electives:</span>
-					<span class="ml-2 font-semibold {daysSummary.remainingDays === 0 ? 'text-destructive' : 'text-green-600'}">
+					<span
+						class="ml-2 font-semibold {daysSummary.remainingDays === 0
+							? 'text-destructive'
+							: 'text-green-600'}"
+					>
 						{daysSummary.remainingDays} days
 					</span>
 				</div>
 			</div>
 			<!-- Progress bar -->
-			<div class="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-				<div class="h-full flex">
+			<div class="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+				<div class="flex h-full">
 					<div class="bg-primary" style="width: {electivePercent}%"></div>
 					<div class="bg-muted-foreground/30" style="width: {nonElectivePercent}%"></div>
 				</div>
 			</div>
 			<div class="mt-1 flex gap-4 text-xs text-muted-foreground">
 				<span class="flex items-center gap-1">
-					<span class="w-3 h-3 bg-primary rounded-sm"></span> Elective Days
+					<span class="h-3 w-3 rounded-sm bg-primary"></span> Elective Days
 				</span>
 				<span class="flex items-center gap-1">
-					<span class="w-3 h-3 bg-muted-foreground/30 rounded-sm"></span> Non-Elective Days
+					<span class="h-3 w-3 rounded-sm bg-muted-foreground/30"></span> Non-Elective Days
 				</span>
 			</div>
 		</Card>
@@ -260,9 +268,7 @@
 						<p class="text-sm text-muted-foreground">{viewingElective.specialty}</p>
 					{/if}
 				</div>
-				<Button variant="outline" onclick={handleCloseDetails}>
-					← Back to List
-				</Button>
+				<Button variant="outline" onclick={handleCloseDetails}>← Back to List</Button>
 			</div>
 
 			<div class="grid gap-6">
@@ -281,9 +287,10 @@
 				/>
 
 				{#if viewingElective.sites?.length === 0}
-					<Card class="p-4 border-warning bg-warning/10">
-						<p class="text-sm text-warning-foreground">
-							<strong>Note:</strong> Add sites to this elective first, then preceptors who work at those sites will become available.
+					<Card class="border-warning bg-warning/10 p-4">
+						<p class="text-warning-foreground text-sm">
+							<strong>Note:</strong> Add sites to this elective first, then preceptors who work at those
+							sites will become available.
 						</p>
 					</Card>
 				{/if}

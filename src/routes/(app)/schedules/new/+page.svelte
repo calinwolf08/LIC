@@ -15,13 +15,15 @@
 	<div class="mb-6">
 		{#if isDuplicating && data.sourceSchedule}
 			<h1 class="text-2xl font-bold text-gray-900">Duplicate Schedule</h1>
-			<p class="text-gray-600 mt-1">
-				Creating new schedule based on <strong>{data.sourceSchedule.name}</strong>.
-				Entities will be pre-selected from the source schedule.
+			<p class="mt-1 text-gray-600">
+				Creating new schedule based on <strong>{data.sourceSchedule.name}</strong>. Entities will be
+				pre-selected from the source schedule.
 			</p>
 		{:else}
 			<h1 class="text-2xl font-bold text-gray-900">Create New Schedule</h1>
-			<p class="text-gray-600 mt-1">Set up a new scheduling period and select which entities to include.</p>
+			<p class="mt-1 text-gray-600">
+				Set up a new scheduling period and select which entities to include.
+			</p>
 		{/if}
 	</div>
 

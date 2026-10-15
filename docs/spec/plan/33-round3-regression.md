@@ -1,13 +1,16 @@
 # Step 33 — Round 3 Integrated Regression
 
 ## Objective
+
 Prove Round 3 holds together — above all that the tenant boundary is real — and leave the repo's
 status docs accurate.
 
 ## Prerequisites
+
 Steps 25–32.
 
 ## Scope
+
 **In:** cross-cutting journeys, suite health, documentation. **Out:** new features.
 
 ## Implementation
@@ -22,8 +25,8 @@ Steps 25–32.
    - A's dashboard totals equal A's own entity counts exactly;
    - deep links to B's entity ids render a not-found state;
    - `page.request` PATCH/DELETE against B's ids return 404 and B's data is intact afterwards.
-   Assert *absence of B's marker* rather than *presence of A's* — the former catches leaks through
-   widgets nobody thought to check.
+     Assert _absence of B's marker_ rather than _presence of A's_ — the former catches leaks through
+     widgets nobody thought to check.
 3. **Extend the existing whole-app journey** (`end-to-end.spec.ts`) with the Round 3 behaviours it
    naturally touches: site now required when assigning; editing an assignment shows no self-conflict;
    the calendar cell names the student.
@@ -40,7 +43,9 @@ Steps 25–32.
    `HANDOFF.md` with any new operational facts (e.g. the two-tenant e2e seed, the reset commands).
 
 ## Testing
-This step *is* testing. Required evidence before sign-off:
+
+This step _is_ testing. Required evidence before sign-off:
+
 - Full Playwright suite green from a cold seeded DB, **twice**, zero flaky retries.
 - Full Vitest suite green; `svelte-check` clean; production build succeeds.
 - **Every issue in the Round 3 table has at least one automated test that fails on the pre-fix
@@ -49,6 +54,7 @@ This step *is* testing. Required evidence before sign-off:
   privacy fix whose test never failed is not evidence of anything.
 
 ## Acceptance criteria
+
 - [ ] Tenant isolation is proven by a journey that fails on the pre-fix commit.
 - [ ] All Round 3 issues covered by tests, with the mapping recorded.
 - [ ] Whole suite green cold, twice, no flakes.

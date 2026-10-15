@@ -188,7 +188,9 @@ export async function getStudentStatuses(
 	}
 	const conflictDatesByStudent = new Map<string, Set<string>>();
 	for (const [k, sessions] of perStudentDateSessions) {
-		const clashes = sessions.some((s, i) => sessions.some((t, j) => i !== j && sessionsOverlap(s, t)));
+		const clashes = sessions.some((s, i) =>
+			sessions.some((t, j) => i !== j && sessionsOverlap(s, t))
+		);
 		if (clashes) {
 			const [sid, date] = k.split(':');
 			if (!conflictDatesByStudent.has(sid)) conflictDatesByStudent.set(sid, new Set());
@@ -281,9 +283,7 @@ export async function getStudentStatuses(
 		// Standalone electives (E3): this student's progress toward each one's own
 		// minimum. Never folded into `overall` or any clerkship total.
 		const standaloneElectiveStatuses: ElectiveRequirementStatus[] = standaloneElectives.map((e) => {
-			const forElective = assignments.filter(
-				(a) => a.student_id === sid && a.elective_id === e.id
-			);
+			const forElective = assignments.filter((a) => a.student_id === sid && a.elective_id === e.id);
 			let eCompleted = 0;
 			let eScheduled = 0;
 			for (const a of forElective) {

@@ -11,12 +11,12 @@ import { ServiceErrors } from './service-errors';
 import type {
 	GlobalOutpatientDefaultsInput,
 	GlobalInpatientDefaultsInput,
-	GlobalElectiveDefaultsInput,
+	GlobalElectiveDefaultsInput
 } from '../schemas/global-defaults.schemas';
 import type {
 	GlobalOutpatientDefaults,
 	GlobalInpatientDefaults,
-	GlobalElectiveDefaults,
+	GlobalElectiveDefaults
 } from '../types/global-defaults';
 import { createServerLogger } from '$lib/utils/logger.server';
 
@@ -37,7 +37,9 @@ export class GlobalDefaultsService {
 	 * Get global outpatient defaults for a school
 	 * @param schoolId - School ID (defaults to 'default')
 	 */
-	async getOutpatientDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalOutpatientDefaults | null>> {
+	async getOutpatientDefaults(
+		schoolId: string = 'default'
+	): Promise<ServiceResult<GlobalOutpatientDefaults | null>> {
 		log.debug('Fetching outpatient defaults', { schoolId });
 
 		try {
@@ -87,7 +89,7 @@ export class GlobalDefaultsService {
 					team_size_max: input.teamSizeMax ?? null,
 					team_require_same_health_system: input.teamRequireSameHealthSystem ? 1 : 0,
 					team_require_same_specialty: input.teamRequireSameSpecialty ? 1 : 0,
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.where('school_id', '=', schoolId)
 				.returningAll()
@@ -118,7 +120,9 @@ export class GlobalDefaultsService {
 	/**
 	 * Get global inpatient defaults for a school
 	 */
-	async getInpatientDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalInpatientDefaults | null>> {
+	async getInpatientDefaults(
+		schoolId: string = 'default'
+	): Promise<ServiceResult<GlobalInpatientDefaults | null>> {
 		log.debug('Fetching inpatient defaults', { schoolId });
 
 		try {
@@ -173,7 +177,7 @@ export class GlobalDefaultsService {
 					team_size_max: input.teamSizeMax ?? null,
 					team_require_same_health_system: input.teamRequireSameHealthSystem ? 1 : 0,
 					team_require_same_specialty: input.teamRequireSameSpecialty ? 1 : 0,
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.where('school_id', '=', schoolId)
 				.returningAll()
@@ -205,7 +209,9 @@ export class GlobalDefaultsService {
 	/**
 	 * Get global elective defaults for a school
 	 */
-	async getElectiveDefaults(schoolId: string = 'default'): Promise<ServiceResult<GlobalElectiveDefaults | null>> {
+	async getElectiveDefaults(
+		schoolId: string = 'default'
+	): Promise<ServiceResult<GlobalElectiveDefaults | null>> {
 		log.debug('Fetching elective defaults', { schoolId });
 
 		try {
@@ -251,7 +257,7 @@ export class GlobalDefaultsService {
 					allow_fallbacks: input.allowFallbacks ? 1 : 0,
 					fallback_requires_approval: input.fallbackRequiresApproval ? 1 : 0,
 					fallback_allow_cross_system: input.fallbackAllowCrossSystem ? 1 : 0,
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.where('school_id', '=', schoolId)
 				.returningAll()
@@ -293,10 +299,14 @@ export class GlobalDefaultsService {
 			fallbackAllowCrossSystem: Boolean(record.fallback_allow_cross_system),
 			teamSizeMin: record.team_size_min ?? undefined,
 			teamSizeMax: record.team_size_max ?? undefined,
-			teamRequireSameHealthSystem: record.team_require_same_health_system ? Boolean(record.team_require_same_health_system) : undefined,
-			teamRequireSameSpecialty: record.team_require_same_specialty ? Boolean(record.team_require_same_specialty) : undefined,
+			teamRequireSameHealthSystem: record.team_require_same_health_system
+				? Boolean(record.team_require_same_health_system)
+				: undefined,
+			teamRequireSameSpecialty: record.team_require_same_specialty
+				? Boolean(record.team_require_same_specialty)
+				: undefined,
 			createdAt: new Date(record.created_at),
-			updatedAt: new Date(record.updated_at),
+			updatedAt: new Date(record.updated_at)
 		};
 	}
 
@@ -313,16 +323,24 @@ export class GlobalDefaultsService {
 			fallbackRequiresApproval: Boolean(record.fallback_requires_approval),
 			fallbackAllowCrossSystem: Boolean(record.fallback_allow_cross_system),
 			blockSizeDays: record.block_size_days ?? undefined,
-			allowPartialBlocks: record.allow_partial_blocks ? Boolean(record.allow_partial_blocks) : undefined,
-			preferContinuousBlocks: record.prefer_continuous_blocks ? Boolean(record.prefer_continuous_blocks) : undefined,
+			allowPartialBlocks: record.allow_partial_blocks
+				? Boolean(record.allow_partial_blocks)
+				: undefined,
+			preferContinuousBlocks: record.prefer_continuous_blocks
+				? Boolean(record.prefer_continuous_blocks)
+				: undefined,
 			defaultMaxStudentsPerBlock: record.default_max_students_per_block ?? undefined,
 			defaultMaxBlocksPerYear: record.default_max_blocks_per_year ?? undefined,
 			teamSizeMin: record.team_size_min ?? undefined,
 			teamSizeMax: record.team_size_max ?? undefined,
-			teamRequireSameHealthSystem: record.team_require_same_health_system ? Boolean(record.team_require_same_health_system) : undefined,
-			teamRequireSameSpecialty: record.team_require_same_specialty ? Boolean(record.team_require_same_specialty) : undefined,
+			teamRequireSameHealthSystem: record.team_require_same_health_system
+				? Boolean(record.team_require_same_health_system)
+				: undefined,
+			teamRequireSameSpecialty: record.team_require_same_specialty
+				? Boolean(record.team_require_same_specialty)
+				: undefined,
 			createdAt: new Date(record.created_at),
-			updatedAt: new Date(record.updated_at),
+			updatedAt: new Date(record.updated_at)
 		};
 	}
 
@@ -339,7 +357,7 @@ export class GlobalDefaultsService {
 			fallbackRequiresApproval: Boolean(record.fallback_requires_approval),
 			fallbackAllowCrossSystem: Boolean(record.fallback_allow_cross_system),
 			createdAt: new Date(record.created_at),
-			updatedAt: new Date(record.updated_at),
+			updatedAt: new Date(record.updated_at)
 		};
 	}
 }

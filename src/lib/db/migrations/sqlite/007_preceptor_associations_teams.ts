@@ -20,13 +20,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('clerkship_id', 'text', (col) =>
 			col.notNull().references('clerkships.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addPrimaryKeyConstraint('preceptor_clerkships_pk', [
-			'preceptor_id',
-			'clerkship_id'
-		])
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addPrimaryKeyConstraint('preceptor_clerkships_pk', ['preceptor_id', 'clerkship_id'])
 		.execute();
 
 	// Create indexes for preceptor_clerkships
@@ -55,13 +50,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('elective_requirement_id', 'text', (col) =>
 			col.notNull().references('clerkship_requirements.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addPrimaryKeyConstraint('preceptor_electives_pk', [
-			'preceptor_id',
-			'elective_requirement_id'
-		])
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addPrimaryKeyConstraint('preceptor_electives_pk', ['preceptor_id', 'elective_requirement_id'])
 		.execute();
 
 	// Create indexes for preceptor_electives
@@ -89,12 +79,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().references('health_systems.id').onDelete('restrict')
 		)
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Create indexes for teams
@@ -105,12 +91,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.column('health_system_id')
 		.execute();
 
-	await db.schema
-		.createIndex('idx_teams_name')
-		.ifNotExists()
-		.on('teams')
-		.column('name')
-		.execute();
+	await db.schema.createIndex('idx_teams_name').ifNotExists().on('teams').column('name').execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {

@@ -12,313 +12,313 @@ import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 
 describe('HealthSystemService', () => {
-  let db: Kysely<DB>;
-  let service: HealthSystemService;
+	let db: Kysely<DB>;
+	let service: HealthSystemService;
 
-  beforeEach(async () => {
-    db = await createTestDatabaseWithMigrations();
-    service = new HealthSystemService(db);
-  });
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		service = new HealthSystemService(db);
+	});
 
-  afterEach(async () => {
-    await cleanupTestDatabase(db);
-  });
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
 
-  describe('createHealthSystem', () => {
-    it('should create a health system with valid data', async () => {
-      const input = {
-        name: 'Test Health System',
-        location: 'Test City',
-        description: 'A test health system',
-      };
+	describe('createHealthSystem', () => {
+		it('should create a health system with valid data', async () => {
+			const input = {
+				name: 'Test Health System',
+				location: 'Test City',
+				description: 'A test health system'
+			};
 
-      const result = await service.createHealthSystem(input);
+			const result = await service.createHealthSystem(input);
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.name).toBe(input.name);
-        expect(result.data.location).toBe(input.location);
-        expect(result.data.description).toBe(input.description);
-        expect(result.data.id).toBeDefined();
-        expect(result.data.createdAt).toBeInstanceOf(Date);
-        expect(result.data.updatedAt).toBeInstanceOf(Date);
-      }
-    });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.name).toBe(input.name);
+				expect(result.data.location).toBe(input.location);
+				expect(result.data.description).toBe(input.description);
+				expect(result.data.id).toBeDefined();
+				expect(result.data.createdAt).toBeInstanceOf(Date);
+				expect(result.data.updatedAt).toBeInstanceOf(Date);
+			}
+		});
 
-    it('should create a health system with minimal data', async () => {
-      const input = {
-        name: 'Minimal System',
-      };
+		it('should create a health system with minimal data', async () => {
+			const input = {
+				name: 'Minimal System'
+			};
 
-      const result = await service.createHealthSystem(input);
+			const result = await service.createHealthSystem(input);
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.name).toBe(input.name);
-        expect(result.data.location).toBeUndefined();
-        expect(result.data.description).toBeUndefined();
-      }
-    });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.name).toBe(input.name);
+				expect(result.data.location).toBeUndefined();
+				expect(result.data.description).toBeUndefined();
+			}
+		});
 
-    it('should reject empty name', async () => {
-      const input = {
-        name: '',
-      };
+		it('should reject empty name', async () => {
+			const input = {
+				name: ''
+			};
 
-      const result = await service.createHealthSystem(input);
+			const result = await service.createHealthSystem(input);
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe(ServiceErrorCode.VALIDATION_ERROR);
-      }
-    });
-  });
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.code).toBe(ServiceErrorCode.VALIDATION_ERROR);
+			}
+		});
+	});
 
-  describe('getHealthSystem', () => {
-    it('should retrieve an existing health system', async () => {
-      const input = {
-        name: 'Test System',
-        location: 'Test Location',
-      };
+	describe('getHealthSystem', () => {
+		it('should retrieve an existing health system', async () => {
+			const input = {
+				name: 'Test System',
+				location: 'Test Location'
+			};
 
-      const createResult = await service.createHealthSystem(input);
-      expect(createResult.success).toBe(true);
+			const createResult = await service.createHealthSystem(input);
+			expect(createResult.success).toBe(true);
 
-      if (createResult.success) {
-        const getResult = await service.getHealthSystem(createResult.data.id);
+			if (createResult.success) {
+				const getResult = await service.getHealthSystem(createResult.data.id);
 
-        expect(getResult.success).toBe(true);
-        if (getResult.success && getResult.data) {
-          expect(getResult.data.id).toBe(createResult.data.id);
-          expect(getResult.data.name).toBe(input.name);
-        }
-      }
-    });
+				expect(getResult.success).toBe(true);
+				if (getResult.success && getResult.data) {
+					expect(getResult.data.id).toBe(createResult.data.id);
+					expect(getResult.data.name).toBe(input.name);
+				}
+			}
+		});
 
-    it('should return null for non-existent health system', async () => {
-      const result = await service.getHealthSystem('non-existent-id');
+		it('should return null for non-existent health system', async () => {
+			const result = await service.getHealthSystem('non-existent-id');
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data).toBeNull();
-      }
-    });
-  });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toBeNull();
+			}
+		});
+	});
 
-  describe('listHealthSystems', () => {
-    it('should return empty list when no health systems exist', async () => {
-      const result = await service.listHealthSystems();
+	describe('listHealthSystems', () => {
+		it('should return empty list when no health systems exist', async () => {
+			const result = await service.listHealthSystems();
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data).toEqual([]);
-      }
-    });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual([]);
+			}
+		});
 
-    it('should return all health systems sorted by name', async () => {
-      await service.createHealthSystem({ name: 'B System' });
-      await service.createHealthSystem({ name: 'A System' });
-      await service.createHealthSystem({ name: 'C System' });
+		it('should return all health systems sorted by name', async () => {
+			await service.createHealthSystem({ name: 'B System' });
+			await service.createHealthSystem({ name: 'A System' });
+			await service.createHealthSystem({ name: 'C System' });
 
-      const result = await service.listHealthSystems();
+			const result = await service.listHealthSystems();
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data).toHaveLength(3);
-        expect(result.data[0].name).toBe('A System');
-        expect(result.data[1].name).toBe('B System');
-        expect(result.data[2].name).toBe('C System');
-      }
-    });
-  });
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toHaveLength(3);
+				expect(result.data[0].name).toBe('A System');
+				expect(result.data[1].name).toBe('B System');
+				expect(result.data[2].name).toBe('C System');
+			}
+		});
+	});
 
-  describe('updateHealthSystem', () => {
-    it('should update an existing health system', async () => {
-      const createResult = await service.createHealthSystem({
-        name: 'Original Name',
-        location: 'Original Location',
-      });
+	describe('updateHealthSystem', () => {
+		it('should update an existing health system', async () => {
+			const createResult = await service.createHealthSystem({
+				name: 'Original Name',
+				location: 'Original Location'
+			});
 
-      expect(createResult.success).toBe(true);
+			expect(createResult.success).toBe(true);
 
-      if (createResult.success) {
-        const updateResult = await service.updateHealthSystem(createResult.data.id, {
-          name: 'Updated Name',
-          location: 'Updated Location',
-          description: 'New description',
-        });
+			if (createResult.success) {
+				const updateResult = await service.updateHealthSystem(createResult.data.id, {
+					name: 'Updated Name',
+					location: 'Updated Location',
+					description: 'New description'
+				});
 
-        expect(updateResult.success).toBe(true);
-        if (updateResult.success) {
-          expect(updateResult.data.name).toBe('Updated Name');
-          expect(updateResult.data.location).toBe('Updated Location');
-          expect(updateResult.data.description).toBe('New description');
-        }
-      }
-    });
+				expect(updateResult.success).toBe(true);
+				if (updateResult.success) {
+					expect(updateResult.data.name).toBe('Updated Name');
+					expect(updateResult.data.location).toBe('Updated Location');
+					expect(updateResult.data.description).toBe('New description');
+				}
+			}
+		});
 
-    it('should return error for non-existent health system', async () => {
-      const result = await service.updateHealthSystem('non-existent-id', {
-        name: 'Updated Name',
-      });
+		it('should return error for non-existent health system', async () => {
+			const result = await service.updateHealthSystem('non-existent-id', {
+				name: 'Updated Name'
+			});
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe(ServiceErrorCode.NOT_FOUND);
-      }
-    });
-  });
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.code).toBe(ServiceErrorCode.NOT_FOUND);
+			}
+		});
+	});
 
-  describe('deleteHealthSystem', () => {
-    it('should delete an existing health system', async () => {
-      const createResult = await service.createHealthSystem({ name: 'To Delete' });
-      expect(createResult.success).toBe(true);
+	describe('deleteHealthSystem', () => {
+		it('should delete an existing health system', async () => {
+			const createResult = await service.createHealthSystem({ name: 'To Delete' });
+			expect(createResult.success).toBe(true);
 
-      if (createResult.success) {
-        const deleteResult = await service.deleteHealthSystem(createResult.data.id);
+			if (createResult.success) {
+				const deleteResult = await service.deleteHealthSystem(createResult.data.id);
 
-        expect(deleteResult.success).toBe(true);
+				expect(deleteResult.success).toBe(true);
 
-        // Verify it's deleted
-        const getResult = await service.getHealthSystem(createResult.data.id);
-        expect(getResult.success).toBe(true);
-        if (getResult.success) {
-          expect(getResult.data).toBeNull();
-        }
-      }
-    });
+				// Verify it's deleted
+				const getResult = await service.getHealthSystem(createResult.data.id);
+				expect(getResult.success).toBe(true);
+				if (getResult.success) {
+					expect(getResult.data).toBeNull();
+				}
+			}
+		});
 
-    it('should return error for non-existent health system', async () => {
-      const result = await service.deleteHealthSystem('non-existent-id');
+		it('should return error for non-existent health system', async () => {
+			const result = await service.deleteHealthSystem('non-existent-id');
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe(ServiceErrorCode.NOT_FOUND);
-      }
-    });
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.code).toBe(ServiceErrorCode.NOT_FOUND);
+			}
+		});
 
-    it('should prevent deletion when sites exist', async () => {
-      const hsResult = await service.createHealthSystem({ name: 'System with Sites' });
-      expect(hsResult.success).toBe(true);
+		it('should prevent deletion when sites exist', async () => {
+			const hsResult = await service.createHealthSystem({ name: 'System with Sites' });
+			expect(hsResult.success).toBe(true);
 
-      if (hsResult.success) {
-        // Create a site
-        await service.createSite(hsResult.data.id, { name: 'Test Site' });
+			if (hsResult.success) {
+				// Create a site
+				await service.createSite(hsResult.data.id, { name: 'Test Site' });
 
-        // Try to delete health system
-        const deleteResult = await service.deleteHealthSystem(hsResult.data.id);
+				// Try to delete health system
+				const deleteResult = await service.deleteHealthSystem(hsResult.data.id);
 
-        expect(deleteResult.success).toBe(false);
-        if (!deleteResult.success) {
-          expect(deleteResult.error.code).toBe(ServiceErrorCode.DEPENDENCY_ERROR);
-        }
-      }
-    });
-  });
+				expect(deleteResult.success).toBe(false);
+				if (!deleteResult.success) {
+					expect(deleteResult.error.code).toBe(ServiceErrorCode.DEPENDENCY_ERROR);
+				}
+			}
+		});
+	});
 
-  describe('createSite', () => {
-    it('should create a site within a health system', async () => {
-      const hsResult = await service.createHealthSystem({ name: 'Test System' });
-      expect(hsResult.success).toBe(true);
+	describe('createSite', () => {
+		it('should create a site within a health system', async () => {
+			const hsResult = await service.createHealthSystem({ name: 'Test System' });
+			expect(hsResult.success).toBe(true);
 
-      if (hsResult.success) {
-        const siteInput = {
-          name: 'Test Site',
-          address: '123 Test St',
-        };
+			if (hsResult.success) {
+				const siteInput = {
+					name: 'Test Site',
+					address: '123 Test St'
+				};
 
-        const siteResult = await service.createSite(hsResult.data.id, siteInput);
+				const siteResult = await service.createSite(hsResult.data.id, siteInput);
 
-        expect(siteResult.success).toBe(true);
-        if (siteResult.success) {
-          expect(siteResult.data.name).toBe(siteInput.name);
-          expect(siteResult.data.address).toBe(siteInput.address);
-          expect(siteResult.data.healthSystemId).toBe(hsResult.data.id);
-        }
-      }
-    });
+				expect(siteResult.success).toBe(true);
+				if (siteResult.success) {
+					expect(siteResult.data.name).toBe(siteInput.name);
+					expect(siteResult.data.address).toBe(siteInput.address);
+					expect(siteResult.data.healthSystemId).toBe(hsResult.data.id);
+				}
+			}
+		});
 
-    it('should reject site for non-existent health system', async () => {
-      const result = await service.createSite('non-existent-id', { name: 'Test Site' });
+		it('should reject site for non-existent health system', async () => {
+			const result = await service.createSite('non-existent-id', { name: 'Test Site' });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe(ServiceErrorCode.NOT_FOUND);
-      }
-    });
-  });
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.code).toBe(ServiceErrorCode.NOT_FOUND);
+			}
+		});
+	});
 
-  describe('getSitesBySystem', () => {
-    it('should return all sites for a health system', async () => {
-      const hsResult = await service.createHealthSystem({ name: 'Test System' });
-      expect(hsResult.success).toBe(true);
+	describe('getSitesBySystem', () => {
+		it('should return all sites for a health system', async () => {
+			const hsResult = await service.createHealthSystem({ name: 'Test System' });
+			expect(hsResult.success).toBe(true);
 
-      if (hsResult.success) {
-        await service.createSite(hsResult.data.id, { name: 'Site A' });
-        await service.createSite(hsResult.data.id, { name: 'Site B' });
+			if (hsResult.success) {
+				await service.createSite(hsResult.data.id, { name: 'Site A' });
+				await service.createSite(hsResult.data.id, { name: 'Site B' });
 
-        const sitesResult = await service.getSitesBySystem(hsResult.data.id);
+				const sitesResult = await service.getSitesBySystem(hsResult.data.id);
 
-        expect(sitesResult.success).toBe(true);
-        if (sitesResult.success) {
-          expect(sitesResult.data).toHaveLength(2);
-        }
-      }
-    });
-  });
+				expect(sitesResult.success).toBe(true);
+				if (sitesResult.success) {
+					expect(sitesResult.data).toHaveLength(2);
+				}
+			}
+		});
+	});
 
-  describe('updateSite', () => {
-    it('should update an existing site', async () => {
-      const hsResult = await service.createHealthSystem({ name: 'Test System' });
-      expect(hsResult.success).toBe(true);
+	describe('updateSite', () => {
+		it('should update an existing site', async () => {
+			const hsResult = await service.createHealthSystem({ name: 'Test System' });
+			expect(hsResult.success).toBe(true);
 
-      if (hsResult.success) {
-        const siteResult = await service.createSite(hsResult.data.id, {
-          name: 'Original Site',
-        });
+			if (hsResult.success) {
+				const siteResult = await service.createSite(hsResult.data.id, {
+					name: 'Original Site'
+				});
 
-        expect(siteResult.success).toBe(true);
+				expect(siteResult.success).toBe(true);
 
-        if (siteResult.success) {
-          const updateResult = await service.updateSite(siteResult.data.id, {
-            name: 'Updated Site',
-            address: 'New Address',
-          });
+				if (siteResult.success) {
+					const updateResult = await service.updateSite(siteResult.data.id, {
+						name: 'Updated Site',
+						address: 'New Address'
+					});
 
-          expect(updateResult.success).toBe(true);
-          if (updateResult.success) {
-            expect(updateResult.data.name).toBe('Updated Site');
-            expect(updateResult.data.address).toBe('New Address');
-          }
-        }
-      }
-    });
-  });
+					expect(updateResult.success).toBe(true);
+					if (updateResult.success) {
+						expect(updateResult.data.name).toBe('Updated Site');
+						expect(updateResult.data.address).toBe('New Address');
+					}
+				}
+			}
+		});
+	});
 
-  describe('deleteSite', () => {
-    it('should delete an existing site', async () => {
-      const hsResult = await service.createHealthSystem({ name: 'Test System' });
-      expect(hsResult.success).toBe(true);
+	describe('deleteSite', () => {
+		it('should delete an existing site', async () => {
+			const hsResult = await service.createHealthSystem({ name: 'Test System' });
+			expect(hsResult.success).toBe(true);
 
-      if (hsResult.success) {
-        const siteResult = await service.createSite(hsResult.data.id, { name: 'To Delete' });
-        expect(siteResult.success).toBe(true);
+			if (hsResult.success) {
+				const siteResult = await service.createSite(hsResult.data.id, { name: 'To Delete' });
+				expect(siteResult.success).toBe(true);
 
-        if (siteResult.success) {
-          const deleteResult = await service.deleteSite(siteResult.data.id);
+				if (siteResult.success) {
+					const deleteResult = await service.deleteSite(siteResult.data.id);
 
-          expect(deleteResult.success).toBe(true);
+					expect(deleteResult.success).toBe(true);
 
-          // Verify it's deleted
-          const getResult = await service.getSite(siteResult.data.id);
-          expect(getResult.success).toBe(true);
-          if (getResult.success) {
-            expect(getResult.data).toBeNull();
-          }
-        }
-      }
-    });
-  });
+					// Verify it's deleted
+					const getResult = await service.getSite(siteResult.data.id);
+					expect(getResult.success).toBe(true);
+					if (getResult.success) {
+						expect(getResult.data).toBeNull();
+					}
+				}
+			}
+		});
+	});
 });
 
 /**
@@ -327,86 +327,98 @@ describe('HealthSystemService', () => {
  * Tests for schedule-based data isolation
  */
 import {
-  createTestUser,
-  createTestSchedule,
-  associateHealthSystemWithSchedule
+	createTestUser,
+	createTestSchedule,
+	associateHealthSystemWithSchedule
 } from '$lib/testing/integration-helpers';
 import { nanoid } from 'nanoid';
 
 describe('HealthSystemService - Multi-tenancy', () => {
-  let db: Kysely<DB>;
-  let service: HealthSystemService;
+	let db: Kysely<DB>;
+	let service: HealthSystemService;
 
-  beforeEach(async () => {
-    db = await createTestDatabaseWithMigrations();
-    service = new HealthSystemService(db);
-  });
+	beforeEach(async () => {
+		db = await createTestDatabaseWithMigrations();
+		service = new HealthSystemService(db);
+	});
 
-  afterEach(async () => {
-    await cleanupTestDatabase(db);
-  });
+	afterEach(async () => {
+		await cleanupTestDatabase(db);
+	});
 
-  describe('listHealthSystemsBySchedule()', () => {
-    it('returns only health systems associated with the given schedule', async () => {
-      // Create two users with different schedules
-      const userAId = await createTestUser(db, { name: 'User A' });
-      const userBId = await createTestUser(db, { name: 'User B' });
+	describe('listHealthSystemsBySchedule()', () => {
+		it('returns only health systems associated with the given schedule', async () => {
+			// Create two users with different schedules
+			const userAId = await createTestUser(db, { name: 'User A' });
+			const userBId = await createTestUser(db, { name: 'User B' });
 
-      const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
-      const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+			const scheduleAId = await createTestSchedule(db, {
+				userId: userAId,
+				name: 'Schedule A',
+				setAsActive: true
+			});
+			const scheduleBId = await createTestSchedule(db, {
+				userId: userBId,
+				name: 'Schedule B',
+				setAsActive: true
+			});
 
-      // Create health systems
-      const resultA1 = await service.createHealthSystem({ name: 'Health System A1' });
-      const resultA2 = await service.createHealthSystem({ name: 'Health System A2' });
-      const resultB1 = await service.createHealthSystem({ name: 'Health System B1' });
+			// Create health systems
+			const resultA1 = await service.createHealthSystem({ name: 'Health System A1' });
+			const resultA2 = await service.createHealthSystem({ name: 'Health System A2' });
+			const resultB1 = await service.createHealthSystem({ name: 'Health System B1' });
 
-      expect(resultA1.success).toBe(true);
-      expect(resultA2.success).toBe(true);
-      expect(resultB1.success).toBe(true);
+			expect(resultA1.success).toBe(true);
+			expect(resultA2.success).toBe(true);
+			expect(resultB1.success).toBe(true);
 
-      if (!resultA1.success || !resultA2.success || !resultB1.success) return;
+			if (!resultA1.success || !resultA2.success || !resultB1.success) return;
 
-      // Associate health systems with schedules
-      await associateHealthSystemWithSchedule(db, resultA1.data.id, scheduleAId);
-      await associateHealthSystemWithSchedule(db, resultA2.data.id, scheduleAId);
-      await associateHealthSystemWithSchedule(db, resultB1.data.id, scheduleBId);
+			// Associate health systems with schedules
+			await associateHealthSystemWithSchedule(db, resultA1.data.id, scheduleAId);
+			await associateHealthSystemWithSchedule(db, resultA2.data.id, scheduleAId);
+			await associateHealthSystemWithSchedule(db, resultB1.data.id, scheduleBId);
 
-      // Get health systems for Schedule A
-      const healthSystemsA = await service.listHealthSystemsBySchedule(scheduleAId);
-      expect(healthSystemsA.success).toBe(true);
-      if (healthSystemsA.success) {
-        expect(healthSystemsA.data).toHaveLength(2);
-        expect(healthSystemsA.data.map(hs => hs.id)).toContain(resultA1.data.id);
-        expect(healthSystemsA.data.map(hs => hs.id)).toContain(resultA2.data.id);
-        expect(healthSystemsA.data.map(hs => hs.id)).not.toContain(resultB1.data.id);
-      }
+			// Get health systems for Schedule A
+			const healthSystemsA = await service.listHealthSystemsBySchedule(scheduleAId);
+			expect(healthSystemsA.success).toBe(true);
+			if (healthSystemsA.success) {
+				expect(healthSystemsA.data).toHaveLength(2);
+				expect(healthSystemsA.data.map((hs) => hs.id)).toContain(resultA1.data.id);
+				expect(healthSystemsA.data.map((hs) => hs.id)).toContain(resultA2.data.id);
+				expect(healthSystemsA.data.map((hs) => hs.id)).not.toContain(resultB1.data.id);
+			}
 
-      // Get health systems for Schedule B
-      const healthSystemsB = await service.listHealthSystemsBySchedule(scheduleBId);
-      expect(healthSystemsB.success).toBe(true);
-      if (healthSystemsB.success) {
-        expect(healthSystemsB.data).toHaveLength(1);
-        expect(healthSystemsB.data.map(hs => hs.id)).toContain(resultB1.data.id);
-      }
-    });
+			// Get health systems for Schedule B
+			const healthSystemsB = await service.listHealthSystemsBySchedule(scheduleBId);
+			expect(healthSystemsB.success).toBe(true);
+			if (healthSystemsB.success) {
+				expect(healthSystemsB.data).toHaveLength(1);
+				expect(healthSystemsB.data.map((hs) => hs.id)).toContain(resultB1.data.id);
+			}
+		});
 
-    it('returns empty array when schedule has no associated health systems', async () => {
-      const userId = await createTestUser(db, { name: 'User' });
-      const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+		it('returns empty array when schedule has no associated health systems', async () => {
+			const userId = await createTestUser(db, { name: 'User' });
+			const scheduleId = await createTestSchedule(db, {
+				userId,
+				name: 'Empty Schedule',
+				setAsActive: true
+			});
 
-      // Create health systems but don't associate with the schedule
-      await service.createHealthSystem({ name: 'Some Health System' });
+			// Create health systems but don't associate with the schedule
+			await service.createHealthSystem({ name: 'Some Health System' });
 
-      const result = await service.listHealthSystemsBySchedule(scheduleId);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data).toEqual([]);
-      }
-    });
+			const result = await service.listHealthSystemsBySchedule(scheduleId);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data).toEqual([]);
+			}
+		});
 
-    it('returns failure when scheduleId is not provided', async () => {
-      const result = await service.listHealthSystemsBySchedule('');
-      expect(result.success).toBe(false);
-    });
-  });
+		it('returns failure when scheduleId is not provided', async () => {
+			const result = await service.listHealthSystemsBySchedule('');
+			expect(result.success).toBe(false);
+		});
+	});
 });

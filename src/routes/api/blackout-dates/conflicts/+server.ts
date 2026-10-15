@@ -6,10 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { dateStringSchema } from '$lib/validation/common-schemas';
 import { requireActiveScheduleId } from '$lib/api/schedule-context';
@@ -76,7 +73,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const result: ConflictInfo = {
 			hasConflicts: assignments.length > 0,
 			count: assignments.length,
-			assignments: assignments.map(a => ({
+			assignments: assignments.map((a) => ({
 				id: a.id,
 				studentId: a.studentId,
 				studentName: a.studentName,
@@ -97,7 +94,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Conflict check validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

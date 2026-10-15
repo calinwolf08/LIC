@@ -24,16 +24,19 @@ Add blackout dates management UI to the calendar page with rescheduling trigger 
 ### 1.1 Create API endpoints
 
 **File:** `src/routes/api/blackout-dates/+server.ts`
+
 - `GET` - List all blackout dates (use existing `getBlackoutDates` service)
 - `POST` - Create blackout date (use existing `createBlackoutDate` service)
 
 **File:** `src/routes/api/blackout-dates/[id]/+server.ts`
+
 - `GET` - Get single blackout date
 - `DELETE` - Delete blackout date (use existing `deleteBlackoutDate` service)
 
 ### 1.2 Add conflict detection endpoint
 
 **File:** `src/routes/api/blackout-dates/conflicts/+server.ts`
+
 - `POST` - Check if a date has existing assignments
 - Query `schedule_assignments` table for the given date
 - Return count and list of affected students/preceptors
@@ -54,6 +57,7 @@ Add blackout dates management UI to the calendar page with rescheduling trigger 
 **File:** `src/lib/features/blackout-dates/components/blackout-date-manager.svelte`
 
 Features:
+
 - List of existing blackout dates (sorted by date)
 - Add new blackout date form (date picker + optional reason)
 - Delete button per date
@@ -103,6 +107,7 @@ Features:
 ### 4.1 Add reschedule trigger
 
 When blackout date is added with conflicts:
+
 - Delete affected assignments
 - Trigger partial reschedule for affected students
 - Use existing scheduling engine with date constraints
@@ -122,15 +127,15 @@ When blackout date is added with conflicts:
 
 ## Files to Create/Modify
 
-| Action | File Path |
-|--------|-----------|
-| Create | `src/routes/api/blackout-dates/+server.ts` |
-| Create | `src/routes/api/blackout-dates/[id]/+server.ts` |
-| Create | `src/routes/api/blackout-dates/conflicts/+server.ts` |
-| Create | `src/lib/features/blackout-dates/components/blackout-date-manager.svelte` |
+| Action | File Path                                                                         |
+| ------ | --------------------------------------------------------------------------------- |
+| Create | `src/routes/api/blackout-dates/+server.ts`                                        |
+| Create | `src/routes/api/blackout-dates/[id]/+server.ts`                                   |
+| Create | `src/routes/api/blackout-dates/conflicts/+server.ts`                              |
+| Create | `src/lib/features/blackout-dates/components/blackout-date-manager.svelte`         |
 | Create | `src/lib/features/blackout-dates/components/blackout-date-conflict-dialog.svelte` |
-| Modify | `src/routes/calendar/+page.svelte` |
-| Modify | `src/routes/calendar/+page.ts` |
+| Modify | `src/routes/calendar/+page.svelte`                                                |
+| Modify | `src/routes/calendar/+page.ts`                                                    |
 
 ---
 

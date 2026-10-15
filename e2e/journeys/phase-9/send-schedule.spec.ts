@@ -48,7 +48,7 @@ const SAFETY = [
 ];
 
 test.describe('CF-K1 send schedule', { tag: ['@stage1'] }, () => {
-	test("preview shows a preceptor only their own student; send confirms", async ({
+	test('preview shows a preceptor only their own student; send confirms', async ({
 		asAdmin,
 		sandbox
 	}) => {

@@ -93,13 +93,7 @@ export const PATCH: RequestHandler = async ({ params, request, url, locals }) =>
 		}
 
 		// Pull the override envelope out before schema-parsing the field updates.
-		const {
-			locked: _locked,
-			force: _force,
-			override_codes,
-			override_note,
-			...rest
-		} = body ?? {};
+		const { locked: _locked, force: _force, override_codes, override_note, ...rest } = body ?? {};
 		if (Object.keys(rest).length === 0) {
 			const current = await db
 				.selectFrom('schedule_assignments')

@@ -251,10 +251,7 @@ describe('getMostNeededClerkship()', () => {
 			['clerkship-2', 7]
 		]);
 
-		const context = createContext(
-			new Map([['student-1', studentReqs]]),
-			[clerkship1, clerkship2]
-		);
+		const context = createContext(new Map([['student-1', studentReqs]]), [clerkship1, clerkship2]);
 
 		const result = getMostNeededClerkship('student-1', context);
 
@@ -313,10 +310,7 @@ describe('getMostNeededClerkship()', () => {
 			['clerkship-2', 3]
 		]);
 
-		const context = createContext(
-			new Map([['student-1', studentReqs]]),
-			[clerkship1, clerkship2]
-		);
+		const context = createContext(new Map([['student-1', studentReqs]]), [clerkship1, clerkship2]);
 
 		const result = getMostNeededClerkship('student-1', context);
 
@@ -369,10 +363,7 @@ describe('getMostNeededClerkship()', () => {
 			['clerkship-2', 3]
 		]);
 
-		const context = createContext(
-			new Map([['student-1', studentReqs]]),
-			[clerkship1, clerkship2]
-		);
+		const context = createContext(new Map([['student-1', studentReqs]]), [clerkship1, clerkship2]);
 
 		const result = getMostNeededClerkship('student-1', context);
 
@@ -478,9 +469,7 @@ describe('getStudentsNeedingAssignments()', () => {
 			assignmentsByDate: new Map(),
 			assignmentsByStudent: new Map(),
 			assignmentsByPreceptor: new Map(),
-			studentRequirements: new Map([
-				['student-1', new Map([['clerkship-1', 0]])]
-			]),
+			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 0]])]]),
 			blackoutDates: new Set(),
 			preceptorAvailability: new Map()
 		};
@@ -593,9 +582,7 @@ describe('checkUnmetRequirements()', () => {
 			assignmentsByDate: new Map(),
 			assignmentsByStudent: new Map(),
 			assignmentsByPreceptor: new Map(),
-			studentRequirements: new Map([
-				['student-1', new Map([['clerkship-1', 0]])]
-			]),
+			studentRequirements: new Map([['student-1', new Map([['clerkship-1', 0]])]]),
 			blackoutDates: new Set(),
 			preceptorAvailability: new Map()
 		};
@@ -752,12 +739,8 @@ describe('checkUnmetRequirements()', () => {
 		const result = checkUnmetRequirements(context);
 
 		expect(result).toHaveLength(2);
-		expect(result.some((r) => r.clerkshipId === 'clerkship-1' && r.remainingDays === 2)).toBe(
-			true
-		);
-		expect(result.some((r) => r.clerkshipId === 'clerkship-2' && r.remainingDays === 5)).toBe(
-			true
-		);
+		expect(result.some((r) => r.clerkshipId === 'clerkship-1' && r.remainingDays === 2)).toBe(true);
+		expect(result.some((r) => r.clerkshipId === 'clerkship-2' && r.remainingDays === 5)).toBe(true);
 	});
 
 	it('only includes unmet requirements, not met ones', () => {

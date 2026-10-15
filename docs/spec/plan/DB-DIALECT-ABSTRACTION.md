@@ -13,14 +13,14 @@ production data (production is currently empty — that is the bug that started 
 
 These are measured, not assumed:
 
-| Finding | Consequence |
-|---|---|
-| PGlite (`@electric-sql/pglite`) runs **real PostgreSQL 18.3** in-process (WASM) and drives Kysely via `kysely-pglite` | The Postgres path is verifiable in CI/containers with **no Postgres server and no Docker** |
-| An `integer` column holding 0/1 round-trips as a JS **number** on Postgres (`row.is_active === 1` is `true`) | The ~19 integer-boolean comparisons and the generated `types.ts` need **no changes** |
-| `db.introspection.getTables()` returns tables+columns on **both** dialects | Portable replacement for `pragma_table_info` / `sqlite_master` idempotency guards |
-| `kysely` 0.28.8 ships `postgres` + `sqlite` (+ mysql, mssql) dialects | A third engine is a dialect module, not a rewrite |
+| Finding                                                                                                                          | Consequence                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| PGlite (`@electric-sql/pglite`) runs **real PostgreSQL 18.3** in-process (WASM) and drives Kysely via `kysely-pglite`            | The Postgres path is verifiable in CI/containers with **no Postgres server and no Docker** |
+| An `integer` column holding 0/1 round-trips as a JS **number** on Postgres (`row.is_active === 1` is `true`)                     | The ~19 integer-boolean comparisons and the generated `types.ts` need **no changes**       |
+| `db.introspection.getTables()` returns tables+columns on **both** dialects                                                       | Portable replacement for `pragma_table_info` / `sqlite_master` idempotency guards          |
+| `kysely` 0.28.8 ships `postgres` + `sqlite` (+ mysql, mssql) dialects                                                            | A third engine is a dialect module, not a rewrite                                          |
 | Migrations **003** (`datetime('now')`), **014**, **015** (`PRAGMA foreign_keys` + table-rebuild) are irreducibly SQLite-specific | The 27-migration history **cannot** replay on Postgres; Postgres needs a baseline (see D4) |
-| `better-auth` 1.3.34 can take a Kysely instance + dialect type | One auth code path for every engine, instead of driver-specific branches |
+| `better-auth` 1.3.34 can take a Kysely instance + dialect type                                                                   | One auth code path for every engine, instead of driver-specific branches                   |
 
 ## Design decisions
 
@@ -72,13 +72,13 @@ just as fast. A **Postgres lane** runs the migration/integration suites against 
 
 Ordering reflects real dependencies; WP2 and WP3 touch disjoint files and run in parallel.
 
-| WP | Scope | Owns (files) | Model |
-|---|---|---|---|
-| **WP1** Foundation | Dialect registry, config resolution, `createDB`, dep placement, dialect-aware `db:setup`/`db:migrate` | `src/lib/db/dialects/**`, `db/config.ts`, `db/connection.ts`, `db/scripts/setup-db.ts`, `db/migrations/run.ts`, `package.json` | opus |
-| **WP2** Migrations | Composite provider, Postgres baseline, portable guards, dialect-scoped folders | `src/lib/db/migrations/**` | opus |
-| **WP3** Auth | Dual-dialect better-auth wiring, async signup hook, dialect-aware auth DDL | `src/lib/auth.ts`, `db/scripts/ensure-auth-tables.ts` | opus |
-| **WP4** Tests | Keep default SQLite lane green; add PGlite Postgres lane | `db/test-utils.ts`, `e2e/test-db.ts`, `e2e/setup-test-db.ts`, `vite.config.ts`, scripts | sonnet |
-| **WP5** Docs | Coolify Postgres deployment, env vars, adding a third engine | `README.md`, this plan | sonnet |
+| WP                 | Scope                                                                                                 | Owns (files)                                                                                                                   | Model  |
+| ------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| **WP1** Foundation | Dialect registry, config resolution, `createDB`, dep placement, dialect-aware `db:setup`/`db:migrate` | `src/lib/db/dialects/**`, `db/config.ts`, `db/connection.ts`, `db/scripts/setup-db.ts`, `db/migrations/run.ts`, `package.json` | opus   |
+| **WP2** Migrations | Composite provider, Postgres baseline, portable guards, dialect-scoped folders                        | `src/lib/db/migrations/**`                                                                                                     | opus   |
+| **WP3** Auth       | Dual-dialect better-auth wiring, async signup hook, dialect-aware auth DDL                            | `src/lib/auth.ts`, `db/scripts/ensure-auth-tables.ts`                                                                          | opus   |
+| **WP4** Tests      | Keep default SQLite lane green; add PGlite Postgres lane                                              | `db/test-utils.ts`, `e2e/test-db.ts`, `e2e/setup-test-db.ts`, `vite.config.ts`, scripts                                        | sonnet |
+| **WP5** Docs       | Coolify Postgres deployment, env vars, adding a third engine                                          | `README.md`, this plan                                                                                                         | sonnet |
 
 ## Acceptance criteria
 

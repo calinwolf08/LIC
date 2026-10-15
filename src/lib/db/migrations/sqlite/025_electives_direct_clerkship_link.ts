@@ -16,10 +16,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	const existingElectives = await db
 		.selectFrom('clerkship_electives as e')
 		.innerJoin('clerkship_requirements as r', 'e.requirement_id', 'r.id')
-		.select([
-			'e.id as elective_id',
-			'r.clerkship_id as clerkship_id'
-		])
+		.select(['e.id as elective_id', 'r.clerkship_id as clerkship_id'])
 		.execute();
 
 	// Step 2: Create new clerkship_electives table with clerkship_id and settings
@@ -30,14 +27,15 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().references('clerkships.id').onDelete('cascade')
 		)
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('minimum_days', 'integer', (col) =>
-			col.notNull().check(sql`minimum_days > 0`)
-		)
+		.addColumn('minimum_days', 'integer', (col) => col.notNull().check(sql`minimum_days > 0`))
 		.addColumn('specialty', 'text')
 		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(1))
 		// Settings override columns (inherit from clerkship by default)
 		.addColumn('override_mode', 'text', (col) =>
-			col.notNull().defaultTo('inherit').check(sql`override_mode IN ('inherit', 'override')`)
+			col
+				.notNull()
+				.defaultTo('inherit')
+				.check(sql`override_mode IN ('inherit', 'override')`)
 		)
 		.addColumn('override_assignment_strategy', 'text')
 		.addColumn('override_health_system_rule', 'text')
@@ -47,23 +45,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('override_allow_teams', 'integer')
 		.addColumn('override_fallback_requires_approval', 'integer')
 		.addColumn('override_fallback_allow_cross_system', 'integer')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Step 3: Copy existing data to new table with clerkship_id
-	const oldElectives = await db
-		.selectFrom('clerkship_electives')
-		.selectAll()
-		.execute();
+	const oldElectives = await db.selectFrom('clerkship_electives').selectAll().execute();
 
 	for (const elective of oldElectives) {
 		// Find the clerkship_id from our earlier query
-		const mapping = existingElectives.find(e => e.elective_id === elective.id);
+		const mapping = existingElectives.find((e) => e.elective_id === elective.id);
 		if (mapping) {
 			await db
 				.insertInto('clerkship_electives_new')
@@ -76,7 +67,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 					is_required: elective.is_required ?? 1,
 					override_mode: 'inherit',
 					created_at: elective.created_at,
-					updated_at: elective.updated_at,
+					updated_at: elective.updated_at
 				})
 				.execute();
 		}
@@ -117,13 +108,9 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('requirement_type', 'text', (col) =>
 			col.notNull().check(sql`requirement_type IN ('inpatient', 'outpatient', 'elective')`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('allow_cross_system', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('override_mode', 'text', (col) =>
-			col.notNull().defaultTo('inherit')
-		)
+		.addColumn('override_mode', 'text', (col) => col.notNull().defaultTo('inherit'))
 		.addColumn('override_assignment_strategy', 'text')
 		.addColumn('override_health_system_rule', 'text')
 		.addColumn('override_block_length_days', 'integer')
@@ -132,12 +119,8 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('override_team_continuity_preference', 'text')
 		.addColumn('require_same_preceptor_team', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('require_same_site', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Recreate clerkship_requirement_overrides table
@@ -149,23 +132,18 @@ export async function down(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('field_name', 'text', (col) => col.notNull())
 		.addColumn('is_overridden', 'integer', (col) => col.notNull().defaultTo(0))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Get current electives
-	const electives = await db
-		.selectFrom('clerkship_electives')
-		.selectAll()
-		.execute();
+	const electives = await db.selectFrom('clerkship_electives').selectAll().execute();
 
 	// Create elective requirements for each clerkship that has electives
-	const clerkshipIds = [...new Set(electives.map(e => e.clerkship_id))];
+	const clerkshipIds = [...new Set(electives.map((e) => e.clerkship_id))];
 	const requirementMap = new Map<string, string>();
 
 	for (const clerkshipId of clerkshipIds) {
-		const clerkshipElectives = electives.filter(e => e.clerkship_id === clerkshipId);
+		const clerkshipElectives = electives.filter((e) => e.clerkship_id === clerkshipId);
 		const totalDays = clerkshipElectives.reduce((sum, e) => sum + e.minimum_days, 0);
 
 		const requirementId = `req_${clerkshipId}_elective`;
@@ -181,7 +159,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 				require_same_preceptor_team: 0,
 				require_same_site: 0,
 				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
 			})
 			.execute();
 
@@ -196,18 +174,12 @@ export async function down(db: Kysely<any>): Promise<void> {
 			col.notNull().references('clerkship_requirements.id').onDelete('cascade')
 		)
 		.addColumn('name', 'text', (col) => col.notNull())
-		.addColumn('minimum_days', 'integer', (col) =>
-			col.notNull().check(sql`minimum_days > 0`)
-		)
+		.addColumn('minimum_days', 'integer', (col) => col.notNull().check(sql`minimum_days > 0`))
 		.addColumn('specialty', 'text')
 		.addColumn('is_required', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('available_preceptor_ids', 'text', (col) => col.notNull().defaultTo('[]'))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Copy data back
@@ -225,7 +197,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 					is_required: elective.is_required,
 					available_preceptor_ids: '[]',
 					created_at: elective.created_at,
-					updated_at: elective.updated_at,
+					updated_at: elective.updated_at
 				})
 				.execute();
 		}

@@ -1,10 +1,12 @@
 # Step 27 — Tenant Isolation: Every Mutation Ownership-Guarded
 
 ## Objective
+
 A user must not be able to change or delete anything they do not own. Reads are step 26; this step
 closes the write side, which is the more damaging half.
 
 ## Context (verified in code)
+
 `grep`ing the entity mutation routes for `getActiveScheduleId` or any `schedule_*` junction returns
 **zero matches** for all of:
 
@@ -24,9 +26,11 @@ be asked of assignment routes (`/api/schedules/assignments/[id]`, `…/reassign`
 scheduling-config routes — audit them all, don't assume.
 
 ## Prerequisites
+
 Step 26 (shared `requireActiveScheduleId` helper and the two-tenant fixture).
 
 ## Scope
+
 **In:** every write path (POST that targets an existing row, PATCH, DELETE) across the API.
 **Out:** read paths (step 26).
 
@@ -59,12 +63,13 @@ Step 26 (shared `requireActiveScheduleId` helper and the two-tenant fixture).
    none-needed-because-global-config). Anything left unguarded must be justified in writing.
 
 ## Testing
+
 - **API integration, using the step-26 two-tenant fixture — for every mutating endpoint:**
   - as A, `PATCH` B's entity → **404**, and B's row is **unchanged** (re-read and compare, don't
     just trust the status code);
   - as A, `DELETE` B's entity → **404**, and B's row still exists;
   - as A, the same operation on A's own entity → succeeds (guards must not over-block).
-  Table-drive this so adding an endpoint without a case is obvious.
+    Table-drive this so adding an endpoint without a case is obvious.
 - **Assignment-specific:** as A, attempt to delete/reassign/swap an assignment belonging to B's
   student → 404, row intact. As A, submit `side_effects` targeting B's preceptor
   (`bump_preceptor_capacity`, `mark_preceptor_available`) or B's assignment
@@ -76,6 +81,7 @@ Step 26 (shared `requireActiveScheduleId` helper and the two-tenant fixture).
   data intact.
 
 ## Acceptance criteria
+
 - [ ] Every mutating endpoint verifies ownership before touching a row.
 - [ ] Cross-tenant writes return 404 and leave the target byte-identical.
 - [ ] Override `side_effects` cannot reach another tenant's data.

@@ -89,8 +89,8 @@ const authProfiles: Record<
 		kyselyType: 'postgres',
 		boolean: 'boolean',
 		falseLiteral: 'false',
-		timestamp: 'timestamptz',
-	},
+		timestamp: 'timestamptz'
+	}
 };
 
 /**
@@ -118,7 +118,7 @@ export function getAuthDialectProfile(dialect: DbDialectName): AuthDialectProfil
 		text: columnTypes.text,
 		boolean: overrides.boolean ?? columnTypes.boolean,
 		falseLiteral: overrides.falseLiteral ?? '0',
-		timestamp: overrides.timestamp ?? columnTypes.timestamp,
+		timestamp: overrides.timestamp ?? columnTypes.timestamp
 	};
 }
 

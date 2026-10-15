@@ -24,8 +24,8 @@ import { partialAvailabilityScenario } from './scenarios/partial-availability';
 const scenarios: Record<string, (userId: string, scheduleId: string) => Promise<void>> = {
 	'multi-team': multiTeamScenario,
 	'capacity-limited': capacityLimitedScenario,
-	'electives': electivesScenario,
-	'partial-availability': partialAvailabilityScenario,
+	electives: electivesScenario,
+	'partial-availability': partialAvailabilityScenario
 };
 
 async function main() {
@@ -34,8 +34,8 @@ async function main() {
 			email: { type: 'string', short: 'e' },
 			scenario: { type: 'string', short: 's' },
 			list: { type: 'boolean', short: 'l' },
-			help: { type: 'boolean', short: 'h' },
-		},
+			help: { type: 'boolean', short: 'h' }
+		}
 	});
 
 	if (values.help) {

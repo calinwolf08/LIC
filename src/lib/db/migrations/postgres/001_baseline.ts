@@ -92,7 +92,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('required_days', INTEGER, (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('min_required_days', INTEGER)
 		.addColumn('scheduling_kind', TEXT, (col) =>
-			col.notNull().defaultTo('scattered').check(sql`scheduling_kind IN ('block', 'scattered')`)
+			col
+				.notNull()
+				.defaultTo('scattered')
+				.check(sql`scheduling_kind IN ('block', 'scattered')`)
 		)
 		.addColumn('description', TEXT)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
@@ -283,10 +286,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('prefer_continuous_blocks', BOOLEAN)
 		.addColumn('health_system_rule', TEXT, (col) => col.notNull().check(healthSystemRule))
 		.addColumn('default_max_students_per_day', INTEGER, (col) =>
-			col.notNull().defaultTo(2).check(sql`default_max_students_per_day > 0`)
+			col
+				.notNull()
+				.defaultTo(2)
+				.check(sql`default_max_students_per_day > 0`)
 		)
 		.addColumn('default_max_students_per_year', INTEGER, (col) =>
-			col.notNull().defaultTo(4).check(sql`default_max_students_per_year > 0`)
+			col
+				.notNull()
+				.defaultTo(4)
+				.check(sql`default_max_students_per_year > 0`)
 		)
 		.addColumn('default_max_students_per_block', INTEGER, (col) =>
 			col.check(sql`default_max_students_per_block > 0 OR default_max_students_per_block IS NULL`)
@@ -317,10 +326,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('assignment_strategy', TEXT, (col) => col.notNull().check(assignmentStrategy))
 		.addColumn('health_system_rule', TEXT, (col) => col.notNull().check(healthSystemRule))
 		.addColumn('default_max_students_per_day', INTEGER, (col) =>
-			col.notNull().defaultTo(1).check(sql`default_max_students_per_day > 0`)
+			col
+				.notNull()
+				.defaultTo(1)
+				.check(sql`default_max_students_per_day > 0`)
 		)
 		.addColumn('default_max_students_per_year', INTEGER, (col) =>
-			col.notNull().defaultTo(3).check(sql`default_max_students_per_year > 0`)
+			col
+				.notNull()
+				.defaultTo(3)
+				.check(sql`default_max_students_per_year > 0`)
 		)
 		.addColumn('allow_teams', BOOLEAN, (col) => col.notNull().defaultTo(0))
 		.addColumn('team_size_min', INTEGER, (col) =>
@@ -345,10 +360,16 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('assignment_strategy', TEXT, (col) => col.notNull().check(assignmentStrategy))
 		.addColumn('health_system_rule', TEXT, (col) => col.notNull().check(healthSystemRule))
 		.addColumn('default_max_students_per_day', INTEGER, (col) =>
-			col.notNull().defaultTo(2).check(sql`default_max_students_per_day > 0`)
+			col
+				.notNull()
+				.defaultTo(2)
+				.check(sql`default_max_students_per_day > 0`)
 		)
 		.addColumn('default_max_students_per_year', INTEGER, (col) =>
-			col.notNull().defaultTo(10).check(sql`default_max_students_per_year > 0`)
+			col
+				.notNull()
+				.defaultTo(10)
+				.check(sql`default_max_students_per_year > 0`)
 		)
 		.addColumn('allow_teams', BOOLEAN, (col) => col.notNull().defaultTo(0))
 		.addColumn('allow_fallbacks', BOOLEAN, (col) => col.notNull().defaultTo(1))
@@ -593,10 +614,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
 		.addColumn('created_at', TIMESTAMP, (col) => col.notNull().defaultTo(nowText()))
-		.addUniqueConstraint('preceptor_mutual_exclusions_unique', [
-			'preceptor_a_id',
-			'preceptor_b_id'
-		])
+		.addUniqueConstraint('preceptor_mutual_exclusions_unique', ['preceptor_a_id', 'preceptor_b_id'])
 		.execute();
 
 	// ---------------------------------------------------------- assignments
@@ -610,9 +628,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().references('students.id').onDelete('cascade')
 		)
 		// Nullable: a non-clinical day (free_day / exam) has no preceptor (M2/M3).
-		.addColumn('preceptor_id', TEXT, (col) =>
-			col.references('preceptors.id').onDelete('restrict')
-		)
+		.addColumn('preceptor_id', TEXT, (col) => col.references('preceptors.id').onDelete('restrict'))
 		// Nullable: a standalone-elective day has no clerkship (E3).
 		.addColumn('clerkship_id', TEXT, (col) => col.references('clerkships.id').onDelete('restrict'))
 		.addColumn('date', TEXT, (col) => col.notNull())
@@ -635,7 +651,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		// occupy the student's day but need no preceptor/clerkship/site and never count
 		// toward clinical requirements.
 		.addColumn('kind', TEXT, (col) =>
-			col.notNull().defaultTo('clinical').check(sql`kind IN ('clinical', 'free_day', 'exam')`)
+			col
+				.notNull()
+				.defaultTo('clinical')
+				.check(sql`kind IN ('clinical', 'free_day', 'exam')`)
 		)
 		.execute();
 
@@ -770,7 +789,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	await uniqueIndex('idx_blackout_dates_date', 'blackout_dates', ['date']);
 
-	await uniqueIndex('idx_clerkship_configs_clerkship', 'clerkship_configurations', ['clerkship_id']);
+	await uniqueIndex('idx_clerkship_configs_clerkship', 'clerkship_configurations', [
+		'clerkship_id'
+	]);
 
 	await index('idx_electives_clerkship', 'clerkship_electives', ['clerkship_id']);
 
@@ -784,7 +805,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_elective_preceptors_preceptor', 'elective_preceptors', ['preceptor_id']);
 	await uniqueIndex('idx_elective_preceptors_unique', 'elective_preceptors', [
 		'elective_id',
-		'preceptor_id',
+		'preceptor_id'
 	]);
 
 	await index('idx_elective_sites_elective', 'elective_sites', ['elective_id']);
@@ -803,27 +824,27 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await uniqueIndex('idx_preceptor_availability_unique', 'preceptor_availability', [
 		'preceptor_id',
 		'site_id',
-		'date',
+		'date'
 	]);
 
 	await index('idx_preceptor_availability_patterns_preceptor', 'preceptor_availability_patterns', [
-		'preceptor_id',
+		'preceptor_id'
 	]);
 	await index('idx_preceptor_availability_patterns_site', 'preceptor_availability_patterns', [
-		'site_id',
+		'site_id'
 	]);
 
 	await index('idx_capacity_hierarchy', 'preceptor_capacity_rules', [
 		'preceptor_id',
 		'clerkship_id',
-		'requirement_type',
+		'requirement_type'
 	]);
 	await index('idx_capacity_preceptor', 'preceptor_capacity_rules', ['preceptor_id']);
 
 	await index('idx_fallbacks_primary', 'preceptor_fallbacks', ['primary_preceptor_id']);
 	await index('idx_fallbacks_primary_clerkship', 'preceptor_fallbacks', [
 		'primary_preceptor_id',
-		'clerkship_id',
+		'clerkship_id'
 	]);
 
 	await index('idx_preceptor_sites_preceptor', 'preceptor_sites', ['preceptor_id']);
@@ -832,7 +853,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await index('idx_team_members_preceptor', 'preceptor_team_members', ['preceptor_id']);
 	await uniqueIndex('idx_team_members_team_preceptor', 'preceptor_team_members', [
 		'team_id',
-		'preceptor_id',
+		'preceptor_id'
 	]);
 
 	await index('idx_teams_clerkship', 'preceptor_teams', ['clerkship_id']);
@@ -880,7 +901,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	await index('idx_site_capacity_rules_clerkship', 'site_capacity_rules', ['clerkship_id']);
 	await index('idx_site_capacity_rules_requirement_type', 'site_capacity_rules', [
-		'requirement_type',
+		'requirement_type'
 	]);
 	await index('idx_site_capacity_rules_site', 'site_capacity_rules', ['site_id']);
 
@@ -888,13 +909,13 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	await uniqueIndex('idx_student_health_system_unique', 'student_health_system_onboarding', [
 		'student_id',
-		'health_system_id',
+		'health_system_id'
 	]);
 	await index('idx_student_onboarding_completed', 'student_health_system_onboarding', [
-		'is_completed',
+		'is_completed'
 	]);
 	await index('idx_student_onboarding_health_system', 'student_health_system_onboarding', [
-		'health_system_id',
+		'health_system_id'
 	]);
 	await index('idx_student_onboarding_student', 'student_health_system_onboarding', ['student_id']);
 
@@ -962,7 +983,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 		'sites',
 		'students',
 		'clerkships',
-		'health_systems',
+		'health_systems'
 	];
 
 	for (const table of tables) {
