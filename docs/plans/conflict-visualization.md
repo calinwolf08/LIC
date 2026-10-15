@@ -1,13 +1,17 @@
 # Dev Plan: Conflict Visualization in Calendar
 
 ## Overview
+
 Proactively display scheduling conflicts and issues directly in the calendar view, allowing coordinators to identify and resolve problems without navigating to the Schedule Results page.
 
 ## Problem Statement
+
 Currently, to see schedule issues (preceptor unavailability conflicts, capacity violations, unmet student requirements), users must navigate to `/schedule/results`. Issues are discovered reactively rather than being visible at-a-glance in the primary calendar interface.
 
 ## Solution
+
 Add visual indicators directly on calendar assignments and days to highlight:
+
 1. Assignments where the preceptor is now unavailable
 2. Preceptors who are at or over capacity
 3. Students with unmet requirements
@@ -17,13 +21,13 @@ Add visual indicators directly on calendar assignments and days to highlight:
 
 ## Conflict Types to Visualize
 
-| Conflict Type | Visual Indicator | Location |
-|---------------|------------------|----------|
-| Preceptor unavailable on assigned date | Red border + warning icon | On assignment chip |
-| Preceptor at capacity | Orange capacity badge | On assignment chip |
-| Student has unmet requirements | Yellow warning dot | On student name in list view |
-| Assignment on a blackout date | Red striped background | On calendar day (already exists) |
-| Student double-booked | Red exclamation | On conflicting assignments |
+| Conflict Type                          | Visual Indicator          | Location                         |
+| -------------------------------------- | ------------------------- | -------------------------------- |
+| Preceptor unavailable on assigned date | Red border + warning icon | On assignment chip               |
+| Preceptor at capacity                  | Orange capacity badge     | On assignment chip               |
+| Student has unmet requirements         | Yellow warning dot        | On student name in list view     |
+| Assignment on a blackout date          | Red striped background    | On calendar day (already exists) |
+| Student double-booked                  | Red exclamation           | On conflicting assignments       |
 
 ---
 
@@ -35,57 +39,61 @@ Add visual indicators directly on calendar assignments and days to highlight:
 
 ```typescript
 export interface AssignmentConflict {
-  assignmentId: string;
-  type: 'preceptor_unavailable' | 'preceptor_over_capacity' | 'blackout_date' | 'student_double_booked';
-  severity: 'error' | 'warning';
-  message: string;
-  details?: {
-    preceptorId?: string;
-    date?: string;
-    currentCount?: number;
-    maxCapacity?: number;
-  };
+	assignmentId: string;
+	type:
+		| 'preceptor_unavailable'
+		| 'preceptor_over_capacity'
+		| 'blackout_date'
+		| 'student_double_booked';
+	severity: 'error' | 'warning';
+	message: string;
+	details?: {
+		preceptorId?: string;
+		date?: string;
+		currentCount?: number;
+		maxCapacity?: number;
+	};
 }
 
 export interface StudentRequirementStatus {
-  studentId: string;
-  studentName: string;
-  hasUnmetRequirements: boolean;
-  unmetClerkships: Array<{
-    clerkshipId: string;
-    clerkshipName: string;
-    remaining: number;
-  }>;
+	studentId: string;
+	studentName: string;
+	hasUnmetRequirements: boolean;
+	unmetClerkships: Array<{
+		clerkshipId: string;
+		clerkshipName: string;
+		remaining: number;
+	}>;
 }
 
 /**
  * Detect conflicts for assignments in a date range
  */
 export async function detectConflicts(
-  db: Kysely<DB>,
-  startDate: string,
-  endDate: string
+	db: Kysely<DB>,
+	startDate: string,
+	endDate: string
 ): Promise<{
-  assignmentConflicts: Map<string, AssignmentConflict[]>;
-  studentStatus: Map<string, StudentRequirementStatus>;
+	assignmentConflicts: Map<string, AssignmentConflict[]>;
+	studentStatus: Map<string, StudentRequirementStatus>;
 }> {
-  // Implementation steps:
-  // 1. Fetch all assignments in date range
-  // 2. Fetch preceptor availability for those dates
-  // 3. Fetch capacity rules
-  // 4. Fetch blackout dates
-  // 5. Compare and detect conflicts
-  // 6. Calculate student requirement status
+	// Implementation steps:
+	// 1. Fetch all assignments in date range
+	// 2. Fetch preceptor availability for those dates
+	// 3. Fetch capacity rules
+	// 4. Fetch blackout dates
+	// 5. Compare and detect conflicts
+	// 6. Calculate student requirement status
 }
 
 /**
  * Check single assignment for conflicts (for real-time validation)
  */
 export async function checkAssignmentConflicts(
-  db: Kysely<DB>,
-  assignmentId: string
+	db: Kysely<DB>,
+	assignmentId: string
 ): Promise<AssignmentConflict[]> {
-  // Quick check for a single assignment
+	// Quick check for a single assignment
 }
 ```
 
@@ -96,20 +104,21 @@ export async function checkAssignmentConflicts(
 ```typescript
 // GET /api/calendar/conflicts?start_date=X&end_date=Y
 export async function GET({ url, locals }) {
-  const startDate = url.searchParams.get('start_date');
-  const endDate = url.searchParams.get('end_date');
+	const startDate = url.searchParams.get('start_date');
+	const endDate = url.searchParams.get('end_date');
 
-  const conflicts = await detectConflicts(locals.db, startDate, endDate);
+	const conflicts = await detectConflicts(locals.db, startDate, endDate);
 
-  return json({
-    assignmentConflicts: Object.fromEntries(conflicts.assignmentConflicts),
-    studentStatus: Object.fromEntries(conflicts.studentStatus),
-    summary: {
-      totalConflicts: conflicts.assignmentConflicts.size,
-      studentsWithUnmetRequirements: [...conflicts.studentStatus.values()]
-        .filter(s => s.hasUnmetRequirements).length
-    }
-  });
+	return json({
+		assignmentConflicts: Object.fromEntries(conflicts.assignmentConflicts),
+		studentStatus: Object.fromEntries(conflicts.studentStatus),
+		summary: {
+			totalConflicts: conflicts.assignmentConflicts.size,
+			studentsWithUnmetRequirements: [...conflicts.studentStatus.values()].filter(
+				(s) => s.hasUnmetRequirements
+			).length
+		}
+	});
 }
 ```
 
@@ -121,24 +130,24 @@ Add conflict info to existing types:
 
 ```typescript
 export interface CalendarDayAssignment {
-  id: string;
-  clerkshipId: string;
-  clerkshipName: string;
-  // ... existing fields ...
+	id: string;
+	clerkshipId: string;
+	clerkshipName: string;
+	// ... existing fields ...
 
-  // NEW: Conflict indicators
-  conflicts?: AssignmentConflict[];
-  hasConflict?: boolean;
-  conflictSeverity?: 'error' | 'warning' | null;
+	// NEW: Conflict indicators
+	conflicts?: AssignmentConflict[];
+	hasConflict?: boolean;
+	conflictSeverity?: 'error' | 'warning' | null;
 }
 
 export interface CalendarDay {
-  // ... existing fields ...
+	// ... existing fields ...
 
-  // NEW: Day-level conflict summary
-  conflictCount?: number;
-  hasErrors?: boolean;
-  hasWarnings?: boolean;
+	// NEW: Day-level conflict summary
+	conflictCount?: number;
+	hasErrors?: boolean;
+	hasWarnings?: boolean;
 }
 ```
 
@@ -150,33 +159,41 @@ Update assignment chip rendering:
 
 ```svelte
 <button
-  type="button"
-  class="w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded truncate
-         hover:opacity-80 transition-opacity
+	type="button"
+	class="w-full truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight
+         transition-opacity hover:opacity-80
          {assignment.hasConflict ? 'ring-2' : ''}
          {assignment.conflictSeverity === 'error' ? 'ring-red-500' : ''}
          {assignment.conflictSeverity === 'warning' ? 'ring-amber-500' : ''}"
-  style="background-color: {assignment.color}20; color: {assignment.color};
+	style="background-color: {assignment.color}20; color: {assignment.color};
          border-left: 2px solid {assignment.color};"
-  title="{assignment.clerkshipName} - {assignment.preceptorName}
-         {assignment.conflicts?.map(c => '\n⚠️ ' + c.message).join('') || ''}"
-  onclick={(e) => handleAssignmentClick(e, day, assignment)}
+	title="{assignment.clerkshipName} - {assignment.preceptorName}
+         {assignment.conflicts?.map((c) => '\n⚠️ ' + c.message).join('') || ''}"
+	onclick={(e) => handleAssignmentClick(e, day, assignment)}
 >
-  {#if mode === 'student'}
-    {assignment.clerkshipAbbrev || assignment.clerkshipName.slice(0, 3)}
-  {:else}
-    {assignment.studentInitials || assignment.studentName?.split(' ').map(n => n[0]).join('')}
-  {/if}
+	{#if mode === 'student'}
+		{assignment.clerkshipAbbrev || assignment.clerkshipName.slice(0, 3)}
+	{:else}
+		{assignment.studentInitials ||
+			assignment.studentName
+				?.split(' ')
+				.map((n) => n[0])
+				.join('')}
+	{/if}
 
-  <!-- Conflict indicator -->
-  {#if assignment.hasConflict}
-    <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center
-                 {assignment.conflictSeverity === 'error' ? 'bg-red-500' : 'bg-amber-500'}">
-      <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"/>
-      </svg>
-    </span>
-  {/if}
+	<!-- Conflict indicator -->
+	{#if assignment.hasConflict}
+		<span
+			class="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full
+                 {assignment.conflictSeverity === 'error' ? 'bg-red-500' : 'bg-amber-500'}"
+		>
+			<svg class="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+				<path
+					d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+				/>
+			</svg>
+		</span>
+	{/if}
 </button>
 ```
 
@@ -185,13 +202,15 @@ Add day-level conflict indicator:
 ```svelte
 <!-- Day header with conflict count -->
 <span class="text-xs font-medium {day.isToday ? 'text-primary' : ''}">
-  {day.dayOfMonth}
-  {#if day.conflictCount && day.conflictCount > 0}
-    <span class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[9px]
-                 rounded-full {day.hasErrors ? 'bg-red-500' : 'bg-amber-500'} text-white">
-      {day.conflictCount}
-    </span>
-  {/if}
+	{day.dayOfMonth}
+	{#if day.conflictCount && day.conflictCount > 0}
+		<span
+			class="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full
+                 text-[9px] {day.hasErrors ? 'bg-red-500' : 'bg-amber-500'} text-white"
+		>
+			{day.conflictCount}
+		</span>
+	{/if}
 </span>
 ```
 
@@ -203,39 +222,50 @@ Add a conflicts summary banner above the calendar:
 
 ```svelte
 {#if conflictSummary && conflictSummary.totalConflicts > 0}
-  <Card class="p-4 mb-6 border-red-500 bg-red-50 dark:bg-red-950/20">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-red-600 dark:text-red-400">
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-        </div>
-        <div>
-          <p class="font-medium text-red-800 dark:text-red-200">
-            {conflictSummary.totalConflicts} Scheduling Conflict{conflictSummary.totalConflicts === 1 ? '' : 's'}
-          </p>
-          <p class="text-sm text-red-700 dark:text-red-300">
-            {#if conflictSummary.preceptorUnavailable > 0}
-              {conflictSummary.preceptorUnavailable} preceptor availability issue{conflictSummary.preceptorUnavailable === 1 ? '' : 's'}
-            {/if}
-            {#if conflictSummary.capacityExceeded > 0}
-              • {conflictSummary.capacityExceeded} capacity violation{conflictSummary.capacityExceeded === 1 ? '' : 's'}
-            {/if}
-          </p>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <Button variant="outline" size="sm" onclick={showConflictDetails}>
-          View Details
-        </Button>
-        <Button variant="destructive" size="sm" onclick={handleRegenerateClick}>
-          Fix with Regeneration
-        </Button>
-      </div>
-    </div>
-  </Card>
+	<Card class="mb-6 border-red-500 bg-red-50 p-4 dark:bg-red-950/20">
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<div class="text-red-600 dark:text-red-400">
+					<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+						/>
+					</svg>
+				</div>
+				<div>
+					<p class="font-medium text-red-800 dark:text-red-200">
+						{conflictSummary.totalConflicts} Scheduling Conflict{conflictSummary.totalConflicts ===
+						1
+							? ''
+							: 's'}
+					</p>
+					<p class="text-sm text-red-700 dark:text-red-300">
+						{#if conflictSummary.preceptorUnavailable > 0}
+							{conflictSummary.preceptorUnavailable} preceptor availability issue{conflictSummary.preceptorUnavailable ===
+							1
+								? ''
+								: 's'}
+						{/if}
+						{#if conflictSummary.capacityExceeded > 0}
+							• {conflictSummary.capacityExceeded} capacity violation{conflictSummary.capacityExceeded ===
+							1
+								? ''
+								: 's'}
+						{/if}
+					</p>
+				</div>
+			</div>
+			<div class="flex gap-2">
+				<Button variant="outline" size="sm" onclick={showConflictDetails}>View Details</Button>
+				<Button variant="destructive" size="sm" onclick={handleRegenerateClick}>
+					Fix with Regeneration
+				</Button>
+			</div>
+		</div>
+	</Card>
 {/if}
 ```
 
@@ -247,96 +277,110 @@ Expandable panel showing all conflicts:
 
 ```svelte
 <script lang="ts">
-  import type { AssignmentConflict, StudentRequirementStatus } from '../services/conflict-detection-service';
+	import type {
+		AssignmentConflict,
+		StudentRequirementStatus
+	} from '../services/conflict-detection-service';
 
-  interface Props {
-    conflicts: Map<string, AssignmentConflict[]>;
-    studentStatus: Map<string, StudentRequirementStatus>;
-    onAssignmentClick: (assignmentId: string) => void;
-    onStudentClick: (studentId: string) => void;
-  }
+	interface Props {
+		conflicts: Map<string, AssignmentConflict[]>;
+		studentStatus: Map<string, StudentRequirementStatus>;
+		onAssignmentClick: (assignmentId: string) => void;
+		onStudentClick: (studentId: string) => void;
+	}
 
-  let { conflicts, studentStatus, onAssignmentClick, onStudentClick }: Props = $props();
+	let { conflicts, studentStatus, onAssignmentClick, onStudentClick }: Props = $props();
 
-  // Group conflicts by type
-  let groupedConflicts = $derived(() => {
-    const groups = {
-      preceptor_unavailable: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>,
-      preceptor_over_capacity: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>,
-      blackout_date: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>,
-      student_double_booked: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>
-    };
+	// Group conflicts by type
+	let groupedConflicts = $derived(() => {
+		const groups = {
+			preceptor_unavailable: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>,
+			preceptor_over_capacity: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>,
+			blackout_date: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>,
+			student_double_booked: [] as Array<{ assignmentId: string; conflict: AssignmentConflict }>
+		};
 
-    for (const [assignmentId, assignmentConflicts] of conflicts) {
-      for (const conflict of assignmentConflicts) {
-        groups[conflict.type].push({ assignmentId, conflict });
-      }
-    }
+		for (const [assignmentId, assignmentConflicts] of conflicts) {
+			for (const conflict of assignmentConflicts) {
+				groups[conflict.type].push({ assignmentId, conflict });
+			}
+		}
 
-    return groups;
-  });
+		return groups;
+	});
 </script>
 
 <div class="space-y-4">
-  <!-- Preceptor Unavailable -->
-  {#if groupedConflicts().preceptor_unavailable.length > 0}
-    <div class="border rounded-lg p-4">
-      <h4 class="font-medium text-red-600 mb-2 flex items-center gap-2">
-        <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-        Preceptor Unavailable ({groupedConflicts().preceptor_unavailable.length})
-      </h4>
-      <ul class="space-y-1 text-sm">
-        {#each groupedConflicts().preceptor_unavailable as { assignmentId, conflict }}
-          <li>
-            <button class="text-primary hover:underline" onclick={() => onAssignmentClick(assignmentId)}>
-              {conflict.message}
-            </button>
-          </li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
+	<!-- Preceptor Unavailable -->
+	{#if groupedConflicts().preceptor_unavailable.length > 0}
+		<div class="rounded-lg border p-4">
+			<h4 class="mb-2 flex items-center gap-2 font-medium text-red-600">
+				<span class="h-2 w-2 rounded-full bg-red-500"></span>
+				Preceptor Unavailable ({groupedConflicts().preceptor_unavailable.length})
+			</h4>
+			<ul class="space-y-1 text-sm">
+				{#each groupedConflicts().preceptor_unavailable as { assignmentId, conflict }}
+					<li>
+						<button
+							class="text-primary hover:underline"
+							onclick={() => onAssignmentClick(assignmentId)}
+						>
+							{conflict.message}
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 
-  <!-- Capacity Exceeded -->
-  {#if groupedConflicts().preceptor_over_capacity.length > 0}
-    <div class="border rounded-lg p-4">
-      <h4 class="font-medium text-amber-600 mb-2 flex items-center gap-2">
-        <span class="w-2 h-2 bg-amber-500 rounded-full"></span>
-        Capacity Exceeded ({groupedConflicts().preceptor_over_capacity.length})
-      </h4>
-      <ul class="space-y-1 text-sm">
-        {#each groupedConflicts().preceptor_over_capacity as { assignmentId, conflict }}
-          <li>
-            <button class="text-primary hover:underline" onclick={() => onAssignmentClick(assignmentId)}>
-              {conflict.message}
-            </button>
-          </li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
+	<!-- Capacity Exceeded -->
+	{#if groupedConflicts().preceptor_over_capacity.length > 0}
+		<div class="rounded-lg border p-4">
+			<h4 class="mb-2 flex items-center gap-2 font-medium text-amber-600">
+				<span class="h-2 w-2 rounded-full bg-amber-500"></span>
+				Capacity Exceeded ({groupedConflicts().preceptor_over_capacity.length})
+			</h4>
+			<ul class="space-y-1 text-sm">
+				{#each groupedConflicts().preceptor_over_capacity as { assignmentId, conflict }}
+					<li>
+						<button
+							class="text-primary hover:underline"
+							onclick={() => onAssignmentClick(assignmentId)}
+						>
+							{conflict.message}
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 
-  <!-- Students with Unmet Requirements -->
-  {#if [...studentStatus.values()].filter(s => s.hasUnmetRequirements).length > 0}
-    <div class="border rounded-lg p-4">
-      <h4 class="font-medium text-amber-600 mb-2 flex items-center gap-2">
-        <span class="w-2 h-2 bg-amber-500 rounded-full"></span>
-        Students with Unmet Requirements
-      </h4>
-      <ul class="space-y-2 text-sm">
-        {#each [...studentStatus.values()].filter(s => s.hasUnmetRequirements) as student}
-          <li class="flex justify-between items-start">
-            <button class="text-primary hover:underline" onclick={() => onStudentClick(student.studentId)}>
-              {student.studentName}
-            </button>
-            <span class="text-muted-foreground text-xs">
-              {student.unmetClerkships.map(c => `${c.clerkshipName}: ${c.remaining} days`).join(', ')}
-            </span>
-          </li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
+	<!-- Students with Unmet Requirements -->
+	{#if [...studentStatus.values()].filter((s) => s.hasUnmetRequirements).length > 0}
+		<div class="rounded-lg border p-4">
+			<h4 class="mb-2 flex items-center gap-2 font-medium text-amber-600">
+				<span class="h-2 w-2 rounded-full bg-amber-500"></span>
+				Students with Unmet Requirements
+			</h4>
+			<ul class="space-y-2 text-sm">
+				{#each [...studentStatus.values()].filter((s) => s.hasUnmetRequirements) as student}
+					<li class="flex items-start justify-between">
+						<button
+							class="text-primary hover:underline"
+							onclick={() => onStudentClick(student.studentId)}
+						>
+							{student.studentName}
+						</button>
+						<span class="text-xs text-muted-foreground">
+							{student.unmetClerkships
+								.map((c) => `${c.clerkshipName}: ${c.remaining} days`)
+								.join(', ')}
+						</span>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 </div>
 ```
 
@@ -348,59 +392,61 @@ Add conflict loading and state:
 
 ```svelte
 <script>
-  // Conflict state
-  let conflictData = $state<{
-    assignmentConflicts: Map<string, AssignmentConflict[]>;
-    studentStatus: Map<string, StudentRequirementStatus>;
-    summary: { totalConflicts: number; studentsWithUnmetRequirements: number };
-  } | null>(null);
-  let showConflictPanel = $state(false);
+	// Conflict state
+	let conflictData = $state<{
+		assignmentConflicts: Map<string, AssignmentConflict[]>;
+		studentStatus: Map<string, StudentRequirementStatus>;
+		summary: { totalConflicts: number; studentsWithUnmetRequirements: number };
+	} | null>(null);
+	let showConflictPanel = $state(false);
 
-  // Load conflicts when calendar loads
-  async function loadConflicts() {
-    try {
-      const response = await fetch(`/api/calendar/conflicts?start_date=${startDate}&end_date=${endDate}`);
-      const result = await response.json();
+	// Load conflicts when calendar loads
+	async function loadConflicts() {
+		try {
+			const response = await fetch(
+				`/api/calendar/conflicts?start_date=${startDate}&end_date=${endDate}`
+			);
+			const result = await response.json();
 
-      conflictData = {
-        assignmentConflicts: new Map(Object.entries(result.assignmentConflicts)),
-        studentStatus: new Map(Object.entries(result.studentStatus)),
-        summary: result.summary
-      };
+			conflictData = {
+				assignmentConflicts: new Map(Object.entries(result.assignmentConflicts)),
+				studentStatus: new Map(Object.entries(result.studentStatus)),
+				summary: result.summary
+			};
 
-      // Merge conflict data into calendar events
-      enrichEventsWithConflicts();
-    } catch (err) {
-      console.error('Failed to load conflicts:', err);
-    }
-  }
+			// Merge conflict data into calendar events
+			enrichEventsWithConflicts();
+		} catch (err) {
+			console.error('Failed to load conflicts:', err);
+		}
+	}
 
-  function enrichEventsWithConflicts() {
-    if (!conflictData) return;
+	function enrichEventsWithConflicts() {
+		if (!conflictData) return;
 
-    events = events.map(event => {
-      const conflicts = conflictData.assignmentConflicts.get(event.assignment.id);
-      if (conflicts && conflicts.length > 0) {
-        return {
-          ...event,
-          assignment: {
-            ...event.assignment,
-            conflicts,
-            hasConflict: true,
-            conflictSeverity: conflicts.some(c => c.severity === 'error') ? 'error' : 'warning'
-          }
-        };
-      }
-      return event;
-    });
-  }
+		events = events.map((event) => {
+			const conflicts = conflictData.assignmentConflicts.get(event.assignment.id);
+			if (conflicts && conflicts.length > 0) {
+				return {
+					...event,
+					assignment: {
+						...event.assignment,
+						conflicts,
+						hasConflict: true,
+						conflictSeverity: conflicts.some((c) => c.severity === 'error') ? 'error' : 'warning'
+					}
+				};
+			}
+			return event;
+		});
+	}
 
-  // Load conflicts after calendar loads
-  $effect(() => {
-    if (events.length > 0) {
-      loadConflicts();
-    }
-  });
+	// Load conflicts after calendar loads
+	$effect(() => {
+		if (events.length > 0) {
+			loadConflicts();
+		}
+	});
 </script>
 ```
 
@@ -492,21 +538,22 @@ With Error (unavailable):
 
 ## Files to Create/Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/features/schedules/services/conflict-detection-service.ts` | Create | Core conflict detection logic |
-| `src/routes/api/calendar/conflicts/+server.ts` | Create | Conflicts API endpoint |
-| `src/lib/features/schedules/types/schedule-views.ts` | Modify | Add conflict fields to types |
-| `src/lib/features/schedules/components/schedule-calendar-grid.svelte` | Modify | Add visual conflict indicators |
-| `src/lib/features/schedules/components/conflict-details-panel.svelte` | Create | Detailed conflict list panel |
-| `src/routes/calendar/+page.svelte` | Modify | Load conflicts, show banner/panel |
-| `src/routes/calendar/+page.server.ts` | Modify | Optionally preload conflicts SSR |
+| File                                                                  | Action | Description                       |
+| --------------------------------------------------------------------- | ------ | --------------------------------- |
+| `src/lib/features/schedules/services/conflict-detection-service.ts`   | Create | Core conflict detection logic     |
+| `src/routes/api/calendar/conflicts/+server.ts`                        | Create | Conflicts API endpoint            |
+| `src/lib/features/schedules/types/schedule-views.ts`                  | Modify | Add conflict fields to types      |
+| `src/lib/features/schedules/components/schedule-calendar-grid.svelte` | Modify | Add visual conflict indicators    |
+| `src/lib/features/schedules/components/conflict-details-panel.svelte` | Create | Detailed conflict list panel      |
+| `src/routes/calendar/+page.svelte`                                    | Modify | Load conflicts, show banner/panel |
+| `src/routes/calendar/+page.server.ts`                                 | Modify | Optionally preload conflicts SSR  |
 
 ---
 
 ## Testing Plan
 
 ### Unit Tests
+
 - `detectConflicts` identifies preceptor unavailable on assigned date
 - `detectConflicts` identifies capacity exceeded
 - `detectConflicts` identifies blackout date violations
@@ -514,12 +561,14 @@ With Error (unavailable):
 - Multiple conflicts on same assignment are all detected
 
 ### Integration Tests
+
 - Conflict API returns correct data structure
 - Conflicts update when preceptor availability changes
 - Conflicts update when capacity rules change
 - Conflicts update when blackout dates are added
 
 ### E2E Tests
+
 - Conflict badge appears on assignments with issues
 - Conflict count badge appears on days with conflicts
 - Clicking conflict opens edit modal for that assignment
@@ -540,16 +589,16 @@ With Error (unavailable):
 
 ## Estimated Effort
 
-| Phase | Effort |
-|-------|--------|
+| Phase                               | Effort |
+| ----------------------------------- | ------ |
 | Phase 1: Conflict Detection Service | Medium |
-| Phase 2: API Endpoint | Small |
-| Phase 3: Type Extensions | Small |
-| Phase 4: Calendar Grid Visuals | Medium |
-| Phase 5: Summary Banner | Small |
-| Phase 6: Details Panel | Medium |
-| Phase 7: Page Integration | Medium |
-| Testing | Medium |
+| Phase 2: API Endpoint               | Small  |
+| Phase 3: Type Extensions            | Small  |
+| Phase 4: Calendar Grid Visuals      | Medium |
+| Phase 5: Summary Banner             | Small  |
+| Phase 6: Details Panel              | Medium |
+| Phase 7: Page Integration           | Medium |
+| Testing                             | Medium |
 
 **Total: ~4-5 days of development**
 

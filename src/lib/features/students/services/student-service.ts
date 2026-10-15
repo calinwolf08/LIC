@@ -56,8 +56,15 @@ export async function getStudentsBySchedule(
  * Get a single student by ID
  * @returns Student or null if not found
  */
-export async function getStudentById(db: Kysely<DB>, id: string): Promise<Selectable<Students> | null> {
-	const student = await db.selectFrom('students').selectAll().where('id', '=', id).executeTakeFirst();
+export async function getStudentById(
+	db: Kysely<DB>,
+	id: string
+): Promise<Selectable<Students> | null> {
+	const student = await db
+		.selectFrom('students')
+		.selectAll()
+		.where('id', '=', id)
+		.executeTakeFirst();
 
 	return student || null;
 }

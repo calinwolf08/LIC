@@ -126,7 +126,11 @@
 		}
 	}
 
-	function handleAssignmentClick(event: MouseEvent, day: CalendarDay, assignment: CalendarDayAssignment) {
+	function handleAssignmentClick(
+		event: MouseEvent,
+		day: CalendarDay,
+		assignment: CalendarDayAssignment
+	) {
 		event.stopPropagation();
 		if (!isInteractive(day)) return;
 		if (onAssignmentClick) {
@@ -140,11 +144,11 @@
 <div class="calendar-grid space-y-6">
 	{#each months as month}
 		<div class="month-container">
-			<h3 class="text-lg font-semibold mb-3">{month.monthName}</h3>
+			<h3 class="mb-3 text-lg font-semibold">{month.monthName}</h3>
 
-			<div class="border rounded-lg overflow-hidden">
+			<div class="overflow-hidden rounded-lg border">
 				<!-- Header row -->
-				<div class="grid grid-cols-7 bg-muted/50 border-b">
+				<div class="grid grid-cols-7 border-b bg-muted/50">
 					{#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as dayName}
 						<div class="py-2 text-center text-xs font-medium text-muted-foreground">
 							{dayName}
@@ -165,8 +169,16 @@
 								data-blackout={isBlackoutDate(day.date)}
 								data-conflict={violationDates.has(day.date)}
 								data-note={mode === 'preceptor' ? (day.availabilityNote ?? '') : ''}
-								title={mode === 'preceptor' && day.availabilityNote ? day.availabilityNote : undefined}
-								class="{getDayClasses(day)} min-h-[76px] p-1 border-r last:border-r-0 text-left hover:bg-muted/50 transition-colors relative cursor-pointer {!isInteractive(day) ? 'pointer-events-none' : ''}"
+								title={mode === 'preceptor' && day.availabilityNote
+									? day.availabilityNote
+									: undefined}
+								class="{getDayClasses(
+									day
+								)} relative min-h-[76px] cursor-pointer border-r p-1 text-left transition-colors last:border-r-0 hover:bg-muted/50 {!isInteractive(
+									day
+								)
+									? 'pointer-events-none'
+									: ''}"
 								onclick={() => handleDayClick(day)}
 								onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleDayClick(day)}
 							>
@@ -176,7 +188,7 @@
 
 								{#if violationDates.has(day.date) && day.isCurrentMonth}
 									<span
-										class="absolute right-0.5 top-0.5 z-10 h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-900"
+										class="absolute top-0.5 right-0.5 z-10 h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-900"
 										title={(violationMessages[day.date] ?? ['Scheduling conflict']).join('\n')}
 										aria-label="Scheduling conflict"
 									></span>
@@ -194,7 +206,7 @@
 								{#if mode === 'preceptor' && day.availabilityNote && day.isCurrentMonth}
 									<span
 										data-testid="cal-note-{day.date}"
-										class="absolute left-0.5 top-0.5 z-10 text-[9px] leading-none"
+										class="absolute top-0.5 left-0.5 z-10 text-[9px] leading-none"
 										title={day.availabilityNote}
 										aria-label="Availability note: {day.availabilityNote}">📝</span
 									>
@@ -220,7 +232,7 @@
 												{#if colorBy === 'student' && assignment.studentName}
 													<span
 														data-testid="student-initials"
-														class="mr-1 inline-flex items-center rounded px-0.5 text-[9px] font-semibold text-white align-middle"
+														class="mr-1 inline-flex items-center rounded px-0.5 align-middle text-[9px] font-semibold text-white"
 														style="background-color: {color};"
 														aria-hidden="true">{getStudentInitials(assignment.studentName)}</span
 													>
@@ -229,11 +241,13 @@
 													{primaryLabel(assignment)}{#if assignment.source === 'generated'}<span
 															class="ml-0.5"
 															title="Auto-generated">•</span
-														>{/if}{#if assignment.locked}<span class="ml-0.5" title="Locked">🔒</span
+														>{/if}{#if assignment.locked}<span class="ml-0.5" title="Locked"
+															>🔒</span
 														>{/if}
 												</span>
 												{#if secondaryLabel(assignment)}
-													<span class="block truncate opacity-80">{secondaryLabel(assignment)}</span>
+													<span class="block truncate opacity-80">{secondaryLabel(assignment)}</span
+													>
 												{/if}
 											</button>
 										{/each}
@@ -251,12 +265,16 @@
 										{/if}
 									</div>
 								{:else if isBlackoutDate(day.date) && day.isCurrentMonth}
-									<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-										<span class="text-[9px] text-red-500 dark:text-red-400 font-medium opacity-60">BLOCKED</span>
+									<div
+										class="pointer-events-none absolute inset-0 flex items-center justify-center"
+									>
+										<span class="text-[9px] font-medium text-red-500 opacity-60 dark:text-red-400"
+											>BLOCKED</span
+										>
 									</div>
 								{:else if mode === 'preceptor' && day.availability === 'available' && day.isCurrentMonth}
-									<div class="absolute bottom-1 right-1">
-										<span class="w-2 h-2 bg-green-500 rounded-full block"></span>
+									<div class="absolute right-1 bottom-1">
+										<span class="block h-2 w-2 rounded-full bg-green-500"></span>
 									</div>
 								{/if}
 							</div>

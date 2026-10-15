@@ -35,8 +35,9 @@ export class PreceptorClerkshipAssociationConstraint implements Constraint {
 		if (this.requirementType === 'elective') {
 			// For electives, check preceptor-elective associations
 			if (context.preceptorElectiveAssociations) {
-				const preceptorElectives =
-					context.preceptorElectiveAssociations.get(assignment.preceptorId);
+				const preceptorElectives = context.preceptorElectiveAssociations.get(
+					assignment.preceptorId
+				);
 				isAssociated = preceptorElectives ? preceptorElectives.has(this.requirementId) : false;
 			} else {
 				// If no association data available, allow assignment
@@ -45,8 +46,9 @@ export class PreceptorClerkshipAssociationConstraint implements Constraint {
 		} else {
 			// For regular clerkships (inpatient/outpatient), check preceptor-clerkship associations
 			if (context.preceptorClerkshipAssociations) {
-				const preceptorClerkships =
-					context.preceptorClerkshipAssociations.get(assignment.preceptorId);
+				const preceptorClerkships = context.preceptorClerkshipAssociations.get(
+					assignment.preceptorId
+				);
 				isAssociated = preceptorClerkships ? preceptorClerkships.has(this.clerkshipId) : false;
 			} else {
 				// If no association data available, allow assignment

@@ -1,12 +1,15 @@
 # Step 24 — Integrated Regression: Prove the Whole Flow
 
 ## Objective
+
 Verify steps 15–23 hold together for a real user, not just in isolation. Every earlier step ships its own tests; this step exists so nobody can call the round done while the end-to-end experience is broken.
 
 ## Prerequisites
+
 Steps 15–23.
 
 ## Scope
+
 **In:** cross-cutting e2e journeys, fixture/seed alignment, suite health.
 **Out:** new features.
 
@@ -22,12 +25,15 @@ Steps 15–23.
 7. **Docs.** Update `docs/spec/DESIGN_REVIEW.md` with a "Round 2" status table mapping each reported issue → step → resolved/deferred, so the next reader can see what this round did.
 
 ## Testing
-This step *is* testing. Required evidence before sign-off:
+
+This step _is_ testing. Required evidence before sign-off:
+
 - Full Playwright suite green from a cold seeded DB, twice, zero flakes.
 - Full Vitest suite green; `svelte-check` clean; production build succeeds.
 - Each of the user's reported issues has at least one automated test that **fails on the pre-fix commit and passes after** — record the mapping in the Round 2 status table.
 
 ## Acceptance criteria
+
 - [ ] Seed intent matches seed reality; no test relies on an accidental schedule name or range.
 - [ ] Fresh-signup and override-lifecycle journeys pass reliably.
 - [ ] Every reported issue is covered by a test that demonstrably catches the regression.

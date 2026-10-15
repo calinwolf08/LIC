@@ -152,8 +152,18 @@ export function getMonthsBetween(
 	const end = parseUTCDate(endDate);
 
 	const monthNames = [
-		'January', 'February', 'March', 'April', 'May', 'June',
-		'July', 'August', 'September', 'October', 'November', 'December'
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
 	];
 
 	const current = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));

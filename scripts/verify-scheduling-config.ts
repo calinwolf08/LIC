@@ -13,10 +13,7 @@ async function verify() {
 	console.log('🔍 Verifying sample scheduling configurations...\n');
 
 	// Health Systems
-	const healthSystems = await db
-		.selectFrom('health_systems')
-		.selectAll()
-		.execute();
+	const healthSystems = await db.selectFrom('health_systems').selectAll().execute();
 
 	console.log(`📍 Health Systems: ${healthSystems.length}`);
 	for (const hs of healthSystems) {
@@ -34,10 +31,7 @@ async function verify() {
 	console.log();
 
 	// Clerkship Requirements
-	const requirements = await db
-		.selectFrom('clerkship_requirements')
-		.selectAll()
-		.execute();
+	const requirements = await db.selectFrom('clerkship_requirements').selectAll().execute();
 
 	console.log(`📋 Clerkship Requirements: ${requirements.length}`);
 	for (const req of requirements) {
@@ -68,10 +62,7 @@ async function verify() {
 	console.log();
 
 	// Capacity Rules
-	const capacityRules = await db
-		.selectFrom('preceptor_capacity_rules')
-		.selectAll()
-		.execute();
+	const capacityRules = await db.selectFrom('preceptor_capacity_rules').selectAll().execute();
 
 	console.log(`🎯 Capacity Rules: ${capacityRules.length}`);
 	for (const rule of capacityRules) {
@@ -90,15 +81,14 @@ async function verify() {
 			scope = 'Requirement-Type';
 		}
 
-		console.log(`  - ${preceptor?.name}: ${rule.max_students_per_day}/day, ${rule.max_students_per_year}/year (${scope})`);
+		console.log(
+			`  - ${preceptor?.name}: ${rule.max_students_per_day}/day, ${rule.max_students_per_year}/year (${scope})`
+		);
 	}
 	console.log();
 
 	// Teams
-	const teams = await db
-		.selectFrom('preceptor_teams')
-		.selectAll()
-		.execute();
+	const teams = await db.selectFrom('preceptor_teams').selectAll().execute();
 
 	console.log(`👥 Preceptor Teams: ${teams.length}`);
 	for (const team of teams) {
@@ -109,15 +99,14 @@ async function verify() {
 			.execute();
 
 		console.log(`  - ${team.name} (${members.length} members)`);
-		console.log(`    Rules: Same Health System: ${team.require_same_health_system ? '✓' : '✗'}, Same Site: ${team.require_same_site ? '✓' : '✗'}, Same Specialty: ${team.require_same_specialty ? '✓' : '✗'}`);
+		console.log(
+			`    Rules: Same Health System: ${team.require_same_health_system ? '✓' : '✗'}, Same Site: ${team.require_same_site ? '✓' : '✗'}, Same Specialty: ${team.require_same_specialty ? '✓' : '✗'}`
+		);
 	}
 	console.log();
 
 	// Fallbacks
-	const fallbacks = await db
-		.selectFrom('preceptor_fallbacks')
-		.selectAll()
-		.execute();
+	const fallbacks = await db.selectFrom('preceptor_fallbacks').selectAll().execute();
 
 	console.log(`🔄 Fallback Chains: ${fallbacks.length} fallback relationships`);
 

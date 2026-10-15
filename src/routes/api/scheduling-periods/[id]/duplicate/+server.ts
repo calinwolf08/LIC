@@ -6,11 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { getSchedulingPeriodById } from '$lib/features/scheduling/services/scheduling-period-service';
 import { duplicateToNewSchedule } from '$lib/features/schedules/services/schedule-duplication.service';
@@ -93,16 +89,19 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			entityCounts: result.entityCounts
 		});
 
-		return successResponse({
-			schedule: result.schedule,
-			entityCounts: result.entityCounts,
-			message: `Schedule "${validatedData.name}" created successfully`
-		}, 201);
+		return successResponse(
+			{
+				schedule: result.schedule,
+				entityCounts: result.entityCounts,
+				message: `Schedule "${validatedData.name}" created successfully`
+			},
+			201
+		);
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Schedule duplication validation failed', {
 				sourceScheduleId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

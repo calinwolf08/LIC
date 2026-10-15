@@ -29,7 +29,7 @@ export class BlackoutDateConstraint implements Constraint {
 				this.getViolationMessage(assignment, context),
 				{
 					date: assignment.date,
-					studentName: student?.name,
+					studentName: student?.name
 				}
 			);
 		}

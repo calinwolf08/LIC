@@ -78,6 +78,7 @@ CREATE INDEX idx_elective_preceptors_preceptor ON elective_preceptors(preceptor_
 **File:** `src/lib/features/scheduling-config/services/electives.service.ts`
 
 Methods:
+
 ```typescript
 // CRUD
 createElective(clerkshipId: string, data: CreateElectiveInput): Promise<Elective>
@@ -109,18 +110,19 @@ setPreceptorsForElective(electiveId: string, preceptorIds: string[]): Promise<vo
 
 ```typescript
 export const createElectiveSchema = z.object({
-  name: z.string().min(1).max(200),
-  minimum_days: z.number().int().positive(),
-  is_required: z.boolean().default(true),
-  specialty: z.string().max(200).optional(),
-  site_ids: z.array(z.string()).min(1, 'At least one site required'),
-  preceptor_ids: z.array(z.string()).min(1, 'At least one preceptor required'),
+	name: z.string().min(1).max(200),
+	minimum_days: z.number().int().positive(),
+	is_required: z.boolean().default(true),
+	specialty: z.string().max(200).optional(),
+	site_ids: z.array(z.string()).min(1, 'At least one site required'),
+	preceptor_ids: z.array(z.string()).min(1, 'At least one preceptor required')
 });
 
 export const updateElectiveSchema = createElectiveSchema.partial();
 ```
 
 Validation rules:
+
 - Elective minimum_days cannot exceed parent clerkship's available days
 - At least one site required
 - At least one preceptor required
@@ -138,10 +140,12 @@ Validation rules:
 ### 3.1 Elective CRUD endpoints
 
 **File:** `src/routes/api/clerkships/[id]/electives/+server.ts`
+
 - `GET` - List electives for clerkship (include site/preceptor counts)
 - `POST` - Create elective with sites and preceptors
 
 **File:** `src/routes/api/clerkships/[id]/electives/[electiveId]/+server.ts`
+
 - `GET` - Get elective with full details
 - `PATCH` - Update elective
 - `DELETE` - Delete elective
@@ -149,11 +153,13 @@ Validation rules:
 ### 3.2 Elective association endpoints
 
 **File:** `src/routes/api/clerkships/[id]/electives/[electiveId]/sites/+server.ts`
+
 - `GET` - List sites for elective
 - `POST` - Add site to elective
 - `DELETE` - Remove site from elective (use query param for site_id)
 
 **File:** `src/routes/api/clerkships/[id]/electives/[electiveId]/preceptors/+server.ts`
+
 - `GET` - List preceptors for elective
 - `POST` - Add preceptor to elective
 - `DELETE` - Remove preceptor from elective
@@ -176,6 +182,7 @@ Table columns:
 | Name | Min Days | Required | Sites | Preceptors | Actions |
 
 Features:
+
 - "Required" shown as badge (green for required, gray for optional)
 - Sites/Preceptors show counts
 - Actions: Edit, Delete
@@ -187,6 +194,7 @@ Features:
 **File:** `src/lib/features/scheduling-config/components/elective-form.svelte`
 
 Fields:
+
 - Name (text input, required)
 - Minimum Days (number input, required, positive)
 - Required (toggle switch, default: true)
@@ -195,6 +203,7 @@ Fields:
 - Preceptors (multi-select or transfer list)
 
 Features:
+
 - Site selector shows only sites associated with parent clerkship (or all?)
 - Preceptor selector shows all preceptors (filtered by site if applicable)
 - Save/Cancel buttons
@@ -205,6 +214,7 @@ Features:
 **File:** `src/routes/clerkships/[id]/electives/[electiveId]/+page.svelte`
 
 Three tabs:
+
 1. **Details** - Edit form for elective properties
 2. **Sites** - List of associated sites with add/remove
 3. **Preceptors** - List of associated preceptors with add/remove
@@ -226,6 +236,7 @@ Three tabs:
 Add "Electives" tab alongside existing tabs (basic-info, scheduling, sites, teams)
 
 Tab content:
+
 - ElectiveList component
 - "Add Elective" button
 - Summary: "X electives (Y required, Z optional)"
@@ -259,45 +270,41 @@ Tab content:
 
 ```typescript
 export class ElectiveSchedulingStrategy implements SchedulingStrategy {
-  name = 'elective';
+	name = 'elective';
 
-  async schedule(
-    student: Student,
-    clerkship: Clerkship,
-    context: SchedulingContext
-  ): Promise<Assignment[]> {
-    const assignments: Assignment[] = [];
+	async schedule(
+		student: Student,
+		clerkship: Clerkship,
+		context: SchedulingContext
+	): Promise<Assignment[]> {
+		const assignments: Assignment[] = [];
 
-    // 1. Get required electives for this clerkship
-    const requiredElectives = context.getRequiredElectivesForClerkship(clerkship.id);
+		// 1. Get required electives for this clerkship
+		const requiredElectives = context.getRequiredElectivesForClerkship(clerkship.id);
 
-    // 2. Schedule each required elective
-    for (const elective of requiredElectives) {
-      const electiveAssignments = await this.scheduleElective(
-        student,
-        elective,
-        context
-      );
-      assignments.push(...electiveAssignments);
-    }
+		// 2. Schedule each required elective
+		for (const elective of requiredElectives) {
+			const electiveAssignments = await this.scheduleElective(student, elective, context);
+			assignments.push(...electiveAssignments);
+		}
 
-    return assignments;
-  }
+		return assignments;
+	}
 
-  private async scheduleElective(
-    student: Student,
-    elective: Elective,
-    context: SchedulingContext
-  ): Promise<Assignment[]> {
-    // Get available preceptors for this elective
-    const preceptors = context.getPreceptorsForElective(elective.id);
+	private async scheduleElective(
+		student: Student,
+		elective: Elective,
+		context: SchedulingContext
+	): Promise<Assignment[]> {
+		// Get available preceptors for this elective
+		const preceptors = context.getPreceptorsForElective(elective.id);
 
-    // Get available sites for this elective
-    const sites = context.getSitesForElective(elective.id);
+		// Get available sites for this elective
+		const sites = context.getSitesForElective(elective.id);
 
-    // Schedule minimum_days using team continuity approach
-    // but restricted to elective's preceptors/sites
-  }
+		// Schedule minimum_days using team continuity approach
+		// but restricted to elective's preceptors/sites
+	}
 }
 ```
 
@@ -306,6 +313,7 @@ export class ElectiveSchedulingStrategy implements SchedulingStrategy {
 **File:** `src/lib/features/scheduling/services/scheduling-engine.ts`
 
 Update scheduling order:
+
 ```typescript
 async scheduleStudent(student: Student, clerkship: Clerkship): Promise<Assignment[]> {
   const allAssignments: Assignment[] = [];
@@ -342,42 +350,42 @@ async scheduleStudent(student: Student, clerkship: Clerkship): Promise<Assignmen
  * If student is assigned to an elective, they must complete ALL minimum days
  */
 export class ElectiveCompletionConstraint implements Constraint {
-  name = 'ElectiveCompletion';
-  priority = 5;
-  bypassable = false;
+	name = 'ElectiveCompletion';
+	priority = 5;
+	bypassable = false;
 
-  validate(assignment: Assignment, context: SchedulingContext): boolean {
-    // Check if this is an elective assignment
-    // If so, verify student will complete minimum_days
-  }
+	validate(assignment: Assignment, context: SchedulingContext): boolean {
+		// Check if this is an elective assignment
+		// If so, verify student will complete minimum_days
+	}
 }
 
 /**
  * Elective assignments must use elective's preceptors
  */
 export class ElectivePreceptorConstraint implements Constraint {
-  name = 'ElectivePreceptor';
-  priority = 3;
-  bypassable = false;
+	name = 'ElectivePreceptor';
+	priority = 3;
+	bypassable = false;
 
-  validate(assignment: Assignment, context: SchedulingContext): boolean {
-    if (!assignment.elective_id) return true;
-    return context.isPreceptorInElective(assignment.preceptor_id, assignment.elective_id);
-  }
+	validate(assignment: Assignment, context: SchedulingContext): boolean {
+		if (!assignment.elective_id) return true;
+		return context.isPreceptorInElective(assignment.preceptor_id, assignment.elective_id);
+	}
 }
 
 /**
  * Elective assignments must use elective's sites
  */
 export class ElectiveSiteConstraint implements Constraint {
-  name = 'ElectiveSite';
-  priority = 3;
-  bypassable = false;
+	name = 'ElectiveSite';
+	priority = 3;
+	bypassable = false;
 
-  validate(assignment: Assignment, context: SchedulingContext): boolean {
-    if (!assignment.elective_id) return true;
-    return context.isSiteInElective(assignment.site_id, assignment.elective_id);
-  }
+	validate(assignment: Assignment, context: SchedulingContext): boolean {
+		if (!assignment.elective_id) return true;
+		return context.isSiteInElective(assignment.site_id, assignment.elective_id);
+	}
 }
 ```
 
@@ -386,22 +394,23 @@ export class ElectiveSiteConstraint implements Constraint {
 **File:** `src/lib/features/scheduling/services/context-builder.ts`
 
 Add elective data to context:
+
 ```typescript
 interface SchedulingContext {
-  // ... existing fields ...
+	// ... existing fields ...
 
-  // Elective data
-  electivesByClerkship: Map<string, Elective[]>;
-  electivePreceptors: Map<string, string[]>;  // elective_id -> preceptor_ids
-  electiveSites: Map<string, string[]>;        // elective_id -> site_ids
+	// Elective data
+	electivesByClerkship: Map<string, Elective[]>;
+	electivePreceptors: Map<string, string[]>; // elective_id -> preceptor_ids
+	electiveSites: Map<string, string[]>; // elective_id -> site_ids
 
-  // Helper methods
-  getRequiredElectivesForClerkship(clerkshipId: string): Elective[];
-  getOptionalElectivesForClerkship(clerkshipId: string): Elective[];
-  getPreceptorsForElective(electiveId: string): Preceptor[];
-  getSitesForElective(electiveId: string): Site[];
-  isPreceptorInElective(preceptorId: string, electiveId: string): boolean;
-  isSiteInElective(siteId: string, electiveId: string): boolean;
+	// Helper methods
+	getRequiredElectivesForClerkship(clerkshipId: string): Elective[];
+	getOptionalElectivesForClerkship(clerkshipId: string): Elective[];
+	getPreceptorsForElective(electiveId: string): Preceptor[];
+	getSitesForElective(electiveId: string): Site[];
+	isPreceptorInElective(preceptorId: string, electiveId: string): boolean;
+	isSiteInElective(siteId: string, electiveId: string): boolean;
 }
 ```
 
@@ -428,26 +437,26 @@ CREATE INDEX idx_assignments_elective ON schedule_assignments(elective_id);
 
 ## Files to Create/Modify
 
-| Action | File Path |
-|--------|-----------|
-| Create | `src/lib/db/migrations/0XX_elective_enhancements.ts` |
-| Create | `src/lib/db/migrations/0XX_assignment_elective.ts` |
-| Create | `src/lib/features/scheduling-config/components/elective-list.svelte` |
-| Create | `src/lib/features/scheduling-config/components/elective-form.svelte` |
-| Create | `src/lib/features/scheduling/strategies/elective.strategy.ts` |
-| Create | `src/lib/features/scheduling/constraints/elective.constraint.ts` |
-| Create | `src/routes/clerkships/[id]/electives/+page.svelte` |
-| Create | `src/routes/clerkships/[id]/electives/[electiveId]/+page.svelte` |
-| Create | `src/routes/api/clerkships/[id]/electives/+server.ts` |
-| Create | `src/routes/api/clerkships/[id]/electives/[electiveId]/+server.ts` |
-| Create | `src/routes/api/clerkships/[id]/electives/[electiveId]/sites/+server.ts` |
+| Action | File Path                                                                     |
+| ------ | ----------------------------------------------------------------------------- |
+| Create | `src/lib/db/migrations/0XX_elective_enhancements.ts`                          |
+| Create | `src/lib/db/migrations/0XX_assignment_elective.ts`                            |
+| Create | `src/lib/features/scheduling-config/components/elective-list.svelte`          |
+| Create | `src/lib/features/scheduling-config/components/elective-form.svelte`          |
+| Create | `src/lib/features/scheduling/strategies/elective.strategy.ts`                 |
+| Create | `src/lib/features/scheduling/constraints/elective.constraint.ts`              |
+| Create | `src/routes/clerkships/[id]/electives/+page.svelte`                           |
+| Create | `src/routes/clerkships/[id]/electives/[electiveId]/+page.svelte`              |
+| Create | `src/routes/api/clerkships/[id]/electives/+server.ts`                         |
+| Create | `src/routes/api/clerkships/[id]/electives/[electiveId]/+server.ts`            |
+| Create | `src/routes/api/clerkships/[id]/electives/[electiveId]/sites/+server.ts`      |
 | Create | `src/routes/api/clerkships/[id]/electives/[electiveId]/preceptors/+server.ts` |
-| Modify | `src/lib/features/scheduling-config/services/electives.service.ts` |
-| Modify | `src/lib/features/scheduling-config/schemas/electives.schemas.ts` |
-| Modify | `src/lib/features/scheduling/services/scheduling-engine.ts` |
-| Modify | `src/lib/features/scheduling/services/context-builder.ts` |
-| Modify | `src/lib/features/scheduling/constraints/index.ts` |
-| Modify | `src/routes/clerkships/[id]/config/+page.svelte` |
+| Modify | `src/lib/features/scheduling-config/services/electives.service.ts`            |
+| Modify | `src/lib/features/scheduling-config/schemas/electives.schemas.ts`             |
+| Modify | `src/lib/features/scheduling/services/scheduling-engine.ts`                   |
+| Modify | `src/lib/features/scheduling/services/context-builder.ts`                     |
+| Modify | `src/lib/features/scheduling/constraints/index.ts`                            |
+| Modify | `src/routes/clerkships/[id]/config/+page.svelte`                              |
 
 ---
 

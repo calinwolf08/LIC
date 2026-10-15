@@ -8,11 +8,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import {
 	getPatternById,
@@ -79,7 +75,7 @@ export const GET: RequestHandler = async ({ params }) => {
 			log.warn('Pattern query validation failed', {
 				preceptorId: params.id,
 				patternId: params.pattern_id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -152,7 +148,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 			log.warn('Pattern update validation failed', {
 				preceptorId: params.id,
 				patternId: params.pattern_id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -222,7 +218,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			log.warn('Pattern deletion validation failed', {
 				preceptorId: params.id,
 				patternId: params.pattern_id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

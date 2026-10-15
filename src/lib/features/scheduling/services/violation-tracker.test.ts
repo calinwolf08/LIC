@@ -94,9 +94,24 @@ describe('ViolationTracker', () => {
 		});
 
 		it('tracks affected students, dates, and preceptors', () => {
-			const assignment1: Assignment = { studentId: 's1', preceptorId: 'p1', clerkshipId: 'c1', date: '2024-01-01' };
-			const assignment2: Assignment = { studentId: 's2', preceptorId: 'p1', clerkshipId: 'c1', date: '2024-01-02' };
-			const assignment3: Assignment = { studentId: 's1', preceptorId: 'p2', clerkshipId: 'c1', date: '2024-01-01' };
+			const assignment1: Assignment = {
+				studentId: 's1',
+				preceptorId: 'p1',
+				clerkshipId: 'c1',
+				date: '2024-01-01'
+			};
+			const assignment2: Assignment = {
+				studentId: 's2',
+				preceptorId: 'p1',
+				clerkshipId: 'c1',
+				date: '2024-01-02'
+			};
+			const assignment3: Assignment = {
+				studentId: 's1',
+				preceptorId: 'p2',
+				clerkshipId: 'c1',
+				date: '2024-01-01'
+			};
 
 			tracker.recordViolation('TestConstraint', assignment1, 'R1');
 			tracker.recordViolation('TestConstraint', assignment2, 'R2');

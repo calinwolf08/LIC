@@ -102,39 +102,39 @@ notes.
    guarantee the field — the reported `TypeError`, and the wizard's false "no sites" message.
    **Fixed in step 16.**
 
-| #  | Reported issue                                                                | Step   | Status  |
-|----|-------------------------------------------------------------------------------|--------|---------|
-| 1  | Schedule rename doesn't update the sidebar dropdown until refresh              | 15     | Fixed   |
-| 2  | Preceptor wizard step 3: no way to actually set availability                   | 16     | Fixed   |
-| 3  | Wizard says "no sites" though a site was chosen on the previous step           | 16     | Fixed   |
-| 4  | Capacity Overview shows months outside the schedule range                      | 15, 16 | Fixed   |
-| 5  | Availability/schedule tabs show a full year, not the schedule range            | 15, 16 | Fixed   |
-| 6  | Must scroll to the bottom to edit availability                                 | 16     | Fixed   |
-| 7  | `TypeError: can't access property "length", $$props.sites is undefined`        | 16     | Fixed   |
-| 8  | Details-tab info not visible (read-only) on Overview                           | 22     | Fixed   |
-| 9  | Add-assignment doesn't filter clerkship/preceptor/site to valid combinations   | 17, 18 | Fixed   |
-| 10 | Dates ignore preceptor availability; don't show already-scheduled days         | 17, 18 | Fixed   |
-| 11 | No range/block/individual day selection when assigning                         | 18     | Fixed   |
-| 12 | No availability override prompt (+ option to update preceptor availability)    | 17, 18 | Fixed   |
-| 13 | No double-book prompt (double-book / move other student; raise limit vs once)  | 17, 18 | Fixed   |
-| 14 | "Lock this assignment" visible without the autogen entitlement                 | 18     | Fixed   |
-| 15 | Can't see student progress + assigned preceptors while assigning               | 18, 19 | Fixed   |
-| 16 | No warning when assigning more days than a clerkship requires                  | 17, 18 | Fixed   |
-| 17 | No onboarding warning (linking to the Onboarding tab) on the student page      | 19     | Fixed   |
-| 18 | Student schedule tab: Clerkship/Preceptor columns empty                        | 19     | Fixed   |
-| 19 | Student schedule should default to calendar, with a list toggle                | 19     | Fixed   |
-| 20 | Assignments can only be removed, not edited                                    | 19–21  | Fixed   |
-| 21 | Past-dated assignments: need an override to remove/replace                     | 17, 19 | Fixed   |
-| 22 | Lists say "View"/"Edit" — should be "Manage"; drop the locations edit dialog   | 22     | Fixed   |
-| 23 | Calendar opens in list view                                                    | 20     | Fixed   |
-| 24 | Calendar day cells show "Int" instead of student·clerkship·preceptor           | 20     | Fixed   |
-| 25 | Calendar edit popup should be the full assignment dialog (single day)          | 20     | Fixed   |
-| 26 | Calendar add-assignment = student-page dialog + a student dropdown             | 20     | Fixed   |
-| 27 | Preceptor page add-assignment needs the same logic and context                 | 21     | Fixed   |
-| 28 | Schedule health not visible from the calendar                                  | 20     | Fixed   |
-| 29 | Overrides aren't tracked or reviewable                                         | 17, 20 | Fixed   |
-| 30 | `/schedules` vs `/calendar` is confusing; move to the switcher                 | 23     | Fixed   |
-| 31 | All of the above need real test coverage                                       | all    | Fixed   |
+| #   | Reported issue                                                                | Step   | Status |
+| --- | ----------------------------------------------------------------------------- | ------ | ------ |
+| 1   | Schedule rename doesn't update the sidebar dropdown until refresh             | 15     | Fixed  |
+| 2   | Preceptor wizard step 3: no way to actually set availability                  | 16     | Fixed  |
+| 3   | Wizard says "no sites" though a site was chosen on the previous step          | 16     | Fixed  |
+| 4   | Capacity Overview shows months outside the schedule range                     | 15, 16 | Fixed  |
+| 5   | Availability/schedule tabs show a full year, not the schedule range           | 15, 16 | Fixed  |
+| 6   | Must scroll to the bottom to edit availability                                | 16     | Fixed  |
+| 7   | `TypeError: can't access property "length", $$props.sites is undefined`       | 16     | Fixed  |
+| 8   | Details-tab info not visible (read-only) on Overview                          | 22     | Fixed  |
+| 9   | Add-assignment doesn't filter clerkship/preceptor/site to valid combinations  | 17, 18 | Fixed  |
+| 10  | Dates ignore preceptor availability; don't show already-scheduled days        | 17, 18 | Fixed  |
+| 11  | No range/block/individual day selection when assigning                        | 18     | Fixed  |
+| 12  | No availability override prompt (+ option to update preceptor availability)   | 17, 18 | Fixed  |
+| 13  | No double-book prompt (double-book / move other student; raise limit vs once) | 17, 18 | Fixed  |
+| 14  | "Lock this assignment" visible without the autogen entitlement                | 18     | Fixed  |
+| 15  | Can't see student progress + assigned preceptors while assigning              | 18, 19 | Fixed  |
+| 16  | No warning when assigning more days than a clerkship requires                 | 17, 18 | Fixed  |
+| 17  | No onboarding warning (linking to the Onboarding tab) on the student page     | 19     | Fixed  |
+| 18  | Student schedule tab: Clerkship/Preceptor columns empty                       | 19     | Fixed  |
+| 19  | Student schedule should default to calendar, with a list toggle               | 19     | Fixed  |
+| 20  | Assignments can only be removed, not edited                                   | 19–21  | Fixed  |
+| 21  | Past-dated assignments: need an override to remove/replace                    | 17, 19 | Fixed  |
+| 22  | Lists say "View"/"Edit" — should be "Manage"; drop the locations edit dialog  | 22     | Fixed  |
+| 23  | Calendar opens in list view                                                   | 20     | Fixed  |
+| 24  | Calendar day cells show "Int" instead of student·clerkship·preceptor          | 20     | Fixed  |
+| 25  | Calendar edit popup should be the full assignment dialog (single day)         | 20     | Fixed  |
+| 26  | Calendar add-assignment = student-page dialog + a student dropdown            | 20     | Fixed  |
+| 27  | Preceptor page add-assignment needs the same logic and context                | 21     | Fixed  |
+| 28  | Schedule health not visible from the calendar                                 | 20     | Fixed  |
+| 29  | Overrides aren't tracked or reviewable                                        | 17, 20 | Fixed  |
+| 30  | `/schedules` vs `/calendar` is confusing; move to the switcher                | 23     | Fixed  |
+| 31  | All of the above need real test coverage                                      | all    | Fixed  |
 
 ### Found and fixed while testing (not in the original report)
 
@@ -168,7 +168,7 @@ preceptors, clerkships, sites, health systems and assignments. The plan lives in
 
 **Six root causes** explained the whole list:
 
-1. **No tenant boundary on reads.** Round 2 scoped the schedule *range*, never the *entity sets*. The
+1. **No tenant boundary on reads.** Round 2 scoped the schedule _range_, never the _entity sets_. The
    dashboard totals, `/locations`, the calendar filter lists and `getEnrichedAssignments` were all
    unscoped. **Fixed in step 26**: `requireActiveScheduleId` + `assertEntityInSchedule` in
    `schedule-context.ts`; every read joins the `schedule_*` junctions; detail reads 404 cross-tenant.
@@ -190,30 +190,30 @@ preceptors, clerkships, sites, health systems and assignments. The plan lives in
    re-evaluated. **Fixed in step 32**: one capacity finding per over-subscribed preceptor-day,
    override `active`/`resolved` status, grouping of consecutive days, and filter/pagination.
 
-| #  | Reported issue                                                              | Step | Status |
-|----|-----------------------------------------------------------------------------|------|--------|
-| 1  | Command to clear one test user without wiping the DB                        | 25   | Fixed  |
-| 2  | Command to clear everything for a fresh start                               | 25   | Fixed  |
-| 3  | Dashboard totals are global                                                 | 26   | Fixed  |
-| 4  | Locations shows other users' health systems and sites                      | 26   | Fixed  |
-| 5  | Student → Progress tab shows other users' clerkships                       | 26   | Fixed  |
-| 6  | Calendar shows other users' assignments                                     | 26   | Fixed  |
-| 7  | Can modify or delete other users' data                                      | 27   | Fixed  |
-| 8  | Edit assignment falsely reports "Student already has an assignment"         | 28   | Fixed  |
-| 9  | Edit assignment falsely warns "More days than required"                     | 28   | Fixed  |
-| 10 | Note placeholder implies an exception when none is made                     | 28   | Fixed  |
-| 11 | Preceptor's already-taken days not clearly indicated                        | 29   | Fixed  |
-| 12 | Selecting a taken day turns it black, hiding the overlap                    | 29   | Fixed  |
-| 13 | Site should be required when adding an assignment                           | 29   | Fixed  |
-| 14 | Calendar cells omit the student; colour should be per student              | 30   | Fixed  |
-| 15 | Calendar list view: clerkship is not a link                                 | 30   | Fixed  |
-| 16 | List rows should be clickable like Locations                               | 31   | Fixed  |
-| 17 | Manage button inconsistent; make it solid everywhere                        | 31   | Fixed  |
-| 18 | Resolved `not_onboarded` overrides still listed                            | 32   | Fixed  |
-| 19 | Capacity conflict count doubles (8 instead of 4)                            | 32   | Fixed  |
-| 20 | Conflict pill count wrong for the same reason                              | 32   | Fixed  |
-| 21 | Only capacity under "Conflicts by type"; the rest only under "Overrides"    | 32   | Fixed  |
-| 22 | Override list unpaginated/overflowing, no type filter                       | 32   | Fixed  |
+| #   | Reported issue                                                           | Step | Status |
+| --- | ------------------------------------------------------------------------ | ---- | ------ |
+| 1   | Command to clear one test user without wiping the DB                     | 25   | Fixed  |
+| 2   | Command to clear everything for a fresh start                            | 25   | Fixed  |
+| 3   | Dashboard totals are global                                              | 26   | Fixed  |
+| 4   | Locations shows other users' health systems and sites                    | 26   | Fixed  |
+| 5   | Student → Progress tab shows other users' clerkships                     | 26   | Fixed  |
+| 6   | Calendar shows other users' assignments                                  | 26   | Fixed  |
+| 7   | Can modify or delete other users' data                                   | 27   | Fixed  |
+| 8   | Edit assignment falsely reports "Student already has an assignment"      | 28   | Fixed  |
+| 9   | Edit assignment falsely warns "More days than required"                  | 28   | Fixed  |
+| 10  | Note placeholder implies an exception when none is made                  | 28   | Fixed  |
+| 11  | Preceptor's already-taken days not clearly indicated                     | 29   | Fixed  |
+| 12  | Selecting a taken day turns it black, hiding the overlap                 | 29   | Fixed  |
+| 13  | Site should be required when adding an assignment                        | 29   | Fixed  |
+| 14  | Calendar cells omit the student; colour should be per student            | 30   | Fixed  |
+| 15  | Calendar list view: clerkship is not a link                              | 30   | Fixed  |
+| 16  | List rows should be clickable like Locations                             | 31   | Fixed  |
+| 17  | Manage button inconsistent; make it solid everywhere                     | 31   | Fixed  |
+| 18  | Resolved `not_onboarded` overrides still listed                          | 32   | Fixed  |
+| 19  | Capacity conflict count doubles (8 instead of 4)                         | 32   | Fixed  |
+| 20  | Conflict pill count wrong for the same reason                            | 32   | Fixed  |
+| 21  | Only capacity under "Conflicts by type"; the rest only under "Overrides" | 32   | Fixed  |
+| 22  | Override list unpaginated/overflowing, no type filter                    | 32   | Fixed  |
 
 ### Verification
 

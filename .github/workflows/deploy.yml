@@ -1,0 +1,95 @@
+name: Deploy
+
+# Build the production image on GitHub, push it to GitHub Container Registry
+# (ghcr.io/<owner>/<repo>), then tell Coolify to pull and run it. Coolify never
+# builds anything.
+#
+# Runs automatically after the CI workflow succeeds for a push to master, and
+# on demand from the Actions tab ("Run workflow").
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   COOLIFY_WEBHOOK  the application's Deploy Webhook URL (Coolify → app → Webhooks)
+#   COOLIFY_TOKEN    a Coolify API token with the "deploy" permission
+# Without them the image is still published, and the deploy step is skipped
+# with a warning.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# One deploy at a time; a newer one waits rather than cancelling a rollout.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    # Only pushes to master that passed CI (not PR runs or the nightly schedule).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+
+    steps:
+      - name: Checkout the commit CI tested
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Image names must be lower-case; metadata-action normalises the repo name.
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Coolify
+    runs-on: ubuntu-latest
+    needs: image
+
+    steps:
+      - name: Trigger Coolify deployment
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::warning::COOLIFY_WEBHOOK / COOLIFY_TOKEN secrets are not set; image published but not deployed."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_WEBHOOK"

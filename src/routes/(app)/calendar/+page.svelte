@@ -221,9 +221,7 @@
 				const body = await res.json();
 				const rows: Array<{ date: string; is_available: number }> = body.data ?? [];
 				if (!cancelled)
-					availabilityDates = new Set(
-						rows.filter((r) => r.is_available === 1).map((r) => r.date)
-					);
+					availabilityDates = new Set(rows.filter((r) => r.is_available === 1).map((r) => r.date));
 			} catch {
 				if (!cancelled) availabilityDates = new Set();
 			}
@@ -544,7 +542,8 @@
 		const byId = new Map<string, { id: string; name: string }>();
 		for (const event of displayEvents) {
 			const id = event.assignment.student_id;
-			if (id && !byId.has(id)) byId.set(id, { id, name: event.assignment.student_name ?? 'Unknown' });
+			if (id && !byId.has(id))
+				byId.set(id, { id, name: event.assignment.student_name ?? 'Unknown' });
 		}
 		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 	});
@@ -592,382 +591,391 @@
 	{#if !data.hasActiveSchedule}
 		<NoActiveSchedule surface="calendar" />
 	{:else}
-	<!-- Schedule completeness banner (auto-generation diagnostics) -->
-	{#if hasAutogen && data.scheduleSummary && !data.scheduleSummary.isComplete}
-		<Card class="mb-6 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<div class="text-amber-600 dark:text-amber-400">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-6 w-6"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-							/>
-						</svg>
+		<!-- Schedule completeness banner (auto-generation diagnostics) -->
+		{#if hasAutogen && data.scheduleSummary && !data.scheduleSummary.isComplete}
+			<Card class="mb-6 border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="text-amber-600 dark:text-amber-400">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-6 w-6"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+								/>
+							</svg>
+						</div>
+						<div>
+							<p class="font-medium text-amber-800 dark:text-amber-200">Schedule Incomplete</p>
+							<p class="text-sm text-amber-700 dark:text-amber-300">
+								{data.scheduleSummary.studentsWithUnmetRequirements.length} student{data
+									.scheduleSummary.studentsWithUnmetRequirements.length === 1
+									? ''
+									: 's'} with unmet requirements
+							</p>
+						</div>
 					</div>
-					<div>
-						<p class="font-medium text-amber-800 dark:text-amber-200">Schedule Incomplete</p>
-						<p class="text-sm text-amber-700 dark:text-amber-300">
-							{data.scheduleSummary.studentsWithUnmetRequirements.length} student{data
-								.scheduleSummary.studentsWithUnmetRequirements.length === 1
-								? ''
-								: 's'} with unmet requirements
-						</p>
-					</div>
+					<Button variant="outline" size="sm" onclick={() => goto('/generate/results')}>
+						View Details
+					</Button>
 				</div>
-				<Button variant="outline" size="sm" onclick={() => goto('/generate/results')}>
-					View Details
-				</Button>
-			</div>
-		</Card>
-	{/if}
-
-	<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-		<h1 class="text-3xl font-bold">Calendar</h1>
-		<div class="flex flex-wrap gap-3">
-			<Button
-				variant={showBlackoutPanel ? 'default' : 'outline'}
-				onclick={() => (showBlackoutPanel = !showBlackoutPanel)}
-			>
-				{showBlackoutPanel ? 'Hide' : 'Show'} Blackout Dates
-				{#if blackoutDates.length > 0}
-					<span class="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-xs text-white">
-						{blackoutDates.length}
-					</span>
-				{/if}
-			</Button>
-			<Button variant="outline" onclick={handleExport} disabled={isExporting}>
-				{isExporting ? 'Exporting...' : 'Export to Excel'}
-			</Button>
-			<Button variant="outline" onclick={() => (sendScheduleOpen = true)}>Send schedule</Button>
-			<Button onclick={openCreateAssignment}>Add assignment</Button>
-			{#if hasAutogen}
-				<Button variant="outline" onclick={() => goto('/generate/results')}>Schedule Results</Button
-				>
-				<Button variant="default" onclick={handleRegenerateClick}>
-					{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
-				</Button>
-			{/if}
-		</div>
-	</div>
-
-	<!-- Schedule health: conflicts by type + the overrides the user accepted -->
-	<ScheduleHealthPanel
-		countsByCode={violationCounts}
-		{violationCount}
-		refreshKey={healthRefreshKey}
-		onOpenAssignment={openAssignmentById}
-	/>
-
-	<!-- Blackout Dates Panel -->
-	{#if showBlackoutPanel}
-		<div class="mb-6">
-			<BlackoutDateManager
-				{blackoutDates}
-				onAdd={refreshBlackoutDates}
-				onDelete={refreshBlackoutDates}
-				onRegenerateNeeded={() => (showRegenerateDialog = true)}
-			/>
-		</div>
-	{/if}
-
-	<!-- Filters Toggle -->
-	<div class="mb-6">
-		<Button
-			variant="outline"
-			onclick={() => (showFilters = !showFilters)}
-			class="flex items-center gap-2"
-		>
-			<Filter class="h-4 w-4" />
-			Filters
-			{#if showFilters}
-				<ChevronUp class="h-4 w-4" />
-			{:else}
-				<ChevronDown class="h-4 w-4" />
-			{/if}
-		</Button>
-	</div>
-
-	{#if showFilters}
-		<Card class="mb-6 p-6">
-			<p class="mb-4 text-sm text-muted-foreground">
-				These filters only change what is displayed. They do not affect schedule generation.
-			</p>
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-				<!-- Date Range -->
-				<div class="space-y-2">
-					<Label for="start_date">Start Date</Label>
-					<input
-						id="start_date"
-						type="date"
-						bind:value={startDate}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					/>
-				</div>
-
-				<div class="space-y-2">
-					<Label for="end_date">End Date</Label>
-					<input
-						id="end_date"
-						type="date"
-						bind:value={endDate}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					/>
-				</div>
-
-				<!-- Student Filter -->
-				<div class="space-y-2">
-					<Label for="student">Student</Label>
-					<select
-						id="student"
-						bind:value={selectedStudent}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					>
-						<option value="">All Students</option>
-						{#each data.students as student}
-							<option value={student.id}>{student.name}</option>
-						{/each}
-					</select>
-				</div>
-
-				<!-- Preceptor Filter -->
-				<div class="space-y-2">
-					<Label for="preceptor">Preceptor</Label>
-					<select
-						id="preceptor"
-						bind:value={selectedPreceptor}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					>
-						<option value="">All Preceptors</option>
-						{#each data.preceptors as preceptor}
-							<option value={preceptor.id}>{preceptor.name}</option>
-						{/each}
-					</select>
-				</div>
-
-				<!-- Clerkship Filter -->
-				<div class="space-y-2">
-					<Label for="clerkship">Clerkship</Label>
-					<select
-						id="clerkship"
-						bind:value={selectedClerkship}
-						class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					>
-						<option value="">All Clerkships</option>
-						{#each data.clerkships as clerkship}
-							<option value={clerkship.id}>{clerkship.name}</option>
-						{/each}
-					</select>
-				</div>
-			</div>
-
-			<div class="mt-4 flex gap-3">
-				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
-				{#if data.activeSchedule}
-					<Button variant="outline" onclick={resetToScheduleDates}>View Full Schedule</Button>
-				{/if}
-			</div>
-		</Card>
-	{/if}
-
-	<!-- Month Navigation and View Toggle -->
-	<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-		<Button variant="outline" onclick={previousMonth}>&larr; Previous Month</Button>
-		<div class="flex items-center gap-4">
-			<h2 class="text-xl font-semibold">
-				{formatMonthYear(startDate)}
-			</h2>
-			<!-- View Toggle -->
-			<div class="flex rounded-md border">
-				<button
-					type="button"
-					class="rounded-l-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'list'
-						? 'bg-primary text-primary-foreground'
-						: 'hover:bg-muted'}"
-					onclick={() => setViewMode('list')}
-				>
-					List
-				</button>
-				<button
-					type="button"
-					class="border-l px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'calendar'
-						? 'bg-primary text-primary-foreground'
-						: 'hover:bg-muted'}"
-					onclick={() => setViewMode('calendar')}
-				>
-					Calendar
-				</button>
-				<button
-					type="button"
-					class="rounded-r-md border-l px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
-					'grid'
-						? 'bg-primary text-primary-foreground'
-						: 'hover:bg-muted'}"
-					onclick={() => setViewMode('grid')}
-				>
-					Grid
-				</button>
-			</div>
-		</div>
-		<Button variant="outline" onclick={nextMonth}>Next Month &rarr;</Button>
-	</div>
-
-	<!-- Display overlays (J1): display-only toggles that change what is shown. -->
-	<div class="mb-4 flex flex-wrap items-center gap-4 text-sm" data-testid="display-toggles">
-		<label class="flex items-center gap-2">
-			<input type="checkbox" bind:checked={showAssigned} data-testid="toggle-assigned" />
-			Show assigned days
-		</label>
-		<label class="flex items-center gap-2">
-			<input type="checkbox" bind:checked={showAvailability} data-testid="toggle-availability" />
-			Show availability
-		</label>
-		{#if showAvailability && !selectedPreceptor}
-			<span class="text-xs text-muted-foreground" data-testid="availability-hint">
-				Pick a preceptor in Filters to overlay their available days.
-			</span>
-		{/if}
-		{#if viewMode === 'calendar'}
-			<button
-				type="button"
-				data-testid="toggle-range-select"
-				class="rounded-md border px-2 py-1 text-xs font-medium transition-colors {rangeSelectMode
-					? 'border-primary bg-primary text-primary-foreground'
-					: 'hover:bg-muted'}"
-				onclick={toggleRangeSelect}
-			>
-				{rangeSelectMode ? 'Selecting range…' : 'Select date range'}
-			</button>
-			{#if rangeSelectMode}
-				<span class="text-xs text-muted-foreground" data-testid="range-select-hint">
-					{rangeAnchor
-						? `Start ${rangeAnchor} — now click the last day.`
-						: 'Click the first day of the range.'}
-				</span>
-			{/if}
-		{/if}
-	</div>
-
-	<!-- Calendar View -->
-	{#if loading}
-		<Card class="p-8 text-center">
-			<p class="text-muted-foreground">Loading calendar...</p>
-		</Card>
-	{:else if error}
-		<Card class="p-8">
-			<p class="text-destructive">{error}</p>
-		</Card>
-	{:else if viewMode === 'calendar'}
-		<!-- Calendar Grid View -->
-		{#if calendarMonths().length > 0}
-			<ScheduleColorLegend students={legendStudents} />
-			<ScheduleCalendarGrid
-				months={calendarMonths()}
-				mode="schedule"
-				colorBy="student"
-				blackoutDates={blackoutDateSet}
-				availabilityDates={showAvailability ? availabilityDates : undefined}
-				{violationDates}
-				{violationMessages}
-				onDayClick={handleDayClick}
-				onAssignmentClick={handleAssignmentClick}
-			/>
-		{:else}
-			<Card class="p-8 text-center">
-				<p class="text-muted-foreground">No data to display</p>
 			</Card>
 		{/if}
-	{:else if viewMode === 'grid'}
-		<!-- Block/grid view (J3): students as rows, dates as columns. -->
-		<ScheduleColorLegend students={legendStudents} />
-		<ScheduleBlockGrid
-			students={gridStudents}
-			dates={gridDates}
-			cells={gridCells}
-			onCellClick={openAssignmentById}
-		/>
-	{:else if groupedEvents().length === 0}
-		<Card class="p-8 text-center">
-			<p class="text-muted-foreground">No assignments found for this date range</p>
-		</Card>
-	{:else}
-		<!-- List View — a dense table under each date (J2), more legible than the
-		     old card list and closer to a spreadsheet. -->
-		<div class="space-y-6">
-			{#each groupedEvents() as { date, events }}
-				<Card class="overflow-hidden p-0" data-testid="list-date-group" data-date={date}>
-					<div class="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
-						<h3 class="text-sm font-semibold">{formatDateDisplay(date)}</h3>
-						<span class="text-xs text-muted-foreground">{events.length} assignment{events.length === 1 ? '' : 's'}</span>
-					</div>
-					<div class="overflow-x-auto">
-						<table class="w-full text-sm" data-testid="list-table">
-							<thead>
-								<tr class="border-b text-left text-xs text-muted-foreground">
-									<th class="px-4 py-2 font-medium">Student</th>
-									<th class="px-4 py-2 font-medium">Clerkship</th>
-									<th class="px-4 py-2 font-medium">Preceptor</th>
-									<th class="px-4 py-2 font-medium">Status</th>
-									<th class="px-4 py-2 font-medium">Specialty</th>
-									<th class="px-4 py-2 text-right font-medium">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each events as event}
-									<tr class="border-b last:border-b-0 hover:bg-muted/30" data-testid="list-row">
-										<td class="px-4 py-2">
-											<span
-												class="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
-												style="background-color: {event.color};"
-												aria-hidden="true"
-											></span>
-											<button
-												onclick={() => goto(`/students/${event.assignment.student_id}`)}
-												class="text-primary hover:underline">{event.assignment.student_name}</button
-											>
-										</td>
-										<td class="px-4 py-2">
-											<button
-												onclick={() => goto(`/clerkships/${event.assignment.clerkship_id}`)}
-												class="text-primary hover:underline">{event.assignment.clerkship_name}</button
-											>
-										</td>
-										<td class="px-4 py-2">
-											<button
-												onclick={() => goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
-												class="text-primary hover:underline">{event.assignment.preceptor_name}</button
-											>
-										</td>
-										<td class="px-4 py-2 text-muted-foreground">{event.assignment.status}</td>
-										<td class="px-4 py-2 text-muted-foreground">
-											{event.assignment.clerkship_specialty ?? '—'}
-										</td>
-										<td class="px-4 py-2 text-right">
-											<Button
-												size="sm"
-												variant="outline"
-												onclick={() => handleEditClick(event.assignment)}
-											>
-												Edit
-											</Button>
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</Card>
-			{/each}
+
+		<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+			<h1 class="text-3xl font-bold">Calendar</h1>
+			<div class="flex flex-wrap gap-3">
+				<Button
+					variant={showBlackoutPanel ? 'default' : 'outline'}
+					onclick={() => (showBlackoutPanel = !showBlackoutPanel)}
+				>
+					{showBlackoutPanel ? 'Hide' : 'Show'} Blackout Dates
+					{#if blackoutDates.length > 0}
+						<span class="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-xs text-white">
+							{blackoutDates.length}
+						</span>
+					{/if}
+				</Button>
+				<Button variant="outline" onclick={handleExport} disabled={isExporting}>
+					{isExporting ? 'Exporting...' : 'Export to Excel'}
+				</Button>
+				<Button variant="outline" onclick={() => (sendScheduleOpen = true)}>Send schedule</Button>
+				<Button onclick={openCreateAssignment}>Add assignment</Button>
+				{#if hasAutogen}
+					<Button variant="outline" onclick={() => goto('/generate/results')}
+						>Schedule Results</Button
+					>
+					<Button variant="default" onclick={handleRegenerateClick}>
+						{events.length > 0 ? 'Regenerate Schedule' : 'Generate Schedule'}
+					</Button>
+				{/if}
+			</div>
 		</div>
-	{/if}
+
+		<!-- Schedule health: conflicts by type + the overrides the user accepted -->
+		<ScheduleHealthPanel
+			countsByCode={violationCounts}
+			{violationCount}
+			refreshKey={healthRefreshKey}
+			onOpenAssignment={openAssignmentById}
+		/>
+
+		<!-- Blackout Dates Panel -->
+		{#if showBlackoutPanel}
+			<div class="mb-6">
+				<BlackoutDateManager
+					{blackoutDates}
+					onAdd={refreshBlackoutDates}
+					onDelete={refreshBlackoutDates}
+					onRegenerateNeeded={() => (showRegenerateDialog = true)}
+				/>
+			</div>
+		{/if}
+
+		<!-- Filters Toggle -->
+		<div class="mb-6">
+			<Button
+				variant="outline"
+				onclick={() => (showFilters = !showFilters)}
+				class="flex items-center gap-2"
+			>
+				<Filter class="h-4 w-4" />
+				Filters
+				{#if showFilters}
+					<ChevronUp class="h-4 w-4" />
+				{:else}
+					<ChevronDown class="h-4 w-4" />
+				{/if}
+			</Button>
+		</div>
+
+		{#if showFilters}
+			<Card class="mb-6 p-6">
+				<p class="mb-4 text-sm text-muted-foreground">
+					These filters only change what is displayed. They do not affect schedule generation.
+				</p>
+				<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+					<!-- Date Range -->
+					<div class="space-y-2">
+						<Label for="start_date">Start Date</Label>
+						<input
+							id="start_date"
+							type="date"
+							bind:value={startDate}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						/>
+					</div>
+
+					<div class="space-y-2">
+						<Label for="end_date">End Date</Label>
+						<input
+							id="end_date"
+							type="date"
+							bind:value={endDate}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						/>
+					</div>
+
+					<!-- Student Filter -->
+					<div class="space-y-2">
+						<Label for="student">Student</Label>
+						<select
+							id="student"
+							bind:value={selectedStudent}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">All Students</option>
+							{#each data.students as student}
+								<option value={student.id}>{student.name}</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- Preceptor Filter -->
+					<div class="space-y-2">
+						<Label for="preceptor">Preceptor</Label>
+						<select
+							id="preceptor"
+							bind:value={selectedPreceptor}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">All Preceptors</option>
+							{#each data.preceptors as preceptor}
+								<option value={preceptor.id}>{preceptor.name}</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- Clerkship Filter -->
+					<div class="space-y-2">
+						<Label for="clerkship">Clerkship</Label>
+						<select
+							id="clerkship"
+							bind:value={selectedClerkship}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+						>
+							<option value="">All Clerkships</option>
+							{#each data.clerkships as clerkship}
+								<option value={clerkship.id}>{clerkship.name}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<div class="mt-4 flex gap-3">
+					<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
+					{#if data.activeSchedule}
+						<Button variant="outline" onclick={resetToScheduleDates}>View Full Schedule</Button>
+					{/if}
+				</div>
+			</Card>
+		{/if}
+
+		<!-- Month Navigation and View Toggle -->
+		<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+			<Button variant="outline" onclick={previousMonth}>&larr; Previous Month</Button>
+			<div class="flex items-center gap-4">
+				<h2 class="text-xl font-semibold">
+					{formatMonthYear(startDate)}
+				</h2>
+				<!-- View Toggle -->
+				<div class="flex rounded-md border">
+					<button
+						type="button"
+						class="rounded-l-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+						'list'
+							? 'bg-primary text-primary-foreground'
+							: 'hover:bg-muted'}"
+						onclick={() => setViewMode('list')}
+					>
+						List
+					</button>
+					<button
+						type="button"
+						class="border-l px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+						'calendar'
+							? 'bg-primary text-primary-foreground'
+							: 'hover:bg-muted'}"
+						onclick={() => setViewMode('calendar')}
+					>
+						Calendar
+					</button>
+					<button
+						type="button"
+						class="rounded-r-md border-l px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+						'grid'
+							? 'bg-primary text-primary-foreground'
+							: 'hover:bg-muted'}"
+						onclick={() => setViewMode('grid')}
+					>
+						Grid
+					</button>
+				</div>
+			</div>
+			<Button variant="outline" onclick={nextMonth}>Next Month &rarr;</Button>
+		</div>
+
+		<!-- Display overlays (J1): display-only toggles that change what is shown. -->
+		<div class="mb-4 flex flex-wrap items-center gap-4 text-sm" data-testid="display-toggles">
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={showAssigned} data-testid="toggle-assigned" />
+				Show assigned days
+			</label>
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={showAvailability} data-testid="toggle-availability" />
+				Show availability
+			</label>
+			{#if showAvailability && !selectedPreceptor}
+				<span class="text-xs text-muted-foreground" data-testid="availability-hint">
+					Pick a preceptor in Filters to overlay their available days.
+				</span>
+			{/if}
+			{#if viewMode === 'calendar'}
+				<button
+					type="button"
+					data-testid="toggle-range-select"
+					class="rounded-md border px-2 py-1 text-xs font-medium transition-colors {rangeSelectMode
+						? 'border-primary bg-primary text-primary-foreground'
+						: 'hover:bg-muted'}"
+					onclick={toggleRangeSelect}
+				>
+					{rangeSelectMode ? 'Selecting range…' : 'Select date range'}
+				</button>
+				{#if rangeSelectMode}
+					<span class="text-xs text-muted-foreground" data-testid="range-select-hint">
+						{rangeAnchor
+							? `Start ${rangeAnchor} — now click the last day.`
+							: 'Click the first day of the range.'}
+					</span>
+				{/if}
+			{/if}
+		</div>
+
+		<!-- Calendar View -->
+		{#if loading}
+			<Card class="p-8 text-center">
+				<p class="text-muted-foreground">Loading calendar...</p>
+			</Card>
+		{:else if error}
+			<Card class="p-8">
+				<p class="text-destructive">{error}</p>
+			</Card>
+		{:else if viewMode === 'calendar'}
+			<!-- Calendar Grid View -->
+			{#if calendarMonths().length > 0}
+				<ScheduleColorLegend students={legendStudents} />
+				<ScheduleCalendarGrid
+					months={calendarMonths()}
+					mode="schedule"
+					colorBy="student"
+					blackoutDates={blackoutDateSet}
+					availabilityDates={showAvailability ? availabilityDates : undefined}
+					{violationDates}
+					{violationMessages}
+					onDayClick={handleDayClick}
+					onAssignmentClick={handleAssignmentClick}
+				/>
+			{:else}
+				<Card class="p-8 text-center">
+					<p class="text-muted-foreground">No data to display</p>
+				</Card>
+			{/if}
+		{:else if viewMode === 'grid'}
+			<!-- Block/grid view (J3): students as rows, dates as columns. -->
+			<ScheduleColorLegend students={legendStudents} />
+			<ScheduleBlockGrid
+				students={gridStudents}
+				dates={gridDates}
+				cells={gridCells}
+				onCellClick={openAssignmentById}
+			/>
+		{:else if groupedEvents().length === 0}
+			<Card class="p-8 text-center">
+				<p class="text-muted-foreground">No assignments found for this date range</p>
+			</Card>
+		{:else}
+			<!-- List View — a dense table under each date (J2), more legible than the
+		     old card list and closer to a spreadsheet. -->
+			<div class="space-y-6">
+				{#each groupedEvents() as { date, events }}
+					<Card class="overflow-hidden p-0" data-testid="list-date-group" data-date={date}>
+						<div class="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+							<h3 class="text-sm font-semibold">{formatDateDisplay(date)}</h3>
+							<span class="text-xs text-muted-foreground"
+								>{events.length} assignment{events.length === 1 ? '' : 's'}</span
+							>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="w-full text-sm" data-testid="list-table">
+								<thead>
+									<tr class="border-b text-left text-xs text-muted-foreground">
+										<th class="px-4 py-2 font-medium">Student</th>
+										<th class="px-4 py-2 font-medium">Clerkship</th>
+										<th class="px-4 py-2 font-medium">Preceptor</th>
+										<th class="px-4 py-2 font-medium">Status</th>
+										<th class="px-4 py-2 font-medium">Specialty</th>
+										<th class="px-4 py-2 text-right font-medium">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each events as event}
+										<tr class="border-b last:border-b-0 hover:bg-muted/30" data-testid="list-row">
+											<td class="px-4 py-2">
+												<span
+													class="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
+													style="background-color: {event.color};"
+													aria-hidden="true"
+												></span>
+												<button
+													onclick={() => goto(`/students/${event.assignment.student_id}`)}
+													class="text-primary hover:underline"
+													>{event.assignment.student_name}</button
+												>
+											</td>
+											<td class="px-4 py-2">
+												<button
+													onclick={() => goto(`/clerkships/${event.assignment.clerkship_id}`)}
+													class="text-primary hover:underline"
+													>{event.assignment.clerkship_name}</button
+												>
+											</td>
+											<td class="px-4 py-2">
+												<button
+													onclick={() =>
+														goto(`/preceptors/${event.assignment.preceptor_id}/schedule`)}
+													class="text-primary hover:underline"
+													>{event.assignment.preceptor_name}</button
+												>
+											</td>
+											<td class="px-4 py-2 text-muted-foreground">{event.assignment.status}</td>
+											<td class="px-4 py-2 text-muted-foreground">
+												{event.assignment.clerkship_specialty ?? '—'}
+											</td>
+											<td class="px-4 py-2 text-right">
+												<Button
+													size="sm"
+													variant="outline"
+													onclick={() => handleEditClick(event.assignment)}
+												>
+													Edit
+												</Button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</Card>
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </div>
 

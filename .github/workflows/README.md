@@ -27,6 +27,17 @@ Runs on every push and pull request to main/master branches.
    - Builds the production version
    - Ensures the app compiles successfully
 
+### Deploy (`deploy.yml`)
+
+Runs after CI succeeds for a push to `master` (or manually via "Run workflow"):
+builds the `Dockerfile` image, pushes it to `ghcr.io/<owner>/<repo>` tagged
+`latest` and `sha-<commit>`, then calls the Coolify deploy webhook. Needs the
+`COOLIFY_WEBHOOK` and `COOLIFY_TOKEN` repository secrets — see
+[`docs/DEPLOYMENT.md`](../../docs/DEPLOYMENT.md).
+
+All workflows use the Node version in `.nvmrc` (22; `package.json` requires
+`>=22.12.0` and `.npmrc` sets `engine-strict`).
+
 ### Test Coverage (`test-coverage.yml`)
 
 Generates and uploads test coverage reports.
@@ -43,6 +54,7 @@ Generates and uploads test coverage reports.
 ### Required Dependencies
 
 The workflows use these npm scripts:
+
 - `npm run lint` - Prettier check
 - `npm run check` - TypeScript/Svelte check
 - `npm run test:unit -- --run` - Unit tests
@@ -89,12 +101,14 @@ npm run build
 ## Coverage Reports
 
 Coverage reports are:
+
 - Displayed in the console (text format)
 - Saved as HTML in `coverage/` directory
 - Uploaded to Codecov (if configured)
 - Available as GitHub Actions artifacts
 
 To view coverage locally:
+
 ```bash
 npm run test:unit -- --run --coverage
 open coverage/index.html

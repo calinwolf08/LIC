@@ -1,17 +1,12 @@
 import type { Selectable } from 'kysely';
-import type {
-	Students,
-	Preceptors,
-	Clerkships,
-	PreceptorAvailability,
-} from '$lib/db/types';
+import type { Students, Preceptors, Clerkships, PreceptorAvailability } from '$lib/db/types';
 import type { Constraint, Assignment, SchedulingContext, ScheduleResult } from '../types';
 import { ViolationTracker } from './violation-tracker';
 import { buildSchedulingContext } from './context-builder';
 import {
 	getMostNeededClerkship,
 	getStudentsNeedingAssignments,
-	checkUnmetRequirements,
+	checkUnmetRequirements
 } from './requirement-tracker';
 import { getSchedulingDates } from '../utils/date-utils';
 import { getAvailablePreceptors } from '../utils/preceptor-matcher';
@@ -80,15 +75,17 @@ export class SchedulingEngine {
 		this.violationTracker.clear();
 
 		// Use existing context if provided, otherwise build new one
-		const context = existingContext || buildSchedulingContext(
-			students,
-			preceptors,
-			clerkships,
-			blackoutDates,
-			preceptorAvailabilityRecords,
-			startDate,
-			endDate
-		);
+		const context =
+			existingContext ||
+			buildSchedulingContext(
+				students,
+				preceptors,
+				clerkships,
+				blackoutDates,
+				preceptorAvailabilityRecords,
+				startDate,
+				endDate
+			);
 
 		// Get all valid scheduling dates (excludes blackouts)
 		const dates = getSchedulingDates(startDate, endDate, context.blackoutDates);
@@ -112,7 +109,7 @@ export class SchedulingEngine {
 						studentId: student.id!,
 						preceptorId: preceptor.id!,
 						clerkshipId: clerkship.id!,
-						date,
+						date
 					};
 
 					// Validate against all constraints
@@ -148,8 +145,8 @@ export class SchedulingEngine {
 			summary: {
 				totalAssignments: context.assignments.length,
 				totalViolations: this.violationTracker.getTotalViolations(),
-				mostBlockingConstraints: topViolations.slice(0, 3).map((v) => v.constraintName),
-			},
+				mostBlockingConstraints: topViolations.slice(0, 3).map((v) => v.constraintName)
+			}
 		};
 	}
 

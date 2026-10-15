@@ -21,8 +21,9 @@ describe('ScheduleColorLegend', () => {
 		expect(c.textContent).toContain('Bob Williams');
 
 		const swatchColor = (id: string) =>
-			(c.querySelector(`[data-student-id="${id}"] [data-testid="legend-swatch"]`) as HTMLElement)
-				.getAttribute('data-color');
+			(
+				c.querySelector(`[data-student-id="${id}"] [data-testid="legend-swatch"]`) as HTMLElement
+			).getAttribute('data-color');
 		expect(swatchColor('stu-a')).toBe(getStudentColor('stu-a'));
 		// Different ids resolve to (here) different palette colours.
 		expect(swatchColor('stu-a')).not.toBe(swatchColor('stu-b'));
@@ -33,9 +34,7 @@ describe('ScheduleColorLegend', () => {
 
 	it('renders nothing when there are no students', () => {
 		const { container } = render(ScheduleColorLegend, { students: [] });
-		expect(
-			(container as HTMLElement).querySelector('[data-testid="calendar-legend"]')
-		).toBeNull();
+		expect((container as HTMLElement).querySelector('[data-testid="calendar-legend"]')).toBeNull();
 	});
 
 	it('collapses past the threshold and expands on demand', async () => {

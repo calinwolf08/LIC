@@ -12,41 +12,41 @@ import { CapacityChecker } from '../capacity/capacity-checker';
  * Validation Error
  */
 export interface ValidationError {
-  field: string;
-  message: string;
-  severity: 'error' | 'warning';
+	field: string;
+	message: string;
+	severity: 'error' | 'warning';
 }
 
 /**
  * Team Validation Result
  */
 export interface TeamValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationError[];
-  requiresApproval: boolean;
+	isValid: boolean;
+	errors: ValidationError[];
+	warnings: ValidationError[];
+	requiresApproval: boolean;
 }
 
 /**
  * Team Member
  */
 export interface TeamMember {
-  preceptorId: string;
-  priority: number;
-  role?: string;
-  assignedDates?: string[];
+	preceptorId: string;
+	priority: number;
+	role?: string;
+	assignedDates?: string[];
 }
 
 /**
  * Team Configuration
  */
 export interface TeamConfig {
-  requireSameHealthSystem: boolean;
-  requireSameSite: boolean;
-  requireSameSpecialty: boolean;
-  requiresAdminApproval: boolean;
-  minMembers?: number;
-  maxMembers?: number;
+	requireSameHealthSystem: boolean;
+	requireSameSite: boolean;
+	requireSameSpecialty: boolean;
+	requiresAdminApproval: boolean;
+	minMembers?: number;
+	maxMembers?: number;
 }
 
 /**
@@ -61,357 +61,352 @@ export interface TeamConfig {
  * - Availability validation
  */
 export class TeamValidator {
-  private capacityChecker: CapacityChecker;
+	private capacityChecker: CapacityChecker;
 
-  constructor(private db: Kysely<DB>) {
-    this.capacityChecker = new CapacityChecker(db);
-  }
+	constructor(private db: Kysely<DB>) {
+		this.capacityChecker = new CapacityChecker(db);
+	}
 
-  /**
-   * Validate team against configuration rules
-   */
-  async validateTeam(
-    members: TeamMember[],
-    config: TeamConfig,
-    options: {
-      clerkshipId?: string;
-      requirementType?: 'outpatient' | 'inpatient' | 'elective';
-      specialty?: string;
-      totalDates?: string[];
-    } = {}
-  ): Promise<TeamValidationResult> {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [];
+	/**
+	 * Validate team against configuration rules
+	 */
+	async validateTeam(
+		members: TeamMember[],
+		config: TeamConfig,
+		options: {
+			clerkshipId?: string;
+			requirementType?: 'outpatient' | 'inpatient' | 'elective';
+			specialty?: string;
+			totalDates?: string[];
+		} = {}
+	): Promise<TeamValidationResult> {
+		const errors: ValidationError[] = [];
+		const warnings: ValidationError[] = [];
 
-    // Validate team size
-    const sizeErrors = this.validateTeamSize(members, config);
-    errors.push(...sizeErrors);
+		// Validate team size
+		const sizeErrors = this.validateTeamSize(members, config);
+		errors.push(...sizeErrors);
 
-    // Validate members exist
-    const existenceErrors = await this.validateMembersExist(members);
-    errors.push(...existenceErrors);
+		// Validate members exist
+		const existenceErrors = await this.validateMembersExist(members);
+		errors.push(...existenceErrors);
 
-    // If members don't exist, skip further validation
-    if (existenceErrors.length > 0) {
-      return {
-        isValid: false,
-        errors,
-        warnings,
-        requiresApproval: config.requiresAdminApproval,
-      };
-    }
+		// If members don't exist, skip further validation
+		if (existenceErrors.length > 0) {
+			return {
+				isValid: false,
+				errors,
+				warnings,
+				requiresApproval: config.requiresAdminApproval
+			};
+		}
 
-    // Validate health system consistency. A mismatch is a soft, overrideable
-    // guide (a team is a coverage group; different health systems may still be
-    // valid) — never a hard block. A one-member team, or members without a
-    // health system, always passes.
-    if (config.requireSameHealthSystem) {
-      const hsWarnings = await this.validateHealthSystemConsistency(members);
-      warnings.push(...hsWarnings);
-    }
+		// Validate health system consistency. A mismatch is a soft, overrideable
+		// guide (a team is a coverage group; different health systems may still be
+		// valid) — never a hard block. A one-member team, or members without a
+		// health system, always passes.
+		if (config.requireSameHealthSystem) {
+			const hsWarnings = await this.validateHealthSystemConsistency(members);
+			warnings.push(...hsWarnings);
+		}
 
-    // Validate site consistency
-    if (config.requireSameSite) {
-      const siteErrors = await this.validateSiteConsistency(members);
-      errors.push(...siteErrors);
-    }
+		// Validate site consistency
+		if (config.requireSameSite) {
+			const siteErrors = await this.validateSiteConsistency(members);
+			errors.push(...siteErrors);
+		}
 
-    // Validate specialty consistency
-    if (config.requireSameSpecialty || options.specialty) {
-      const specialtyErrors = await this.validateSpecialtyConsistency(
-        members,
-        options.specialty
-      );
-      errors.push(...specialtyErrors);
-    }
+		// Validate specialty consistency
+		if (config.requireSameSpecialty || options.specialty) {
+			const specialtyErrors = await this.validateSpecialtyConsistency(members, options.specialty);
+			errors.push(...specialtyErrors);
+		}
 
-    // Validate unique priorities
-    const priorityErrors = this.validateUniquePriorities(members);
-    errors.push(...priorityErrors);
+		// Validate unique priorities
+		const priorityErrors = this.validateUniquePriorities(members);
+		errors.push(...priorityErrors);
 
-    // Validate capacity if dates provided
-    if (options.totalDates && options.totalDates.length > 0) {
-      const capacityErrors = await this.validateCapacity(members, options);
-      errors.push(...capacityErrors);
-    }
+		// Validate capacity if dates provided
+		if (options.totalDates && options.totalDates.length > 0) {
+			const capacityErrors = await this.validateCapacity(members, options);
+			errors.push(...capacityErrors);
+		}
 
-    // Validate availability if dates provided
-    if (options.totalDates && options.totalDates.length > 0) {
-      const availErrors = await this.validateAvailability(members, options.totalDates);
-      errors.push(...availErrors);
-    }
+		// Validate availability if dates provided
+		if (options.totalDates && options.totalDates.length > 0) {
+			const availErrors = await this.validateAvailability(members, options.totalDates);
+			errors.push(...availErrors);
+		}
 
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-      requiresApproval: config.requiresAdminApproval,
-    };
-  }
+		return {
+			isValid: errors.length === 0,
+			errors,
+			warnings,
+			requiresApproval: config.requiresAdminApproval
+		};
+	}
 
-  /**
-   * Validate team size
-   */
-  private validateTeamSize(members: TeamMember[], config: TeamConfig): ValidationError[] {
-    const errors: ValidationError[] = [];
-    const minMembers = config.minMembers || 2;
-    const maxMembers = config.maxMembers || 3;
+	/**
+	 * Validate team size
+	 */
+	private validateTeamSize(members: TeamMember[], config: TeamConfig): ValidationError[] {
+		const errors: ValidationError[] = [];
+		const minMembers = config.minMembers || 2;
+		const maxMembers = config.maxMembers || 3;
 
-    if (members.length < minMembers) {
-      errors.push({
-        field: 'teamSize',
-        message: `Team must have at least ${minMembers} members (has ${members.length})`,
-        severity: 'error',
-      });
-    }
+		if (members.length < minMembers) {
+			errors.push({
+				field: 'teamSize',
+				message: `Team must have at least ${minMembers} members (has ${members.length})`,
+				severity: 'error'
+			});
+		}
 
-    if (members.length > maxMembers) {
-      errors.push({
-        field: 'teamSize',
-        message: `Team cannot exceed ${maxMembers} members (has ${members.length})`,
-        severity: 'error',
-      });
-    }
+		if (members.length > maxMembers) {
+			errors.push({
+				field: 'teamSize',
+				message: `Team cannot exceed ${maxMembers} members (has ${members.length})`,
+				severity: 'error'
+			});
+		}
 
-    return errors;
-  }
+		return errors;
+	}
 
-  /**
-   * Validate all members exist as preceptors
-   */
-  private async validateMembersExist(members: TeamMember[]): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
+	/**
+	 * Validate all members exist as preceptors
+	 */
+	private async validateMembersExist(members: TeamMember[]): Promise<ValidationError[]> {
+		const errors: ValidationError[] = [];
 
-    for (const member of members) {
-      const preceptor = await this.db
-        .selectFrom('preceptors')
-        .select('id')
-        .where('id', '=', member.preceptorId)
-        .executeTakeFirst();
+		for (const member of members) {
+			const preceptor = await this.db
+				.selectFrom('preceptors')
+				.select('id')
+				.where('id', '=', member.preceptorId)
+				.executeTakeFirst();
 
-      if (!preceptor) {
-        errors.push({
-          field: 'members',
-          message: `Preceptor ${member.preceptorId} not found`,
-          severity: 'error',
-        });
-      }
-    }
+			if (!preceptor) {
+				errors.push({
+					field: 'members',
+					message: `Preceptor ${member.preceptorId} not found`,
+					severity: 'error'
+				});
+			}
+		}
 
-    return errors;
-  }
+		return errors;
+	}
 
-  /**
-   * Validate health system consistency
-   */
-  private async validateHealthSystemConsistency(
-    members: TeamMember[]
-  ): Promise<ValidationError[]> {
-    const warnings: ValidationError[] = [];
+	/**
+	 * Validate health system consistency
+	 */
+	private async validateHealthSystemConsistency(members: TeamMember[]): Promise<ValidationError[]> {
+		const warnings: ValidationError[] = [];
 
-    // A one-member team has nothing to be inconsistent about.
-    if (members.length < 2) return warnings;
+		// A one-member team has nothing to be inconsistent about.
+		if (members.length < 2) return warnings;
 
-    const preceptors = await this.db
-      .selectFrom('preceptors')
-      .select(['id', 'health_system_id'])
-      .where(
-        'id',
-        'in',
-        members.map(m => m.preceptorId)
-      )
-      .execute();
+		const preceptors = await this.db
+			.selectFrom('preceptors')
+			.select(['id', 'health_system_id'])
+			.where(
+				'id',
+				'in',
+				members.map((m) => m.preceptorId)
+			)
+			.execute();
 
-    // Compare only preceptors that actually have a health system assigned; a
-    // preceptor without one is not a violation (health system is optional in
-    // Stage 1), so it never blocks or warns on its own.
-    const distinctHealthSystems = new Set(
-      preceptors
-        .map(p => p.health_system_id)
-        .filter((id): id is string => id !== null)
-    );
+		// Compare only preceptors that actually have a health system assigned; a
+		// preceptor without one is not a violation (health system is optional in
+		// Stage 1), so it never blocks or warns on its own.
+		const distinctHealthSystems = new Set(
+			preceptors.map((p) => p.health_system_id).filter((id): id is string => id !== null)
+		);
 
-    if (distinctHealthSystems.size > 1) {
-      warnings.push({
-        field: 'healthSystem',
-        message:
-          'Team members belong to different health systems. You can still create this team, but they may not be interchangeable coverage.',
-        severity: 'warning',
-      });
-    }
+		if (distinctHealthSystems.size > 1) {
+			warnings.push({
+				field: 'healthSystem',
+				message:
+					'Team members belong to different health systems. You can still create this team, but they may not be interchangeable coverage.',
+				severity: 'warning'
+			});
+		}
 
-    return warnings;
-  }
+		return warnings;
+	}
 
-  /**
-   * Validate site consistency (via preceptor_sites junction table)
-   */
-  private async validateSiteConsistency(members: TeamMember[]): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
+	/**
+	 * Validate site consistency (via preceptor_sites junction table)
+	 */
+	private async validateSiteConsistency(members: TeamMember[]): Promise<ValidationError[]> {
+		const errors: ValidationError[] = [];
 
-    const preceptorIds = members.map(m => m.preceptorId);
+		const preceptorIds = members.map((m) => m.preceptorId);
 
-    // Get all sites for all team preceptors
-    const preceptorSites = await this.db
-      .selectFrom('preceptor_sites')
-      .select(['preceptor_id', 'site_id'])
-      .where('preceptor_id', 'in', preceptorIds)
-      .execute();
+		// Get all sites for all team preceptors
+		const preceptorSites = await this.db
+			.selectFrom('preceptor_sites')
+			.select(['preceptor_id', 'site_id'])
+			.where('preceptor_id', 'in', preceptorIds)
+			.execute();
 
-    // Group sites by preceptor
-    const sitesByPreceptor = new Map<string, Set<string>>();
-    for (const ps of preceptorSites) {
-      if (!sitesByPreceptor.has(ps.preceptor_id)) {
-        sitesByPreceptor.set(ps.preceptor_id, new Set());
-      }
-      sitesByPreceptor.get(ps.preceptor_id)!.add(ps.site_id);
-    }
+		// Group sites by preceptor
+		const sitesByPreceptor = new Map<string, Set<string>>();
+		for (const ps of preceptorSites) {
+			if (!sitesByPreceptor.has(ps.preceptor_id)) {
+				sitesByPreceptor.set(ps.preceptor_id, new Set());
+			}
+			sitesByPreceptor.get(ps.preceptor_id)!.add(ps.site_id);
+		}
 
-    // Check if all preceptors share at least one common site
-    const allPreceptorSiteSets = preceptorIds.map(id => sitesByPreceptor.get(id) || new Set<string>());
+		// Check if all preceptors share at least one common site
+		const allPreceptorSiteSets = preceptorIds.map(
+			(id) => sitesByPreceptor.get(id) || new Set<string>()
+		);
 
-    // If any preceptor has no sites, they can't share a site
-    if (allPreceptorSiteSets.some(sites => sites.size === 0)) {
-      errors.push({
-        field: 'site',
-        message: 'All team members must be at the same site',
-        severity: 'error',
-      });
-      return errors;
-    }
+		// If any preceptor has no sites, they can't share a site
+		if (allPreceptorSiteSets.some((sites) => sites.size === 0)) {
+			errors.push({
+				field: 'site',
+				message: 'All team members must be at the same site',
+				severity: 'error'
+			});
+			return errors;
+		}
 
-    // Find intersection of all site sets
-    let commonSites = allPreceptorSiteSets[0];
-    for (let i = 1; i < allPreceptorSiteSets.length; i++) {
-      commonSites = new Set([...commonSites].filter(site => allPreceptorSiteSets[i].has(site)));
-    }
+		// Find intersection of all site sets
+		let commonSites = allPreceptorSiteSets[0];
+		for (let i = 1; i < allPreceptorSiteSets.length; i++) {
+			commonSites = new Set([...commonSites].filter((site) => allPreceptorSiteSets[i].has(site)));
+		}
 
-    if (commonSites.size === 0) {
-      errors.push({
-        field: 'site',
-        message: 'All team members must be at the same site',
-        severity: 'error',
-      });
-    }
+		if (commonSites.size === 0) {
+			errors.push({
+				field: 'site',
+				message: 'All team members must be at the same site',
+				severity: 'error'
+			});
+		}
 
-    return errors;
-  }
+		return errors;
+	}
 
-  /**
-   * Validate specialty consistency
-   * Note: Specialty field was removed from preceptors, so this validation is no longer applicable
-   */
-  private async validateSpecialtyConsistency(
-    _members: TeamMember[],
-    _requiredSpecialty?: string
-  ): Promise<ValidationError[]> {
-    // Specialty field removed from preceptors - validation no longer applicable
-    return [];
-  }
+	/**
+	 * Validate specialty consistency
+	 * Note: Specialty field was removed from preceptors, so this validation is no longer applicable
+	 */
+	private async validateSpecialtyConsistency(
+		_members: TeamMember[],
+		_requiredSpecialty?: string
+	): Promise<ValidationError[]> {
+		// Specialty field removed from preceptors - validation no longer applicable
+		return [];
+	}
 
-  /**
-   * Validate unique priorities
-   */
-  private validateUniquePriorities(members: TeamMember[]): ValidationError[] {
-    const errors: ValidationError[] = [];
+	/**
+	 * Validate unique priorities
+	 */
+	private validateUniquePriorities(members: TeamMember[]): ValidationError[] {
+		const errors: ValidationError[] = [];
 
-    const priorities = members.map(m => m.priority);
-    const uniquePriorities = new Set(priorities);
+		const priorities = members.map((m) => m.priority);
+		const uniquePriorities = new Set(priorities);
 
-    if (priorities.length !== uniquePriorities.size) {
-      errors.push({
-        field: 'priorities',
-        message: 'Team member priorities must be unique',
-        severity: 'error',
-      });
-    }
+		if (priorities.length !== uniquePriorities.size) {
+			errors.push({
+				field: 'priorities',
+				message: 'Team member priorities must be unique',
+				severity: 'error'
+			});
+		}
 
-    return errors;
-  }
+		return errors;
+	}
 
-  /**
-   * Validate capacity for each member
-   */
-  private async validateCapacity(
-    members: TeamMember[],
-    options: {
-      clerkshipId?: string;
-      requirementType?: 'outpatient' | 'inpatient' | 'elective';
-      totalDates?: string[];
-    }
-  ): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
+	/**
+	 * Validate capacity for each member
+	 */
+	private async validateCapacity(
+		members: TeamMember[],
+		options: {
+			clerkshipId?: string;
+			requirementType?: 'outpatient' | 'inpatient' | 'elective';
+			totalDates?: string[];
+		}
+	): Promise<ValidationError[]> {
+		const errors: ValidationError[] = [];
 
-    for (const member of members) {
-      if (!member.assignedDates || member.assignedDates.length === 0) {
-        continue;
-      }
+		for (const member of members) {
+			if (!member.assignedDates || member.assignedDates.length === 0) {
+				continue;
+			}
 
-      for (const date of member.assignedDates) {
-        const check = await this.capacityChecker.checkCapacity(member.preceptorId, date, {
-          clerkshipId: options.clerkshipId,
-          requirementType: options.requirementType,
-        });
+			for (const date of member.assignedDates) {
+				const check = await this.capacityChecker.checkCapacity(member.preceptorId, date, {
+					clerkshipId: options.clerkshipId,
+					requirementType: options.requirementType
+				});
 
-        if (!check.hasCapacity) {
-          errors.push({
-            field: 'capacity',
-            message: `Preceptor ${member.preceptorId} lacks capacity on ${date}: ${check.reason}`,
-            severity: 'error',
-          });
-        }
-      }
-    }
+				if (!check.hasCapacity) {
+					errors.push({
+						field: 'capacity',
+						message: `Preceptor ${member.preceptorId} lacks capacity on ${date}: ${check.reason}`,
+						severity: 'error'
+					});
+				}
+			}
+		}
 
-    return errors;
-  }
+		return errors;
+	}
 
-  /**
-   * Validate team collectively covers all dates
-   */
-  private async validateAvailability(
-    members: TeamMember[],
-    requiredDates: string[]
-  ): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
+	/**
+	 * Validate team collectively covers all dates
+	 */
+	private async validateAvailability(
+		members: TeamMember[],
+		requiredDates: string[]
+	): Promise<ValidationError[]> {
+		const errors: ValidationError[] = [];
 
-    // Get availability for all members
-    const availability = await this.db
-      .selectFrom('preceptor_availability')
-      .select(['preceptor_id', 'date'])
-      .where(
-        'preceptor_id',
-        'in',
-        members.map(m => m.preceptorId)
-      )
-      .where('is_available', '=', 1)
-      .execute();
+		// Get availability for all members
+		const availability = await this.db
+			.selectFrom('preceptor_availability')
+			.select(['preceptor_id', 'date'])
+			.where(
+				'preceptor_id',
+				'in',
+				members.map((m) => m.preceptorId)
+			)
+			.where('is_available', '=', 1)
+			.execute();
 
-    // Build availability map
-    const availMap = new Map<string, Set<string>>();
-    for (const avail of availability) {
-      if (!availMap.has(avail.preceptor_id)) {
-        availMap.set(avail.preceptor_id, new Set());
-      }
-      availMap.get(avail.preceptor_id)!.add(avail.date);
-    }
+		// Build availability map
+		const availMap = new Map<string, Set<string>>();
+		for (const avail of availability) {
+			if (!availMap.has(avail.preceptor_id)) {
+				availMap.set(avail.preceptor_id, new Set());
+			}
+			availMap.get(avail.preceptor_id)!.add(avail.date);
+		}
 
-    // Check each required date is covered by at least one member
-    for (const date of requiredDates) {
-      const covered = members.some(m => {
-        const memberAvail = availMap.get(m.preceptorId);
-        return memberAvail && memberAvail.has(date);
-      });
+		// Check each required date is covered by at least one member
+		for (const date of requiredDates) {
+			const covered = members.some((m) => {
+				const memberAvail = availMap.get(m.preceptorId);
+				return memberAvail && memberAvail.has(date);
+			});
 
-      if (!covered) {
-        errors.push({
-          field: 'availability',
-          message: `No team member available on ${date}`,
-          severity: 'error',
-        });
-      }
-    }
+			if (!covered) {
+				errors.push({
+					field: 'availability',
+					message: `No team member available on ${date}`,
+					severity: 'error'
+				});
+			}
+		}
 
-    return errors;
-  }
+		return errors;
+	}
 }

@@ -133,7 +133,7 @@ function twoWeekdaysSameMonth(startAt: number): [string, string] {
 }
 
 test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, () => {
-	test('moving an assignment onto a mutually-exclusive preceptor\'s day warns and records a conflict (L2)', async ({
+	test("moving an assignment onto a mutually-exclusive preceptor's day warns and records a conflict (L2)", async ({
 		asAdmin,
 		sandbox
 	}) => {
@@ -148,20 +148,50 @@ test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, (
 		const sid = await makeStudent(api, roster.sandbox.id, `EL2 ${Date.now()}`);
 
 		// Amanda ↔ James are mutually exclusive.
-		expect((await api.put(`/api/preceptors/${amanda.id}/mutual-exclusions`, { preceptor_ids: [james.id] })).ok).toBe(true);
+		expect(
+			(
+				await api.put(`/api/preceptors/${amanda.id}/mutual-exclusions`, {
+					preceptor_ids: [james.id]
+				})
+			).ok
+		).toBe(true);
 
 		const [dAmanda, dJames] = twoWeekdaysSameMonth(9);
 		const amandaSite = await eligibleSiteFor(api, fm.id, amanda.id);
 		const jamesSite = await eligibleSiteFor(api, fm.id, james.id);
 		// Amanda on dAmanda; James on his own (later) day dJames — different days, so the
 		// excluded pair does not yet share one.
-		expect((await api.post('/api/schedules/assignments', { student_id: sid, preceptor_id: amanda.id, clerkship_id: fm.id, site_id: amandaSite, date: dAmanda, override_codes: SAFETY })).ok).toBe(true);
-		expect((await api.post('/api/schedules/assignments', { student_id: sid, preceptor_id: james.id, clerkship_id: fm.id, site_id: jamesSite, date: dJames, override_codes: SAFETY })).ok).toBe(true);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: amanda.id,
+					clerkship_id: fm.id,
+					site_id: amandaSite,
+					date: dAmanda,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: james.id,
+					clerkship_id: fm.id,
+					site_id: jamesSite,
+					date: dJames,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
 
 		// No mutual-exclusion conflict yet (the panel only renders once one exists).
 		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByRole('tab', { name: 'Schedule' })).toBeVisible({ timeout: 15000 });
-		await expect(asAdmin.getByTestId(`student-conflict-mutual_exclusion-${dAmanda}`)).toHaveCount(0);
+		await expect(asAdmin.getByTestId(`student-conflict-mutual_exclusion-${dAmanda}`)).toHaveCount(
+			0
+		);
 
 		// Move James's day onto Amanda's — now the excluded pair shares a day. Only the
 		// date changes; James and his site stay eligible, so the dialog re-validates the
@@ -212,7 +242,9 @@ test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, (
 		const dialog = new AssignmentDialog(asAdmin);
 		// The whole point of the fix: James is selectable even though the loaded site is
 		// Amanda's (which James does not serve). Before the fix this option was disabled.
-		await expect(asAdmin.locator('#ad-preceptor option', { hasText: 'Dr. James Brown' })).not.toBeDisabled();
+		await expect(
+			asAdmin.locator('#ad-preceptor option', { hasText: 'Dr. James Brown' })
+		).not.toBeDisabled();
 		await dialog.selectPreceptor('Dr. James Brown');
 		// The stale site was cleared; choose one James serves and save.
 		await pickAnySite(asAdmin);
@@ -243,7 +275,9 @@ test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, (
 		const sid = await makeStudent(api, roster.sandbox.id, `EL3 ${Date.now()}`);
 
 		// Pediatrics is a block (inpatient) clerkship.
-		expect((await api.patch(`/api/clerkships/${peds.id}`, { scheduling_kind: 'block' })).ok).toBe(true);
+		expect((await api.patch(`/api/clerkships/${peds.id}`, { scheduling_kind: 'block' })).ok).toBe(
+			true
+		);
 
 		const blockMon = stableBlockMonday(10);
 		const blockWeekDay = addDays(blockMon, 2); // Wed, same week as the block
@@ -253,14 +287,38 @@ test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, (
 		const amandaSite = await eligibleSiteFor(api, fm.id, amanda.id);
 
 		// Student is on the block that week, and has a Family Medicine day the FREE week.
-		expect((await api.post('/api/schedules/assignments', { student_id: sid, preceptor_id: amanda.id, clerkship_id: peds.id, site_id: site.id, date: blockMon, override_codes: SAFETY })).ok).toBe(true);
-		expect((await api.post('/api/schedules/assignments', { student_id: sid, preceptor_id: amanda.id, clerkship_id: fm.id, site_id: amandaSite, date: freeWeekDay, override_codes: SAFETY })).ok).toBe(true);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: amanda.id,
+					clerkship_id: peds.id,
+					site_id: site.id,
+					date: blockMon,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
+		expect(
+			(
+				await api.post('/api/schedules/assignments', {
+					student_id: sid,
+					preceptor_id: amanda.id,
+					clerkship_id: fm.id,
+					site_id: amandaSite,
+					date: freeWeekDay,
+					override_codes: SAFETY
+				})
+			).ok
+		).toBe(true);
 
 		// No block-week conflict while the FM day is in its free week (the panel only
 		// renders once a conflict exists).
 		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByRole('tab', { name: 'Schedule' })).toBeVisible({ timeout: 15000 });
-		await expect(asAdmin.getByTestId(`student-conflict-block_week_conflict-${freeWeekDay}`)).toHaveCount(0);
+		await expect(
+			asAdmin.getByTestId(`student-conflict-block_week_conflict-${freeWeekDay}`)
+		).toHaveCount(0);
 
 		// Edit the FM day and move it into the block's week — only the date changes.
 		await openEditForDate(asAdmin, sid, freeWeekDay, 'Dr. Amanda Smith');
@@ -273,7 +331,11 @@ test.describe('editing re-validates through the dialog', { tag: ['@stage1'] }, (
 		// The moved day is now a block-week conflict; the old free-week day is gone.
 		await asAdmin.goto(`/students/${sid}`);
 		await expect(asAdmin.getByTestId('student-conflicts')).toBeVisible({ timeout: 15000 });
-		await expect(asAdmin.getByTestId(`student-conflict-block_week_conflict-${blockWeekDay}`)).toBeVisible();
-		await expect(asAdmin.getByTestId(`student-conflict-block_week_conflict-${freeWeekDay}`)).toHaveCount(0);
+		await expect(
+			asAdmin.getByTestId(`student-conflict-block_week_conflict-${blockWeekDay}`)
+		).toBeVisible();
+		await expect(
+			asAdmin.getByTestId(`student-conflict-block_week_conflict-${freeWeekDay}`)
+		).toHaveCount(0);
 	});
 });

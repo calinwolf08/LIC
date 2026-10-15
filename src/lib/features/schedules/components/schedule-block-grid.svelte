@@ -39,7 +39,10 @@
 </script>
 
 {#if students.length === 0 || dates.length === 0}
-	<div class="rounded-lg border p-8 text-center text-muted-foreground" data-testid="block-grid-empty">
+	<div
+		class="rounded-lg border p-8 text-center text-muted-foreground"
+		data-testid="block-grid-empty"
+	>
 		No students or dates to display.
 	</div>
 {:else}
@@ -48,7 +51,7 @@
 			<thead>
 				<tr>
 					<th
-						class="sticky left-0 z-10 border-b border-r bg-background px-3 py-1 text-left font-medium"
+						class="sticky left-0 z-10 border-r border-b bg-background px-3 py-1 text-left font-medium"
 					>
 						Student
 					</th>
@@ -71,7 +74,7 @@
 				{#each students as student (student.id)}
 					<tr data-testid="grid-row-{student.id}">
 						<td
-							class="sticky left-0 z-10 max-w-[12rem] truncate border-b border-r bg-background px-3 py-1 font-medium"
+							class="sticky left-0 z-10 max-w-[12rem] truncate border-r border-b bg-background px-3 py-1 font-medium"
 							title={student.name}
 						>
 							{student.name}
@@ -79,9 +82,9 @@
 						{#each dates as d}
 							{@const cell = cells.get(`${student.id}:${d}`)}
 							<td
-								class="border-b p-0 text-center {isWeekend(d) ? 'bg-muted/40' : ''} {monthStarts.has(d)
-									? 'border-l'
-									: ''}"
+								class="border-b p-0 text-center {isWeekend(d)
+									? 'bg-muted/40'
+									: ''} {monthStarts.has(d) ? 'border-l' : ''}"
 								data-testid="grid-cell-{student.id}-{d}"
 								data-filled={cell ? 'true' : 'false'}
 							>

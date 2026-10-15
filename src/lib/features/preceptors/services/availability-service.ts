@@ -10,7 +10,12 @@ import {
 	normalizeSession,
 	defaultCreditForSession
 } from '$lib/features/scheduling/services/session-slots';
-import type { CreateAvailabilityInput, UpdateAvailabilityInput, DateRangeInput, BulkAvailabilityInput } from '../availability-schemas';
+import type {
+	CreateAvailabilityInput,
+	UpdateAvailabilityInput,
+	DateRangeInput,
+	BulkAvailabilityInput
+} from '../availability-schemas';
 import { NotFoundError, ConflictError } from '$lib/api/errors';
 import { preceptorExists } from './preceptor-service';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -227,7 +232,9 @@ export async function bulkUpdateAvailability(
 	// Verify preceptor exists
 	const exists = await preceptorExists(db, data.preceptor_id);
 	if (!exists) {
-		log.warn('Preceptor not found for bulk availability update', { preceptorId: data.preceptor_id });
+		log.warn('Preceptor not found for bulk availability update', {
+			preceptorId: data.preceptor_id
+		});
 		throw new NotFoundError('Preceptor');
 	}
 
@@ -235,7 +242,13 @@ export async function bulkUpdateAvailability(
 
 	// Set availability for each date at the specified site
 	for (const item of data.availability) {
-		const result = await setAvailability(db, data.preceptor_id, data.site_id, item.date, item.is_available);
+		const result = await setAvailability(
+			db,
+			data.preceptor_id,
+			data.site_id,
+			item.date,
+			item.is_available
+		);
 		results.push(result);
 	}
 

@@ -170,9 +170,7 @@ describe('Regeneration Service', () => {
 			// Student 1 needs 10 days of clerkship-1
 			const pastAssignments = Array(15)
 				.fill(null)
-				.map(() =>
-					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
-				);
+				.map(() => createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' }));
 
 			creditPastAssignmentsToRequirements(context, pastAssignments);
 
@@ -437,8 +435,12 @@ describe('Regeneration Service', () => {
 		 */
 		function createMockDb(existingAssignments: Selectable<ScheduleAssignments>[]) {
 			const mockQueryBuilder = {
-				where: function() { return this; },
-				orderBy: function() { return this; },
+				where: function () {
+					return this;
+				},
+				orderBy: function () {
+					return this;
+				},
 				execute: async () => existingAssignments
 			};
 
@@ -465,12 +467,7 @@ describe('Regeneration Service', () => {
 
 			const db = createMockDb(existingAssignments);
 
-			const result = await prepareCompletionContext(
-				db,
-				context,
-				'2025-01-01',
-				'2025-12-31'
-			);
+			const result = await prepareCompletionContext(db, context, '2025-01-01', '2025-12-31');
 
 			// Should credit the assignments
 			expect(context.studentRequirements.get('student-1')?.get('clerkship-1')).toBe(7); // 10 - 3
@@ -486,22 +483,19 @@ describe('Regeneration Service', () => {
 			// Give student-1 all their clerkship-1 requirements (10 assignments)
 			// Student-2 gets only partial clerkship-1 (5 assignments, needs 10)
 			const existingAssignments = [
-				...Array(10).fill(null).map(() =>
-					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
-				),
-				...Array(5).fill(null).map(() =>
-					createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-1' })
-				)
+				...Array(10)
+					.fill(null)
+					.map(() =>
+						createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
+					),
+				...Array(5)
+					.fill(null)
+					.map(() => createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-1' }))
 			];
 
 			const db = createMockDb(existingAssignments);
 
-			const result = await prepareCompletionContext(
-				db,
-				context,
-				'2025-01-01',
-				'2025-12-31'
-			);
+			const result = await prepareCompletionContext(db, context, '2025-01-01', '2025-12-31');
 
 			// Both students should have unmet requirements
 			// student-1: still needs clerkship-2 (8 days)
@@ -536,12 +530,7 @@ describe('Regeneration Service', () => {
 
 			const db = createMockDb(existingAssignments);
 
-			await prepareCompletionContext(
-				db,
-				context,
-				'2025-01-01',
-				'2025-12-31'
-			);
+			await prepareCompletionContext(db, context, '2025-01-01', '2025-12-31');
 
 			// Check context.assignments
 			expect(context.assignments).toHaveLength(2);
@@ -566,28 +555,29 @@ describe('Regeneration Service', () => {
 			// student-1: 10 clerkship-1, 8 clerkship-2
 			// student-2: 10 clerkship-1, 8 clerkship-2
 			const existingAssignments = [
-				...Array(10).fill(null).map(() =>
-					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
-				),
-				...Array(8).fill(null).map(() =>
-					createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-2' })
-				),
-				...Array(10).fill(null).map(() =>
-					createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-1' })
-				),
-				...Array(8).fill(null).map(() =>
-					createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-2' })
-				)
+				...Array(10)
+					.fill(null)
+					.map(() =>
+						createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-1' })
+					),
+				...Array(8)
+					.fill(null)
+					.map(() =>
+						createMockAssignment({ student_id: 'student-1', clerkship_id: 'clerkship-2' })
+					),
+				...Array(10)
+					.fill(null)
+					.map(() =>
+						createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-1' })
+					),
+				...Array(8)
+					.fill(null)
+					.map(() => createMockAssignment({ student_id: 'student-2', clerkship_id: 'clerkship-2' }))
 			];
 
 			const db = createMockDb(existingAssignments);
 
-			const result = await prepareCompletionContext(
-				db,
-				context,
-				'2025-01-01',
-				'2025-12-31'
-			);
+			const result = await prepareCompletionContext(db, context, '2025-01-01', '2025-12-31');
 
 			// No students should have unmet requirements
 			expect(result.studentsWithUnmetRequirements).toHaveLength(0);

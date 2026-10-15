@@ -1,10 +1,12 @@
 # Step 28 — Edit-Mode Validation Correctness & Note Copy
 
 ## Objective
+
 Opening an existing assignment must not report the assignment as conflicting with itself, and the
 note field must stop implying an exception is being made when none is.
 
 ## Context (verified in code)
+
 `excludeId` already exists in `assignment-validation.ts` — used at lines 139 (double-book), 267,
 315 (capacity) and 379 (required-days count). It is **not** supported by the two newer services the
 dialog actually drives:
@@ -14,17 +16,18 @@ dialog actually drives:
 - `requirement-preview.ts` — `previewRequirementImpact` counts every existing assignment, so the
   edited day is double-counted against `required`, producing a false "more days than required".
 
-The dialog never sends an exclusion either: the day-states fetch (`assignment-dialog.svelte` ~line
-282) passes only `preceptorId`, `studentId`, `siteId`, `from`, `to`.
+The dialog never sends an exclusion either: the day-states fetch (`assignment-dialog.svelte` ~line 282) passes only `preceptorId`, `studentId`, `siteId`, `from`, `to`.
 
 Separately, the note input hard-codes `placeholder="Why this exception is being made"`
 (`assignment-dialog.svelte:783`), which is shown whenever the note field is visible — including
 edits with no overrides at all.
 
 ## Prerequisites
+
 Step 26 (so the endpoints these call are already schedule-scoped).
 
 ## Scope
+
 **In:** `excludeId` plumbing end to end, and the note field's copy/visibility.
 **Out:** picker visuals (step 29).
 
@@ -45,11 +48,12 @@ Step 26 (so the endpoints these call are already schedule-scoped).
 5. **Note copy.** Make the placeholder reflect reality:
    - when the submission carries at least one accepted override → `"Why this exception is being made"`;
    - otherwise → `"Optional note about this assignment"`.
-   Derive it from the same state that drives the override summary, and label the field plainly
-   (`Note`), not `Exception note`. If the field is only meaningful with overrides in a given
-   context, hide it there rather than mislabelling it.
+     Derive it from the same state that drives the override summary, and label the field plainly
+     (`Note`), not `Exception note`. If the field is only meaningful with overrides in a given
+     context, hide it there rather than mislabelling it.
 
 ## Testing
+
 - **Unit — `getDayStates`:** with `excludeId` set to an assignment on day D for that student,
   D reports `studentBusy: false`, `preceptorBookings` omits it, and `preceptorAtCapacity` drops
   when that assignment was the one filling the slot. Without `excludeId`, behaviour is unchanged
@@ -64,10 +68,11 @@ Step 26 (so the endpoints these call are already schedule-scoped).
 - **E2E (extend `calendar-workspace.spec.ts` or a new `assignment-edit.spec.ts`):** create an
   assignment; reopen it from the calendar via the day cell; assert **no** "already has an
   assignment" and **no** "more days than required" appear, the note placeholder is the neutral
-  copy, and saving an unchanged edit succeeds. Then, as a control, add a *second* assignment for the
+  copy, and saving an unchanged edit succeeds. Then, as a control, add a _second_ assignment for the
   same student and day and confirm the hard conflict still blocks it.
 
 ## Acceptance criteria
+
 - [ ] Editing an assignment never conflicts with itself (double-book, capacity, required-days).
 - [ ] Create-mode validation is unchanged — proven by the control cases.
 - [ ] Note copy only mentions exceptions when an override is actually being accepted.

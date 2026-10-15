@@ -7,11 +7,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import { HealthSystemService } from '$lib/features/scheduling-config/services/health-systems.service';
 import { healthSystemInputSchema } from '$lib/features/scheduling-config/schemas/health-systems.schemas';
@@ -97,7 +93,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Health system validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

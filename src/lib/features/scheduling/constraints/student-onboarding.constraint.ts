@@ -85,9 +85,7 @@ export class StudentOnboardingConstraint implements Constraint {
 		// Get health system name if available
 		let healthSystemName = preceptor?.health_system_id || 'Unknown';
 		if (context.healthSystems && preceptor?.health_system_id) {
-			const healthSystem = context.healthSystems.find(
-				(hs) => hs.id === preceptor.health_system_id
-			);
+			const healthSystem = context.healthSystems.find((hs) => hs.id === preceptor.health_system_id);
 			if (healthSystem) {
 				healthSystemName = healthSystem.name;
 			}

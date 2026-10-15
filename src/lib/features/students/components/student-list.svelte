@@ -71,13 +71,17 @@
 						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('name')}
 					>
-						Name {#if sortColumn === 'name'}<span class="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>{/if}
+						Name {#if sortColumn === 'name'}<span class="text-xs"
+								>{sortDirection === 'asc' ? '↑' : '↓'}</span
+							>{/if}
 					</th>
 					<th
 						class="cursor-pointer px-4 py-3 text-left text-sm font-medium hover:bg-muted"
 						onclick={() => handleSort('email')}
 					>
-						Email {#if sortColumn === 'email'}<span class="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>{/if}
+						Email {#if sortColumn === 'email'}<span class="text-xs"
+								>{sortDirection === 'asc' ? '↑' : '↓'}</span
+							>{/if}
 					</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Requirements</th>
 					<th class="px-4 py-3 text-left text-sm font-medium">Status</th>
@@ -88,7 +92,11 @@
 				{#if loading}
 					<tr><td colspan="5" class="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>
 				{:else if sortedStudents.length === 0}
-					<tr><td colspan="5" class="px-4 py-8 text-center text-muted-foreground">No students found</td></tr>
+					<tr
+						><td colspan="5" class="px-4 py-8 text-center text-muted-foreground"
+							>No students found</td
+						></tr
+					>
 				{:else}
 					{#each sortedStudents as student (student.id)}
 						{@const status = student.id ? statuses[student.id] : undefined}
@@ -99,7 +107,10 @@
 							onclick={() => handleView(student)}
 						>
 							<td class="px-4 py-3 text-sm">
-								<button onclick={() => handleView(student)} class="text-left font-medium text-primary hover:underline">
+								<button
+									onclick={() => handleView(student)}
+									class="text-left font-medium text-primary hover:underline"
+								>
 									{student.name}
 								</button>
 							</td>
@@ -107,7 +118,10 @@
 							<td class="px-4 py-3 text-sm">
 								<div class="flex items-center gap-2">
 									<div class="h-2 w-16 rounded-full bg-gray-200">
-										<div class="h-2 rounded-full {completionColor(pct)}" style="width: {Math.min(pct, 100)}%"></div>
+										<div
+											class="h-2 rounded-full {completionColor(pct)}"
+											style="width: {Math.min(pct, 100)}%"
+										></div>
 									</div>
 									<span class="text-muted-foreground">{pct}%</span>
 									{#if status && status.overall.unscheduled > 0}
@@ -125,15 +139,21 @@
 								>
 									<Badge variant={badge.variant}>{badge.label}</Badge>
 									{#if status && status.conflict_count > 0}
-										<Badge variant="destructive">{status.conflict_count} conflict{status.conflict_count > 1 ? 's' : ''}</Badge>
+										<Badge variant="destructive"
+											>{status.conflict_count} conflict{status.conflict_count > 1 ? 's' : ''}</Badge
+										>
 									{/if}
 								</div>
 							</td>
 							<td class="px-4 py-3 text-sm" onclick={(e) => e.stopPropagation()}>
 								<div class="flex gap-2">
-									<Button size="sm" variant="default" onclick={() => handleView(student)}>Manage</Button>
+									<Button size="sm" variant="default" onclick={() => handleView(student)}
+										>Manage</Button
+									>
 									{#if onDelete}
-										<Button size="sm" variant="destructive" onclick={() => onDelete?.(student)}>Delete</Button>
+										<Button size="sm" variant="destructive" onclick={() => onDelete?.(student)}
+											>Delete</Button
+										>
 									{/if}
 								</div>
 							</td>

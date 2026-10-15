@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { loginSchema } from "../utils";
-	import { authClient } from "$lib/auth-client";
-	import { goto } from "$app/navigation";
-	import { FormField } from "$lib/components/forms";
-	import { useForm } from "$lib/components/forms";
-	import { Input } from "$lib/components/ui/input";
-	import { Button } from "$lib/components/ui/button";
-	import { Checkbox } from "$lib/components/ui/checkbox";
-	import { Label } from "$lib/components/ui/label";
-	import * as Alert from "$lib/components/ui/alert";
-	import PasswordInput from "$lib/features/auth/components/password-input.svelte";
-	import { AlertCircle, Loader2 } from "lucide-svelte";
+	import { loginSchema } from '../utils';
+	import { signInWithEmail } from '$lib/identity-client';
+	import { goto } from '$app/navigation';
+	import { FormField } from '$lib/components/forms';
+	import { useForm } from '$lib/components/forms';
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Label } from '$lib/components/ui/label';
+	import * as Alert from '$lib/components/ui/alert';
+	import PasswordInput from '$lib/features/auth/components/password-input.svelte';
+	import { AlertCircle, Loader2 } from 'lucide-svelte';
 
 	interface Props {
 		serverErrors?: Record<string, string[]>;
@@ -41,21 +41,16 @@
 		async onSubmit(values) {
 			errorMessage = null;
 
-			await authClient.signIn.email(
-				{
-					email: values.email,
-					password: values.password,
-					rememberMe: values.rememberMe,
-				},
-				{
-					onSuccess: () => {
-						window.location.href = redirectTo;
-					},
-					onError: (ctx) => {
-						errorMessage = ctx.error.message || "Failed to sign in. Please try again.";
-					},
-				}
-			);
+			const result = await signInWithEmail({
+				email: values.email,
+				password: values.password,
+				rememberMe: values.rememberMe
+			});
+			if (result.ok) {
+				window.location.href = redirectTo;
+			} else {
+				errorMessage = result.message;
+			}
 		}
 	});
 
@@ -95,12 +90,7 @@
 		data-hydrated={hydrated}
 		class="space-y-4"
 	>
-		<FormField
-			label="Email"
-			name="email"
-			error={getFieldErrors('email')}
-			required
-		>
+		<FormField label="Email" name="email" error={getFieldErrors('email')} required>
 			<Input
 				id="email"
 				type="email"
@@ -113,12 +103,7 @@
 			/>
 		</FormField>
 
-		<FormField
-			label="Password"
-			name="password"
-			error={getFieldErrors('password')}
-			required
-		>
+		<FormField label="Password" name="password" error={getFieldErrors('password')} required>
 			<PasswordInput
 				id="password"
 				placeholder="Enter password"
@@ -139,7 +124,7 @@
 				/>
 				<Label
 					for="rememberMe"
-					class="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					class="text-sm leading-none font-normal peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 				>
 					Remember me
 				</Label>
@@ -165,7 +150,12 @@
 
 		<div class="text-center text-sm">
 			Don't have an account?
-			<a href="/register" onclick={handleSignUpClick} class="text-primary hover:underline" tabindex={formManager.isSubmitting ? -1 : 0}>
+			<a
+				href="/register"
+				onclick={handleSignUpClick}
+				class="text-primary hover:underline"
+				tabindex={formManager.isSubmitting ? -1 : 0}
+			>
 				Sign up
 			</a>
 		</div>

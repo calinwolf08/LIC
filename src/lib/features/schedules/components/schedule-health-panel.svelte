@@ -190,7 +190,7 @@
 											{/each}
 										</div>
 										{#if o.note}
-											<p class="mt-1 text-xs italic text-muted-foreground">“{o.note}”</p>
+											<p class="mt-1 text-xs text-muted-foreground italic">“{o.note}”</p>
 										{/if}
 									</div>
 									{#if onOpenAssignment}

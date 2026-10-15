@@ -21,7 +21,7 @@
 		</p>
 	</div>
 {:else}
-	<div class="rounded-md border overflow-hidden">
+	<div class="overflow-hidden rounded-md border">
 		<div class="overflow-x-auto">
 			<table class="w-full">
 				<thead class="bg-muted/50">
@@ -55,11 +55,7 @@
 							<td class="px-4 py-3">
 								<div class="flex justify-end gap-2">
 									{#if onManageSites}
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => onManageSites?.(elective)}
-										>
+										<Button variant="ghost" size="sm" onclick={() => onManageSites?.(elective)}>
 											Sites
 										</Button>
 									{/if}

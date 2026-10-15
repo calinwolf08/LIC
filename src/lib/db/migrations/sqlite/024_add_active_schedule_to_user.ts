@@ -39,10 +39,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	// Add the column
 	console.log('Adding active_schedule_id column to user table');
-	await db.schema
-		.alterTable('user')
-		.addColumn('active_schedule_id', 'text')
-		.execute();
+	await db.schema.alterTable('user').addColumn('active_schedule_id', 'text').execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {

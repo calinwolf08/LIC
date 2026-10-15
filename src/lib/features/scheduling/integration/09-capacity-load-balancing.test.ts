@@ -16,7 +16,7 @@ import {
 	createTestStudents,
 	createPreceptorAvailability,
 	clearAllTestData,
-	generateDateRange,
+	generateDateRange
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -41,14 +41,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create ONE preceptor with max_students_per_day = 1
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 1, // Only 1 student per day allowed
-				clerkshipId, // Associate preceptor with this clerkship via team
+				clerkshipId // Associate preceptor with this clerkship via team
 			});
 
 			// Set capacity rule explicitly
@@ -60,7 +62,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 					max_students_per_day: 1,
 					max_students_per_year: 20, // Must be >= 15 (3 students × 5 days)
 					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.execute();
 
@@ -76,7 +78,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// With max_students_per_day = 1, each date can only have 1 assignment
@@ -106,14 +108,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create ONE preceptor with max 1 student per day
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 1,
-				clerkshipId, // Associate preceptor with this clerkship via team
+				clerkshipId // Associate preceptor with this clerkship via team
 			});
 
 			await db
@@ -124,7 +128,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 					max_students_per_day: 1,
 					max_students_per_year: 20,
 					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.execute();
 
@@ -140,7 +144,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			expect(result.success).toBe(true);
@@ -148,16 +152,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 
 			// Get dates for each student
 			const student1Dates = result.assignments
-				.filter(a => a.studentId === studentIds[0])
-				.map(a => a.date)
+				.filter((a) => a.studentId === studentIds[0])
+				.map((a) => a.date)
 				.sort();
 			const student2Dates = result.assignments
-				.filter(a => a.studentId === studentIds[1])
-				.map(a => a.date)
+				.filter((a) => a.studentId === studentIds[1])
+				.map((a) => a.date)
 				.sort();
 
 			// Students should have NO overlapping dates
-			const overlap = student1Dates.filter(d => student2Dates.includes(d));
+			const overlap = student1Dates.filter((d) => student2Dates.includes(d));
 			expect(overlap.length).toBe(0);
 		});
 	});
@@ -169,14 +173,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create TWO preceptors with max 1 student per day each
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId,
 				maxStudents: 1,
-				clerkshipId, // Associate preceptors with this clerkship via team
+				clerkshipId // Associate preceptors with this clerkship via team
 			});
 
 			// Set capacity rules for both
@@ -189,7 +195,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 						max_students_per_day: 1,
 						max_students_per_year: 10,
 						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
 					})
 					.execute();
 			}
@@ -207,7 +213,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			expect(result.success).toBe(true);
@@ -215,8 +221,12 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 
 			// Each student should be assigned to ONE preceptor (continuous_single)
 			// But they should be DIFFERENT preceptors (since each can only take 1 per day)
-			const student1Preceptor = result.assignments.find(a => a.studentId === studentIds[0])?.preceptorId;
-			const student2Preceptor = result.assignments.find(a => a.studentId === studentIds[1])?.preceptorId;
+			const student1Preceptor = result.assignments.find(
+				(a) => a.studentId === studentIds[0]
+			)?.preceptorId;
+			const student2Preceptor = result.assignments.find(
+				(a) => a.studentId === studentIds[1]
+			)?.preceptorId;
 
 			// With proper load balancing, students should get different preceptors
 			// (assuming both preceptors have same availability on same dates)
@@ -233,14 +243,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create ONE preceptor with max 1 student per day
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 1,
-				clerkshipId, // Associate preceptor with this clerkship via team
+				clerkshipId // Associate preceptor with this clerkship via team
 			});
 
 			await db
@@ -251,7 +263,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 					max_students_per_day: 1,
 					max_students_per_year: 5, // Only 5 total per year
 					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.execute();
 
@@ -267,7 +279,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Only 1 student should be scheduled (5 days with 1 per day = 5 assignments)
@@ -285,14 +297,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create ONE preceptor with max 7 students per year
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2, // 2 per day
-				clerkshipId, // Associate preceptor with this clerkship via team
+				clerkshipId // Associate preceptor with this clerkship via team
 			});
 
 			await db
@@ -303,7 +317,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 					max_students_per_day: 2,
 					max_students_per_year: 7, // Only 7 assignment-days per year
 					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
 				})
 				.execute();
 
@@ -319,7 +333,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// With partial scheduling support:
@@ -342,14 +356,16 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create TWO preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId,
 				maxStudents: 5,
-				clerkshipId, // Associate preceptors with this clerkship via team
+				clerkshipId // Associate preceptors with this clerkship via team
 			});
 
 			// Set capacity rules for both (high capacity)
@@ -362,7 +378,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 						max_students_per_day: 5,
 						max_students_per_year: 50,
 						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
 					})
 					.execute();
 			}
@@ -381,7 +397,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// All students should be scheduled
@@ -389,7 +405,7 @@ describe('Integration Suite 9: Capacity and Load Balancing', () => {
 			expect(result.assignments.length).toBe(15); // 3 students × 5 days
 
 			// ALL assignments should be to the first preceptor (the one with availability)
-			const assignedPreceptors = new Set(result.assignments.map(a => a.preceptorId));
+			const assignedPreceptors = new Set(result.assignments.map((a) => a.preceptorId));
 			expect(assignedPreceptors.size).toBe(1);
 			expect(assignedPreceptors.has(preceptorIds[0])).toBe(true);
 			expect(assignedPreceptors.has(preceptorIds[1])).toBe(false);

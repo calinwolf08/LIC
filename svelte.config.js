@@ -6,10 +6,10 @@ const adapter = process.env.COOLIFY ? adapterNode() : adapterAuto();
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-    // Consult https://svelte.dev/docs/kit/integrations
-    // for more information about preprocessors
-    preprocess: vitePreprocess(),
-    kit: { adapter }
+	// Consult https://svelte.dev/docs/kit/integrations
+	// for more information about preprocessors
+	preprocess: vitePreprocess(),
+	kit: { adapter }
 };
 
 export default config;

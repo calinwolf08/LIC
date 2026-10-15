@@ -73,12 +73,15 @@ export class SiteAvailabilityConstraint implements Constraint {
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
 		// If siteId not provided, look it up from availability
-		const effectiveSiteId = siteId || PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
-			context,
-			assignment.preceptorId,
-			assignment.date
-		);
-		const siteName = context.sites?.find((s) => s.id === effectiveSiteId)?.name || effectiveSiteId || 'Unknown';
+		const effectiveSiteId =
+			siteId ||
+			PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+				context,
+				assignment.preceptorId,
+				assignment.date
+			);
+		const siteName =
+			context.sites?.find((s) => s.id === effectiveSiteId)?.name || effectiveSiteId || 'Unknown';
 
 		return `Site ${siteName} is not available on ${assignment.date}. Cannot assign ${student?.name} to ${preceptor?.name} for ${clerkship?.name}.`;
 	}

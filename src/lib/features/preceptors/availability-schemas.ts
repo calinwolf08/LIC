@@ -10,13 +10,12 @@ import { dateStringSchema, cuid2Schema } from '$lib/validation/common-schemas';
 /**
  * Schema for creating a new availability period
  */
-export const createAvailabilitySchema = z
-	.object({
-		preceptor_id: cuid2Schema,
-		site_id: cuid2Schema,
-		date: dateStringSchema,
-		is_available: z.number().int().min(0).max(1)
-	});
+export const createAvailabilitySchema = z.object({
+	preceptor_id: cuid2Schema,
+	site_id: cuid2Schema,
+	date: dateStringSchema,
+	is_available: z.number().int().min(0).max(1)
+});
 
 /**
  * Schema for updating availability

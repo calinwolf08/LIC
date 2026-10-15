@@ -60,7 +60,16 @@ export async function planRegeneration(
 	const { cutoff, strategy } = opts;
 	const rows = await db
 		.selectFrom('schedule_assignments')
-		.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'site_id', 'date', 'locked', 'kind'])
+		.select([
+			'id',
+			'student_id',
+			'preceptor_id',
+			'clerkship_id',
+			'site_id',
+			'date',
+			'locked',
+			'kind'
+		])
 		.where('schedule_id', '=', scheduleId)
 		.execute();
 
@@ -258,11 +267,7 @@ export async function identifyAffectedAssignments(
 	});
 
 	// Get all future assignments (not yet cleared)
-	const futureAssignments = await getAssignmentsByDateRange(
-		db,
-		regenerateFromDate,
-		endDate
-	);
+	const futureAssignments = await getAssignmentsByDateRange(db, regenerateFromDate, endDate);
 
 	// Build set of currently unavailable preceptor IDs
 	const unavailablePreceptorIds = new Set<string>();
@@ -494,12 +499,8 @@ export async function prepareRegenerationContext(
 
 	// Get all past assignments (before regeneration date)
 	const startDate = context.startDate || '1900-01-01'; // Fallback to very old date
-	const pastAssignments = await getAssignmentsByDateRange(
-		db,
-		startDate,
-		regenerateFromDate
-	).then((assignments) =>
-		assignments.filter((a) => a.date < regenerateFromDate)
+	const pastAssignments = await getAssignmentsByDateRange(db, startDate, regenerateFromDate).then(
+		(assignments) => assignments.filter((a) => a.date < regenerateFromDate)
 	);
 
 	// Credit past assignments toward student requirements
@@ -510,12 +511,7 @@ export async function prepareRegenerationContext(
 
 	// Apply strategy-specific logic
 	if (strategy === 'minimal-change') {
-		const affected = await identifyAffectedAssignments(
-			db,
-			context,
-			regenerateFromDate,
-			endDate
-		);
+		const affected = await identifyAffectedAssignments(db, context, regenerateFromDate, endDate);
 
 		preservedAssignments = affected.preservableAssignments.length;
 		affectedAssignments = affected.affectedAssignments.length;
@@ -648,12 +644,7 @@ export async function analyzeRegenerationImpact(
 
 	// Strategy-specific analysis
 	if (strategy === 'minimal-change') {
-		const affected = await identifyAffectedAssignments(
-			db,
-			context,
-			regenerateFromDate,
-			endDate
-		);
+		const affected = await identifyAffectedAssignments(db, context, regenerateFromDate, endDate);
 
 		preservableAssignments = affected.preservableAssignments;
 		affectedAssignments = affected.affectedAssignments;

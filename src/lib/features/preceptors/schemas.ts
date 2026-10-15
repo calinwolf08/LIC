@@ -5,7 +5,12 @@
  */
 
 import { z } from 'zod';
-import { emailSchema, nameSchema, cuid2Schema, positiveIntSchema } from '$lib/validation/common-schemas';
+import {
+	emailSchema,
+	nameSchema,
+	cuid2Schema,
+	positiveIntSchema
+} from '$lib/validation/common-schemas';
 
 /**
  * Phone schema for validation
@@ -16,10 +21,9 @@ const phoneSchema = z
 	.pipe(
 		z
 			.string()
-			.refine(
-				(val) => /^[\d\s\-\(\)\+\.]+$/.test(val) && val.length >= 10 && val.length <= 20,
-				{ message: 'Invalid phone number format (10-20 digits allowed)' }
-			)
+			.refine((val) => /^[\d\s\-\(\)\+\.]+$/.test(val) && val.length >= 10 && val.length <= 20, {
+				message: 'Invalid phone number format (10-20 digits allowed)'
+			})
 			.optional()
 	);
 

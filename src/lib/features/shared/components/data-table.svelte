@@ -16,7 +16,13 @@
 		onRowClick?: (item: T) => void;
 	}
 
-	let { data, columns, loading = false, emptyMessage = 'No data available', onRowClick }: Props = $props();
+	let {
+		data,
+		columns,
+		loading = false,
+		emptyMessage = 'No data available',
+		onRowClick
+	}: Props = $props();
 
 	let sortColumn = $state<keyof T | string | null>(null);
 	let sortDirection = $state<'asc' | 'desc'>('asc');

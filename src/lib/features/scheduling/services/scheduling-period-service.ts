@@ -38,7 +38,7 @@ const ENTITY_TABLE_MAP: Record<ScheduleEntityType, { table: keyof DB; fkColumn: 
 	health_systems: { table: 'schedule_health_systems', fkColumn: 'health_system_id' },
 	clerkships: { table: 'schedule_clerkships', fkColumn: 'clerkship_id' },
 	teams: { table: 'schedule_teams', fkColumn: 'team_id' },
-	configurations: { table: 'schedule_configurations', fkColumn: 'configuration_id' },
+	configurations: { table: 'schedule_configurations', fkColumn: 'configuration_id' }
 };
 
 // ========================================
@@ -258,10 +258,7 @@ export async function deleteSchedulingPeriod(db: Kysely<DB>, id: string): Promis
 	await db.deleteFrom('schedule_health_systems').where('schedule_id', '=', id).execute();
 
 	// Delete the schedule itself
-	await db
-		.deleteFrom('scheduling_periods')
-		.where('id', '=', id)
-		.execute();
+	await db.deleteFrom('scheduling_periods').where('id', '=', id).execute();
 
 	log.info('Scheduling period deleted', { id, name: period.name });
 }
@@ -334,20 +331,11 @@ export async function getOverlappingPeriods(
 		.where((eb) =>
 			eb.or([
 				// Period starts within range
-				eb.and([
-					eb('start_date', '>=', startDate),
-					eb('start_date', '<=', endDate)
-				]),
+				eb.and([eb('start_date', '>=', startDate), eb('start_date', '<=', endDate)]),
 				// Period ends within range
-				eb.and([
-					eb('end_date', '>=', startDate),
-					eb('end_date', '<=', endDate)
-				]),
+				eb.and([eb('end_date', '>=', startDate), eb('end_date', '<=', endDate)]),
 				// Period completely contains range
-				eb.and([
-					eb('start_date', '<=', startDate),
-					eb('end_date', '>=', endDate)
-				])
+				eb.and([eb('start_date', '<=', startDate), eb('end_date', '>=', endDate)])
 			])
 		)
 		.execute();
@@ -356,9 +344,7 @@ export async function getOverlappingPeriods(
 /**
  * Get upcoming scheduling periods (start date in the future)
  */
-export async function getUpcomingPeriods(
-	db: Kysely<DB>
-): Promise<Selectable<SchedulingPeriods>[]> {
+export async function getUpcomingPeriods(db: Kysely<DB>): Promise<Selectable<SchedulingPeriods>[]> {
 	const today = new Date().toISOString().split('T')[0];
 
 	return await db
@@ -372,9 +358,7 @@ export async function getUpcomingPeriods(
 /**
  * Get past scheduling periods (end date in the past)
  */
-export async function getPastPeriods(
-	db: Kysely<DB>
-): Promise<Selectable<SchedulingPeriods>[]> {
+export async function getPastPeriods(db: Kysely<DB>): Promise<Selectable<SchedulingPeriods>[]> {
 	const today = new Date().toISOString().split('T')[0];
 
 	return await db
@@ -388,9 +372,7 @@ export async function getPastPeriods(
 /**
  * Get current scheduling periods (includes today)
  */
-export async function getCurrentPeriods(
-	db: Kysely<DB>
-): Promise<Selectable<SchedulingPeriods>[]> {
+export async function getCurrentPeriods(db: Kysely<DB>): Promise<Selectable<SchedulingPeriods>[]> {
 	const today = new Date().toISOString().split('T')[0];
 
 	return await db
@@ -454,7 +436,7 @@ export async function addEntityToSchedule(
 			id: crypto.randomUUID(),
 			schedule_id: scheduleId,
 			[fkColumn]: entityId,
-			created_at: new Date().toISOString(),
+			created_at: new Date().toISOString()
 		} as any)
 		.execute();
 }
@@ -575,7 +557,7 @@ export async function getScheduleEntityCounts(
 		health_systems: 0,
 		clerkships: 0,
 		teams: 0,
-		configurations: 0,
+		configurations: 0
 	};
 
 	for (const entityType of Object.keys(ENTITY_TABLE_MAP) as ScheduleEntityType[]) {

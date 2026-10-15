@@ -42,30 +42,27 @@
 
 {#if open && conflicts}
 	<!-- Backdrop -->
-	<div
-		class="fixed inset-0 z-50 bg-black/50"
-		onclick={onCancel}
-		role="presentation"
-	></div>
+	<div class="fixed inset-0 z-50 bg-black/50" onclick={onCancel} role="presentation"></div>
 
 	<!-- Dialog -->
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
+	<div class="fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
 		<Card class="p-6">
-			<h3 class="text-lg font-semibold mb-2 text-amber-600">Scheduling Conflict</h3>
+			<h3 class="mb-2 text-lg font-semibold text-amber-600">Scheduling Conflict</h3>
 
-			<p class="text-muted-foreground mb-4">
+			<p class="mb-4 text-muted-foreground">
 				There {conflicts.count === 1 ? 'is' : 'are'} <strong>{conflicts.count}</strong> existing
 				assignment{conflicts.count === 1 ? '' : 's'} on <strong>{formatDate(date)}</strong>.
 			</p>
 
-			<p class="text-sm mb-4">
-				Adding this blackout date will delete these assignments. The affected students may need to be rescheduled.
+			<p class="mb-4 text-sm">
+				Adding this blackout date will delete these assignments. The affected students may need to
+				be rescheduled.
 			</p>
 
 			<!-- Affected Assignments -->
-			<div class="border rounded-md mb-4 max-h-48 overflow-y-auto">
+			<div class="mb-4 max-h-48 overflow-y-auto rounded-md border">
 				<table class="w-full text-sm">
-					<thead class="bg-muted/50 sticky top-0">
+					<thead class="sticky top-0 bg-muted/50">
 						<tr>
 							<th class="px-3 py-2 text-left font-medium">Student</th>
 							<th class="px-3 py-2 text-left font-medium">Clerkship</th>
@@ -84,15 +81,13 @@
 				</table>
 			</div>
 
-			<div class="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4">
+			<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
 				<strong>Warning:</strong> This action cannot be undone. Consider rescheduling affected students
 				after adding the blackout date.
 			</div>
 
 			<div class="flex justify-end gap-2">
-				<Button variant="outline" onclick={onCancel}>
-					Cancel
-				</Button>
+				<Button variant="outline" onclick={onCancel}>Cancel</Button>
 				<Button variant="destructive" onclick={onConfirm}>
 					Delete Assignments & Add Blackout Date
 				</Button>

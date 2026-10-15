@@ -1,7 +1,7 @@
-import type { PageServerLoad } from "./$types";
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	// No server-side form initialization needed
-	// Forms use client-side validation with better-auth
+	// Forms use client-side validation and sign up via $lib/identity-client
 	return {};
 };

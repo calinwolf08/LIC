@@ -1,9 +1,11 @@
 # Step 06: Students - UI
 
 ## Overview
+
 Implement the user interface for student management, including a list view with data table, create/edit forms, and delete confirmation. This provides administrators with an intuitive way to manage students.
 
 ## Dependencies
+
 - ✅ Step 04: Students - Service Layer
 - ✅ Step 05: Students - API Routes
 - ✅ shadcn-svelte components installed (Card, Button, Input, Form, etc.)
@@ -11,6 +13,7 @@ Implement the user interface for student management, including a list view with 
 ## Requirements
 
 ### Pages & Components
+
 - Student list page with data table
 - Create student form (modal or separate page)
 - Edit student form
@@ -19,6 +22,7 @@ Implement the user interface for student management, including a list view with 
 - Success feedback (toasts/alerts)
 
 ### Features
+
 - View all students in sortable table
 - Search/filter students
 - Add new student
@@ -30,6 +34,7 @@ Implement the user interface for student management, including a list view with 
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/students/
 ├── components/
@@ -60,24 +65,26 @@ Implement the user interface for student management, including a list view with 
 Reusable data table component (will be used across multiple features).
 
 **Props:**
+
 ```typescript
 interface Column<T> {
-  key: string;
-  label: string;
-  sortable?: boolean;
-  render?: (item: T) => any;
+	key: string;
+	label: string;
+	sortable?: boolean;
+	render?: (item: T) => any;
 }
 
 interface Props<T> {
-  data: T[];
-  columns: Column<T>[];
-  loading?: boolean;
-  emptyMessage?: string;
-  onRowClick?: (item: T) => void;
+	data: T[];
+	columns: Column<T>[];
+	loading?: boolean;
+	emptyMessage?: string;
+	onRowClick?: (item: T) => void;
 }
 ```
 
 **Features:**
+
 - Column sorting
 - Empty state message
 - Loading state
@@ -85,15 +92,16 @@ interface Props<T> {
 - Responsive design
 
 **Example Usage:**
+
 ```svelte
 <DataTable
-  data={students}
-  columns={[
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-  ]}
-  emptyMessage="No students found"
-  onRowClick={(student) => goto(`/students/${student.id}`)}
+	data={students}
+	columns={[
+		{ key: 'name', label: 'Name', sortable: true },
+		{ key: 'email', label: 'Email', sortable: true }
+	]}
+	emptyMessage="No students found"
+	onRowClick={(student) => goto(`/students/${student.id}`)}
 />
 ```
 
@@ -104,15 +112,17 @@ interface Props<T> {
 Form component for creating or editing students.
 
 **Props:**
+
 ```typescript
 interface Props {
-  student?: StudentsTable;  // Undefined for create, populated for edit
-  onSuccess?: () => void;
-  onCancel?: () => void;
+	student?: StudentsTable; // Undefined for create, populated for edit
+	onSuccess?: () => void;
+	onCancel?: () => void;
 }
 ```
 
 **Features:**
+
 - Uses shadcn Form components
 - Client-side validation with createStudentSchema
 - Loading state during submission
@@ -121,6 +131,7 @@ interface Props {
 - Success callback after save
 
 **Implementation:**
+
 - Use $state for form data and loading state
 - Validate on submit
 - Call appropriate API endpoint
@@ -128,11 +139,12 @@ interface Props {
 - Call onSuccess callback on success
 
 **Example Usage:**
+
 ```svelte
 <StudentForm
-  student={existingStudent}
-  onSuccess={() => goto('/students')}
-  onCancel={() => goto('/students')}
+	student={existingStudent}
+	onSuccess={() => goto('/students')}
+	onCancel={() => goto('/students')}
 />
 ```
 
@@ -143,33 +155,37 @@ interface Props {
 Student list component with table and actions.
 
 **Props:**
+
 ```typescript
 interface Props {
-  students: StudentsTable[];
-  loading?: boolean;
-  onEdit?: (student: StudentsTable) => void;
-  onDelete?: (student: StudentsTable) => void;
+	students: StudentsTable[];
+	loading?: boolean;
+	onEdit?: (student: StudentsTable) => void;
+	onDelete?: (student: StudentsTable) => void;
 }
 ```
 
 **Features:**
+
 - Uses DataTable component
 - Action buttons (Edit, Delete) for each row
 - Empty state when no students
 - Loading state
 
 **Columns:**
+
 - Name (sortable)
 - Email (sortable)
 - Created Date
 - Actions (Edit, Delete buttons)
 
 **Example Usage:**
+
 ```svelte
 <StudentList
-  students={data.students}
-  onEdit={(student) => goto(`/students/${student.id}/edit`)}
-  onDelete={(student) => handleDelete(student)}
+	students={data.students}
+	onEdit={(student) => goto(`/students/${student.id}/edit`)}
+	onDelete={(student) => handleDelete(student)}
 />
 ```
 
@@ -180,16 +196,18 @@ interface Props {
 Confirmation dialog for deleting students.
 
 **Props:**
+
 ```typescript
 interface Props {
-  open: boolean;
-  student: StudentsTable | null;
-  onConfirm: (student: StudentsTable) => Promise<void>;
-  onCancel: () => void;
+	open: boolean;
+	student: StudentsTable | null;
+	onConfirm: (student: StudentsTable) => Promise<void>;
+	onCancel: () => void;
 }
 ```
 
 **Features:**
+
 - Shows student name in confirmation message
 - Warning about cannot undo
 - Disabled confirm button during deletion
@@ -197,12 +215,13 @@ interface Props {
 - Calls API DELETE endpoint
 
 **Example Usage:**
+
 ```svelte
 <DeleteStudentDialog
-  open={showDeleteDialog}
-  student={studentToDelete}
-  onConfirm={handleDeleteConfirm}
-  onCancel={() => showDeleteDialog = false}
+	open={showDeleteDialog}
+	student={studentToDelete}
+	onConfirm={handleDeleteConfirm}
+	onCancel={() => (showDeleteDialog = false)}
 />
 ```
 
@@ -213,20 +232,22 @@ interface Props {
 Page load function to fetch students.
 
 **Exports:**
+
 ```typescript
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch }) => {
-  const response = await fetch('/api/students');
-  const { data: students } = await response.json();
+	const response = await fetch('/api/students');
+	const { data: students } = await response.json();
 
-  return {
-    students
-  };
+	return {
+		students
+	};
 };
 ```
 
 **Requirements:**
+
 - Fetch students from API
 - Handle loading state
 - Handle errors
@@ -239,6 +260,7 @@ export const load: PageLoad = async ({ fetch }) => {
 Main students page.
 
 **Features:**
+
 - Page header with title and "Add Student" button
 - StudentList component
 - Delete confirmation dialog
@@ -246,48 +268,49 @@ Main students page.
 - Success messages (toast/alert)
 
 **Layout:**
+
 ```svelte
 <script lang="ts">
-  import type { PageData } from './$types';
-  import StudentList from '$lib/features/students/components/student-list.svelte';
-  import DeleteStudentDialog from '$lib/features/students/components/delete-student-dialog.svelte';
-  import { Button } from '$lib/components/ui/button';
+	import type { PageData } from './$types';
+	import StudentList from '$lib/features/students/components/student-list.svelte';
+	import DeleteStudentDialog from '$lib/features/students/components/delete-student-dialog.svelte';
+	import { Button } from '$lib/components/ui/button';
 
-  let { data }: { data: PageData } = $props();
+	let { data }: { data: PageData } = $props();
 
-  let showDeleteDialog = $state(false);
-  let studentToDelete = $state<StudentsTable | null>(null);
+	let showDeleteDialog = $state(false);
+	let studentToDelete = $state<StudentsTable | null>(null);
 
-  async function handleDelete(student: StudentsTable) {
-    studentToDelete = student;
-    showDeleteDialog = true;
-  }
+	async function handleDelete(student: StudentsTable) {
+		studentToDelete = student;
+		showDeleteDialog = true;
+	}
 
-  async function handleDeleteConfirm(student: StudentsTable) {
-    await fetch(`/api/students/${student.id}`, { method: 'DELETE' });
-    // Refresh page data
-    location.reload();
-  }
+	async function handleDeleteConfirm(student: StudentsTable) {
+		await fetch(`/api/students/${student.id}`, { method: 'DELETE' });
+		// Refresh page data
+		location.reload();
+	}
 </script>
 
 <div class="container mx-auto py-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-3xl font-bold">Students</h1>
-    <Button href="/students/new">Add Student</Button>
-  </div>
+	<div class="mb-6 flex items-center justify-between">
+		<h1 class="text-3xl font-bold">Students</h1>
+		<Button href="/students/new">Add Student</Button>
+	</div>
 
-  <StudentList
-    students={data.students}
-    onEdit={(student) => goto(`/students/${student.id}/edit`)}
-    onDelete={handleDelete}
-  />
+	<StudentList
+		students={data.students}
+		onEdit={(student) => goto(`/students/${student.id}/edit`)}
+		onDelete={handleDelete}
+	/>
 
-  <DeleteStudentDialog
-    open={showDeleteDialog}
-    student={studentToDelete}
-    onConfirm={handleDeleteConfirm}
-    onCancel={() => showDeleteDialog = false}
-  />
+	<DeleteStudentDialog
+		open={showDeleteDialog}
+		student={studentToDelete}
+		onConfirm={handleDeleteConfirm}
+		onCancel={() => (showDeleteDialog = false)}
+	/>
 </div>
 ```
 
@@ -298,25 +321,24 @@ Main students page.
 Create new student page.
 
 **Features:**
+
 - Page header
 - StudentForm component (no student prop = create mode)
 - Cancel button returns to list
 - Success redirects to list
 
 **Layout:**
+
 ```svelte
 <script lang="ts">
-  import StudentForm from '$lib/features/students/components/student-form.svelte';
-  import { goto } from '$app/navigation';
+	import StudentForm from '$lib/features/students/components/student-form.svelte';
+	import { goto } from '$app/navigation';
 </script>
 
-<div class="container mx-auto py-8 max-w-2xl">
-  <h1 class="text-3xl font-bold mb-6">Add Student</h1>
+<div class="container mx-auto max-w-2xl py-8">
+	<h1 class="mb-6 text-3xl font-bold">Add Student</h1>
 
-  <StudentForm
-    onSuccess={() => goto('/students')}
-    onCancel={() => goto('/students')}
-  />
+	<StudentForm onSuccess={() => goto('/students')} onCancel={() => goto('/students')} />
 </div>
 ```
 
@@ -327,6 +349,7 @@ Create new student page.
 ### StudentForm Component
 
 **State Management:**
+
 - `formData = $state({ name: '', email: '' })`
 - `errors = $state<Record<string, string>>({})`
 - `isSubmitting = $state(false)`
@@ -350,6 +373,7 @@ Create new student page.
 ### DeleteStudentDialog Component
 
 **State Management:**
+
 - `isDeleting = $state(false)`
 - `error = $state<string | null>(null)`
 
@@ -370,6 +394,7 @@ While UI components don't require unit tests per requirements, test the page beh
 ### Manual Testing Checklist
 
 **Students List Page:**
+
 - ✅ Page loads and displays students
 - ✅ Table is sortable by name and email
 - ✅ "Add Student" button navigates to new student page
@@ -378,6 +403,7 @@ While UI components don't require unit tests per requirements, test the page beh
 - ✅ Empty state shows when no students
 
 **Create Student:**
+
 - ✅ Form validation shows errors
 - ✅ Cannot submit with invalid data
 - ✅ Success creates student and redirects
@@ -385,6 +411,7 @@ While UI components don't require unit tests per requirements, test the page beh
 - ✅ Cancel button returns to list
 
 **Edit Student:**
+
 - ✅ Form pre-fills with student data
 - ✅ Can update name
 - ✅ Can update email
@@ -392,6 +419,7 @@ While UI components don't require unit tests per requirements, test the page beh
 - ✅ Success updates student and redirects
 
 **Delete Student:**
+
 - ✅ Dialog shows student name
 - ✅ Cancel closes dialog
 - ✅ Confirm deletes student

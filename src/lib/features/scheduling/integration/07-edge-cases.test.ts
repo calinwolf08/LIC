@@ -16,7 +16,7 @@ import {
 	createBlackoutDates,
 	clearAllTestData,
 	createPreceptorAvailability,
-	generateDateRange,
+	generateDateRange
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -42,14 +42,16 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle case where there are more students than capacity', async () => {
 			// Setup: Many students, limited preceptors
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Small Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Geriatrics', 'Geriatrics', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Geriatrics', 'Geriatrics', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 5); // 5 students
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				// Only 2 preceptors
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -63,7 +65,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -77,7 +79,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions - engine should complete
@@ -90,7 +92,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 
 			// Verify all 5 students got scheduled (2 preceptors * 2 students/day = 4 concurrent)
 			// With staggered starts, all 5 should fit
-			const scheduledStudents = new Set(result.assignments.map(a => a.studentId));
+			const scheduledStudents = new Set(result.assignments.map((a) => a.studentId));
 			expect(scheduledStudents.size).toBe(5);
 		});
 	});
@@ -98,7 +100,9 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 	describe('Test 2: No Available Preceptors', () => {
 		it('should gracefully handle case where no preceptors have availability', async () => {
 			// Setup: Preceptors exist but have no availability records
-			const clerkshipId = await createTestClerkship(db, 'Neurosurgery', 'Neurosurgery', { requiredDays: 28 });
+			const clerkshipId = await createTestClerkship(db, 'Neurosurgery', 'Neurosurgery', {
+				requiredDays: 28
+			});
 			const studentIds = await createTestStudents(db, 3);
 			// Create preceptors but don't create availability
 			await createTestPreceptors(db, 2, { clerkshipId });
@@ -114,7 +118,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions - engine should complete without crashing
@@ -141,13 +145,15 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle preceptors with limited availability windows', async () => {
 			// Setup - single student
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Busy Practice');
-			const clerkshipId = await createTestClerkship(db, 'Primary Care', 'Family Medicine', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Primary Care', 'Family Medicine', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -162,7 +168,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 3,
-					maxStudentsPerYear: 100,
+					maxStudentsPerYear: 100
 				});
 			}
 
@@ -179,7 +185,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions - engine should complete without crashing
@@ -208,12 +214,14 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle case where preceptor capacity is limited', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Full Practice');
-			const clerkshipId = await createTestClerkship(db, 'Ophthalmology', 'Ophthalmology', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Ophthalmology', 'Ophthalmology', {
+				requiredDays: 14
+			});
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -227,7 +235,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 2,
-					maxStudentsPerYear: 50,
+					maxStudentsPerYear: 50
 				});
 			}
 
@@ -242,7 +250,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const firstResult = await engine.schedule(firstBatchIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 			expect(firstResult.success).toBe(true);
 			expect(firstResult.assignments.length).toBe(28); // 2 students * 14 days
@@ -252,7 +260,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const secondResult = await engine.schedule(secondBatchIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions - both batches should succeed
@@ -265,12 +273,14 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle requirement with minimum (1 day) gracefully', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'One Day Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Observation', 'General', { requiredDays: 1 });
+			const clerkshipId = await createTestClerkship(db, 'Observation', 'General', {
+				requiredDays: 1
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId: siteIds[0],
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -291,7 +301,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -306,13 +316,15 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle long rotation periods', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Long-term Facility');
-			const clerkshipId = await createTestClerkship(db, 'Longitudinal Care', 'Family Medicine', { requiredDays: 60 });
+			const clerkshipId = await createTestClerkship(db, 'Longitudinal Care', 'Family Medicine', {
+				requiredDays: 60
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -327,7 +339,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 3,
-					maxStudentsPerYear: 100,
+					maxStudentsPerYear: 100
 				});
 			}
 
@@ -341,7 +353,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -363,11 +375,13 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should handle empty student list gracefully', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Empty Test Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Empty Test', 'General', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Empty Test', 'General', {
+				requiredDays: 14
+			});
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId: siteIds[0],
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -387,7 +401,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule([], [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -407,7 +421,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -421,13 +435,15 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should not persist assignments in dry run mode', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Test Rotation', 'General', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Test Rotation', 'General', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -447,7 +463,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: true,
+				dryRun: true
 			});
 
 			// Assertions
@@ -470,12 +486,14 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 		it('should complete scheduling even with some missing data', async () => {
 			// Setup - test that engine handles edge cases in data
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Edge Case Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Edge Test', 'General', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Edge Test', 'General', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -494,7 +512,7 @@ describe('Integration Suite 7: Edge Cases and Error Handling', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Should complete successfully

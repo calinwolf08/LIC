@@ -36,10 +36,10 @@ npm run dev             # http://localhost:5173
 
 ### Seed logins
 
-| User                | Password      | Entitlement              |
-| ------------------- | ------------- | ------------------------ |
-| `admin@example.com` | `password123` | `autogen` (sees Stage 2) |
-| `basic@example.com` | `password123` | none (Stage 1 only)      |
+| User                | Password      | Organization       | Plan                          |
+| ------------------- | ------------- | ------------------ | ----------------------------- |
+| `admin@example.com` | `password123` | `Demo Program`     | Pro (`autogen`, sees Stage 2) |
+| `basic@example.com` | `password123` | `Tenant B Program` | Standard (Stage 1 only)       |
 
 The seed also creates a second account whose data is all named **"Tenant B …"**
 (owned by `basic@example.com`), so tenant-isolation can be checked by hand and
@@ -49,24 +49,29 @@ by the `tenant-isolation` e2e journey. The seed is idempotent.
 
 So the calendar, schedule-health panel and override review have content on first
 run, `admin@example.com` starts with a hand-built set of assignments (all dates
-anchored to *today*, so the demo never rots into the past):
+anchored to _today_, so the demo never rots into the past):
 
-| Scenario                      | What it demonstrates                                                   |
-| ----------------------------- | ---------------------------------------------------------------------- |
-| Clean 5-day block             | A normal calendar run and healthy progress bars                        |
-| Partially-complete clerkship  | The requirement strip and the "days left" badge (10 of 28 days)        |
-| Fully-complete clerkship      | The completed state (14 of 14 days)                                    |
-| Preceptor over capacity ×4    | Schedule health counts **4** findings (one per day, not per student) and the override review groups the run into one 4-day row; carries an accepted `preceptor_capacity` override |
-| Resolved `not_onboarded`      | The override review's active/resolved toggle — the student has since onboarded, so the exception reads as resolved |
+| Scenario                     | What it demonstrates                                                                                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clean 5-day block            | A normal calendar run and healthy progress bars                                                                                                                                   |
+| Partially-complete clerkship | The requirement strip and the "days left" badge (10 of 28 days)                                                                                                                   |
+| Fully-complete clerkship     | The completed state (14 of 14 days)                                                                                                                                               |
+| Preceptor over capacity ×4   | Schedule health counts **4** findings (one per day, not per student) and the override review groups the run into one 4-day row; carries an accepted `preceptor_capacity` override |
+| Resolved `not_onboarded`     | The override review's active/resolved toggle — the student has since onboarded, so the exception reads as resolved                                                                |
 
 Tenant B gets the same shape at smaller scale (two students, one accepted
 override) so isolation tests have more than a single row to miss.
 
-Grant/revoke the Stage 2 entitlement manually:
+Stage 2 access comes from the **plan of the user's organization** (Pro includes
+auto-generation; Standard does not). Change it manually:
 
 ```bash
-npx tsx scripts/set-entitlement.ts <email> autogen on|off
+npx tsx scripts/set-plan.ts <email> standard|pro [month|year]
 ```
+
+Payments are not live: `PAYMENT_PROVIDER` defaults to `manual`, which activates
+any plan immediately and for free. See
+[`docs/plans/signup-and-billing-plan.md`](docs/plans/signup-and-billing-plan.md).
 
 ### Resetting data
 
@@ -91,8 +96,13 @@ using it.
 
 ## Deployment
 
+**Production runs on Coolify from a Docker image built by GitHub Actions** —
+merging to `master` runs CI, then `.github/workflows/deploy.yml` builds the
+image, pushes it to `ghcr.io/calinwolf08/lic` and triggers Coolify. Step-by-step
+GitHub + Coolify setup: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 The app is a SvelteKit `adapter-node` build (selected automatically when the
-`COOLIFY` env var is set) started with `node build`.
+`COOLIFY` env var is set, as the `Dockerfile` does) started with `node build`.
 
 **The database engine is chosen by environment variables** — SQLite by default
 (local dev and tests), PostgreSQL in production — with no code changes. See
@@ -101,8 +111,9 @@ The app is a SvelteKit `adapter-node` build (selected automatically when the
 **1. Set up the database before the server starts.** better-auth does **not**
 create its tables at runtime, and the app's migrations must be applied — on a
 fresh database the first sign-up returns a 500 (`no such table: user`) until
-this runs. One idempotent command does both, on whichever engine the environment
-selects, and is safe to run on every deploy (it **never** seeds):
+this runs. One idempotent command does both — and backfills an organization and
+a subscription for any account missing one — on whichever engine the
+environment selects, and is safe to run on every deploy (it **never** seeds):
 
 ```bash
 npm run db:setup
@@ -146,7 +157,7 @@ the schema and boots.
 #### SQLite
 
 Put the file on a **persistent volume**, or every redeploy starts from an empty
-database. Point `DATABASE_PATH` at a mounted directory and mount the *directory*
+database. Point `DATABASE_PATH` at a mounted directory and mount the _directory_
 (WAL mode also writes `…-wal` / `…-shm` sidecar files):
 
 ```
@@ -204,7 +215,7 @@ The Playwright suite is organised by the plan in `docs/plans/e2e-validation-plan
 ```
 src/lib/features/<feature>/     feature verticals (components / services / schemas)
 src/lib/components/             shared UI primitives (PageHeader, dialogs, toast, …)
-src/lib/server/                 server-only helpers (entitlements)
+src/lib/server/                 server-only: identity, authz, billing, entitlements
 src/routes/(app)/               authenticated app pages
 src/routes/(app)/generate/      gated Stage 2 hub
 src/routes/api/                 JSON API endpoints

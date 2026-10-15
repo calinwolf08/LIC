@@ -38,18 +38,24 @@ describe('FallbackPreceptorResolver', () => {
 		clerkshipId = nanoid();
 
 		// Create health systems
-		await db.insertInto('health_systems').values([
-			{ id: healthSystem1Id, name: 'Hospital System 1' },
-			{ id: healthSystem2Id, name: 'Hospital System 2' },
-		]).execute();
+		await db
+			.insertInto('health_systems')
+			.values([
+				{ id: healthSystem1Id, name: 'Hospital System 1' },
+				{ id: healthSystem2Id, name: 'Hospital System 2' }
+			])
+			.execute();
 
 		// Create clerkship
-		await db.insertInto('clerkships').values({
-			id: clerkshipId,
-			name: 'Test Clerkship',
-			clerkship_type: 'outpatient',
-			required_days: 5,
-		}).execute();
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: clerkshipId,
+				name: 'Test Clerkship',
+				clerkship_type: 'outpatient',
+				required_days: 5
+			})
+			.execute();
 
 		// Create preceptors
 		preceptor1Id = nanoid();
@@ -57,40 +63,75 @@ describe('FallbackPreceptorResolver', () => {
 		preceptor3Id = nanoid();
 		preceptor4Id = nanoid();
 
-		await db.insertInto('preceptors').values([
-			{ id: preceptor1Id, name: 'Dr. One', email: 'one@test.edu', health_system_id: healthSystem1Id },
-			{ id: preceptor2Id, name: 'Dr. Two', email: 'two@test.edu', health_system_id: healthSystem1Id },
-			{ id: preceptor3Id, name: 'Dr. Three', email: 'three@test.edu', health_system_id: healthSystem1Id },
-			{ id: preceptor4Id, name: 'Dr. Four', email: 'four@test.edu', health_system_id: healthSystem2Id },
-		]).execute();
+		await db
+			.insertInto('preceptors')
+			.values([
+				{
+					id: preceptor1Id,
+					name: 'Dr. One',
+					email: 'one@test.edu',
+					health_system_id: healthSystem1Id
+				},
+				{
+					id: preceptor2Id,
+					name: 'Dr. Two',
+					email: 'two@test.edu',
+					health_system_id: healthSystem1Id
+				},
+				{
+					id: preceptor3Id,
+					name: 'Dr. Three',
+					email: 'three@test.edu',
+					health_system_id: healthSystem1Id
+				},
+				{
+					id: preceptor4Id,
+					name: 'Dr. Four',
+					email: 'four@test.edu',
+					health_system_id: healthSystem2Id
+				}
+			])
+			.execute();
 
 		// Create teams
 		teamAId = nanoid();
 		teamBId = nanoid();
 		teamCId = nanoid();
 
-		await db.insertInto('preceptor_teams').values([
-			{ id: teamAId, clerkship_id: clerkshipId, name: 'Team A' },
-			{ id: teamBId, clerkship_id: clerkshipId, name: 'Team B' },
-			{ id: teamCId, clerkship_id: clerkshipId, name: 'Team C' },
-		]).execute();
+		await db
+			.insertInto('preceptor_teams')
+			.values([
+				{ id: teamAId, clerkship_id: clerkshipId, name: 'Team A' },
+				{ id: teamBId, clerkship_id: clerkshipId, name: 'Team B' },
+				{ id: teamCId, clerkship_id: clerkshipId, name: 'Team C' }
+			])
+			.execute();
 
 		// Add team members
 		// Team A: Preceptor 1 (lead, priority 1) + Preceptor 2 (priority 2)
-		await db.insertInto('preceptor_team_members').values([
-			{ id: nanoid(), team_id: teamAId, preceptor_id: preceptor1Id, priority: 1, role: 'lead' },
-			{ id: nanoid(), team_id: teamAId, preceptor_id: preceptor2Id, priority: 2, role: 'member' },
-		]).execute();
+		await db
+			.insertInto('preceptor_team_members')
+			.values([
+				{ id: nanoid(), team_id: teamAId, preceptor_id: preceptor1Id, priority: 1, role: 'lead' },
+				{ id: nanoid(), team_id: teamAId, preceptor_id: preceptor2Id, priority: 2, role: 'member' }
+			])
+			.execute();
 
 		// Team B: Preceptor 3 (same health system as Team A)
-		await db.insertInto('preceptor_team_members').values([
-			{ id: nanoid(), team_id: teamBId, preceptor_id: preceptor3Id, priority: 1, role: 'lead' },
-		]).execute();
+		await db
+			.insertInto('preceptor_team_members')
+			.values([
+				{ id: nanoid(), team_id: teamBId, preceptor_id: preceptor3Id, priority: 1, role: 'lead' }
+			])
+			.execute();
 
 		// Team C: Preceptor 4 (different health system)
-		await db.insertInto('preceptor_team_members').values([
-			{ id: nanoid(), team_id: teamCId, preceptor_id: preceptor4Id, priority: 1, role: 'lead' },
-		]).execute();
+		await db
+			.insertInto('preceptor_team_members')
+			.values([
+				{ id: nanoid(), team_id: teamCId, preceptor_id: preceptor4Id, priority: 1, role: 'lead' }
+			])
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -108,7 +149,7 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// Should find Preceptor 2 (same team, tier 1)
-			const tier1 = result.filter(p => p.tier === 1);
+			const tier1 = result.filter((p) => p.tier === 1);
 			expect(tier1.length).toBe(1);
 			expect(tier1[0].id).toBe(preceptor2Id);
 			expect(tier1[0].teamId).toBe(teamAId);
@@ -125,7 +166,7 @@ describe('FallbackPreceptorResolver', () => {
 
 			// Tier 1: Preceptor 1, 2 (Team A)
 			// Tier 2: Preceptor 3 (Team B, same health system)
-			const tier2 = result.filter(p => p.tier === 2);
+			const tier2 = result.filter((p) => p.tier === 2);
 			expect(tier2.length).toBe(1);
 			expect(tier2[0].id).toBe(preceptor3Id);
 			expect(tier2[0].teamId).toBe(teamBId);
@@ -141,7 +182,7 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// Tier 3: Preceptor 4 (Team C, different health system)
-			const tier3 = result.filter(p => p.tier === 3);
+			const tier3 = result.filter((p) => p.tier === 3);
 			expect(tier3.length).toBe(1);
 			expect(tier3[0].id).toBe(preceptor4Id);
 			expect(tier3[0].teamId).toBe(teamCId);
@@ -157,10 +198,10 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// Should not include Preceptor 4
-			const tier3 = result.filter(p => p.tier === 3);
+			const tier3 = result.filter((p) => p.tier === 3);
 			expect(tier3.length).toBe(0);
 
-			const preceptor4 = result.find(p => p.id === preceptor4Id);
+			const preceptor4 = result.find((p) => p.id === preceptor4Id);
 			expect(preceptor4).toBeUndefined();
 		});
 
@@ -175,22 +216,25 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// Should not include excluded preceptors
-			expect(result.find(p => p.id === preceptor1Id)).toBeUndefined();
-			expect(result.find(p => p.id === preceptor3Id)).toBeUndefined();
+			expect(result.find((p) => p.id === preceptor1Id)).toBeUndefined();
+			expect(result.find((p) => p.id === preceptor3Id)).toBeUndefined();
 
 			// Should include others
-			expect(result.find(p => p.id === preceptor2Id)).toBeDefined();
-			expect(result.find(p => p.id === preceptor4Id)).toBeDefined();
+			expect(result.find((p) => p.id === preceptor2Id)).toBeDefined();
+			expect(result.find((p) => p.id === preceptor4Id)).toBeDefined();
 		});
 
 		it('should return empty array when no teams exist for clerkship', async () => {
 			const emptyClerkshipId = nanoid();
-			await db.insertInto('clerkships').values({
-				id: emptyClerkshipId,
-				name: 'Empty Clerkship',
-				clerkship_type: 'outpatient',
-				required_days: 5,
-			}).execute();
+			await db
+				.insertInto('clerkships')
+				.values({
+					id: emptyClerkshipId,
+					name: 'Empty Clerkship',
+					clerkship_type: 'outpatient',
+					required_days: 5
+				})
+				.execute();
 
 			const result = await resolver.getOrderedFallbackPreceptors(
 				emptyClerkshipId,
@@ -213,12 +257,12 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// No tier 1 since no primary team
-			const tier1 = result.filter(p => p.tier === 1);
+			const tier1 = result.filter((p) => p.tier === 1);
 			expect(tier1.length).toBe(0);
 
 			// Should have tier 2 (same health system) and tier 3 (cross-system)
-			const tier2 = result.filter(p => p.tier === 2);
-			const tier3 = result.filter(p => p.tier === 3);
+			const tier2 = result.filter((p) => p.tier === 2);
+			const tier3 = result.filter((p) => p.tier === 3);
 
 			expect(tier2.length).toBeGreaterThan(0);
 			expect(tier3.length).toBeGreaterThan(0);
@@ -234,7 +278,7 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// Tier 1 should have Preceptor 1 (priority 1) before Preceptor 2 (priority 2)
-			const tier1 = result.filter(p => p.tier === 1);
+			const tier1 = result.filter((p) => p.tier === 1);
 			expect(tier1.length).toBe(2);
 			expect(tier1[0].id).toBe(preceptor1Id);
 			expect(tier1[0].priority).toBe(1);
@@ -252,7 +296,7 @@ describe('FallbackPreceptorResolver', () => {
 			);
 
 			// Check for duplicates
-			const ids = result.map(p => p.id);
+			const ids = result.map((p) => p.id);
 			const uniqueIds = new Set(ids);
 			expect(ids.length).toBe(uniqueIds.size);
 		});
@@ -266,11 +310,14 @@ describe('FallbackPreceptorResolver', () => {
 
 		it('should return null for team with no members', async () => {
 			const emptyTeamId = nanoid();
-			await db.insertInto('preceptor_teams').values({
-				id: emptyTeamId,
-				clerkship_id: clerkshipId,
-				name: 'Empty Team',
-			}).execute();
+			await db
+				.insertInto('preceptor_teams')
+				.values({
+					id: emptyTeamId,
+					clerkship_id: clerkshipId,
+					name: 'Empty Team'
+				})
+				.execute();
 
 			const healthSystemId = await resolver.getTeamHealthSystem(emptyTeamId);
 			expect(healthSystemId).toBeNull();
@@ -282,17 +329,20 @@ describe('FallbackPreceptorResolver', () => {
 			const teams = await resolver.getTeamsForClerkship(clerkshipId);
 
 			expect(teams.length).toBe(3);
-			expect(teams.map(t => t.id).sort()).toEqual([teamAId, teamBId, teamCId].sort());
+			expect(teams.map((t) => t.id).sort()).toEqual([teamAId, teamBId, teamCId].sort());
 		});
 
 		it('should return empty array for clerkship with no teams', async () => {
 			const emptyClerkshipId = nanoid();
-			await db.insertInto('clerkships').values({
-				id: emptyClerkshipId,
-				name: 'Empty Clerkship',
-				clerkship_type: 'outpatient',
-				required_days: 5,
-			}).execute();
+			await db
+				.insertInto('clerkships')
+				.values({
+					id: emptyClerkshipId,
+					name: 'Empty Clerkship',
+					clerkship_type: 'outpatient',
+					required_days: 5
+				})
+				.execute();
 
 			const teams = await resolver.getTeamsForClerkship(emptyClerkshipId);
 			expect(teams).toEqual([]);
@@ -301,8 +351,8 @@ describe('FallbackPreceptorResolver', () => {
 		it('should include health system ID for each team', async () => {
 			const teams = await resolver.getTeamsForClerkship(clerkshipId);
 
-			const teamA = teams.find(t => t.id === teamAId);
-			const teamC = teams.find(t => t.id === teamCId);
+			const teamA = teams.find((t) => t.id === teamAId);
+			const teamC = teams.find((t) => t.id === teamCId);
 
 			expect(teamA?.healthSystemId).toBe(healthSystem1Id);
 			expect(teamC?.healthSystemId).toBe(healthSystem2Id);

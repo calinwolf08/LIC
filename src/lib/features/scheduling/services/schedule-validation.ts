@@ -142,7 +142,9 @@ export async function loadValidationInputs(
 		.select('student_id')
 		.where('schedule_id', '=', scheduleId)
 		.execute();
-	const studentIds = [...new Set([...studentRows.map((r) => r.student_id), ...(extra.studentIds ?? [])])];
+	const studentIds = [
+		...new Set([...studentRows.map((r) => r.student_id), ...(extra.studentIds ?? [])])
+	];
 
 	if (studentIds.length === 0) {
 		return emptyInputs(rangeStart, rangeEnd);
@@ -211,7 +213,11 @@ export async function loadValidationInputs(
 						.where('preceptor_id', 'in', preceptorIds)
 						.execute()
 				: Promise.resolve([]),
-			db.selectFrom('blackout_dates').select('date').where('schedule_id', '=', scheduleId).execute(),
+			db
+				.selectFrom('blackout_dates')
+				.select('date')
+				.where('schedule_id', '=', scheduleId)
+				.execute(),
 			clerkshipIds.length
 				? db
 						.selectFrom('clerkship_sites')
@@ -248,8 +254,7 @@ export async function loadValidationInputs(
 			continue;
 		}
 		if (a.preference === 'in_a_pinch') {
-			if (!preceptorInPinch.has(a.preceptor_id))
-				preceptorInPinch.set(a.preceptor_id, new Set());
+			if (!preceptorInPinch.has(a.preceptor_id)) preceptorInPinch.set(a.preceptor_id, new Set());
 			preceptorInPinch.get(a.preceptor_id)!.add(a.date);
 		} else if (a.preference === 'preferred' && a.date >= rangeStart && a.date <= rangeEnd) {
 			if (!preceptorPreferredDates.has(a.preceptor_id))
@@ -389,7 +394,9 @@ export function evaluateAssignments(inputs: ValidationInputs): ScheduleValidatio
 	for (const [, slot] of studentDaySlots) {
 		if (slot.length < 2) continue;
 		const sessions = slot.map((a) => normalizeSession(a.session));
-		const clashes = sessions.some((s, i) => sessions.some((t, j) => i !== j && sessionsOverlap(s, t)));
+		const clashes = sessions.some((s, i) =>
+			sessions.some((t, j) => i !== j && sessionsOverlap(s, t))
+		);
 		if (clashes) {
 			const first = slot[0];
 			violations.push({
@@ -447,7 +454,10 @@ export function evaluateAssignments(inputs: ValidationInputs): ScheduleValidatio
 
 	const assignmentsByStudent = new Map<string, ValidationAssignment[]>();
 	for (const a of assignments) {
-		(assignmentsByStudent.get(a.student_id) ?? assignmentsByStudent.set(a.student_id, []).get(a.student_id)!).push(a);
+		(
+			assignmentsByStudent.get(a.student_id) ??
+			assignmentsByStudent.set(a.student_id, []).get(a.student_id)!
+		).push(a);
 	}
 	for (const [, studentAssignments] of assignmentsByStudent) {
 		const blockWeeks = new Set<string>();

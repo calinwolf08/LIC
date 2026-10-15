@@ -7,10 +7,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	notFoundResponse
-} from '$lib/api/responses';
+import { successResponse, notFoundResponse } from '$lib/api/responses';
 import { handleApiError, NotFoundError } from '$lib/api/errors';
 import {
 	getBlackoutDateById,

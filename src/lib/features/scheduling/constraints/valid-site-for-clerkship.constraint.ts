@@ -146,17 +146,24 @@ export class ValidSiteForClerkshipConstraint implements Constraint {
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
 		// If siteId not provided, look it up from availability
-		const effectiveSiteId = siteId || PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
-			context,
-			assignment.preceptorId,
-			assignment.date
-		);
-		const siteName = context.sites?.find((s) => s.id === effectiveSiteId)?.name || effectiveSiteId || 'Unknown';
+		const effectiveSiteId =
+			siteId ||
+			PreceptorAvailabilityConstraint.getPreceptorSiteOnDate(
+				context,
+				assignment.preceptorId,
+				assignment.date
+			);
+		const siteName =
+			context.sites?.find((s) => s.id === effectiveSiteId)?.name || effectiveSiteId || 'Unknown';
 
 		return `${preceptor?.name} at ${siteName} is not authorized for ${clerkship?.name}. Cannot assign ${student?.name}.`;
 	}
 
-	private getElectiveViolationMessage(assignment: Assignment, context: SchedulingContext, siteId: string): string {
+	private getElectiveViolationMessage(
+		assignment: Assignment,
+		context: SchedulingContext,
+		siteId: string
+	): string {
 		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
 		const student = context.students.find((s) => s.id === assignment.studentId);
 		const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);

@@ -10,12 +10,12 @@
  * A hospital network or health system (e.g., "Memorial Health System").
  */
 export interface HealthSystem {
-  id: string;
-  name: string;
-  location?: string;
-  description?: string;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	name: string;
+	location?: string;
+	description?: string;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 /**
@@ -24,10 +24,10 @@ export interface HealthSystem {
  * A specific clinical site within a health system (e.g., "Memorial Downtown Clinic").
  */
 export interface Site {
-  id: string;
-  healthSystemId: string;
-  name: string;
-  address?: string;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	healthSystemId: string;
+	name: string;
+	address?: string;
+	createdAt: Date;
+	updatedAt: Date;
 }

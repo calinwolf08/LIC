@@ -208,7 +208,7 @@
 	<div class="space-y-6">
 		<div>
 			<h3 class="text-lg font-semibold">Availability for {preceptor.name}</h3>
-			<p class="text-sm text-muted-foreground mt-1">
+			<p class="mt-1 text-sm text-muted-foreground">
 				Select dates when this preceptor is available for teaching
 			</p>
 		</div>
@@ -228,7 +228,7 @@
 					<button
 						type="button"
 						onclick={() => (activeTab = 'pattern')}
-						class={`whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium ${
+						class={`border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap ${
 							activeTab === 'pattern'
 								? 'border-primary text-primary'
 								: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -239,7 +239,7 @@
 					<button
 						type="button"
 						onclick={() => (activeTab = 'range')}
-						class={`whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium ${
+						class={`border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap ${
 							activeTab === 'range'
 								? 'border-primary text-primary'
 								: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -250,7 +250,7 @@
 					<button
 						type="button"
 						onclick={() => (activeTab = 'individual')}
-						class={`whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium ${
+						class={`border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap ${
 							activeTab === 'individual'
 								? 'border-primary text-primary'
 								: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
@@ -273,15 +273,15 @@
 						<!-- Days of Week Selector -->
 						<div>
 							<Label>Days of Week</Label>
-							<div class="flex gap-2 mt-2">
+							<div class="mt-2 flex gap-2">
 								{#each daysOfWeek as day}
 									<button
 										type="button"
 										onclick={() => toggleDayOfWeek(day.value)}
-										class={`px-3 py-2 text-sm font-medium rounded border transition-colors ${
+										class={`rounded border px-3 py-2 text-sm font-medium transition-colors ${
 											selectedDaysOfWeek.has(day.value)
-												? 'bg-primary text-primary-foreground border-primary'
-												: 'bg-background border-input hover:bg-accent'
+												? 'border-primary bg-primary text-primary-foreground'
+												: 'border-input bg-background hover:bg-accent'
 										}`}
 									>
 										{day.label}
@@ -357,9 +357,10 @@
 
 			<!-- Selected Dates Preview -->
 			<div class="border-t pt-4">
-				<div class="flex items-center justify-between mb-3">
+				<div class="mb-3 flex items-center justify-between">
 					<h4 class="text-sm font-semibold">
-						Selected Dates ({dateCount} {dateCount === 1 ? 'date' : 'dates'})
+						Selected Dates ({dateCount}
+						{dateCount === 1 ? 'date' : 'dates'})
 					</h4>
 					{#if dateCount > 0}
 						<Button size="sm" variant="outline" onclick={clearAll} disabled={isSaving}>
@@ -369,13 +370,13 @@
 				</div>
 
 				{#if dateCount === 0}
-					<p class="text-sm text-muted-foreground py-4">
+					<p class="py-4 text-sm text-muted-foreground">
 						No dates selected. Use the tabs above to add availability dates.
 					</p>
 				{:else}
-					<div class="max-h-60 overflow-y-auto border rounded-md p-3 space-y-1">
+					<div class="max-h-60 space-y-1 overflow-y-auto rounded-md border p-3">
 						{#each sortedDates as date}
-							<div class="flex items-center justify-between text-sm py-1">
+							<div class="flex items-center justify-between py-1 text-sm">
 								<span>{new Date(date + 'T00:00:00').toLocaleDateString()}</span>
 								<Button
 									size="sm"
@@ -392,7 +393,7 @@
 			</div>
 
 			<!-- Actions -->
-			<div class="flex justify-end gap-3 pt-4 border-t">
+			<div class="flex justify-end gap-3 border-t pt-4">
 				{#if onCancel}
 					<Button type="button" variant="outline" onclick={onCancel} disabled={isSaving}>
 						Cancel

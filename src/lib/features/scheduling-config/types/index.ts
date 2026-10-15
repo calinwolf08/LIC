@@ -5,78 +5,61 @@
  */
 
 // Enums
-export {
-  AssignmentStrategy,
-  RequirementType,
-  HealthSystemRule,
-  OverrideMode,
-} from './enums';
+export { AssignmentStrategy, RequirementType, HealthSystemRule, OverrideMode } from './enums';
 export type {
-  AssignmentStrategy as AssignmentStrategyType,
-  RequirementType as RequirementTypeType,
-  HealthSystemRule as HealthSystemRuleType,
-  OverrideMode as OverrideModeType,
-  RequirementConfigurationSource,
+	AssignmentStrategy as AssignmentStrategyType,
+	RequirementType as RequirementTypeType,
+	HealthSystemRule as HealthSystemRuleType,
+	OverrideMode as OverrideModeType,
+	RequirementConfigurationSource
 } from './enums';
 
 // Global Defaults
 export type {
-  BaseConfigurationFields,
-  GlobalOutpatientDefaults,
-  GlobalInpatientDefaults,
-  GlobalElectiveDefaults,
+	BaseConfigurationFields,
+	GlobalOutpatientDefaults,
+	GlobalInpatientDefaults,
+	GlobalElectiveDefaults
 } from './global-defaults';
 
 // Electives (requirements removed - clerkships now link directly to electives)
-export type {
-  ClerkshipElective,
-  ClerkshipElectiveWithDetails,
-} from './requirements';
+export type { ClerkshipElective, ClerkshipElectiveWithDetails } from './requirements';
 
 // Resolved Configuration
 export type {
-  ResolvedRequirementConfiguration,
-  ConfigurationResolutionMetadata,
+	ResolvedRequirementConfiguration,
+	ConfigurationResolutionMetadata
 } from './resolved-config';
 
 // Teams
-export type {
-  PreceptorTeam,
-  PreceptorTeamMember,
-  PreceptorFallback,
-} from './teams';
+export type { PreceptorTeam, PreceptorTeamMember, PreceptorFallback } from './teams';
 
 // Capacity
-export type {
-  PreceptorCapacityRule,
-} from './capacity';
+export type { PreceptorCapacityRule } from './capacity';
 export { CapacityRulePriority } from './capacity';
 
 // Health Systems
-export type {
-  HealthSystem,
-  Site,
-} from './health-systems';
+export type { HealthSystem, Site } from './health-systems';
 
 // Utilities
 export {
-  isOverrideModeInherit,
-  isOverrideModeFields,
-  isOverrideModeSection,
-  hasBlockSettings,
-  allowsTeams,
-  allowsFallbacks,
-  AssignmentStrategyLabels,
-  HealthSystemRuleLabels,
-  OverrideModeLabels,
+	isOverrideModeInherit,
+	isOverrideModeFields,
+	isOverrideModeSection,
+	hasBlockSettings,
+	allowsTeams,
+	allowsFallbacks,
+	AssignmentStrategyLabels,
+	HealthSystemRuleLabels,
+	OverrideModeLabels
 } from './utilities';
 
 // Aggregates
 export type {
-  CompleteClerkshipConfiguration,
-  GlobalDefaultsSummary,
-  RequirementConfigurationSummary,
-  ClerkshipConfigurationOverview,
-  ConfigurationChangePreview,
-  SchoolConfigurationStatistics,
+	CompleteClerkshipConfiguration,
+	GlobalDefaultsSummary,
+	RequirementConfigurationSummary,
+	ClerkshipConfigurationOverview,
+	ConfigurationChangePreview,
+	SchoolConfigurationStatistics
 } from './aggregates';

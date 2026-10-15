@@ -70,10 +70,34 @@ test.describe('MP-4 plan and commit', { tag: ['@stage2', '@long'] }, () => {
 		await plan.goto();
 
 		// --- Build the plan ---
-		await plan.addPin({ student: 'Student 1', clerkship: fm, preceptor: 'Dr. B', site: clinic, date: dayB });
-		await plan.addPin({ student: 'Student 1', clerkship: fm, preceptor: 'Dr. A', site: clinic, date: dayA });
-		await plan.addPin({ student: 'Student 2', clerkship: fm, preceptor: 'Dr. B', site: clinic, date: dayB });
-		await plan.addPin({ student: 'Student 2', clerkship: fm, preceptor: 'Dr. B', site: clinic, date: dayA });
+		await plan.addPin({
+			student: 'Student 1',
+			clerkship: fm,
+			preceptor: 'Dr. B',
+			site: clinic,
+			date: dayB
+		});
+		await plan.addPin({
+			student: 'Student 1',
+			clerkship: fm,
+			preceptor: 'Dr. A',
+			site: clinic,
+			date: dayA
+		});
+		await plan.addPin({
+			student: 'Student 2',
+			clerkship: fm,
+			preceptor: 'Dr. B',
+			site: clinic,
+			date: dayB
+		});
+		await plan.addPin({
+			student: 'Student 2',
+			clerkship: fm,
+			preceptor: 'Dr. B',
+			site: clinic,
+			date: dayA
+		});
 
 		const ids = await plan.pinIds();
 		expect(ids).toHaveLength(4);
@@ -103,12 +127,18 @@ test.describe('MP-4 plan and commit', { tag: ['@stage2', '@long'] }, () => {
 
 		// Pin #2's committed row carries the accepted session_clash override.
 		const clashRow = rows.find(
-			(r) => r.student_id === s1 && r.preceptor_id === drA && r.date === dayA && r.override_codes.includes('session_clash')
+			(r) =>
+				r.student_id === s1 &&
+				r.preceptor_id === drA &&
+				r.date === dayA &&
+				r.override_codes.includes('session_clash')
 		);
 		expect(clashRow, 'Student 1 / Dr. A / dayA committed with override').toBeTruthy();
 
 		// Pin #4 was skipped: no Student 2 / Dr. B row exists on dayA.
-		expect(rows.some((r) => r.student_id === s2 && r.preceptor_id === drB && r.date === dayA)).toBe(false);
+		expect(rows.some((r) => r.student_id === s2 && r.preceptor_id === drB && r.date === dayA)).toBe(
+			false
+		);
 
 		// The skipped pin remains in the draft.
 		await expect(plan.rows()).toHaveCount(1);

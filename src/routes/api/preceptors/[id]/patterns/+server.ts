@@ -7,16 +7,9 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
-import {
-	getPatterns,
-	createPattern
-} from '$lib/features/preceptors/services/pattern-service';
+import { getPatterns, createPattern } from '$lib/features/preceptors/services/pattern-service';
 import { createPatternSchema } from '$lib/features/preceptors/pattern-schemas';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
 import { requireActiveScheduleId, assertEntityInSchedule } from '$lib/api/schedule-context';
@@ -39,7 +32,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		const patterns = await getPatterns(db, id);
 
 		// Parse config JSON for each pattern
-		const parsedPatterns = patterns.map(pattern => ({
+		const parsedPatterns = patterns.map((pattern) => ({
 			...pattern,
 			config: pattern.config ? JSON.parse(pattern.config) : null
 		}));
@@ -54,7 +47,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		if (error instanceof ZodError) {
 			log.warn('Pattern query validation failed', {
 				preceptorId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -106,7 +99,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (error instanceof ZodError) {
 			log.warn('Pattern creation validation failed', {
 				preceptorId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

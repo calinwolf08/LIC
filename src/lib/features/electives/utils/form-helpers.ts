@@ -27,7 +27,9 @@ export function extractZodErrors(error: ZodError): FormErrors {
 /**
  * Extract field errors from API response
  */
-export function extractApiErrors(errorDetails: Array<{ field: string; message: string }>): FormErrors {
+export function extractApiErrors(
+	errorDetails: Array<{ field: string; message: string }>
+): FormErrors {
 	const fieldErrors: FormErrors = {};
 	for (const detail of errorDetails) {
 		fieldErrors[detail.field] = detail.message;

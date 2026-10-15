@@ -481,12 +481,7 @@ describe('SiteCapacityConstraint', () => {
 
 		// Set up preceptor availability with site info (Map<preceptorId, Map<date, siteId>>)
 		const preceptorAvailability = new Map<string, Map<string, string>>();
-		preceptorAvailability.set(
-			'preceptor-1',
-			new Map([
-				['2024-01-15', 'site-1']
-			])
-		);
+		preceptorAvailability.set('preceptor-1', new Map([['2024-01-15', 'site-1']]));
 
 		context = {
 			students: [student1, student2],
@@ -687,18 +682,8 @@ describe('ValidSiteForClerkshipConstraint', () => {
 
 		// Set up preceptor availability with site info (Map<preceptorId, Map<date, siteId>>)
 		const preceptorAvailability = new Map<string, Map<string, string>>();
-		preceptorAvailability.set(
-			'preceptor-1',
-			new Map([
-				['2024-01-15', 'site-1']
-			])
-		);
-		preceptorAvailability.set(
-			'preceptor-2',
-			new Map([
-				['2024-01-15', 'site-2']
-			])
-		);
+		preceptorAvailability.set('preceptor-1', new Map([['2024-01-15', 'site-1']]));
+		preceptorAvailability.set('preceptor-2', new Map([['2024-01-15', 'site-2']]));
 
 		context = {
 			students: [student],

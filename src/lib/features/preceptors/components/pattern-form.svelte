@@ -47,7 +47,9 @@
 	let selectedDays = $state<Set<number>>(new Set([1, 2, 3, 4, 5])); // Mon-Fri default
 
 	// Monthly config
-	let monthlyType = $state<'first_week' | 'last_week' | 'first_business_week' | 'last_business_week' | 'specific_days'>('first_week');
+	let monthlyType = $state<
+		'first_week' | 'last_week' | 'first_business_week' | 'last_business_week' | 'specific_days'
+	>('first_week');
 	let weekDefinition = $state<'seven_days' | 'calendar' | 'business'>('seven_days');
 	let specificDays = $state<string>('1,15'); // Comma-separated
 
@@ -126,8 +128,8 @@
 				if (monthlyType === 'specific_days') {
 					monthlyConfig.specific_days = specificDays
 						.split(',')
-						.map(d => parseInt(d.trim()))
-						.filter(d => !isNaN(d) && d >= 1 && d <= 31)
+						.map((d) => parseInt(d.trim()))
+						.filter((d) => !isNaN(d) && d >= 1 && d <= 31)
 						.sort((a, b) => a - b);
 				}
 				config = monthlyConfig;
@@ -176,7 +178,10 @@
 		if (patternType !== 'individual' && !endDate) return false;
 		if (patternType === 'weekly' && selectedDays.size === 0) return false;
 		if (patternType === 'monthly' && monthlyType === 'specific_days') {
-			const days = specificDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+			const days = specificDays
+				.split(',')
+				.map((d) => parseInt(d.trim()))
+				.filter((d) => !isNaN(d));
 			if (days.length === 0) return false;
 		}
 		return true;
@@ -199,7 +204,7 @@
 			<h3 class="text-lg font-semibold">
 				{editPattern ? 'Edit Pattern' : 'Add Availability Pattern'}
 			</h3>
-			<p class="text-sm text-muted-foreground mt-1">
+			<p class="mt-1 text-sm text-muted-foreground">
 				Create a pattern to define when this preceptor is available
 			</p>
 		</div>
@@ -207,14 +212,14 @@
 		<!-- Pattern Type Selector -->
 		<div class="space-y-2">
 			<Label>Pattern Type</Label>
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+			<div class="grid grid-cols-2 gap-2 md:grid-cols-4">
 				<button
 					type="button"
 					onclick={() => (patternType = 'weekly')}
-					class={`px-4 py-3 text-sm font-medium rounded-md border transition-colors ${
+					class={`rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
 						patternType === 'weekly'
-							? 'bg-primary text-primary-foreground border-primary'
-							: 'bg-background border-input hover:bg-accent'
+							? 'border-primary bg-primary text-primary-foreground'
+							: 'border-input bg-background hover:bg-accent'
 					}`}
 				>
 					Weekly
@@ -222,10 +227,10 @@
 				<button
 					type="button"
 					onclick={() => (patternType = 'monthly')}
-					class={`px-4 py-3 text-sm font-medium rounded-md border transition-colors ${
+					class={`rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
 						patternType === 'monthly'
-							? 'bg-primary text-primary-foreground border-primary'
-							: 'bg-background border-input hover:bg-accent'
+							? 'border-primary bg-primary text-primary-foreground'
+							: 'border-input bg-background hover:bg-accent'
 					}`}
 				>
 					Monthly
@@ -233,10 +238,10 @@
 				<button
 					type="button"
 					onclick={() => (patternType = 'block')}
-					class={`px-4 py-3 text-sm font-medium rounded-md border transition-colors ${
+					class={`rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
 						patternType === 'block'
-							? 'bg-primary text-primary-foreground border-primary'
-							: 'bg-background border-input hover:bg-accent'
+							? 'border-primary bg-primary text-primary-foreground'
+							: 'border-input bg-background hover:bg-accent'
 					}`}
 				>
 					Block
@@ -244,10 +249,10 @@
 				<button
 					type="button"
 					onclick={() => (patternType = 'individual')}
-					class={`px-4 py-3 text-sm font-medium rounded-md border transition-colors ${
+					class={`rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
 						patternType === 'individual'
-							? 'bg-primary text-primary-foreground border-primary'
-							: 'bg-background border-input hover:bg-accent'
+							? 'border-primary bg-primary text-primary-foreground'
+							: 'border-input bg-background hover:bg-accent'
 					}`}
 				>
 					Individual
@@ -259,16 +264,18 @@
 		<div class="space-y-2">
 			<Label for="site-select">Site</Label>
 			{#if sites.length === 0}
-				<p class="text-sm text-destructive">No sites available. Please assign this preceptor to at least one site first.</p>
+				<p class="text-sm text-destructive">
+					No sites available. Please assign this preceptor to at least one site first.
+				</p>
 			{:else if sites.length === 1}
-				<div class="px-3 py-2 border rounded-md bg-muted text-sm">
+				<div class="rounded-md border bg-muted px-3 py-2 text-sm">
 					{sites[0].name}
 				</div>
 			{:else}
 				<select
 					id="site-select"
 					bind:value={selectedSiteId}
-					class="w-full px-3 py-2 border rounded-md bg-background"
+					class="w-full rounded-md border bg-background px-3 py-2"
 				>
 					<option value="">Select a site...</option>
 					{#each sites as site}
@@ -276,9 +283,7 @@
 					{/each}
 				</select>
 			{/if}
-			<p class="text-xs text-muted-foreground">
-				Availability patterns apply to a specific site
-			</p>
+			<p class="text-xs text-muted-foreground">Availability patterns apply to a specific site</p>
 		</div>
 
 		<!-- Availability Toggle -->
@@ -288,10 +293,10 @@
 				<button
 					type="button"
 					onclick={() => (isAvailable = true)}
-					class={`flex-1 px-4 py-3 text-sm font-medium rounded-md border transition-colors ${
+					class={`flex-1 rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
 						isAvailable
-							? 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900 dark:text-green-100'
-							: 'bg-background border-input hover:bg-accent'
+							? 'border-green-300 bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100'
+							: 'border-input bg-background hover:bg-accent'
 					}`}
 				>
 					Available
@@ -299,10 +304,10 @@
 				<button
 					type="button"
 					onclick={() => (isAvailable = false)}
-					class={`flex-1 px-4 py-3 text-sm font-medium rounded-md border transition-colors ${
+					class={`flex-1 rounded-md border px-4 py-3 text-sm font-medium transition-colors ${
 						!isAvailable
-							? 'bg-red-100 text-red-900 border-red-300 dark:bg-red-900 dark:text-red-100'
-							: 'bg-background border-input hover:bg-accent'
+							? 'border-red-300 bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100'
+							: 'border-input bg-background hover:bg-accent'
 					}`}
 				>
 					Unavailable
@@ -323,7 +328,7 @@
 							session = (e.currentTarget as HTMLSelectElement).value as 'full' | 'am' | 'pm';
 							if (!creditTouched) creditValue = session === 'full' ? 1 : 0.5;
 						}}
-						class="flex h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						class="flex h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 					>
 						<option value="full">Full day</option>
 						<option value="am">Morning (AM)</option>
@@ -346,7 +351,7 @@
 							creditValue = Number((e.currentTarget as HTMLInputElement).value);
 							creditTouched = true;
 						}}
-						class="flex h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						class="flex h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 					/>
 				</div>
 			</div>
@@ -356,7 +361,7 @@
 				<select
 					id="preference-select"
 					bind:value={preference}
-					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 				>
 					<option value="">No preference</option>
 					<option value="preferred">Preferred</option>
@@ -379,10 +384,10 @@
 							<button
 								type="button"
 								onclick={() => toggleDay(day.value)}
-								class={`px-3 py-2 text-sm font-medium rounded border transition-colors ${
+								class={`rounded border px-3 py-2 text-sm font-medium transition-colors ${
 									selectedDays.has(day.value)
-										? 'bg-primary text-primary-foreground border-primary'
-										: 'bg-background border-input hover:bg-accent'
+										? 'border-primary bg-primary text-primary-foreground'
+										: 'border-input bg-background hover:bg-accent'
 								}`}
 							>
 								{day.label}
@@ -397,7 +402,7 @@
 						<Label>Monthly Pattern</Label>
 						<select
 							bind:value={monthlyType}
-							class="w-full px-3 py-2 border rounded-md bg-background"
+							class="w-full rounded-md border bg-background px-3 py-2"
 						>
 							<option value="first_week">First Week</option>
 							<option value="last_week">Last Week</option>
@@ -412,7 +417,7 @@
 							<Label>Week Definition</Label>
 							<select
 								bind:value={weekDefinition}
-								class="w-full px-3 py-2 border rounded-md bg-background"
+								class="w-full rounded-md border bg-background px-3 py-2"
 							>
 								<option value="seven_days">First/Last 7 Days</option>
 								<option value="calendar">Calendar Week (Sun-Sat)</option>
@@ -424,11 +429,7 @@
 					{#if monthlyType === 'specific_days'}
 						<div class="space-y-2">
 							<Label>Specific Days (comma-separated)</Label>
-							<Input
-								type="text"
-								bind:value={specificDays}
-								placeholder="1, 15, 30"
-							/>
+							<Input type="text" bind:value={specificDays} placeholder="1, 15, 30" />
 							<p class="text-xs text-muted-foreground">
 								Example: 1,15 for 1st and 15th of each month
 							</p>
@@ -442,7 +443,7 @@
 						type="checkbox"
 						id="exclude-weekends"
 						bind:checked={excludeWeekends}
-						class="w-4 h-4 rounded border-input"
+						class="h-4 w-4 rounded border-input"
 					/>
 					<Label for="exclude-weekends">Exclude Weekends</Label>
 				</div>
@@ -482,11 +483,9 @@
 		</div>
 
 		<!-- Actions -->
-		<div class="flex justify-end gap-3 pt-4 border-t">
+		<div class="flex justify-end gap-3 border-t pt-4">
 			{#if onCancel}
-				<Button type="button" variant="outline" onclick={onCancel}>
-					Cancel
-				</Button>
+				<Button type="button" variant="outline" onclick={onCancel}>Cancel</Button>
 			{/if}
 			<Button onclick={handleSubmit} disabled={!isValid()}>
 				{editPattern ? 'Update Pattern' : 'Add Pattern'}

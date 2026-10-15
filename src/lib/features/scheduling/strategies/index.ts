@@ -5,7 +5,13 @@
  */
 
 // Base strategy
-export { BaseStrategy, type SchedulingStrategy, type StrategyContext, type StrategyResult, type ProposedAssignment } from './base-strategy';
+export {
+	BaseStrategy,
+	type SchedulingStrategy,
+	type StrategyContext,
+	type StrategyResult,
+	type ProposedAssignment
+} from './base-strategy';
 
 // Context builder
 export { StrategyContextBuilder } from './strategy-context';

@@ -18,21 +18,21 @@
  * Each elective can inherit settings from its parent clerkship or override them.
  */
 export interface ClerkshipElective {
-  id: string;
-  clerkshipId: string;
-  name: string;
-  minimumDays: number;
-  isRequired: boolean;
-  specialty?: string;
-  overrideMode: 'inherit' | 'override';
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	clerkshipId: string;
+	name: string;
+	minimumDays: number;
+	isRequired: boolean;
+	specialty?: string;
+	overrideMode: 'inherit' | 'override';
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 /**
  * Clerkship Elective with associated sites and preceptors
  */
 export interface ClerkshipElectiveWithDetails extends ClerkshipElective {
-  sites: Array<{ id: string; name: string }>;
-  preceptors: Array<{ id: string; name: string }>;
+	sites: Array<{ id: string; name: string }>;
+	preceptors: Array<{ id: string; name: string }>;
 }

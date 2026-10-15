@@ -48,7 +48,11 @@
 		<ul class="flex flex-wrap gap-x-4 gap-y-1.5">
 			{#each visible as student (student.id)}
 				{@const color = getStudentColor(student.id)}
-				<li class="flex items-center gap-1.5 text-xs" data-testid="legend-entry" data-student-id={student.id}>
+				<li
+					class="flex items-center gap-1.5 text-xs"
+					data-testid="legend-entry"
+					data-student-id={student.id}
+				>
 					<span
 						class="flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[9px] font-semibold text-white"
 						style="background-color: {color};"

@@ -11,22 +11,22 @@ import type { DB } from '$lib/db/types';
  * Capacity Check Result
  */
 export interface CapacityCheckResult {
-  hasCapacity: boolean;
-  reason?: string;
-  currentCount?: number;
-  maxAllowed?: number;
-  checkType?: 'daily' | 'yearly' | 'block';
+	hasCapacity: boolean;
+	reason?: string;
+	currentCount?: number;
+	maxAllowed?: number;
+	checkType?: 'daily' | 'yearly' | 'block';
 }
 
 /**
  * Capacity Rule (resolved from hierarchy)
  */
 export interface ResolvedCapacityRule {
-  maxStudentsPerDay: number;
-  maxStudentsPerYear: number;
-  maxStudentsPerBlock?: number;
-  maxBlocksPerYear?: number;
-  source: 'clerkship-specific' | 'requirement-type-specific' | 'general' | 'default';
+	maxStudentsPerDay: number;
+	maxStudentsPerYear: number;
+	maxStudentsPerBlock?: number;
+	maxBlocksPerYear?: number;
+	source: 'clerkship-specific' | 'requirement-type-specific' | 'general' | 'default';
 }
 
 /**
@@ -41,246 +41,246 @@ export interface ResolvedCapacityRule {
  * 5. Default from preceptors table
  */
 export class CapacityChecker {
-  constructor(private db: Kysely<DB>) {}
+	constructor(private db: Kysely<DB>) {}
 
-  /**
-   * Check if preceptor has capacity for assignment
-   */
-  async checkCapacity(
-    preceptorId: string,
-    date: string,
-    options: {
-      clerkshipId?: string;
-      requirementType?: 'outpatient' | 'inpatient' | 'elective';
-      blockNumber?: number;
-      academicYear?: number;
-    } = {}
-  ): Promise<CapacityCheckResult> {
-    // Resolve capacity rule
-    const rule = await this.resolveCapacityRule(
-      preceptorId,
-      options.clerkshipId,
-      options.requirementType
-    );
+	/**
+	 * Check if preceptor has capacity for assignment
+	 */
+	async checkCapacity(
+		preceptorId: string,
+		date: string,
+		options: {
+			clerkshipId?: string;
+			requirementType?: 'outpatient' | 'inpatient' | 'elective';
+			blockNumber?: number;
+			academicYear?: number;
+		} = {}
+	): Promise<CapacityCheckResult> {
+		// Resolve capacity rule
+		const rule = await this.resolveCapacityRule(
+			preceptorId,
+			options.clerkshipId,
+			options.requirementType
+		);
 
-    // Check daily capacity
-    const dailyCheck = await this.checkDailyCapacity(preceptorId, date, rule.maxStudentsPerDay);
-    if (!dailyCheck.hasCapacity) {
-      return dailyCheck;
-    }
+		// Check daily capacity
+		const dailyCheck = await this.checkDailyCapacity(preceptorId, date, rule.maxStudentsPerDay);
+		if (!dailyCheck.hasCapacity) {
+			return dailyCheck;
+		}
 
-    // Check yearly capacity (parse as UTC to avoid timezone issues)
-    const year = options.academicYear || new Date(date + 'T00:00:00.000Z').getUTCFullYear();
-    const yearlyCheck = await this.checkYearlyCapacity(preceptorId, year, rule.maxStudentsPerYear);
-    if (!yearlyCheck.hasCapacity) {
-      return yearlyCheck;
-    }
+		// Check yearly capacity (parse as UTC to avoid timezone issues)
+		const year = options.academicYear || new Date(date + 'T00:00:00.000Z').getUTCFullYear();
+		const yearlyCheck = await this.checkYearlyCapacity(preceptorId, year, rule.maxStudentsPerYear);
+		if (!yearlyCheck.hasCapacity) {
+			return yearlyCheck;
+		}
 
-    // Check block capacity if applicable
-    if (options.blockNumber !== undefined && rule.maxStudentsPerBlock && rule.maxBlocksPerYear) {
-      const blockCheck = await this.checkBlockCapacity(
-        preceptorId,
-        year,
-        rule.maxStudentsPerBlock,
-        rule.maxBlocksPerYear
-      );
-      if (!blockCheck.hasCapacity) {
-        return blockCheck;
-      }
-    }
+		// Check block capacity if applicable
+		if (options.blockNumber !== undefined && rule.maxStudentsPerBlock && rule.maxBlocksPerYear) {
+			const blockCheck = await this.checkBlockCapacity(
+				preceptorId,
+				year,
+				rule.maxStudentsPerBlock,
+				rule.maxBlocksPerYear
+			);
+			if (!blockCheck.hasCapacity) {
+				return blockCheck;
+			}
+		}
 
-    return { hasCapacity: true };
-  }
+		return { hasCapacity: true };
+	}
 
-  /**
-   * Resolve capacity rule using hierarchy
-   */
-  async resolveCapacityRule(
-    preceptorId: string,
-    clerkshipId?: string,
-    requirementType?: 'outpatient' | 'inpatient' | 'elective'
-  ): Promise<ResolvedCapacityRule> {
-    // Try clerkship-specific + requirement-type (most specific)
-    if (clerkshipId && requirementType) {
-      const rule = await this.db
-        .selectFrom('preceptor_capacity_rules')
-        .selectAll()
-        .where('preceptor_id', '=', preceptorId)
-        .where('clerkship_id', '=', clerkshipId)
-        .where('requirement_type', '=', requirementType)
-        .executeTakeFirst();
+	/**
+	 * Resolve capacity rule using hierarchy
+	 */
+	async resolveCapacityRule(
+		preceptorId: string,
+		clerkshipId?: string,
+		requirementType?: 'outpatient' | 'inpatient' | 'elective'
+	): Promise<ResolvedCapacityRule> {
+		// Try clerkship-specific + requirement-type (most specific)
+		if (clerkshipId && requirementType) {
+			const rule = await this.db
+				.selectFrom('preceptor_capacity_rules')
+				.selectAll()
+				.where('preceptor_id', '=', preceptorId)
+				.where('clerkship_id', '=', clerkshipId)
+				.where('requirement_type', '=', requirementType)
+				.executeTakeFirst();
 
-      if (rule) {
-        return {
-          maxStudentsPerDay: rule.max_students_per_day,
-          maxStudentsPerYear: rule.max_students_per_year,
-          maxStudentsPerBlock: rule.max_students_per_block || undefined,
-          maxBlocksPerYear: rule.max_blocks_per_year || undefined,
-          source: 'clerkship-specific',
-        };
-      }
-    }
+			if (rule) {
+				return {
+					maxStudentsPerDay: rule.max_students_per_day,
+					maxStudentsPerYear: rule.max_students_per_year,
+					maxStudentsPerBlock: rule.max_students_per_block || undefined,
+					maxBlocksPerYear: rule.max_blocks_per_year || undefined,
+					source: 'clerkship-specific'
+				};
+			}
+		}
 
-    // Try clerkship-specific
-    if (clerkshipId) {
-      const rule = await this.db
-        .selectFrom('preceptor_capacity_rules')
-        .selectAll()
-        .where('preceptor_id', '=', preceptorId)
-        .where('clerkship_id', '=', clerkshipId)
-        .where('requirement_type', 'is', null)
-        .executeTakeFirst();
+		// Try clerkship-specific
+		if (clerkshipId) {
+			const rule = await this.db
+				.selectFrom('preceptor_capacity_rules')
+				.selectAll()
+				.where('preceptor_id', '=', preceptorId)
+				.where('clerkship_id', '=', clerkshipId)
+				.where('requirement_type', 'is', null)
+				.executeTakeFirst();
 
-      if (rule) {
-        return {
-          maxStudentsPerDay: rule.max_students_per_day,
-          maxStudentsPerYear: rule.max_students_per_year,
-          maxStudentsPerBlock: rule.max_students_per_block || undefined,
-          maxBlocksPerYear: rule.max_blocks_per_year || undefined,
-          source: 'clerkship-specific',
-        };
-      }
-    }
+			if (rule) {
+				return {
+					maxStudentsPerDay: rule.max_students_per_day,
+					maxStudentsPerYear: rule.max_students_per_year,
+					maxStudentsPerBlock: rule.max_students_per_block || undefined,
+					maxBlocksPerYear: rule.max_blocks_per_year || undefined,
+					source: 'clerkship-specific'
+				};
+			}
+		}
 
-    // Try requirement-type-specific
-    if (requirementType) {
-      const rule = await this.db
-        .selectFrom('preceptor_capacity_rules')
-        .selectAll()
-        .where('preceptor_id', '=', preceptorId)
-        .where('clerkship_id', 'is', null)
-        .where('requirement_type', '=', requirementType)
-        .executeTakeFirst();
+		// Try requirement-type-specific
+		if (requirementType) {
+			const rule = await this.db
+				.selectFrom('preceptor_capacity_rules')
+				.selectAll()
+				.where('preceptor_id', '=', preceptorId)
+				.where('clerkship_id', 'is', null)
+				.where('requirement_type', '=', requirementType)
+				.executeTakeFirst();
 
-      if (rule) {
-        return {
-          maxStudentsPerDay: rule.max_students_per_day,
-          maxStudentsPerYear: rule.max_students_per_year,
-          maxStudentsPerBlock: rule.max_students_per_block || undefined,
-          maxBlocksPerYear: rule.max_blocks_per_year || undefined,
-          source: 'requirement-type-specific',
-        };
-      }
-    }
+			if (rule) {
+				return {
+					maxStudentsPerDay: rule.max_students_per_day,
+					maxStudentsPerYear: rule.max_students_per_year,
+					maxStudentsPerBlock: rule.max_students_per_block || undefined,
+					maxBlocksPerYear: rule.max_blocks_per_year || undefined,
+					source: 'requirement-type-specific'
+				};
+			}
+		}
 
-    // Try general preceptor rule
-    const rule = await this.db
-      .selectFrom('preceptor_capacity_rules')
-      .selectAll()
-      .where('preceptor_id', '=', preceptorId)
-      .where('clerkship_id', 'is', null)
-      .where('requirement_type', 'is', null)
-      .executeTakeFirst();
+		// Try general preceptor rule
+		const rule = await this.db
+			.selectFrom('preceptor_capacity_rules')
+			.selectAll()
+			.where('preceptor_id', '=', preceptorId)
+			.where('clerkship_id', 'is', null)
+			.where('requirement_type', 'is', null)
+			.executeTakeFirst();
 
-    if (rule) {
-      return {
-        maxStudentsPerDay: rule.max_students_per_day,
-        maxStudentsPerYear: rule.max_students_per_year,
-        maxStudentsPerBlock: rule.max_students_per_block || undefined,
-        maxBlocksPerYear: rule.max_blocks_per_year || undefined,
-        source: 'general',
-      };
-    }
+		if (rule) {
+			return {
+				maxStudentsPerDay: rule.max_students_per_day,
+				maxStudentsPerYear: rule.max_students_per_year,
+				maxStudentsPerBlock: rule.max_students_per_block || undefined,
+				maxBlocksPerYear: rule.max_blocks_per_year || undefined,
+				source: 'general'
+			};
+		}
 
-    // Default from the preceptors table. One capacity model (review finding
-    // F-07): `preceptors.max_students` is the PER-DAY limit — the same number
-    // Stage 1 warns against — and there is NO yearly cap unless an explicit
-    // `preceptor_capacity_rules` row sets one. The previous default treated
-    // `max_students` as a yearly cap, so a single existing assignment in the
-    // calendar year (with the Stage 1 default of 1) made the engine reject
-    // every further day for that preceptor.
-    const preceptor = await this.db
-      .selectFrom('preceptors')
-      .select('max_students')
-      .where('id', '=', preceptorId)
-      .executeTakeFirst();
+		// Default from the preceptors table. One capacity model (review finding
+		// F-07): `preceptors.max_students` is the PER-DAY limit — the same number
+		// Stage 1 warns against — and there is NO yearly cap unless an explicit
+		// `preceptor_capacity_rules` row sets one. The previous default treated
+		// `max_students` as a yearly cap, so a single existing assignment in the
+		// calendar year (with the Stage 1 default of 1) made the engine reject
+		// every further day for that preceptor.
+		const preceptor = await this.db
+			.selectFrom('preceptors')
+			.select('max_students')
+			.where('id', '=', preceptorId)
+			.executeTakeFirst();
 
-    return {
-      maxStudentsPerDay: preceptor?.max_students ?? 1,
-      maxStudentsPerYear: Number.MAX_SAFE_INTEGER, // unlimited without a rule
-      source: 'default',
-    };
-  }
+		return {
+			maxStudentsPerDay: preceptor?.max_students ?? 1,
+			maxStudentsPerYear: Number.MAX_SAFE_INTEGER, // unlimited without a rule
+			source: 'default'
+		};
+	}
 
-  /**
-   * Check daily capacity
-   */
-  private async checkDailyCapacity(
-    preceptorId: string,
-    date: string,
-    maxPerDay: number
-  ): Promise<CapacityCheckResult> {
-    const count = await this.db
-      .selectFrom('schedule_assignments')
-      .select(({ fn }) => [fn.count<number>('id').as('count')])
-      .where('preceptor_id', '=', preceptorId)
-      .where('date', '=', date)
-      .executeTakeFirst();
+	/**
+	 * Check daily capacity
+	 */
+	private async checkDailyCapacity(
+		preceptorId: string,
+		date: string,
+		maxPerDay: number
+	): Promise<CapacityCheckResult> {
+		const count = await this.db
+			.selectFrom('schedule_assignments')
+			.select(({ fn }) => [fn.count<number>('id').as('count')])
+			.where('preceptor_id', '=', preceptorId)
+			.where('date', '=', date)
+			.executeTakeFirst();
 
-    const currentCount = count?.count || 0;
+		const currentCount = count?.count || 0;
 
-    if (currentCount >= maxPerDay) {
-      return {
-        hasCapacity: false,
-        reason: `Preceptor at daily capacity (${currentCount}/${maxPerDay})`,
-        currentCount,
-        maxAllowed: maxPerDay,
-        checkType: 'daily',
-      };
-    }
+		if (currentCount >= maxPerDay) {
+			return {
+				hasCapacity: false,
+				reason: `Preceptor at daily capacity (${currentCount}/${maxPerDay})`,
+				currentCount,
+				maxAllowed: maxPerDay,
+				checkType: 'daily'
+			};
+		}
 
-    return { hasCapacity: true };
-  }
+		return { hasCapacity: true };
+	}
 
-  /**
-   * Check yearly capacity
-   */
-  private async checkYearlyCapacity(
-    preceptorId: string,
-    year: number,
-    maxPerYear: number
-  ): Promise<CapacityCheckResult> {
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
+	/**
+	 * Check yearly capacity
+	 */
+	private async checkYearlyCapacity(
+		preceptorId: string,
+		year: number,
+		maxPerYear: number
+	): Promise<CapacityCheckResult> {
+		const startDate = `${year}-01-01`;
+		const endDate = `${year}-12-31`;
 
-    const count = await this.db
-      .selectFrom('schedule_assignments')
-      .select(({ fn }) => [fn.count<number>('id').as('count')])
-      .where('preceptor_id', '=', preceptorId)
-      .where('date', '>=', startDate)
-      .where('date', '<=', endDate)
-      .executeTakeFirst();
+		const count = await this.db
+			.selectFrom('schedule_assignments')
+			.select(({ fn }) => [fn.count<number>('id').as('count')])
+			.where('preceptor_id', '=', preceptorId)
+			.where('date', '>=', startDate)
+			.where('date', '<=', endDate)
+			.executeTakeFirst();
 
-    const currentCount = count?.count || 0;
+		const currentCount = count?.count || 0;
 
-    if (currentCount >= maxPerYear) {
-      return {
-        hasCapacity: false,
-        reason: `Preceptor at yearly capacity (${currentCount}/${maxPerYear})`,
-        currentCount,
-        maxAllowed: maxPerYear,
-        checkType: 'yearly',
-      };
-    }
+		if (currentCount >= maxPerYear) {
+			return {
+				hasCapacity: false,
+				reason: `Preceptor at yearly capacity (${currentCount}/${maxPerYear})`,
+				currentCount,
+				maxAllowed: maxPerYear,
+				checkType: 'yearly'
+			};
+		}
 
-    return { hasCapacity: true };
-  }
+		return { hasCapacity: true };
+	}
 
-  /**
-   * Check block capacity
-   */
-  private async checkBlockCapacity(
-    preceptorId: string,
-    year: number,
-    maxPerBlock: number,
-    maxBlocks: number
-  ): Promise<CapacityCheckResult> {
-    // TODO: block_number field doesn't exist in schedule_assignments table schema
-    // This functionality requires a schema migration to add block_number field
-    // For now, return hasCapacity: true to avoid blocking scheduling
-    return { hasCapacity: true };
+	/**
+	 * Check block capacity
+	 */
+	private async checkBlockCapacity(
+		preceptorId: string,
+		year: number,
+		maxPerBlock: number,
+		maxBlocks: number
+	): Promise<CapacityCheckResult> {
+		// TODO: block_number field doesn't exist in schedule_assignments table schema
+		// This functionality requires a schema migration to add block_number field
+		// For now, return hasCapacity: true to avoid blocking scheduling
+		return { hasCapacity: true };
 
-    /* Original implementation (requires block_number field in schema):
+		/* Original implementation (requires block_number field in schema):
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
@@ -309,5 +309,5 @@ export class CapacityChecker {
 
     return { hasCapacity: true };
     */
-  }
+	}
 }

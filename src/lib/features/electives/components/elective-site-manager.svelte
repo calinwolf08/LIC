@@ -73,12 +73,7 @@
 								class="ml-1 rounded-full hover:bg-destructive/20"
 								aria-label="Remove {site.name}"
 							>
-								<svg
-									class="h-3 w-3"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
+								<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"

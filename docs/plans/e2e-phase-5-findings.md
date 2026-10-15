@@ -27,8 +27,7 @@ calendar shows `data-source="generated"` chips after a Full run).
 run could pass an unknown code (a typo) or a **hard** code
 (`student_double_booked`) and have it silently accepted — a caller could appear
 to "bypass" a hard block. **Fix:** constrain each entry with `isOverrideCode`,
-the canonical overridable (soft) vocabulary, so an unknown or hard code is a
-400. Asserted in J5.3.
+the canonical overridable (soft) vocabulary, so an unknown or hard code is a 400. Asserted in J5.3.
 
 ### P5-d — Generated assignment status was dropped before persistence _(fixed)_
 
@@ -56,7 +55,7 @@ the schedule-health override list and left no audit trail. **Fix:** carry
 ### D5-1 — Generation surfaces soft violations by default; bypass makes them overrides
 
 The plan framed J5.3 as "un-onboarded student → **unmet** → bypass to schedule."
-The implementation (F-05) instead **places** the day and *surfaces* the soft
+The implementation (F-05) instead **places** the day and _surfaces_ the soft
 violation: without a bypass the row carries no override code and the violation
 shows in the health "conflicts by type"; with the code in `bypassedConstraints`
 the same day is placed as an accepted **override** (stamped, shown in the

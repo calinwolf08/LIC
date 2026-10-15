@@ -1,15 +1,19 @@
 # Step 06 — Students Module Rework
 
 ## Objective
+
 Make the student detail page the per-student scheduling hub: requirement status as of today (completed / scheduled / unscheduled), full schedule with in-place editing, and one-click drill-through to related entities.
 
 ## Context
+
 DESIGN_REVIEW A2, B7, C3, E2. Today the detail page duplicates a calendar preview and a separate schedule page, progress requires generation to have run, assignment rows aren't links, and onboarding toggles reload the whole window.
 
 ## Prerequisites
+
 Steps 01, 04. Best after steps 09 (assignment dialogs) and 10 (status engine); if 10 hasn't landed, consume the `RequirementStatus` contract from `10-validation-engine.md` behind a service stub and leave a `TODO(step-10)`.
 
 ## Scope
+
 **In:** `/students` list, `/students/[id]` detail (absorbing `/students/[id]/schedule`), `/students/new`. **Out:** the validation engine itself (10), assignment dialog internals (09).
 
 ## Implementation
@@ -25,11 +29,13 @@ Steps 01, 04. Best after steps 09 (assignment dialogs) and 10 (status engine); i
 5. Empty/edge states: student with no assignments (EmptyState + "Add assignment"); no active clerkships (link to Clerkships).
 
 ## Testing
+
 - Unit: any list-status mapping helpers (status → label/color), service for batch student status (if added here rather than step 10).
 - API: batch status endpoint scoped to active schedule (if added here).
 - E2E: list shows status columns from seed data; open a seeded student → overview shows correct completed/scheduled/unscheduled split for the seed's "partially scheduled with past+future assignments" student; click clerkship link → clerkship page; add days from a deficit row (dialog pre-filled); edit details with unsaved-changes warning; onboarding toggle updates without full reload; `/students/[id]/schedule` redirects.
 
 ## Acceptance criteria
+
 - [ ] From a student page: full schedule visible; requirement status split by today's date; every related entity reachable in one click; schedule modifiable in place (R2.3 fully met).
 - [ ] Routes `/students/[id]/schedule` and `/students/[id]/edit` gone (redirect / removed).
 - [ ] No `window.location.reload()` in the module.

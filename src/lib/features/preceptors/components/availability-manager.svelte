@@ -113,12 +113,7 @@
 						<div class="flex items-center gap-3">
 							<div class="flex-1">
 								<Label for="date-{i}" class="sr-only">Date</Label>
-								<Input
-									id="date-{i}"
-									type="date"
-									bind:value={item.date}
-									disabled={isSaving}
-								/>
+								<Input id="date-{i}" type="date" bind:value={item.date} disabled={isSaving} />
 							</div>
 							<div class="flex items-center gap-2">
 								<Checkbox
@@ -131,12 +126,7 @@
 								/>
 								<Label for="available-{i}" class="text-sm">Available</Label>
 							</div>
-							<Button
-								size="sm"
-								variant="ghost"
-								onclick={() => removeDate(i)}
-								disabled={isSaving}
-							>
+							<Button size="sm" variant="ghost" onclick={() => removeDate(i)} disabled={isSaving}>
 								Remove
 							</Button>
 						</div>
@@ -144,11 +134,9 @@
 				{/if}
 			</div>
 
-			<Button variant="outline" onclick={addDate} disabled={isSaving}>
-				Add Date
-			</Button>
+			<Button variant="outline" onclick={addDate} disabled={isSaving}>Add Date</Button>
 
-			<div class="flex justify-end gap-3 pt-4 border-t">
+			<div class="flex justify-end gap-3 border-t pt-4">
 				{#if onCancel}
 					<Button type="button" variant="outline" onclick={onCancel} disabled={isSaving}>
 						Cancel

@@ -6,10 +6,10 @@
  */
 
 import type {
-  RequirementType,
-  AssignmentStrategy,
-  HealthSystemRule,
-  RequirementConfigurationSource,
+	RequirementType,
+	AssignmentStrategy,
+	HealthSystemRule,
+	RequirementConfigurationSource
 } from './enums';
 
 /**
@@ -19,40 +19,40 @@ import type {
  * This is the result of merging global defaults with per-clerkship overrides.
  */
 export interface ResolvedRequirementConfiguration {
-  // Identifies which requirement this is for
-  clerkshipId: string;
-  requirementId?: string; // For elective requirements
-  requirementType: RequirementType;
-  requiredDays: number;
+	// Identifies which requirement this is for
+	clerkshipId: string;
+	requirementId?: string; // For elective requirements
+	requirementType: RequirementType;
+	requiredDays: number;
 
-  // Resolved settings (merged from defaults + overrides)
-  assignmentStrategy: AssignmentStrategy;
-  healthSystemRule: HealthSystemRule;
-  maxStudentsPerDay: number;
-  maxStudentsPerYear: number;
+	// Resolved settings (merged from defaults + overrides)
+	assignmentStrategy: AssignmentStrategy;
+	healthSystemRule: HealthSystemRule;
+	maxStudentsPerDay: number;
+	maxStudentsPerYear: number;
 
-  // Block settings (only relevant if assignmentStrategy = 'block_based')
-  blockSizeDays?: number;
-  allowPartialBlocks?: boolean;
-  preferContinuousBlocks?: boolean;
-  maxStudentsPerBlock?: number;
-  maxBlocksPerYear?: number;
+	// Block settings (only relevant if assignmentStrategy = 'block_based')
+	blockSizeDays?: number;
+	allowPartialBlocks?: boolean;
+	preferContinuousBlocks?: boolean;
+	maxStudentsPerBlock?: number;
+	maxBlocksPerYear?: number;
 
-  // Team settings
-  allowTeams: boolean;
-  teamSizeMin?: number;
-  teamSizeMax?: number;
-  teamRequireSameHealthSystem?: boolean;
-  teamRequireSameSpecialty?: boolean;
+	// Team settings
+	allowTeams: boolean;
+	teamSizeMin?: number;
+	teamSizeMax?: number;
+	teamRequireSameHealthSystem?: boolean;
+	teamRequireSameSpecialty?: boolean;
 
-  // Fallback settings
-  allowFallbacks: boolean;
-  fallbackRequiresApproval: boolean;
-  fallbackAllowCrossSystem: boolean;
+	// Fallback settings
+	allowFallbacks: boolean;
+	fallbackRequiresApproval: boolean;
+	fallbackAllowCrossSystem: boolean;
 
-  // Metadata about resolution
-  source: RequirementConfigurationSource;
-  overriddenFields?: string[]; // List of fields that were overridden
+	// Metadata about resolution
+	source: RequirementConfigurationSource;
+	overriddenFields?: string[]; // List of fields that were overridden
 }
 
 /**
@@ -61,8 +61,8 @@ export interface ResolvedRequirementConfiguration {
  * Additional information about how a configuration was resolved.
  */
 export interface ConfigurationResolutionMetadata {
-  source: RequirementConfigurationSource;
-  overriddenFields: string[];
-  globalDefaultsUsed: boolean;
-  timestamp: Date;
+	source: RequirementConfigurationSource;
+	overriddenFields: string[];
+	globalDefaultsUsed: boolean;
+	timestamp: Date;
 }

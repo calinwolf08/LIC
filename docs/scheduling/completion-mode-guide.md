@@ -3,6 +3,7 @@
 ## Your Scenario - Detailed Solution
 
 ### Problem
+
 ```
 Initial Generation:
 ✅ 450 assignments created
@@ -19,6 +20,7 @@ Constraints were too strict:
 ```
 
 ### Goal
+
 ```
 Keep: ALL 450 existing assignments
 Adjust: Relax constraints ONLY for gap-filling
@@ -85,10 +87,12 @@ Backend behavior:
    - Save with constraint bypass
 
 **Pros:**
+
 - Works today with no code changes
 - Full control over each assignment
 
 **Cons:**
+
 - Tedious for many gaps (e.g., 8 manual assignments)
 - Error-prone
 - No optimization
@@ -104,10 +108,10 @@ Backend behavior:
 ```typescript
 // src/lib/features/scheduling/schemas.ts
 strategy: z.enum([
-  'full-reoptimize',
-  'minimal-change',
-  'completion'  // ✅ Already added
-])
+	'full-reoptimize',
+	'minimal-change',
+	'completion' // ✅ Already added
+]);
 ```
 
 #### 2. Regeneration Service Function (❌ NEEDS IMPLEMENTATION)
@@ -123,89 +127,89 @@ export type RegenerationStrategy = 'minimal-change' | 'full-reoptimize' | 'compl
  * Keeps 100% of existing assignments and only generates for gaps
  */
 export async function prepareCompletionContext(
-  db: Kysely<DB>,
-  context: SchedulingContext,
-  startDate: string,
-  endDate: string
+	db: Kysely<DB>,
+	context: SchedulingContext,
+	startDate: string,
+	endDate: string
 ): Promise<{
-  totalExistingAssignments: number;
-  studentsWithUnmetRequirements: string[];
-  unmetRequirementsByStudent: Map<string, Map<string, number>>;
+	totalExistingAssignments: number;
+	studentsWithUnmetRequirements: string[];
+	unmetRequirementsByStudent: Map<string, Map<string, number>>;
 }> {
-  log.debug('Preparing completion-only context');
+	log.debug('Preparing completion-only context');
 
-  // Get ALL existing assignments (no date filtering)
-  const allExistingAssignments = await getAssignmentsByDateRange(db, startDate, endDate);
+	// Get ALL existing assignments (no date filtering)
+	const allExistingAssignments = await getAssignmentsByDateRange(db, startDate, endDate);
 
-  // Credit ALL existing work to requirements
-  creditPastAssignmentsToRequirements(context, allExistingAssignments);
+	// Credit ALL existing work to requirements
+	creditPastAssignmentsToRequirements(context, allExistingAssignments);
 
-  // Add ALL existing assignments to context
-  // This makes the engine aware of them and work around them
-  for (const assignment of allExistingAssignments) {
-    const preservedAssignment: Assignment = {
-      studentId: assignment.student_id,
-      preceptorId: assignment.preceptor_id,
-      clerkshipId: assignment.clerkship_id,
-      date: assignment.date,
-      siteId: assignment.site_id || undefined
-    };
+	// Add ALL existing assignments to context
+	// This makes the engine aware of them and work around them
+	for (const assignment of allExistingAssignments) {
+		const preservedAssignment: Assignment = {
+			studentId: assignment.student_id,
+			preceptorId: assignment.preceptor_id,
+			clerkshipId: assignment.clerkship_id,
+			date: assignment.date,
+			siteId: assignment.site_id || undefined
+		};
 
-    // Add to context
-    context.assignments.push(preservedAssignment);
+		// Add to context
+		context.assignments.push(preservedAssignment);
 
-    // Update all tracking maps
-    if (!context.assignmentsByDate.has(assignment.date)) {
-      context.assignmentsByDate.set(assignment.date, []);
-    }
-    context.assignmentsByDate.get(assignment.date)!.push(preservedAssignment);
+		// Update all tracking maps
+		if (!context.assignmentsByDate.has(assignment.date)) {
+			context.assignmentsByDate.set(assignment.date, []);
+		}
+		context.assignmentsByDate.get(assignment.date)!.push(preservedAssignment);
 
-    if (!context.assignmentsByStudent.has(assignment.student_id)) {
-      context.assignmentsByStudent.set(assignment.student_id, []);
-    }
-    context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
+		if (!context.assignmentsByStudent.has(assignment.student_id)) {
+			context.assignmentsByStudent.set(assignment.student_id, []);
+		}
+		context.assignmentsByStudent.get(assignment.student_id)!.push(preservedAssignment);
 
-    if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
-      context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
-    }
-    context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
-  }
+		if (!context.assignmentsByPreceptor.has(assignment.preceptor_id)) {
+			context.assignmentsByPreceptor.set(assignment.preceptor_id, []);
+		}
+		context.assignmentsByPreceptor.get(assignment.preceptor_id)!.push(preservedAssignment);
+	}
 
-  // Identify students with unmet requirements
-  const studentsWithUnmetRequirements: string[] = [];
-  const unmetRequirementsByStudent = new Map<string, Map<string, number>>();
+	// Identify students with unmet requirements
+	const studentsWithUnmetRequirements: string[] = [];
+	const unmetRequirementsByStudent = new Map<string, Map<string, number>>();
 
-  for (const student of context.students) {
-    const requirements = context.studentRequirements.get(student.id!);
-    if (!requirements) continue;
+	for (const student of context.students) {
+		const requirements = context.studentRequirements.get(student.id!);
+		if (!requirements) continue;
 
-    const unmetForStudent = new Map<string, number>();
-    let hasUnmet = false;
+		const unmetForStudent = new Map<string, number>();
+		let hasUnmet = false;
 
-    for (const [clerkshipId, daysNeeded] of requirements.entries()) {
-      if (daysNeeded > 0) {
-        hasUnmet = true;
-        unmetForStudent.set(clerkshipId, daysNeeded);
-      }
-    }
+		for (const [clerkshipId, daysNeeded] of requirements.entries()) {
+			if (daysNeeded > 0) {
+				hasUnmet = true;
+				unmetForStudent.set(clerkshipId, daysNeeded);
+			}
+		}
 
-    if (hasUnmet) {
-      studentsWithUnmetRequirements.push(student.id!);
-      unmetRequirementsByStudent.set(student.id!, unmetForStudent);
-    }
-  }
+		if (hasUnmet) {
+			studentsWithUnmetRequirements.push(student.id!);
+			unmetRequirementsByStudent.set(student.id!, unmetForStudent);
+		}
+	}
 
-  log.info('Completion context prepared', {
-    totalExistingAssignments: allExistingAssignments.length,
-    studentsWithGaps: studentsWithUnmetRequirements.length,
-    totalStudents: context.students.length
-  });
+	log.info('Completion context prepared', {
+		totalExistingAssignments: allExistingAssignments.length,
+		studentsWithGaps: studentsWithUnmetRequirements.length,
+		totalStudents: context.students.length
+	});
 
-  return {
-    totalExistingAssignments: allExistingAssignments.length,
-    studentsWithUnmetRequirements,
-    unmetRequirementsByStudent
-  };
+	return {
+		totalExistingAssignments: allExistingAssignments.length,
+		studentsWithUnmetRequirements,
+		unmetRequirementsByStudent
+	};
 }
 ```
 
@@ -216,88 +220,88 @@ export async function prepareCompletionContext(
 
 // Add after line 98 where strategy is determined
 if (strategy === 'completion') {
-  log.info('Using completion-only strategy');
+	log.info('Using completion-only strategy');
 
-  // Prepare completion context
-  const completionResult = await prepareCompletionContext(
-    db,
-    context,
-    validatedData.startDate,
-    validatedData.endDate
-  );
+	// Prepare completion context
+	const completionResult = await prepareCompletionContext(
+		db,
+		context,
+		validatedData.startDate,
+		validatedData.endDate
+	);
 
-  if (completionResult.studentsWithUnmetRequirements.length === 0) {
-    return successResponse({
-      assignments: [],
-      success: true,
-      unmetRequirements: [],
-      violations: [],
-      summary: {
-        totalAssignments: 0,
-        totalViolations: 0,
-        strategiesUsed: []
-      },
-      strategy: 'completion',
-      message: 'All students already have complete schedules. No gaps to fill.'
-    });
-  }
+	if (completionResult.studentsWithUnmetRequirements.length === 0) {
+		return successResponse({
+			assignments: [],
+			success: true,
+			unmetRequirements: [],
+			violations: [],
+			summary: {
+				totalAssignments: 0,
+				totalViolations: 0,
+				strategiesUsed: []
+			},
+			strategy: 'completion',
+			message: 'All students already have complete schedules. No gaps to fill.'
+		});
+	}
 
-  // Run engine with bypassed constraints
-  const engine = new ConfigurableSchedulingEngine();
+	// Run engine with bypassed constraints
+	const engine = new ConfigurableSchedulingEngine();
 
-  // Pass bypassed constraints to engine
-  const result = engine.generateSchedule(context, {
-    startDate: validatedData.startDate,
-    endDate: validatedData.endDate,
-    bypassedConstraints: validatedData.bypassedConstraints || []
-  });
+	// Pass bypassed constraints to engine
+	const result = engine.generateSchedule(context, {
+		startDate: validatedData.startDate,
+		endDate: validatedData.endDate,
+		bypassedConstraints: validatedData.bypassedConstraints || []
+	});
 
-  // Filter: only keep NEW assignments (not the preserved ones)
-  const existingSet = new Set(
-    result.assignments
-      .slice(0, completionResult.totalExistingAssignments)
-      .map(a => `${a.studentId}-${a.date}-${a.clerkshipId}`)
-  );
+	// Filter: only keep NEW assignments (not the preserved ones)
+	const existingSet = new Set(
+		result.assignments
+			.slice(0, completionResult.totalExistingAssignments)
+			.map((a) => `${a.studentId}-${a.date}-${a.clerkshipId}`)
+	);
 
-  const newAssignmentsOnly = result.assignments.filter(
-    a => !existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
-  );
+	const newAssignmentsOnly = result.assignments.filter(
+		(a) => !existingSet.has(`${a.studentId}-${a.date}-${a.clerkshipId}`)
+	);
 
-  log.info('Completion generation complete', {
-    existingPreserved: completionResult.totalExistingAssignments,
-    newGenerated: newAssignmentsOnly.length,
-    studentsCompleted: completionResult.studentsWithUnmetRequirements.length
-  });
+	log.info('Completion generation complete', {
+		existingPreserved: completionResult.totalExistingAssignments,
+		newGenerated: newAssignmentsOnly.length,
+		studentsCompleted: completionResult.studentsWithUnmetRequirements.length
+	});
 
-  // Save ONLY new assignments
-  if (newAssignmentsOnly.length > 0) {
-    const saveResult = await bulkCreateAssignments(db, newAssignmentsOnly);
-    if (!saveResult.success) {
-      return errorResponse(saveResult.error);
-    }
-  }
+	// Save ONLY new assignments
+	if (newAssignmentsOnly.length > 0) {
+		const saveResult = await bulkCreateAssignments(db, newAssignmentsOnly);
+		if (!saveResult.success) {
+			return errorResponse(saveResult.error);
+		}
+	}
 
-  // Create audit log
-  await createRegenerationAuditLog(db, {
-    strategy: 'completion',
-    startDate: validatedData.startDate,
-    endDate: validatedData.endDate,
-    preservedCount: completionResult.totalExistingAssignments,
-    generatedCount: newAssignmentsOnly.length,
-    deletedCount: 0,
-    bypassedConstraints: validatedData.bypassedConstraints || []
-  });
+	// Create audit log
+	await createRegenerationAuditLog(db, {
+		strategy: 'completion',
+		startDate: validatedData.startDate,
+		endDate: validatedData.endDate,
+		preservedCount: completionResult.totalExistingAssignments,
+		generatedCount: newAssignmentsOnly.length,
+		deletedCount: 0,
+		bypassedConstraints: validatedData.bypassedConstraints || []
+	});
 
-  return successResponse({
-    ...result,
-    assignments: newAssignmentsOnly,
-    strategy: 'completion',
-    existingAssignmentsPreserved: completionResult.totalExistingAssignments,
-    newAssignmentsGenerated: newAssignmentsOnly.length,
-    studentsCompleted: completionResult.studentsWithUnmetRequirements.length,
-    bypassedConstraints: validatedData.bypassedConstraints,
-    unmetRequirementsAfter: completionResult.unmetRequirementsByStudent
-  });
+	return successResponse({
+		...result,
+		assignments: newAssignmentsOnly,
+		strategy: 'completion',
+		existingAssignmentsPreserved: completionResult.totalExistingAssignments,
+		newAssignmentsGenerated: newAssignmentsOnly.length,
+		studentsCompleted: completionResult.studentsWithUnmetRequirements.length,
+		bypassedConstraints: validatedData.bypassedConstraints,
+		unmetRequirementsAfter: completionResult.unmetRequirementsByStudent
+	});
 }
 ```
 
@@ -412,6 +416,7 @@ Response:
 ### Step 2: Review Results
 
 User sees:
+
 - 95% complete
 - Violation stats show "preceptor-capacity" blocked 45 attempts
 - Suggestions say "Increase preceptor capacity"
@@ -419,10 +424,12 @@ User sees:
 ### Step 3: Decide on Approach
 
 **Option A**: Permanently increase capacity
+
 - Edit preceptors, increase max_students from 2 to 3
 - Use full-reoptimize to regenerate everything
 
 **Option B**: One-time bypass for completion
+
 - Keep capacity at 2 for future
 - Use completion mode to fill gaps with capacity bypass
 
@@ -493,15 +500,15 @@ After Completion Mode:
 
 ## Implementation Status
 
-| Component | Status | Priority |
-|-----------|--------|----------|
-| Schema update | ✅ Complete | - |
-| `prepareCompletionContext()` | ❌ Needs implementation | High |
-| API handler update | ❌ Needs implementation | High |
-| UI completion mode | ❌ Needs implementation | Medium |
-| Constraint checkboxes | ❌ Needs implementation | Medium |
-| Tests | ❌ Needs implementation | Medium |
-| Documentation | ✅ Complete | - |
+| Component                    | Status                  | Priority |
+| ---------------------------- | ----------------------- | -------- |
+| Schema update                | ✅ Complete             | -        |
+| `prepareCompletionContext()` | ❌ Needs implementation | High     |
+| API handler update           | ❌ Needs implementation | High     |
+| UI completion mode           | ❌ Needs implementation | Medium   |
+| Constraint checkboxes        | ❌ Needs implementation | Medium   |
+| Tests                        | ❌ Needs implementation | Medium   |
+| Documentation                | ✅ Complete             | -        |
 
 ---
 
@@ -520,13 +527,13 @@ After Completion Mode:
 
 **Key differences:**
 
-| Feature | Full Reoptimize | Minimal Change | Completion |
-|---------|----------------|----------------|------------|
-| Keeps past | ✅ | ✅ | ✅ |
-| Keeps future | ❌ | ✅ Some | ✅ ALL |
-| Validates | N/A | ✅ Yes | ❌ No |
-| Generates | Everything | Gaps + replacements | Gaps only |
-| Bypassed constraints | ❌ | ❌ | ✅ For new only |
+| Feature              | Full Reoptimize | Minimal Change      | Completion      |
+| -------------------- | --------------- | ------------------- | --------------- |
+| Keeps past           | ✅              | ✅                  | ✅              |
+| Keeps future         | ❌              | ✅ Some             | ✅ ALL          |
+| Validates            | N/A             | ✅ Yes              | ❌ No           |
+| Generates            | Everything      | Gaps + replacements | Gaps only       |
+| Bypassed constraints | ❌              | ❌                  | ✅ For new only |
 
 **Implementation needed**: ~4 hours of development + 2 hours testing
 

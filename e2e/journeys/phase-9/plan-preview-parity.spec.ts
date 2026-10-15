@@ -33,7 +33,11 @@ function lowRequirementWorld(): WorldSpec {
 				name: 'Dr. FM',
 				sites: ['Clinic'],
 				teaches: ['Family Medicine'],
-				availability: [0, 1, 2, 3, 4].map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+				availability: [0, 1, 2, 3, 4].map((day) => ({
+					day,
+					site: 'Clinic',
+					session: 'full' as const
+				}))
 			}
 		],
 		students: [{ name: 'Student 1', onboardedAt: ['Metro'] }]

@@ -1,9 +1,11 @@
 # Step 14: Blackout Dates - Service Layer
 
 ## Overview
+
 Implement the service layer for managing blackout dates (holidays, breaks, non-teaching days). This includes creating, retrieving, and deleting blackout periods with date range validation and overlap detection.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -11,7 +13,9 @@ Implement the service layer for managing blackout dates (holidays, breaks, non-t
 ## Requirements
 
 ### Database Operations
+
 Implement blackout date management operations:
+
 - Get all blackout dates
 - Get single blackout date by ID
 - Get blackout dates by date range
@@ -20,6 +24,7 @@ Implement blackout date management operations:
 - Check for date overlaps
 
 ### Business Rules
+
 - start_date must be before or equal to end_date
 - Blackout dates can overlap (e.g., individual + institutional holidays)
 - Date format must be ISO 8601 (YYYY-MM-DD)
@@ -27,6 +32,7 @@ Implement blackout date management operations:
 - Blackout dates affect schedule generation (no assignments on these dates)
 
 ### Validation
+
 - Zod schemas for create operations
 - Date format validation (YYYY-MM-DD)
 - Date range validation (start before or equal to end)
@@ -35,6 +41,7 @@ Implement blackout date management operations:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/blackout-dates/
 ├── services/
@@ -52,27 +59,32 @@ Implement blackout date management operations:
 Zod validation schemas for blackout date operations.
 
 **Exports:**
+
 ```typescript
 import { z } from 'zod';
 import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
 
-export const createBlackoutDateSchema = z.object({
-  start_date: dateStringSchema,
-  end_date: dateStringSchema,
-  reason: z.string().min(1, 'Reason is required'),
-}).refine(data => data.start_date <= data.end_date, {
-  message: 'start_date must be before or equal to end_date',
-});
+export const createBlackoutDateSchema = z
+	.object({
+		start_date: dateStringSchema,
+		end_date: dateStringSchema,
+		reason: z.string().min(1, 'Reason is required')
+	})
+	.refine((data) => data.start_date <= data.end_date, {
+		message: 'start_date must be before or equal to end_date'
+	});
 
-export const dateRangeSchema = z.object({
-  start_date: dateStringSchema,
-  end_date: dateStringSchema,
-}).refine(data => data.start_date <= data.end_date, {
-  message: 'start_date must be before or equal to end_date',
-});
+export const dateRangeSchema = z
+	.object({
+		start_date: dateStringSchema,
+		end_date: dateStringSchema
+	})
+	.refine((data) => data.start_date <= data.end_date, {
+		message: 'start_date must be before or equal to end_date'
+	});
 
 export const blackoutDateIdSchema = z.object({
-  id: uuidSchema,
+	id: uuidSchema
 });
 
 export type CreateBlackoutDateInput = z.infer<typeof createBlackoutDateSchema>;
@@ -80,6 +92,7 @@ export type DateRangeInput = z.infer<typeof dateRangeSchema>;
 ```
 
 **Requirements:**
+
 - Use common date validation schemas
 - Validate date ordering (start <= end)
 - Require reason field
@@ -92,45 +105,38 @@ export type DateRangeInput = z.infer<typeof dateRangeSchema>;
 Service functions for blackout date operations.
 
 **Exports:**
+
 ```typescript
 import type { Kysely } from 'kysely';
 import type { Database, BlackoutDatesTable } from '$lib/db/types';
 import type { CreateBlackoutDateInput, DateRangeInput } from '../schemas';
 
-export async function getBlackoutDates(db: Kysely<Database>): Promise<BlackoutDatesTable[]>
+export async function getBlackoutDates(db: Kysely<Database>): Promise<BlackoutDatesTable[]>;
 
 export async function getBlackoutDateById(
-  db: Kysely<Database>,
-  id: string
-): Promise<BlackoutDatesTable | null>
+	db: Kysely<Database>,
+	id: string
+): Promise<BlackoutDatesTable | null>;
 
 export async function getBlackoutDatesByRange(
-  db: Kysely<Database>,
-  dateRange: DateRangeInput
-): Promise<BlackoutDatesTable[]>
+	db: Kysely<Database>,
+	dateRange: DateRangeInput
+): Promise<BlackoutDatesTable[]>;
 
 export async function createBlackoutDate(
-  db: Kysely<Database>,
-  data: CreateBlackoutDateInput
-): Promise<BlackoutDatesTable>
+	db: Kysely<Database>,
+	data: CreateBlackoutDateInput
+): Promise<BlackoutDatesTable>;
 
-export async function deleteBlackoutDate(
-  db: Kysely<Database>,
-  id: string
-): Promise<void>
+export async function deleteBlackoutDate(db: Kysely<Database>, id: string): Promise<void>;
 
-export async function isDateBlackedOut(
-  db: Kysely<Database>,
-  date: string
-): Promise<boolean>
+export async function isDateBlackedOut(db: Kysely<Database>, date: string): Promise<boolean>;
 
-export async function blackoutDateExists(
-  db: Kysely<Database>,
-  id: string
-): Promise<boolean>
+export async function blackoutDateExists(db: Kysely<Database>, id: string): Promise<boolean>;
 ```
 
 **Requirements:**
+
 - All functions accept database instance as first parameter
 - Use Kysely type-safe queries
 - Throw appropriate errors (NotFoundError)
@@ -146,6 +152,7 @@ export async function blackoutDateExists(
 Retrieve all blackout dates from database.
 
 **Logic:**
+
 - Query all blackout dates from blackout_dates table
 - Order by start_date ascending
 - Return array of blackout dates (empty array if none)
@@ -155,6 +162,7 @@ Retrieve all blackout dates from database.
 **Errors:** None (returns empty array if no blackout dates)
 
 **Example:**
+
 ```typescript
 const blackoutDates = await getBlackoutDates(db);
 // [{ id: '...', start_date: '2024-12-25', end_date: '2024-12-25', reason: 'Christmas', ... }]
@@ -167,10 +175,12 @@ const blackoutDates = await getBlackoutDates(db);
 Retrieve single blackout date by ID.
 
 **Logic:**
+
 - Query blackout_dates by ID
 - Return blackout date if found, null if not found
 
 **Parameters:**
+
 - `id`: Blackout date UUID
 
 **Returns:** Blackout date object or null
@@ -178,10 +188,11 @@ Retrieve single blackout date by ID.
 **Errors:** None (returns null if not found)
 
 **Example:**
+
 ```typescript
 const blackoutDate = await getBlackoutDateById(db, '123-456-789');
 if (!blackoutDate) {
-  throw new NotFoundError('Blackout date');
+	throw new NotFoundError('Blackout date');
 }
 ```
 
@@ -192,12 +203,14 @@ if (!blackoutDate) {
 Get blackout dates that overlap with a date range.
 
 **Logic:**
+
 - Query blackout_dates table
 - Filter where periods overlap with given date range
 - Overlap condition: `blackout.start_date <= range.end_date AND blackout.end_date >= range.start_date`
 - Order by start_date ascending
 
 **Parameters:**
+
 - `dateRange`: Object with start_date and end_date
 
 **Returns:** Array of overlapping blackout dates
@@ -205,10 +218,11 @@ Get blackout dates that overlap with a date range.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const blackouts = await getBlackoutDatesByRange(db, {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31'
+	start_date: '2024-01-01',
+	end_date: '2024-12-31'
 });
 ```
 
@@ -219,12 +233,14 @@ const blackouts = await getBlackoutDatesByRange(db, {
 Create a new blackout date period.
 
 **Logic:**
+
 1. Generate UUID for new blackout date
 2. Set created_at and updated_at timestamps
 3. Insert into database
 4. Return created blackout date
 
 **Parameters:**
+
 - `data`: Object with start_date, end_date, and reason
 
 **Returns:** Created blackout date object
@@ -232,11 +248,12 @@ Create a new blackout date period.
 **Errors:** None (overlaps are allowed)
 
 **Example:**
+
 ```typescript
 const blackoutDate = await createBlackoutDate(db, {
-  start_date: '2024-12-25',
-  end_date: '2024-12-25',
-  reason: 'Christmas Day'
+	start_date: '2024-12-25',
+	end_date: '2024-12-25',
+	reason: 'Christmas Day'
 });
 ```
 
@@ -247,20 +264,24 @@ const blackoutDate = await createBlackoutDate(db, {
 Delete a blackout date.
 
 **Logic:**
+
 1. Check if blackout date exists
 2. Throw NotFoundError if not found
 3. Delete from database
 4. No constraint checking (blackout dates don't reference other tables)
 
 **Parameters:**
+
 - `id`: Blackout date UUID
 
 **Returns:** void
 
 **Errors:**
+
 - `NotFoundError`: Blackout date not found
 
 **Example:**
+
 ```typescript
 await deleteBlackoutDate(db, '123-456-789');
 ```
@@ -272,12 +293,14 @@ await deleteBlackoutDate(db, '123-456-789');
 Check if a specific date falls within any blackout period.
 
 **Logic:**
+
 - Query blackout_dates table
 - Check if any periods contain the given date
 - Containment condition: `blackout.start_date <= date AND blackout.end_date >= date`
 - Return true if date is blacked out, false otherwise
 
 **Parameters:**
+
 - `date`: Date to check (YYYY-MM-DD)
 
 **Returns:** Boolean indicating if date is blacked out
@@ -285,10 +308,11 @@ Check if a specific date falls within any blackout period.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const isBlackedOut = await isDateBlackedOut(db, '2024-12-25');
 if (isBlackedOut) {
-  console.log('Cannot schedule on this date (blackout period)');
+	console.log('Cannot schedule on this date (blackout period)');
 }
 ```
 
@@ -299,10 +323,12 @@ if (isBlackedOut) {
 Check if blackout date exists.
 
 **Logic:**
+
 - Query blackout_dates by ID
 - Return true if found, false if not
 
 **Parameters:**
+
 - `id`: Blackout date UUID
 
 **Returns:** Boolean
@@ -310,9 +336,10 @@ Check if blackout date exists.
 **Errors:** None
 
 **Example:**
+
 ```typescript
-if (!await blackoutDateExists(db, '123-456-789')) {
-  throw new NotFoundError('Blackout date');
+if (!(await blackoutDateExists(db, '123-456-789'))) {
+	throw new NotFoundError('Blackout date');
 }
 ```
 
@@ -325,6 +352,7 @@ if (!await blackoutDateExists(db, '123-456-789')) {
 #### `/src/lib/features/blackout-dates/schemas.test.ts`
 
 **Schema Validation Tests:**
+
 - ✅ createBlackoutDateSchema validates valid input
 - ✅ createBlackoutDateSchema requires start_date
 - ✅ createBlackoutDateSchema requires end_date
@@ -342,15 +370,18 @@ if (!await blackoutDateExists(db, '123-456-789')) {
 **Service Function Tests:**
 
 **getBlackoutDates():**
+
 - ✅ Returns all blackout dates
 - ✅ Returns empty array when no blackout dates
 - ✅ Orders dates by start_date
 
 **getBlackoutDateById():**
+
 - ✅ Returns blackout date when found
 - ✅ Returns null when not found
 
 **getBlackoutDatesByRange():**
+
 - ✅ Returns blackout dates overlapping with range
 - ✅ Returns empty array when no overlap
 - ✅ Detects partial overlaps
@@ -359,6 +390,7 @@ if (!await blackoutDateExists(db, '123-456-789')) {
 - ✅ Detects range contained within blackout period
 
 **createBlackoutDate():**
+
 - ✅ Creates blackout date with valid data
 - ✅ Generates UUID for new date
 - ✅ Sets timestamps
@@ -367,11 +399,13 @@ if (!await blackoutDateExists(db, '123-456-789')) {
 - ✅ Allows single-day blackout (start = end)
 
 **deleteBlackoutDate():**
+
 - ✅ Deletes blackout date successfully
 - ✅ Throws NotFoundError if not found
 - ✅ Actually removes from database
 
 **isDateBlackedOut():**
+
 - ✅ Returns true when date is within blackout period
 - ✅ Returns false when date is outside blackout period
 - ✅ Checks start_date boundary
@@ -379,6 +413,7 @@ if (!await blackoutDateExists(db, '123-456-789')) {
 - ✅ Returns true when multiple overlapping blackouts exist
 
 **blackoutDateExists():**
+
 - ✅ Returns true when blackout date exists
 - ✅ Returns false when blackout date doesn't exist
 
@@ -422,9 +457,9 @@ if (!await blackoutDateExists(db, '123-456-789')) {
 ```typescript
 import { db } from '$lib/db';
 import {
-  getBlackoutDates,
-  createBlackoutDate,
-  isDateBlackedOut
+	getBlackoutDates,
+	createBlackoutDate,
+	isDateBlackedOut
 } from '$lib/features/blackout-dates/services/blackout-date-service';
 
 // Get all blackout dates
@@ -432,13 +467,13 @@ const blackouts = await getBlackoutDates(db);
 
 // Create blackout date
 const blackout = await createBlackoutDate(db, {
-  start_date: '2024-12-25',
-  end_date: '2024-12-26',
-  reason: 'Christmas Holiday'
+	start_date: '2024-12-25',
+	end_date: '2024-12-26',
+	reason: 'Christmas Holiday'
 });
 
 // Check if specific date is blacked out
-const canSchedule = !await isDateBlackedOut(db, '2024-12-25');
+const canSchedule = !(await isDateBlackedOut(db, '2024-12-25'));
 ```
 
 ---

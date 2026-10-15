@@ -150,7 +150,8 @@ export async function updatePreceptor(
 	if (data.phone !== undefined) updateData.phone = data.phone || null;
 	if (data.phone_type !== undefined) updateData.phone_type = data.phone_type || null;
 	if ('health_system_id' in data) updateData.health_system_id = data.health_system_id || null;
-	if (data.is_global_fallback_only !== undefined) updateData.is_global_fallback_only = data.is_global_fallback_only ? 1 : 0;
+	if (data.is_global_fallback_only !== undefined)
+		updateData.is_global_fallback_only = data.is_global_fallback_only ? 1 : 0;
 
 	const updated = await db
 		.updateTable('preceptors')
@@ -162,7 +163,7 @@ export async function updatePreceptor(
 	log.info('Preceptor updated', {
 		id: updated.id,
 		name: updated.name,
-		updatedFields: Object.keys(updateData).filter(k => k !== 'updated_at')
+		updatedFields: Object.keys(updateData).filter((k) => k !== 'updated_at')
 	});
 
 	return updated;
@@ -270,7 +271,11 @@ export async function getPreceptorSitesWithDetails(
 		.select(['sites.id as id', 'sites.name as name', 'sites.health_system_id as health_system_id'])
 		.where('preceptor_sites.preceptor_id', '=', preceptorId)
 		.execute();
-	return rows.map((r) => ({ id: r.id as string, name: r.name, health_system_id: r.health_system_id }));
+	return rows.map((r) => ({
+		id: r.id as string,
+		name: r.name,
+		health_system_id: r.health_system_id
+	}));
 }
 
 /**

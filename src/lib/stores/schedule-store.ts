@@ -39,8 +39,9 @@ const initialState: ScheduleState = {
 export const scheduleStore = writable<ScheduleState>(initialState);
 
 // Derived store for the active schedule
-export const activeSchedule = derived(scheduleStore, ($state) =>
-	$state.schedules.find((s) => s.id === $state.activeScheduleId) || null
+export const activeSchedule = derived(
+	scheduleStore,
+	($state) => $state.schedules.find((s) => s.id === $state.activeScheduleId) || null
 );
 
 // Derived store for all schedules

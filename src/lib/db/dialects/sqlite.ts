@@ -21,7 +21,7 @@ const columnTypes: DdlTypeMap = {
 	// ISO-8601 strings — see DdlTypeMap for why this is not a date type.
 	timestamp: 'text',
 	json: 'text',
-	blob: 'blob',
+	blob: 'blob'
 };
 
 function asSqliteConfig(config: DbConfig): SqliteDbConfig {
@@ -39,7 +39,7 @@ export const sqliteAdapter: DialectAdapter = {
 	configFromEnv(env: DbEnv): SqliteDbConfig {
 		return {
 			dialect: 'sqlite',
-			path: env.DATABASE_PATH?.trim() || DEFAULT_SQLITE_PATH,
+			path: env.DATABASE_PATH?.trim() || DEFAULT_SQLITE_PATH
 		};
 	},
 
@@ -62,5 +62,5 @@ export const sqliteAdapter: DialectAdapter = {
 		sqlite.pragma('busy_timeout = 10000');
 
 		return new SqliteDialect({ database: sqlite });
-	},
+	}
 };

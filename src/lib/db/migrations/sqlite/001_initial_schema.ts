@@ -14,20 +14,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull())
 		.addColumn('email', 'text', (col) => col.notNull().unique())
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for email lookups
-	await db.schema
-		.createIndex('idx_students_email')
-		.on('students')
-		.column('email')
-		.execute();
+	await db.schema.createIndex('idx_students_email').on('students').column('email').execute();
 
 	// ========================================
 	// Preceptors Table
@@ -39,20 +31,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('email', 'text', (col) => col.notNull().unique())
 		.addColumn('specialty', 'text', (col) => col.notNull())
 		.addColumn('max_students', 'integer', (col) => col.notNull().defaultTo(1))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for email lookups
-	await db.schema
-		.createIndex('idx_preceptors_email')
-		.on('preceptors')
-		.column('email')
-		.execute();
+	await db.schema.createIndex('idx_preceptors_email').on('preceptors').column('email').execute();
 
 	// Index for specialty filtering
 	await db.schema
@@ -72,12 +56,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull().defaultTo(1))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint: one availability record per preceptor per date
@@ -103,16 +83,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull().unique())
 		.addColumn('specialty', 'text', (col) => col.notNull())
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for specialty matching with preceptors
@@ -130,9 +104,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('date', 'text', (col) => col.notNull().unique())
 		.addColumn('reason', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Index for date lookups
@@ -160,12 +132,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('status', 'text', (col) => col.notNull().defaultTo('scheduled'))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Unique constraint: student cannot be double-booked on same date

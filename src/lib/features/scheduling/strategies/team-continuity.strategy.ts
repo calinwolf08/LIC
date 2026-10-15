@@ -23,369 +23,389 @@ import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-
  * allowing fallback to team members only when necessary.
  */
 export class TeamContinuityStrategy extends BaseStrategy {
-  getName(): string {
-    return 'TeamContinuityStrategy';
-  }
+	getName(): string {
+		return 'TeamContinuityStrategy';
+	}
 
-  canHandle(config: ResolvedRequirementConfiguration): boolean {
-    // team_continuity is the default strategy when none is specified
-    // Also handles 'continuous_single' for backward compatibility (deprecated)
-    return (
-      config.assignmentStrategy === 'team_continuity' ||
-      config.assignmentStrategy === 'continuous_single' ||
-      config.assignmentStrategy === undefined
-    );
-  }
+	canHandle(config: ResolvedRequirementConfiguration): boolean {
+		// team_continuity is the default strategy when none is specified
+		// Also handles 'continuous_single' for backward compatibility (deprecated)
+		return (
+			config.assignmentStrategy === 'team_continuity' ||
+			config.assignmentStrategy === 'continuous_single' ||
+			config.assignmentStrategy === undefined
+		);
+	}
 
-  async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
-    const { student, clerkship, config, availableDates, availablePreceptors, teams } = context;
+	async generateAssignments(context: StrategyContext): Promise<StrategyResult> {
+		const { student, clerkship, config, availableDates, availablePreceptors, teams } = context;
 
-    // Validate required IDs
-    if (!student.id) {
-      return { success: false, assignments: [], error: 'Student must have a valid ID' };
-    }
-    if (!clerkship.id) {
-      return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
-    }
+		// Validate required IDs
+		if (!student.id) {
+			return { success: false, assignments: [], error: 'Student must have a valid ID' };
+		}
+		if (!clerkship.id) {
+			return { success: false, assignments: [], error: 'Clerkship must have a valid ID' };
+		}
 
-    // Use config.requiredDays which respects requirement overrides
-    const requiredDays = config.requiredDays;
+		// Use config.requiredDays which respects requirement overrides
+		const requiredDays = config.requiredDays;
 
-    // Check if we have enough dates available
-    if (availableDates.length < requiredDays) {
-      return {
-        success: false,
-        assignments: [],
-        error: `Insufficient available dates: ${availableDates.length} < ${requiredDays}`,
-      };
-    }
+		// Check if we have enough dates available
+		if (availableDates.length < requiredDays) {
+			return {
+				success: false,
+				assignments: [],
+				error: `Insufficient available dates: ${availableDates.length} < ${requiredDays}`
+			};
+		}
 
-    // Get team members sorted by priority, or fall back to all preceptors
-    const teamMembers = this.getTeamMembersSortedByPriority(context);
+		// Get team members sorted by priority, or fall back to all preceptors
+		const teamMembers = this.getTeamMembersSortedByPriority(context);
 
-    if (teamMembers.length === 0) {
-      return {
-        success: false,
-        assignments: [],
-        error: 'No preceptors available for scheduling',
-      };
-    }
+		if (teamMembers.length === 0) {
+			return {
+				success: false,
+				assignments: [],
+				error: 'No preceptors available for scheduling'
+			};
+		}
 
-    const assignments: ReturnType<typeof this.createAssignment>[] = [];
-    const usedDates = new Set<string>();
-    let remainingDays = requiredDays;
+		const assignments: ReturnType<typeof this.createAssignment>[] = [];
+		const usedDates = new Set<string>();
+		let remainingDays = requiredDays;
 
-    // Track which preceptors we used
-    const preceptorsUsed: string[] = [];
-    let primaryPreceptorId: string | null = null;
+		// Track which preceptors we used
+		const preceptorsUsed: string[] = [];
+		let primaryPreceptorId: string | null = null;
 
-    // Track assignments made to each preceptor in this strategy run (for capacity calculations)
-    const assignmentsPerPreceptor = new Map<string, number>();
+		// Track assignments made to each preceptor in this strategy run (for capacity calculations)
+		const assignmentsPerPreceptor = new Map<string, number>();
 
-    // For each team member by priority, assign their available days
-    for (const member of teamMembers) {
-      if (remainingDays <= 0) break;
+		// For each team member by priority, assign their available days
+		for (const member of teamMembers) {
+			if (remainingDays <= 0) break;
 
-      const preceptor = availablePreceptors.find(p => p.id === member.preceptorId);
-      if (!preceptor) continue;
+			const preceptor = availablePreceptors.find((p) => p.id === member.preceptorId);
+			if (!preceptor) continue;
 
-      // Track primary preceptor (first one we try to assign)
-      if (primaryPreceptorId === null) {
-        primaryPreceptorId = preceptor.id;
-      }
+			// Track primary preceptor (first one we try to assign)
+			if (primaryPreceptorId === null) {
+				primaryPreceptorId = preceptor.id;
+			}
 
-      // Check yearly capacity before attempting to assign days
-      // Calculate how many days we can assign to this preceptor
-      // Include both context-tracked pending assignments AND assignments made in this strategy run
-      const contextYearlyAssignments = preceptor.currentAssignmentCount;
-      const strategyRunAssignments = assignmentsPerPreceptor.get(preceptor.id) ?? 0;
-      const totalYearlyAssignments = contextYearlyAssignments + strategyRunAssignments;
-      const maxYearlyCapacity = preceptor.maxStudentsPerYear;
-      const yearlyCapacityRemaining = maxYearlyCapacity - totalYearlyAssignments;
+			// Check yearly capacity before attempting to assign days
+			// Calculate how many days we can assign to this preceptor
+			// Include both context-tracked pending assignments AND assignments made in this strategy run
+			const contextYearlyAssignments = preceptor.currentAssignmentCount;
+			const strategyRunAssignments = assignmentsPerPreceptor.get(preceptor.id) ?? 0;
+			const totalYearlyAssignments = contextYearlyAssignments + strategyRunAssignments;
+			const maxYearlyCapacity = preceptor.maxStudentsPerYear;
+			const yearlyCapacityRemaining = maxYearlyCapacity - totalYearlyAssignments;
 
-      if (yearlyCapacityRemaining <= 0) {
-        continue; // Skip this preceptor, yearly capacity exhausted
-      }
+			if (yearlyCapacityRemaining <= 0) {
+				continue; // Skip this preceptor, yearly capacity exhausted
+			}
 
-      // Get preceptor's available dates that we haven't used yet
-      // AND where preceptor has daily capacity remaining (using context for batch tracking).
-      // Ordered by preference (H8): preferred days first, then untagged, with
-      // "in a pinch" days last so they are only used once nothing better remains —
-      // the engine never places an in-a-pinch day while a preferred day is open.
-      const preceptorAvailableDates = preceptor.availability
-        .filter(date => availableDates.includes(date) && !usedDates.has(date))
-        .filter(date => this.hasDailyCapacity(context, preceptor, date))
-        .sort(
-          (a, b) =>
-            this.preferenceRank(preceptor, a) - this.preferenceRank(preceptor, b) ||
-            a.localeCompare(b)
-        );
+			// Get preceptor's available dates that we haven't used yet
+			// AND where preceptor has daily capacity remaining (using context for batch tracking).
+			// Ordered by preference (H8): preferred days first, then untagged, with
+			// "in a pinch" days last so they are only used once nothing better remains —
+			// the engine never places an in-a-pinch day while a preferred day is open.
+			const preceptorAvailableDates = preceptor.availability
+				.filter((date) => availableDates.includes(date) && !usedDates.has(date))
+				.filter((date) => this.hasDailyCapacity(context, preceptor, date))
+				.sort(
+					(a, b) =>
+						this.preferenceRank(preceptor, a) - this.preferenceRank(preceptor, b) ||
+						a.localeCompare(b)
+				);
 
-      // Track assignments made for this preceptor in this strategy run
-      let assignedToThisPreceptor = 0;
+			// Track assignments made for this preceptor in this strategy run
+			let assignedToThisPreceptor = 0;
 
-      // Assign as many days as possible with this preceptor
-      for (const date of preceptorAvailableDates) {
-        if (remainingDays <= 0) break;
+			// Assign as many days as possible with this preceptor
+			for (const date of preceptorAvailableDates) {
+				if (remainingDays <= 0) break;
 
-        // Check if we've exceeded yearly capacity for this preceptor
-        if (assignedToThisPreceptor >= yearlyCapacityRemaining) {
-          break; // Move to next preceptor
-        }
+				// Check if we've exceeded yearly capacity for this preceptor
+				if (assignedToThisPreceptor >= yearlyCapacityRemaining) {
+					break; // Move to next preceptor
+				}
 
-        // Create assignment
-        assignments.push(
-          this.createAssignment(student.id, preceptor.id, clerkship.id, date, {
-            requirementType: config.requirementType,
-            teamId: member.teamId,
-          })
-        );
+				// Create assignment
+				assignments.push(
+					this.createAssignment(student.id, preceptor.id, clerkship.id, date, {
+						requirementType: config.requirementType,
+						teamId: member.teamId
+					})
+				);
 
-        usedDates.add(date);
-        remainingDays--;
-        assignedToThisPreceptor++;
+				usedDates.add(date);
+				remainingDays--;
+				assignedToThisPreceptor++;
 
-        // Track assignment for this preceptor in this strategy run
-        assignmentsPerPreceptor.set(preceptor.id, (assignmentsPerPreceptor.get(preceptor.id) ?? 0) + 1);
+				// Track assignment for this preceptor in this strategy run
+				assignmentsPerPreceptor.set(
+					preceptor.id,
+					(assignmentsPerPreceptor.get(preceptor.id) ?? 0) + 1
+				);
 
-        if (!preceptorsUsed.includes(preceptor.id)) {
-          preceptorsUsed.push(preceptor.id);
-        }
-      }
-    }
+				if (!preceptorsUsed.includes(preceptor.id)) {
+					preceptorsUsed.push(preceptor.id);
+				}
+			}
+		}
 
-    // Check if we met the requirement
-    if (assignments.length < requiredDays) {
-      // Try to find any available preceptor for remaining dates
-      const additionalAssignments = this.fillRemainingDays(
-        context,
-        availableDates.filter(d => !usedDates.has(d)),
-        requiredDays - assignments.length,
-        student.id,
-        clerkship.id,
-        config.requirementType,
-        assignmentsPerPreceptor
-      );
+		// Check if we met the requirement
+		if (assignments.length < requiredDays) {
+			// Try to find any available preceptor for remaining dates
+			const additionalAssignments = this.fillRemainingDays(
+				context,
+				availableDates.filter((d) => !usedDates.has(d)),
+				requiredDays - assignments.length,
+				student.id,
+				clerkship.id,
+				config.requirementType,
+				assignmentsPerPreceptor
+			);
 
-      assignments.push(...additionalAssignments);
-    }
+			assignments.push(...additionalAssignments);
+		}
 
-    // Final check - return partial assignments even if requirement not fully met
-    if (assignments.length < requiredDays) {
-      // Return partial success with whatever assignments we could make
-      // This ensures all available capacity is used even when full requirement can't be met
-      const primaryPreceptorDays = assignments.filter(a => a.preceptorId === primaryPreceptorId).length;
-      const continuityPercent = assignments.length > 0
-        ? Math.round((primaryPreceptorDays / assignments.length) * 100)
-        : 0;
+		// Final check - return partial assignments even if requirement not fully met
+		if (assignments.length < requiredDays) {
+			// Return partial success with whatever assignments we could make
+			// This ensures all available capacity is used even when full requirement can't be met
+			const primaryPreceptorDays = assignments.filter(
+				(a) => a.preceptorId === primaryPreceptorId
+			).length;
+			const continuityPercent =
+				assignments.length > 0 ? Math.round((primaryPreceptorDays / assignments.length) * 100) : 0;
 
-      return {
-        success: false,
-        assignments, // Return partial assignments instead of empty array
-        error: `Could only assign ${assignments.length} of ${requiredDays} required days. Team members have insufficient availability.`,
-        metadata: {
-          strategyUsed: this.getName(),
-          preceptorsConsidered: teamMembers.length,
-          assignmentCount: assignments.length,
-          requiredDays,
-          isPartial: true,
-          primaryPreceptorId,
-          primaryPreceptorDays,
-          continuityPercent,
-          preceptorsUsedCount: preceptorsUsed.length,
-        } as any,
-      };
-    }
+			return {
+				success: false,
+				assignments, // Return partial assignments instead of empty array
+				error: `Could only assign ${assignments.length} of ${requiredDays} required days. Team members have insufficient availability.`,
+				metadata: {
+					strategyUsed: this.getName(),
+					preceptorsConsidered: teamMembers.length,
+					assignmentCount: assignments.length,
+					requiredDays,
+					isPartial: true,
+					primaryPreceptorId,
+					primaryPreceptorDays,
+					continuityPercent,
+					preceptorsUsedCount: preceptorsUsed.length
+				} as any
+			};
+		}
 
-    // Calculate continuity metrics
-    const primaryPreceptorDays = assignments.filter(a => a.preceptorId === primaryPreceptorId).length;
-    const continuityPercent = Math.round((primaryPreceptorDays / assignments.length) * 100);
+		// Calculate continuity metrics
+		const primaryPreceptorDays = assignments.filter(
+			(a) => a.preceptorId === primaryPreceptorId
+		).length;
+		const continuityPercent = Math.round((primaryPreceptorDays / assignments.length) * 100);
 
-    return {
-      success: true,
-      assignments,
-      metadata: {
-        strategyUsed: this.getName(),
-        preceptorsConsidered: teamMembers.length,
-        assignmentCount: assignments.length,
-        teamUsed: teamMembers[0]?.teamId,
-        // Additional metadata for continuity tracking
-        primaryPreceptorId,
-        primaryPreceptorDays,
-        continuityPercent,
-        preceptorsUsedCount: preceptorsUsed.length,
-      } as any,
-    };
-  }
+		return {
+			success: true,
+			assignments,
+			metadata: {
+				strategyUsed: this.getName(),
+				preceptorsConsidered: teamMembers.length,
+				assignmentCount: assignments.length,
+				teamUsed: teamMembers[0]?.teamId,
+				// Additional metadata for continuity tracking
+				primaryPreceptorId,
+				primaryPreceptorDays,
+				continuityPercent,
+				preceptorsUsedCount: preceptorsUsed.length
+			} as any
+		};
+	}
 
-  /**
-   * Get team members sorted by priority, with fallback-only members at the end.
-   *
-   * Order:
-   * 1. Primary members (isFallbackOnly = false, isGlobalFallbackOnly = false) sorted by priority
-   * 2. Fallback-only members (isFallbackOnly = true OR isGlobalFallbackOnly = true) sorted by priority
-   *
-   * Now aggregates members from ALL teams for the clerkship, not just the first one.
-   * Falls back to all available preceptors sorted by load if no teams exist.
-   */
-  private getTeamMembersSortedByPriority(
-    context: StrategyContext
-  ): Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> {
-    const { teams, availablePreceptors } = context;
+	/**
+	 * Get team members sorted by priority, with fallback-only members at the end.
+	 *
+	 * Order:
+	 * 1. Primary members (isFallbackOnly = false, isGlobalFallbackOnly = false) sorted by priority
+	 * 2. Fallback-only members (isFallbackOnly = true OR isGlobalFallbackOnly = true) sorted by priority
+	 *
+	 * Now aggregates members from ALL teams for the clerkship, not just the first one.
+	 * Falls back to all available preceptors sorted by load if no teams exist.
+	 */
+	private getTeamMembersSortedByPriority(
+		context: StrategyContext
+	): Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> {
+		const { teams, availablePreceptors } = context;
 
-    // Helper to check if a preceptor is fallback-only (either team-level or global)
-    const isFallbackOnlyPreceptor = (preceptorId: string, teamMemberFallbackOnly?: boolean): boolean => {
-      // Check global fallback flag on the preceptor
-      const preceptor = availablePreceptors.find(p => p.id === preceptorId);
-      if (preceptor?.isGlobalFallbackOnly) return true;
-      // Check team-level fallback flag
-      return teamMemberFallbackOnly ?? false;
-    };
+		// Helper to check if a preceptor is fallback-only (either team-level or global)
+		const isFallbackOnlyPreceptor = (
+			preceptorId: string,
+			teamMemberFallbackOnly?: boolean
+		): boolean => {
+			// Check global fallback flag on the preceptor
+			const preceptor = availablePreceptors.find((p) => p.id === preceptorId);
+			if (preceptor?.isGlobalFallbackOnly) return true;
+			// Check team-level fallback flag
+			return teamMemberFallbackOnly ?? false;
+		};
 
-    // Find ALL teams that have members in available preceptors
-    const matchingTeams = teams?.filter(team => {
-      return team.members.some(m =>
-        availablePreceptors.some(p => p.id === m.preceptorId)
-      );
-    }) ?? [];
+		// Find ALL teams that have members in available preceptors
+		const matchingTeams =
+			teams?.filter((team) => {
+				return team.members.some((m) => availablePreceptors.some((p) => p.id === m.preceptorId));
+			}) ?? [];
 
-    if (matchingTeams.length > 0) {
-      // Aggregate members from ALL matching teams
-      // Track preceptors we've already added to avoid duplicates
-      const addedPreceptorIds = new Set<string>();
-      const allMembers: Array<{ preceptorId: string; priority: number; teamId: string; isFallbackOnly: boolean }> = [];
+		if (matchingTeams.length > 0) {
+			// Aggregate members from ALL matching teams
+			// Track preceptors we've already added to avoid duplicates
+			const addedPreceptorIds = new Set<string>();
+			const allMembers: Array<{
+				preceptorId: string;
+				priority: number;
+				teamId: string;
+				isFallbackOnly: boolean;
+			}> = [];
 
-      for (const team of matchingTeams) {
-        for (const member of team.members) {
-          // Only add if preceptor is available and not already added
-          if (!addedPreceptorIds.has(member.preceptorId) &&
-              availablePreceptors.some(p => p.id === member.preceptorId)) {
-            allMembers.push({
-              preceptorId: member.preceptorId,
-              priority: member.priority,
-              teamId: team.id,
-              isFallbackOnly: isFallbackOnlyPreceptor(member.preceptorId, member.isFallbackOnly),
-            });
-            addedPreceptorIds.add(member.preceptorId);
-          }
-        }
-      }
+			for (const team of matchingTeams) {
+				for (const member of team.members) {
+					// Only add if preceptor is available and not already added
+					if (
+						!addedPreceptorIds.has(member.preceptorId) &&
+						availablePreceptors.some((p) => p.id === member.preceptorId)
+					) {
+						allMembers.push({
+							preceptorId: member.preceptorId,
+							priority: member.priority,
+							teamId: team.id,
+							isFallbackOnly: isFallbackOnlyPreceptor(member.preceptorId, member.isFallbackOnly)
+						});
+						addedPreceptorIds.add(member.preceptorId);
+					}
+				}
+			}
 
-      // Separate into primary and fallback-only members
-      const primaryMembers = allMembers
-        .filter(m => !m.isFallbackOnly)
-        .sort((a, b) => a.priority - b.priority);
+			// Separate into primary and fallback-only members
+			const primaryMembers = allMembers
+				.filter((m) => !m.isFallbackOnly)
+				.sort((a, b) => a.priority - b.priority);
 
-      const fallbackOnlyMembers = allMembers
-        .filter(m => m.isFallbackOnly)
-        .sort((a, b) => a.priority - b.priority);
+			const fallbackOnlyMembers = allMembers
+				.filter((m) => m.isFallbackOnly)
+				.sort((a, b) => a.priority - b.priority);
 
-      // Return primary members first, then fallback-only members
-      return [...primaryMembers, ...fallbackOnlyMembers];
-    }
+			// Return primary members first, then fallback-only members
+			return [...primaryMembers, ...fallbackOnlyMembers];
+		}
 
-    // No teams found - treat all available preceptors as an implicit team
-    // Filter out global fallback-only preceptors for primary selection
-    const primaryPreceptors = availablePreceptors.filter(p => !p.isGlobalFallbackOnly);
-    const fallbackOnlyPreceptors = availablePreceptors.filter(p => p.isGlobalFallbackOnly);
+		// No teams found - treat all available preceptors as an implicit team
+		// Filter out global fallback-only preceptors for primary selection
+		const primaryPreceptors = availablePreceptors.filter((p) => !p.isGlobalFallbackOnly);
+		const fallbackOnlyPreceptors = availablePreceptors.filter((p) => p.isGlobalFallbackOnly);
 
-    // Sort by load (fewer assignments = higher priority)
-    const sortedPrimary = this.sortByLoad(primaryPreceptors);
-    const sortedFallback = this.sortByLoad(fallbackOnlyPreceptors);
+		// Sort by load (fewer assignments = higher priority)
+		const sortedPrimary = this.sortByLoad(primaryPreceptors);
+		const sortedFallback = this.sortByLoad(fallbackOnlyPreceptors);
 
-    const result: Array<{ preceptorId: string; priority: number; teamId?: string; isFallbackOnly?: boolean }> = [];
+		const result: Array<{
+			preceptorId: string;
+			priority: number;
+			teamId?: string;
+			isFallbackOnly?: boolean;
+		}> = [];
 
-    // Primary preceptors first
-    sortedPrimary.forEach((p, index) => {
-      result.push({
-        preceptorId: p.id,
-        priority: index + 1,
-        teamId: undefined,
-        isFallbackOnly: false,
-      });
-    });
+		// Primary preceptors first
+		sortedPrimary.forEach((p, index) => {
+			result.push({
+				preceptorId: p.id,
+				priority: index + 1,
+				teamId: undefined,
+				isFallbackOnly: false
+			});
+		});
 
-    // Then fallback-only preceptors
-    sortedFallback.forEach((p, index) => {
-      result.push({
-        preceptorId: p.id,
-        priority: sortedPrimary.length + index + 1,
-        teamId: undefined,
-        isFallbackOnly: true,
-      });
-    });
+		// Then fallback-only preceptors
+		sortedFallback.forEach((p, index) => {
+			result.push({
+				preceptorId: p.id,
+				priority: sortedPrimary.length + index + 1,
+				teamId: undefined,
+				isFallbackOnly: true
+			});
+		});
 
-    return result;
-  }
+		return result;
+	}
 
-  /**
-   * Fill remaining days with any available preceptor.
-   * Used when team members can't fully cover the requirement.
-   */
-  private fillRemainingDays(
-    context: StrategyContext,
-    availableDates: string[],
-    daysNeeded: number,
-    studentId: string,
-    clerkshipId: string,
-    requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
-    assignmentsPerPreceptor: Map<string, number>
-  ): ReturnType<typeof this.createAssignment>[] {
-    const { availablePreceptors } = context;
-    const assignments: ReturnType<typeof this.createAssignment>[] = [];
-    const usedDates = new Set<string>();
+	/**
+	 * Fill remaining days with any available preceptor.
+	 * Used when team members can't fully cover the requirement.
+	 */
+	private fillRemainingDays(
+		context: StrategyContext,
+		availableDates: string[],
+		daysNeeded: number,
+		studentId: string,
+		clerkshipId: string,
+		requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
+		assignmentsPerPreceptor: Map<string, number>
+	): ReturnType<typeof this.createAssignment>[] {
+		const { availablePreceptors } = context;
+		const assignments: ReturnType<typeof this.createAssignment>[] = [];
+		const usedDates = new Set<string>();
 
-    // Sort preceptors by load
-    const sortedPreceptors = this.sortByLoad(availablePreceptors);
+		// Sort preceptors by load
+		const sortedPreceptors = this.sortByLoad(availablePreceptors);
 
-    // Best preference rank achievable on a date across all preceptors, so dates
-    // where a preferred slot is open are filled before in-a-pinch-only days (H8).
-    const bestRankForDate = (date: string): number => {
-      let best = 3;
-      for (const p of sortedPreceptors) {
-        if (p.availability.includes(date)) best = Math.min(best, this.preferenceRank(p, date));
-      }
-      return best;
-    };
-    const orderedDates = [...availableDates].sort(
-      (a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
-    );
+		// Best preference rank achievable on a date across all preceptors, so dates
+		// where a preferred slot is open are filled before in-a-pinch-only days (H8).
+		const bestRankForDate = (date: string): number => {
+			let best = 3;
+			for (const p of sortedPreceptors) {
+				if (p.availability.includes(date)) best = Math.min(best, this.preferenceRank(p, date));
+			}
+			return best;
+		};
+		const orderedDates = [...availableDates].sort(
+			(a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
+		);
 
-    for (const date of orderedDates) {
-      if (assignments.length >= daysNeeded) break;
-      if (usedDates.has(date)) continue;
+		for (const date of orderedDates) {
+			if (assignments.length >= daysNeeded) break;
+			if (usedDates.has(date)) continue;
 
-      // Prefer the preceptor whose availability on this date ranks best (H8), then load.
-      const rankedForDate = [...sortedPreceptors].sort(
-        (a, b) => this.preferenceRank(a, date) - this.preferenceRank(b, date)
-      );
+			// Prefer the preceptor whose availability on this date ranks best (H8), then load.
+			const rankedForDate = [...sortedPreceptors].sort(
+				(a, b) => this.preferenceRank(a, date) - this.preferenceRank(b, date)
+			);
 
-      // Find first preceptor available on this date with capacity
-      for (const preceptor of rankedForDate) {
-        if (!preceptor.availability.includes(date)) continue;
+			// Find first preceptor available on this date with capacity
+			for (const preceptor of rankedForDate) {
+				if (!preceptor.availability.includes(date)) continue;
 
-        // Check daily capacity using context (includes pending assignments from batch)
-        if (!this.hasDailyCapacity(context, preceptor, date)) continue;
+				// Check daily capacity using context (includes pending assignments from batch)
+				if (!this.hasDailyCapacity(context, preceptor, date)) continue;
 
-        // Check yearly capacity including assignments made in this strategy run
-        const strategyRunAssignments = assignmentsPerPreceptor.get(preceptor.id) ?? 0;
-        const totalYearlyAssignments = preceptor.currentAssignmentCount + strategyRunAssignments;
-        if (totalYearlyAssignments >= preceptor.maxStudentsPerYear) continue;
+				// Check yearly capacity including assignments made in this strategy run
+				const strategyRunAssignments = assignmentsPerPreceptor.get(preceptor.id) ?? 0;
+				const totalYearlyAssignments = preceptor.currentAssignmentCount + strategyRunAssignments;
+				if (totalYearlyAssignments >= preceptor.maxStudentsPerYear) continue;
 
-        assignments.push(
-          this.createAssignment(studentId, preceptor.id, clerkshipId, date, {
-            requirementType,
-          })
-        );
+				assignments.push(
+					this.createAssignment(studentId, preceptor.id, clerkshipId, date, {
+						requirementType
+					})
+				);
 
-        // Track this assignment
-        assignmentsPerPreceptor.set(preceptor.id, strategyRunAssignments + 1);
+				// Track this assignment
+				assignmentsPerPreceptor.set(preceptor.id, strategyRunAssignments + 1);
 
-        usedDates.add(date);
-        break; // Move to next date
-      }
-    }
+				usedDates.add(date);
+				break; // Move to next date
+			}
+		}
 
-    return assignments;
-  }
+		return assignments;
+	}
 }

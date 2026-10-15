@@ -143,65 +143,65 @@
 	{#if !data.hasActiveSchedule}
 		<NoActiveSchedule surface="preceptors" />
 	{:else}
-	<!-- Tabs -->
-	<div class="mb-6 border-b">
-		<nav class="-mb-px flex space-x-8">
-			<button
-				onclick={() => (activeTab = 'preceptors')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'preceptors'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Preceptors ({data.preceptors.length})
-			</button>
-			{#if hasAutogen}
+		<!-- Tabs -->
+		<div class="mb-6 border-b">
+			<nav class="-mb-px flex space-x-8">
 				<button
-					onclick={() => (activeTab = 'teams')}
+					onclick={() => (activeTab = 'preceptors')}
 					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-						activeTab === 'teams'
+						activeTab === 'preceptors'
 							? 'border-primary text-primary'
 							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
 					}`}
 				>
-					Teams
+					Preceptors ({data.preceptors.length})
 				</button>
-			{/if}
-		</nav>
-	</div>
-
-	<!-- Tab Content -->
-	{#if activeTab === 'preceptors'}
-		<div class="mb-6 flex items-center justify-end">
-			<Button onclick={handleAdd}>Add Preceptor</Button>
+				{#if hasAutogen}
+					<button
+						onclick={() => (activeTab = 'teams')}
+						class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+							activeTab === 'teams'
+								? 'border-primary text-primary'
+								: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+						}`}
+					>
+						Teams
+					</button>
+				{/if}
+			</nav>
 		</div>
 
-		<PreceptorList preceptors={data.preceptors} onDelete={handleDelete} />
-	{:else if activeTab === 'teams'}
-		<div class="space-y-6">
-			<div class="flex items-center justify-between">
-				<p class="max-w-2xl text-sm text-muted-foreground">
-					Teams group preceptors for scheduling. Every preceptor must belong to at least one team to
-					be included in schedule generation.
-				</p>
-				<Button onclick={handleAddTeam}>Add Team</Button>
+		<!-- Tab Content -->
+		{#if activeTab === 'preceptors'}
+			<div class="mb-6 flex items-center justify-end">
+				<Button onclick={handleAdd}>Add Preceptor</Button>
 			</div>
 
-			{#if loadingTeams}
-				<div class="rounded-lg border p-12 text-center text-muted-foreground">
-					<p>Loading teams...</p>
+			<PreceptorList preceptors={data.preceptors} onDelete={handleDelete} />
+		{:else if activeTab === 'teams'}
+			<div class="space-y-6">
+				<div class="flex items-center justify-between">
+					<p class="max-w-2xl text-sm text-muted-foreground">
+						Teams group preceptors for scheduling. Every preceptor must belong to at least one team
+						to be included in schedule generation.
+					</p>
+					<Button onclick={handleAddTeam}>Add Team</Button>
 				</div>
-			{:else}
-				<TeamList
-					{teams}
-					clerkships={data.clerkships}
-					onEdit={handleEditTeam}
-					onDelete={handleTeamDeleted}
-				/>
-			{/if}
-		</div>
-	{/if}
+
+				{#if loadingTeams}
+					<div class="rounded-lg border p-12 text-center text-muted-foreground">
+						<p>Loading teams...</p>
+					</div>
+				{:else}
+					<TeamList
+						{teams}
+						clerkships={data.clerkships}
+						onEdit={handleEditTeam}
+						onDelete={handleTeamDeleted}
+					/>
+				{/if}
+			</div>
+		{/if}
 	{/if}
 </div>
 

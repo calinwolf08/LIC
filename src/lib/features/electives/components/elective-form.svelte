@@ -133,9 +133,7 @@
 				{#if errors.specialty}
 					<p class="text-sm text-destructive">{errors.specialty}</p>
 				{/if}
-				<p class="text-sm text-muted-foreground">
-					Specific medical specialty for this elective
-				</p>
+				<p class="text-sm text-muted-foreground">Specific medical specialty for this elective</p>
 			</div>
 
 			<!-- Minimum Days -->
@@ -153,9 +151,7 @@
 				{#if errors.minimumDays}
 					<p class="text-sm text-destructive">{errors.minimumDays}</p>
 				{/if}
-				<p class="text-sm text-muted-foreground">
-					Minimum number of days students must complete
-				</p>
+				<p class="text-sm text-muted-foreground">Minimum number of days students must complete</p>
 			</div>
 
 			<!-- Is Required -->
@@ -170,12 +166,12 @@
 				/>
 				<Label
 					for="isRequired"
-					class="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					class="text-sm leading-none font-normal peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 				>
 					Required Elective
 				</Label>
 			</div>
-			<p class="text-sm text-muted-foreground ml-6">
+			<p class="ml-6 text-sm text-muted-foreground">
 				If checked, all students must complete this elective
 			</p>
 

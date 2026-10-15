@@ -20,7 +20,10 @@ import {
 	type ScheduleViolation,
 	type ScheduleValidationResult
 } from '$lib/features/scheduling/services/schedule-validation';
-import { HARD_CODES, type Violation } from '$lib/features/scheduling/services/assignment-validation';
+import {
+	HARD_CODES,
+	type Violation
+} from '$lib/features/scheduling/services/assignment-validation';
 import { createManualAssignment } from '$lib/features/schedules/services/assignment-service';
 
 /** Synthetic assignment id a pin carries into the evaluator, so a violation can be
@@ -170,7 +173,8 @@ export async function updatePin(
 	if (patch.session !== undefined) values.session = patch.session;
 	if (patch.kind !== undefined) values.kind = patch.kind;
 	if (patch.credit_value !== undefined) values.credit_value = patch.credit_value;
-	if (patch.override_codes !== undefined) values.override_codes = JSON.stringify(patch.override_codes);
+	if (patch.override_codes !== undefined)
+		values.override_codes = JSON.stringify(patch.override_codes);
 	if (patch.override_note !== undefined) values.override_note = patch.override_note;
 
 	const res = await db
@@ -281,9 +285,7 @@ async function createTimeViolations(
 	const isCore = (a: { kind: string; clerkship_id: string | null; elective_id: string | null }) =>
 		a.kind === 'clinical' && !!a.clerkship_id && !a.elective_id;
 	const clerkshipIds = [
-		...new Set(
-			[...committed, ...pins].filter(isCore).map((a) => a.clerkship_id as string)
-		)
+		...new Set([...committed, ...pins].filter(isCore).map((a) => a.clerkship_id as string))
 	];
 	if (clerkshipIds.length > 0) {
 		const reqRows = await db

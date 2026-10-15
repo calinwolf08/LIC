@@ -1,15 +1,19 @@
 # Step 13 — Auto-Generation Hub (Stage 2, gated)
 
 ## Objective
+
 Consolidate every Stage 2 surface into one entitlement-gated area at `/generate`: run/regenerate, results & diagnostics, teams & backups, and global engine defaults — finally exposing the diagnostic backend (violation stats, suggestions, smart regeneration) that already exists.
 
 ## Context
+
 DESIGN_REVIEW B2/B4/D2–D5 and `docs/scheduling/current-state-analysis.md`: the engine supports violation tracking, smart regeneration (`regenerateFromDate`, `strategy`, `preview`), and completion mode, but the UI either hides or scatters them. Steps 03/08/11 removed scattered entry points; this step builds their proper home.
 
 ## Prerequisites
+
 Steps 03, 08, 10. Steps 04 created the `/generate` nav stub.
 
 ## Scope
+
 **In:** `/generate` area UI, wiring existing engine APIs, honoring `locked` assignments. **Out:** engine algorithm changes (except the lock constraint), billing.
 
 ## Implementation
@@ -24,11 +28,13 @@ All routes below live under `(app)/generate/` with a `+layout.server.ts` calling
 6. Delete now-dead code: old `RegenerateDialog` usages, `/schedule/results` route, `/preceptors/teams` routes (redirects), the temporary links left by steps 08/11.
 
 ## Testing
+
 - Unit: lock honoring in each mode (locked past, locked future, locked conflicting with new plan → preserved and reported); results persistence round-trip.
 - API: whole `/generate` layout 403s for non-entitled (e2e: direct URL access redirects/errors politely); generation endpoints regression from step 03.
 - E2E (entitled user, seeded data): run Preview then Apply in smart mode → results page shows stats + violations + suggestions; a locked assignment survives full regeneration; suggestion link navigates; teams CRUD works at the new location; non-entitled user never sees the nav item and gets blocked on direct access.
 
 ## Acceptance criteria
+
 - [ ] All Stage 2 functionality lives under `/generate`; nothing generation-related remains in Stage 1 surfaces (D2–D5, B2, B4 closed).
 - [ ] Violation stats + suggestions visible after every generation run (G3).
 - [ ] Locked assignments always preserved (G6/F6).

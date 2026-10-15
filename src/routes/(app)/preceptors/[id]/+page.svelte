@@ -108,7 +108,10 @@
 				<Card class="p-4">
 					<h3 class="mb-3 text-lg font-semibold">Contact</h3>
 					<dl class="space-y-1 text-sm">
-						<div><dt class="inline text-muted-foreground">Email:</dt> <dd class="inline">{data.preceptor.email}</dd></div>
+						<div>
+							<dt class="inline text-muted-foreground">Email:</dt>
+							<dd class="inline">{data.preceptor.email}</dd>
+						</div>
 						{#if data.preceptor.phone}
 							<div>
 								<dt class="inline text-muted-foreground">Phone:</dt>
@@ -145,7 +148,8 @@
 								>
 									<p class="font-medium text-primary">{a.studentName}</p>
 									<p class="text-xs text-muted-foreground">
-										{a.clerkshipName} · {a.daysAssigned} days · {a.dateRange.start} to {a.dateRange.end}
+										{a.clerkshipName} · {a.daysAssigned} days · {a.dateRange.start} to {a.dateRange
+											.end}
 									</p>
 								</a>
 							{/each}
@@ -170,15 +174,29 @@
 				<div class="mb-3 flex items-center justify-between">
 					<h3 class="text-lg font-semibold">Availability calendar</h3>
 					<div class="flex gap-4 text-xs">
-						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded border border-green-300 bg-green-100"></span> Available</span>
-						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded border border-red-300 bg-red-100"></span> Unavailable</span>
-						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded border border-blue-400 bg-blue-200"></span> Assigned</span>
+						<span class="flex items-center gap-1"
+							><span class="h-3 w-3 rounded border border-green-300 bg-green-100"></span> Available</span
+						>
+						<span class="flex items-center gap-1"
+							><span class="h-3 w-3 rounded border border-red-300 bg-red-100"></span> Unavailable</span
+						>
+						<span class="flex items-center gap-1"
+							><span class="h-3 w-3 rounded border border-blue-400 bg-blue-200"></span> Assigned</span
+						>
 					</div>
 				</div>
 				{#if schedule?.calendar && schedule.calendar.length > 0}
-					<ScheduleCalendarGrid months={schedule.calendar} mode="preceptor" onDayClick={handleDayClick} />
+					<ScheduleCalendarGrid
+						months={schedule.calendar}
+						mode="preceptor"
+						onDayClick={handleDayClick}
+					/>
 				{:else}
-					<EmptyState icon="📅" title="No active schedule" description="Availability is shown across the active schedule's dates." />
+					<EmptyState
+						icon="📅"
+						title="No active schedule"
+						description="Availability is shown across the active schedule's dates."
+					/>
 				{/if}
 			</Card>
 		</div>
@@ -189,9 +207,17 @@
 				<Button onclick={() => (showCreate = true)}>Add assignment</Button>
 			</div>
 			{#if schedule?.calendar && schedule.calendar.length > 0}
-				<ScheduleCalendarGrid months={schedule.calendar} mode="preceptor" onDayClick={handleDayClick} />
+				<ScheduleCalendarGrid
+					months={schedule.calendar}
+					mode="preceptor"
+					onDayClick={handleDayClick}
+				/>
 			{:else}
-				<EmptyState icon="📅" title="No assignments" description="Add assignments to build this preceptor's schedule." />
+				<EmptyState
+					icon="📅"
+					title="No assignments"
+					description="Add assignments to build this preceptor's schedule."
+				/>
 			{/if}
 		</Card>
 	{:else if activeTab === 'details'}

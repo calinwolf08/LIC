@@ -21,384 +21,406 @@ Create TypeScript types, interfaces, and domain models for the **enhanced config
 ### 1. Enumerations
 
 **Assignment Strategy Enums**
+
 ```typescript
 export const AssignmentStrategy = {
-  CONTINUOUS_SINGLE: 'continuous_single',
-  CONTINUOUS_TEAM: 'continuous_team',
-  BLOCK_BASED: 'block_based',
-  DAILY_ROTATION: 'daily_rotation',
+	CONTINUOUS_SINGLE: 'continuous_single',
+	CONTINUOUS_TEAM: 'continuous_team',
+	BLOCK_BASED: 'block_based',
+	DAILY_ROTATION: 'daily_rotation'
 } as const;
 
-export type AssignmentStrategy = typeof AssignmentStrategy[keyof typeof AssignmentStrategy];
+export type AssignmentStrategy = (typeof AssignmentStrategy)[keyof typeof AssignmentStrategy];
 ```
 
 **Requirement Type Enums** (FIXED - cannot be changed)
+
 ```typescript
 export const RequirementType = {
-  OUTPATIENT: 'outpatient',
-  INPATIENT: 'inpatient',
-  ELECTIVE: 'elective',
+	OUTPATIENT: 'outpatient',
+	INPATIENT: 'inpatient',
+	ELECTIVE: 'elective'
 } as const;
 
-export type RequirementType = typeof RequirementType[keyof typeof RequirementType];
+export type RequirementType = (typeof RequirementType)[keyof typeof RequirementType];
 ```
 
 **Health System Continuity Enums**
+
 ```typescript
 export const HealthSystemRule = {
-  ENFORCE_SAME_SYSTEM: 'enforce_same_system',
-  PREFER_SAME_SYSTEM: 'prefer_same_system',
-  NO_PREFERENCE: 'no_preference',
+	ENFORCE_SAME_SYSTEM: 'enforce_same_system',
+	PREFER_SAME_SYSTEM: 'prefer_same_system',
+	NO_PREFERENCE: 'no_preference'
 } as const;
 
-export type HealthSystemRule = typeof HealthSystemRule[keyof typeof HealthSystemRule];
+export type HealthSystemRule = (typeof HealthSystemRule)[keyof typeof HealthSystemRule];
 ```
 
 **Override Mode Enums** (NEW)
+
 ```typescript
 export const OverrideMode = {
-  INHERIT: 'inherit',              // Use all global defaults
-  OVERRIDE_FIELDS: 'override_fields', // Mix defaults + custom settings
-  OVERRIDE_SECTION: 'override_section', // Fully customize
+	INHERIT: 'inherit', // Use all global defaults
+	OVERRIDE_FIELDS: 'override_fields', // Mix defaults + custom settings
+	OVERRIDE_SECTION: 'override_section' // Fully customize
 } as const;
 
-export type OverrideMode = typeof OverrideMode[keyof typeof OverrideMode];
+export type OverrideMode = (typeof OverrideMode)[keyof typeof OverrideMode];
 ```
 
 ### 2. Global Defaults Types (NEW)
 
 **Base Configuration Fields** (shared across all requirement types)
+
 ```typescript
 export interface BaseConfigurationFields {
-  assignmentStrategy: AssignmentStrategy;
-  healthSystemRule: HealthSystemRule;
-  defaultMaxStudentsPerDay: number;
-  defaultMaxStudentsPerYear: number;
-  allowTeams: boolean;
-  allowFallbacks: boolean;
-  fallbackRequiresApproval: boolean;
-  fallbackAllowCrossSystem: boolean;
+	assignmentStrategy: AssignmentStrategy;
+	healthSystemRule: HealthSystemRule;
+	defaultMaxStudentsPerDay: number;
+	defaultMaxStudentsPerYear: number;
+	allowTeams: boolean;
+	allowFallbacks: boolean;
+	fallbackRequiresApproval: boolean;
+	fallbackAllowCrossSystem: boolean;
 }
 ```
 
 **Outpatient Defaults**
+
 ```typescript
 export interface GlobalOutpatientDefaults extends BaseConfigurationFields {
-  id: string;
-  schoolId: string;
-  teamSizeMin?: number;
-  teamSizeMax?: number;
-  teamRequireSameHealthSystem?: boolean;
-  teamRequireSameSpecialty?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	schoolId: string;
+	teamSizeMin?: number;
+	teamSizeMax?: number;
+	teamRequireSameHealthSystem?: boolean;
+	teamRequireSameSpecialty?: boolean;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 **Inpatient Defaults**
+
 ```typescript
 export interface GlobalInpatientDefaults extends BaseConfigurationFields {
-  id: string;
-  schoolId: string;
-  blockSizeDays?: number; // Only used if assignmentStrategy = 'block_based'
-  allowPartialBlocks?: boolean;
-  preferContinuousBlocks?: boolean;
-  defaultMaxStudentsPerBlock?: number;
-  defaultMaxBlocksPerYear?: number;
-  teamSizeMin?: number;
-  teamSizeMax?: number;
-  teamRequireSameHealthSystem?: boolean;
-  teamRequireSameSpecialty?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	schoolId: string;
+	blockSizeDays?: number; // Only used if assignmentStrategy = 'block_based'
+	allowPartialBlocks?: boolean;
+	preferContinuousBlocks?: boolean;
+	defaultMaxStudentsPerBlock?: number;
+	defaultMaxBlocksPerYear?: number;
+	teamSizeMin?: number;
+	teamSizeMax?: number;
+	teamRequireSameHealthSystem?: boolean;
+	teamRequireSameSpecialty?: boolean;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 **Elective Defaults**
+
 ```typescript
 export interface GlobalElectiveDefaults extends BaseConfigurationFields {
-  id: string;
-  schoolId: string;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	schoolId: string;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 ### 3. Requirement Configuration Types (ENHANCED)
 
 **Clerkship Requirement with Override Tracking**
+
 ```typescript
 export interface ClerkshipRequirement {
-  id: string;
-  clerkshipId: string;
-  requirementType: RequirementType;
-  requiredDays: number;
+	id: string;
+	clerkshipId: string;
+	requirementType: RequirementType;
+	requiredDays: number;
 
-  // Override Control (NEW)
-  overrideMode: OverrideMode;
+	// Override Control (NEW)
+	overrideMode: OverrideMode;
 
-  // Override Values (only populated if overrideMode != 'inherit')
-  overrideAssignmentStrategy?: AssignmentStrategy;
-  overrideHealthSystemRule?: HealthSystemRule;
-  overrideMaxStudentsPerDay?: number;
-  overrideMaxStudentsPerYear?: number;
-  overrideMaxStudentsPerBlock?: number;
-  overrideMaxBlocksPerYear?: number;
-  overrideBlockSizeDays?: number;
-  overrideAllowPartialBlocks?: boolean;
-  overridePreferContinuousBlocks?: boolean;
-  overrideAllowTeams?: boolean;
-  overrideAllowFallbacks?: boolean;
-  overrideFallbackRequiresApproval?: boolean;
-  overrideFallbackAllowCrossSystem?: boolean;
+	// Override Values (only populated if overrideMode != 'inherit')
+	overrideAssignmentStrategy?: AssignmentStrategy;
+	overrideHealthSystemRule?: HealthSystemRule;
+	overrideMaxStudentsPerDay?: number;
+	overrideMaxStudentsPerYear?: number;
+	overrideMaxStudentsPerBlock?: number;
+	overrideMaxBlocksPerYear?: number;
+	overrideBlockSizeDays?: number;
+	overrideAllowPartialBlocks?: boolean;
+	overridePreferContinuousBlocks?: boolean;
+	overrideAllowTeams?: boolean;
+	overrideAllowFallbacks?: boolean;
+	overrideFallbackRequiresApproval?: boolean;
+	overrideFallbackAllowCrossSystem?: boolean;
 
-  createdAt: Date;
-  updatedAt: Date;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 **Field-Level Override Tracking**
+
 ```typescript
 export interface ClerkshipRequirementOverride {
-  id: string;
-  requirementId: string;
-  fieldName: string; // e.g., 'assignmentStrategy', 'healthSystemRule'
-  isOverridden: boolean;
-  createdAt: Date;
+	id: string;
+	requirementId: string;
+	fieldName: string; // e.g., 'assignmentStrategy', 'healthSystemRule'
+	isOverridden: boolean;
+	createdAt: Date;
 }
 ```
 
 ### 4. Resolved Configuration Types (NEW)
 
 **Resolved Requirement Configuration** (what scheduling engine uses)
+
 ```typescript
 export interface ResolvedRequirementConfiguration {
-  // Identifies which requirement this is for
-  clerkshipId: string;
-  requirementType: RequirementType;
-  requiredDays: number;
+	// Identifies which requirement this is for
+	clerkshipId: string;
+	requirementType: RequirementType;
+	requiredDays: number;
 
-  // Resolved settings (merged from defaults + overrides)
-  assignmentStrategy: AssignmentStrategy;
-  healthSystemRule: HealthSystemRule;
-  maxStudentsPerDay: number;
-  maxStudentsPerYear: number;
+	// Resolved settings (merged from defaults + overrides)
+	assignmentStrategy: AssignmentStrategy;
+	healthSystemRule: HealthSystemRule;
+	maxStudentsPerDay: number;
+	maxStudentsPerYear: number;
 
-  // Block settings (only relevant if assignmentStrategy = 'block_based')
-  blockSizeDays?: number;
-  allowPartialBlocks?: boolean;
-  preferContinuousBlocks?: boolean;
-  maxStudentsPerBlock?: number;
-  maxBlocksPerYear?: number;
+	// Block settings (only relevant if assignmentStrategy = 'block_based')
+	blockSizeDays?: number;
+	allowPartialBlocks?: boolean;
+	preferContinuousBlocks?: boolean;
+	maxStudentsPerBlock?: number;
+	maxBlocksPerYear?: number;
 
-  // Team settings
-  allowTeams: boolean;
-  teamSizeMin?: number;
-  teamSizeMax?: number;
-  teamRequireSameHealthSystem?: boolean;
-  teamRequireSameSpecialty?: boolean;
+	// Team settings
+	allowTeams: boolean;
+	teamSizeMin?: number;
+	teamSizeMax?: number;
+	teamRequireSameHealthSystem?: boolean;
+	teamRequireSameSpecialty?: boolean;
 
-  // Fallback settings
-  allowFallbacks: boolean;
-  fallbackRequiresApproval: boolean;
-  fallbackAllowCrossSystem: boolean;
+	// Fallback settings
+	allowFallbacks: boolean;
+	fallbackRequiresApproval: boolean;
+	fallbackAllowCrossSystem: boolean;
 
-  // Metadata about resolution
-  source: 'global_defaults' | 'partial_override' | 'full_override';
-  overriddenFields?: string[]; // List of fields that were overridden
+	// Metadata about resolution
+	source: 'global_defaults' | 'partial_override' | 'full_override';
+	overriddenFields?: string[]; // List of fields that were overridden
 }
 ```
 
 ### 5. Other Configuration Types (from original design)
 
 **Clerkship Elective**
+
 ```typescript
 export interface ClerkshipElective {
-  id: string;
-  requirementId: string; // Links to requirement where type = 'elective'
-  name: string;
-  minimumDays: number;
-  specialty?: string;
-  availablePreceptorIds: string[];
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	requirementId: string; // Links to requirement where type = 'elective'
+	name: string;
+	minimumDays: number;
+	specialty?: string;
+	availablePreceptorIds: string[];
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 **Preceptor Team**
+
 ```typescript
 export interface PreceptorTeam {
-  id: string;
-  clerkshipId: string;
-  name?: string;
-  requireSameHealthSystem: boolean;
-  requireSameSite: boolean;
-  requireSameSpecialty: boolean;
-  requiresAdminApproval: boolean;
-  members: PreceptorTeamMember[];
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	clerkshipId: string;
+	name?: string;
+	requireSameHealthSystem: boolean;
+	requireSameSite: boolean;
+	requireSameSpecialty: boolean;
+	requiresAdminApproval: boolean;
+	members: PreceptorTeamMember[];
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface PreceptorTeamMember {
-  id: string;
-  teamId: string;
-  preceptorId: string;
-  role?: string;
-  priority: number;
-  createdAt: Date;
+	id: string;
+	teamId: string;
+	preceptorId: string;
+	role?: string;
+	priority: number;
+	createdAt: Date;
 }
 ```
 
 **Preceptor Fallback**
+
 ```typescript
 export interface PreceptorFallback {
-  id: string;
-  primaryPreceptorId: string;
-  fallbackPreceptorId: string;
-  clerkshipId?: string; // Optional - can be clerkship-specific
-  priority: number;
-  requiresApproval: boolean;
-  allowDifferentHealthSystem: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	primaryPreceptorId: string;
+	fallbackPreceptorId: string;
+	clerkshipId?: string; // Optional - can be clerkship-specific
+	priority: number;
+	requiresApproval: boolean;
+	allowDifferentHealthSystem: boolean;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 **Preceptor Capacity Rule** (ENHANCED for hierarchy)
+
 ```typescript
 export interface PreceptorCapacityRule {
-  id: string;
-  preceptorId: string;
-  clerkshipId?: string; // Optional for hierarchy
-  requirementType?: RequirementType; // Optional for hierarchy
-  maxStudentsPerDay: number;
-  maxStudentsPerYear: number;
-  maxStudentsPerBlock?: number;
-  maxBlocksPerYear?: number;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	preceptorId: string;
+	clerkshipId?: string; // Optional for hierarchy
+	requirementType?: RequirementType; // Optional for hierarchy
+	maxStudentsPerDay: number;
+	maxStudentsPerYear: number;
+	maxStudentsPerBlock?: number;
+	maxBlocksPerYear?: number;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 **Health System and Site**
+
 ```typescript
 export interface HealthSystem {
-  id: string;
-  name: string;
-  location?: string;
-  description?: string;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	name: string;
+	location?: string;
+	description?: string;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface Site {
-  id: string;
-  healthSystemId: string;
-  name: string;
-  address?: string;
-  createdAt: Date;
-  updatedAt: Date;
+	id: string;
+	healthSystemId: string;
+	name: string;
+	address?: string;
+	createdAt: Date;
+	updatedAt: Date;
 }
 ```
 
 ### 6. Configuration DTOs (for API)
 
 **Global Defaults Input**
+
 ```typescript
 export interface GlobalDefaultsInput {
-  assignmentStrategy: AssignmentStrategy;
-  healthSystemRule: HealthSystemRule;
-  defaultMaxStudentsPerDay: number;
-  defaultMaxStudentsPerYear: number;
-  allowTeams?: boolean;
-  allowFallbacks?: boolean;
-  fallbackRequiresApproval?: boolean;
-  fallbackAllowCrossSystem?: boolean;
+	assignmentStrategy: AssignmentStrategy;
+	healthSystemRule: HealthSystemRule;
+	defaultMaxStudentsPerDay: number;
+	defaultMaxStudentsPerYear: number;
+	allowTeams?: boolean;
+	allowFallbacks?: boolean;
+	fallbackRequiresApproval?: boolean;
+	fallbackAllowCrossSystem?: boolean;
 
-  // Inpatient-specific (only for inpatient defaults)
-  blockSizeDays?: number;
-  allowPartialBlocks?: boolean;
-  preferContinuousBlocks?: boolean;
-  defaultMaxStudentsPerBlock?: number;
-  defaultMaxBlocksPerYear?: number;
+	// Inpatient-specific (only for inpatient defaults)
+	blockSizeDays?: number;
+	allowPartialBlocks?: boolean;
+	preferContinuousBlocks?: boolean;
+	defaultMaxStudentsPerBlock?: number;
+	defaultMaxBlocksPerYear?: number;
 
-  // Team settings (outpatient/inpatient)
-  teamSizeMin?: number;
-  teamSizeMax?: number;
-  teamRequireSameHealthSystem?: boolean;
-  teamRequireSameSpecialty?: boolean;
+	// Team settings (outpatient/inpatient)
+	teamSizeMin?: number;
+	teamSizeMax?: number;
+	teamRequireSameHealthSystem?: boolean;
+	teamRequireSameSpecialty?: boolean;
 }
 ```
 
 **Requirement Input with Override Control**
+
 ```typescript
 export interface RequirementInput {
-  requirementType: RequirementType;
-  requiredDays: number;
-  overrideMode: OverrideMode;
+	requirementType: RequirementType;
+	requiredDays: number;
+	overrideMode: OverrideMode;
 
-  // Only required if overrideMode != 'inherit'
-  overrideAssignmentStrategy?: AssignmentStrategy;
-  overrideHealthSystemRule?: HealthSystemRule;
-  overrideMaxStudentsPerDay?: number;
-  overrideMaxStudentsPerYear?: number;
-  overrideMaxStudentsPerBlock?: number;
-  overrideMaxBlocksPerYear?: number;
-  overrideBlockSizeDays?: number;
-  overrideAllowPartialBlocks?: boolean;
-  overridePreferContinuousBlocks?: boolean;
-  overrideAllowTeams?: boolean;
-  overrideAllowFallbacks?: boolean;
-  overrideFallbackRequiresApproval?: boolean;
-  overrideFallbackAllowCrossSystem?: boolean;
+	// Only required if overrideMode != 'inherit'
+	overrideAssignmentStrategy?: AssignmentStrategy;
+	overrideHealthSystemRule?: HealthSystemRule;
+	overrideMaxStudentsPerDay?: number;
+	overrideMaxStudentsPerYear?: number;
+	overrideMaxStudentsPerBlock?: number;
+	overrideMaxBlocksPerYear?: number;
+	overrideBlockSizeDays?: number;
+	overrideAllowPartialBlocks?: boolean;
+	overridePreferContinuousBlocks?: boolean;
+	overrideAllowTeams?: boolean;
+	overrideAllowFallbacks?: boolean;
+	overrideFallbackRequiresApproval?: boolean;
+	overrideFallbackAllowCrossSystem?: boolean;
 }
 ```
 
 **Field Override Input**
+
 ```typescript
 export interface FieldOverrideInput {
-  fieldName: string;
-  value: unknown; // Type depends on field
+	fieldName: string;
+	value: unknown; // Type depends on field
 }
 ```
 
 **Apply Defaults Change Input**
+
 ```typescript
 export interface ApplyDefaultsChangeInput {
-  defaultType: RequirementType; // Which default was changed
-  applyScope: 'all_existing' | 'new_only';
+	defaultType: RequirementType; // Which default was changed
+	applyScope: 'all_existing' | 'new_only';
 }
 ```
 
 ### 7. Aggregate Types
 
 **Complete Clerkship Configuration with Defaults**
+
 ```typescript
 export interface CompleteClerkshipConfiguration {
-  clerkshipId: string;
-  clerkshipName: string;
-  totalRequiredDays: number;
-  requirements: Array<{
-    requirement: ClerkshipRequirement;
-    resolvedConfig: ResolvedRequirementConfiguration;
-    electives?: ClerkshipElective[];
-  }>;
-  teams?: PreceptorTeam[];
+	clerkshipId: string;
+	clerkshipName: string;
+	totalRequiredDays: number;
+	requirements: Array<{
+		requirement: ClerkshipRequirement;
+		resolvedConfig: ResolvedRequirementConfiguration;
+		electives?: ClerkshipElective[];
+	}>;
+	teams?: PreceptorTeam[];
 }
 ```
 
 **Global Defaults Summary**
+
 ```typescript
 export interface GlobalDefaultsSummary {
-  outpatientDefaults: GlobalOutpatientDefaults;
-  inpatientDefaults: GlobalInpatientDefaults;
-  electiveDefaults: GlobalElectiveDefaults;
-  affectedClerkships: {
-    outpatient: number; // Count of clerkships using outpatient defaults
-    inpatient: number;
-    elective: number;
-  };
+	outpatientDefaults: GlobalOutpatientDefaults;
+	inpatientDefaults: GlobalInpatientDefaults;
+	electiveDefaults: GlobalElectiveDefaults;
+	affectedClerkships: {
+		outpatient: number; // Count of clerkships using outpatient defaults
+		inpatient: number;
+		elective: number;
+	};
 }
 ```
 
@@ -408,33 +430,38 @@ export interface GlobalDefaultsSummary {
 
 ```typescript
 export const globalDefaultsBaseSchema = z.object({
-  assignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation']),
-  healthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference']),
-  defaultMaxStudentsPerDay: z.number().int().positive(),
-  defaultMaxStudentsPerYear: z.number().int().positive(),
-  allowTeams: z.boolean().default(false),
-  allowFallbacks: z.boolean().default(true),
-  fallbackRequiresApproval: z.boolean().default(false),
-  fallbackAllowCrossSystem: z.boolean().default(false),
+	assignmentStrategy: z.enum([
+		'continuous_single',
+		'continuous_team',
+		'block_based',
+		'daily_rotation'
+	]),
+	healthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference']),
+	defaultMaxStudentsPerDay: z.number().int().positive(),
+	defaultMaxStudentsPerYear: z.number().int().positive(),
+	allowTeams: z.boolean().default(false),
+	allowFallbacks: z.boolean().default(true),
+	fallbackRequiresApproval: z.boolean().default(false),
+	fallbackAllowCrossSystem: z.boolean().default(false)
 });
 
 export const globalOutpatientDefaultsSchema = globalDefaultsBaseSchema.extend({
-  teamSizeMin: z.number().int().positive().optional(),
-  teamSizeMax: z.number().int().positive().optional(),
-  teamRequireSameHealthSystem: z.boolean().optional(),
-  teamRequireSameSpecialty: z.boolean().optional(),
+	teamSizeMin: z.number().int().positive().optional(),
+	teamSizeMax: z.number().int().positive().optional(),
+	teamRequireSameHealthSystem: z.boolean().optional(),
+	teamRequireSameSpecialty: z.boolean().optional()
 });
 
 export const globalInpatientDefaultsSchema = globalDefaultsBaseSchema.extend({
-  blockSizeDays: z.number().int().positive().optional(),
-  allowPartialBlocks: z.boolean().optional(),
-  preferContinuousBlocks: z.boolean().optional(),
-  defaultMaxStudentsPerBlock: z.number().int().positive().optional(),
-  defaultMaxBlocksPerYear: z.number().int().positive().optional(),
-  teamSizeMin: z.number().int().positive().optional(),
-  teamSizeMax: z.number().int().positive().optional(),
-  teamRequireSameHealthSystem: z.boolean().optional(),
-  teamRequireSameSpecialty: z.boolean().optional(),
+	blockSizeDays: z.number().int().positive().optional(),
+	allowPartialBlocks: z.boolean().optional(),
+	preferContinuousBlocks: z.boolean().optional(),
+	defaultMaxStudentsPerBlock: z.number().int().positive().optional(),
+	defaultMaxBlocksPerYear: z.number().int().positive().optional(),
+	teamSizeMin: z.number().int().positive().optional(),
+	teamSizeMax: z.number().int().positive().optional(),
+	teamRequireSameHealthSystem: z.boolean().optional(),
+	teamRequireSameSpecialty: z.boolean().optional()
 });
 
 export const globalElectiveDefaultsSchema = globalDefaultsBaseSchema;
@@ -443,47 +470,57 @@ export const globalElectiveDefaultsSchema = globalDefaultsBaseSchema;
 ### Requirement Schemas
 
 ```typescript
-export const requirementInputSchema = z.object({
-  requirementType: z.enum(['outpatient', 'inpatient', 'elective']),
-  requiredDays: z.number().int().positive(),
-  overrideMode: z.enum(['inherit', 'override_fields', 'override_section']),
+export const requirementInputSchema = z
+	.object({
+		requirementType: z.enum(['outpatient', 'inpatient', 'elective']),
+		requiredDays: z.number().int().positive(),
+		overrideMode: z.enum(['inherit', 'override_fields', 'override_section']),
 
-  // Override fields - only validated if overrideMode != 'inherit'
-  overrideAssignmentStrategy: z.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation']).optional(),
-  overrideHealthSystemRule: z.enum(['enforce_same_system', 'prefer_same_system', 'no_preference']).optional(),
-  overrideMaxStudentsPerDay: z.number().int().positive().optional(),
-  overrideMaxStudentsPerYear: z.number().int().positive().optional(),
-  overrideMaxStudentsPerBlock: z.number().int().positive().optional(),
-  overrideMaxBlocksPerYear: z.number().int().positive().optional(),
-  overrideBlockSizeDays: z.number().int().positive().optional(),
-  overrideAllowPartialBlocks: z.boolean().optional(),
-  overridePreferContinuousBlocks: z.boolean().optional(),
-  overrideAllowTeams: z.boolean().optional(),
-  overrideAllowFallbacks: z.boolean().optional(),
-  overrideFallbackRequiresApproval: z.boolean().optional(),
-  overrideFallbackAllowCrossSystem: z.boolean().optional(),
-}).refine(
-  (data) => {
-    // If not inheriting, at least some override values should be provided
-    if (data.overrideMode === 'override_section') {
-      return data.overrideAssignmentStrategy !== undefined &&
-             data.overrideHealthSystemRule !== undefined;
-    }
-    return true;
-  },
-  { message: 'Override values required when override mode is override_section' }
-);
+		// Override fields - only validated if overrideMode != 'inherit'
+		overrideAssignmentStrategy: z
+			.enum(['continuous_single', 'continuous_team', 'block_based', 'daily_rotation'])
+			.optional(),
+		overrideHealthSystemRule: z
+			.enum(['enforce_same_system', 'prefer_same_system', 'no_preference'])
+			.optional(),
+		overrideMaxStudentsPerDay: z.number().int().positive().optional(),
+		overrideMaxStudentsPerYear: z.number().int().positive().optional(),
+		overrideMaxStudentsPerBlock: z.number().int().positive().optional(),
+		overrideMaxBlocksPerYear: z.number().int().positive().optional(),
+		overrideBlockSizeDays: z.number().int().positive().optional(),
+		overrideAllowPartialBlocks: z.boolean().optional(),
+		overridePreferContinuousBlocks: z.boolean().optional(),
+		overrideAllowTeams: z.boolean().optional(),
+		overrideAllowFallbacks: z.boolean().optional(),
+		overrideFallbackRequiresApproval: z.boolean().optional(),
+		overrideFallbackAllowCrossSystem: z.boolean().optional()
+	})
+	.refine(
+		(data) => {
+			// If not inheriting, at least some override values should be provided
+			if (data.overrideMode === 'override_section') {
+				return (
+					data.overrideAssignmentStrategy !== undefined &&
+					data.overrideHealthSystemRule !== undefined
+				);
+			}
+			return true;
+		},
+		{ message: 'Override values required when override mode is override_section' }
+	);
 ```
 
 ### Validation Rules
 
 **Global Defaults Validation**
+
 - All required fields must have valid values
 - Team size min <= team size max (if both provided)
 - Block size > 0 (if block-based strategy)
 - Capacity per year >= capacity per day
 
 **Requirement Validation**
+
 - Required days must be positive
 - Total required days across all requirements must equal clerkship.required_days
 - If override_mode = 'override_section', required override fields must be provided
@@ -491,6 +528,7 @@ export const requirementInputSchema = z.object({
 - Override values must match type of global defaults
 
 **Configuration Resolution Validation**
+
 - Resolved configuration must have all required fields populated
 - No null values in resolved config for required fields
 - Block settings present if strategy = 'block_based'
@@ -498,33 +536,42 @@ export const requirementInputSchema = z.object({
 ## Type Utilities
 
 **Configuration Resolver Helper Types**
+
 ```typescript
-export type RequirementConfigurationSource = 'global_defaults' | 'partial_override' | 'full_override';
+export type RequirementConfigurationSource =
+	| 'global_defaults'
+	| 'partial_override'
+	| 'full_override';
 
 export interface ConfigurationResolutionMetadata {
-  source: RequirementConfigurationSource;
-  overriddenFields: string[];
-  globalDefaultsUsed: boolean;
-  timestamp: Date;
+	source: RequirementConfigurationSource;
+	overriddenFields: string[];
+	globalDefaultsUsed: boolean;
+	timestamp: Date;
 }
 ```
 
 **Type Guards**
+
 ```typescript
 export function isOverrideModeInherit(mode: OverrideMode): mode is typeof OverrideMode.INHERIT {
-  return mode === OverrideMode.INHERIT;
+	return mode === OverrideMode.INHERIT;
 }
 
-export function isOverrideModeFields(mode: OverrideMode): mode is typeof OverrideMode.OVERRIDE_FIELDS {
-  return mode === OverrideMode.OVERRIDE_FIELDS;
+export function isOverrideModeFields(
+	mode: OverrideMode
+): mode is typeof OverrideMode.OVERRIDE_FIELDS {
+	return mode === OverrideMode.OVERRIDE_FIELDS;
 }
 
-export function isOverrideModeSection(mode: OverrideMode): mode is typeof OverrideMode.OVERRIDE_SECTION {
-  return mode === OverrideMode.OVERRIDE_SECTION;
+export function isOverrideModeSection(
+	mode: OverrideMode
+): mode is typeof OverrideMode.OVERRIDE_SECTION {
+	return mode === OverrideMode.OVERRIDE_SECTION;
 }
 
 export function hasBlockSettings(config: ResolvedRequirementConfiguration): boolean {
-  return config.assignmentStrategy === AssignmentStrategy.BLOCK_BASED;
+	return config.assignmentStrategy === AssignmentStrategy.BLOCK_BASED;
 }
 ```
 
@@ -592,6 +639,7 @@ export function hasBlockSettings(config: ResolvedRequirementConfiguration): bool
 ## Files to Create
 
 ### Type Files
+
 ```
 src/lib/features/scheduling-config/types/index.ts
 src/lib/features/scheduling-config/types/enums.ts
@@ -606,6 +654,7 @@ src/lib/features/scheduling-config/types/utilities.ts (NEW)
 ```
 
 ### Schema Files
+
 ```
 src/lib/features/scheduling-config/schemas/index.ts
 src/lib/features/scheduling-config/schemas/global-defaults.schemas.ts (NEW)
@@ -616,6 +665,7 @@ src/lib/features/scheduling-config/schemas/health-systems.schemas.ts
 ```
 
 ### Test Files
+
 ```
 src/lib/features/scheduling-config/types/enums.test.ts
 src/lib/features/scheduling-config/types/utilities.test.ts

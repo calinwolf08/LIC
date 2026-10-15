@@ -25,6 +25,8 @@ import { getDialectAdapter } from './db/dialects/index';
 import type { DbDialectName } from './db/dialects/types';
 import { ensureAuthTables } from './db/scripts/ensure-auth-tables';
 import type { DB } from './db/types';
+import { createBetterAuthIdentity } from './server/identity/better-auth/identity';
+import { IdentityError, type IdentityService } from './server/identity/types';
 
 // better-auth otherwise generates a throwaway secret and warns on every call.
 process.env.BETTER_AUTH_SECRET ||= 'auth-signup-test-secret-auth-signup-test';
@@ -96,6 +98,162 @@ describe.each(engines)('better-auth sign-up on $dialect', ({ dialect, connect })
 
 	afterAll(async () => {
 		await db?.destroy();
+	});
+
+	describe('through the IdentityService adapter', () => {
+		let identity: IdentityService;
+		beforeAll(() => {
+			identity = createBetterAuthIdentity({ auth, db });
+		});
+
+		/** Turn a response's Set-Cookie headers into a request Cookie header. */
+		function cookieHeaderFrom(headers: Headers): Headers {
+			const cookie = headers
+				.getSetCookie()
+				.map((c) => c.split(';')[0])
+				.join('; ');
+			return new Headers({ cookie });
+		}
+
+		it(
+			'signs up, returns the session cookie, and resolves it to an app-owned session',
+			{ timeout: 30000 },
+			async () => {
+				const email = `identity-${dialect}@example.com`;
+				const result = await identity.signUpWithEmail({
+					name: 'Identity Test',
+					email,
+					password: 'password12345'
+				});
+
+				expect(result.user).toEqual({ id: expect.any(String), email, name: 'Identity Test' });
+				expect(result.responseHeaders.getSetCookie().length).toBeGreaterThan(0);
+
+				const session = await identity.getSession(cookieHeaderFrom(result.responseHeaders));
+				// Exactly the app's shape — no provider fields leak through.
+				expect(session).toEqual({ user: result.user, activeOrganizationId: null });
+			}
+		);
+
+		it('resolves no session for a request without cookies', async () => {
+			expect(await identity.getSession(new Headers())).toBeNull();
+		});
+
+		it('refuses a duplicate email with a provider-neutral error', { timeout: 30000 }, async () => {
+			const input = { name: 'Dup', email: `dup-${dialect}@example.com`, password: 'password12345' };
+			await identity.signUpWithEmail(input);
+
+			const error = await identity.signUpWithEmail(input).catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(IdentityError);
+			expect((error as IdentityError).code).toBe('email_taken');
+		});
+
+		describe('organizations', () => {
+			async function newUser(label: string) {
+				return identity.signUpWithEmail({
+					name: `Org ${label}`,
+					email: `org-${label}-${dialect}@example.com`,
+					password: 'password12345'
+				});
+			}
+
+			it(
+				'creates an organization server-side with the user as owner',
+				{ timeout: 30000 },
+				async () => {
+					const { user } = await newUser('server');
+					expect(await identity.listMemberships(user.id)).toEqual([]);
+
+					const org = await identity.createOrganization({
+						name: '  Server Program  ',
+						ownerUserId: user.id
+					});
+
+					expect(await identity.listMemberships(user.id)).toEqual([
+						{ organizationId: org.id, organizationName: 'Server Program', role: 'owner' }
+					]);
+				}
+			);
+
+			it(
+				'makes an organization created with request headers the session’s active one',
+				{ timeout: 30000 },
+				async () => {
+					const { user, responseHeaders } = await newUser('headers');
+					const headers = cookieHeaderFrom(responseHeaders);
+					expect((await identity.getSession(headers))?.activeOrganizationId).toBeNull();
+
+					const org = await identity.createOrganization({
+						name: 'Session Program',
+						ownerUserId: user.id,
+						headers
+					});
+
+					expect((await identity.getSession(headers))?.activeOrganizationId).toBe(org.id);
+				}
+			);
+
+			it(
+				'lists memberships oldest first and lets same-named programs coexist',
+				{ timeout: 30000 },
+				async () => {
+					const { user } = await newUser('many');
+					const a = await identity.createOrganization({ name: 'Twin', ownerUserId: user.id });
+					const b = await identity.createOrganization({ name: 'Twin', ownerUserId: user.id });
+					expect(a.id).not.toBe(b.id);
+
+					const ids = (await identity.listMemberships(user.id)).map((m) => m.organizationId);
+					expect(ids).toEqual([a.id, b.id]);
+				}
+			);
+
+			it('ignores memberships whose role the app does not know', { timeout: 30000 }, async () => {
+				const { user } = await newUser('role');
+				const org = await identity.createOrganization({ name: 'Roles', ownerUserId: user.id });
+				await db
+					.updateTable('member')
+					.set({ role: 'superuser' })
+					.where('userId', '=', user.id)
+					.execute();
+
+				expect(org.id).toBeTruthy();
+				expect(await identity.listMemberships(user.id)).toEqual([]);
+			});
+
+			it(
+				'refuses request headers that belong to a different user than the owner',
+				{ timeout: 30000 },
+				async () => {
+					const { responseHeaders } = await newUser('mismatch-a');
+					const { user: other } = await newUser('mismatch-b');
+
+					await expect(
+						identity.createOrganization({
+							name: 'Hijack',
+							ownerUserId: other.id,
+							headers: cookieHeaderFrom(responseHeaders)
+						})
+					).rejects.toThrow(/does not match/);
+					expect(await identity.listMemberships(other.id)).toEqual([]);
+				}
+			);
+
+			it('refuses a blank organization name', async () => {
+				const error = await identity
+					.createOrganization({ name: '   ', ownerUserId: 'anyone' })
+					.catch((e: unknown) => e);
+				expect(error).toBeInstanceOf(IdentityError);
+				expect((error as IdentityError).code).toBe('invalid_input');
+			});
+		});
+
+		it('refuses an invalid sign-up as invalid input', async () => {
+			const error = await identity
+				.signUpWithEmail({ name: 'Short', email: `short-${dialect}@example.com`, password: 'x' })
+				.catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(IdentityError);
+			expect((error as IdentityError).code).toBe('invalid_input');
+		});
 	});
 
 	it('creates the user, a default schedule, and links the two', async () => {

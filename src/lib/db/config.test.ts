@@ -23,7 +23,7 @@ describe('resolveDbConfig', () => {
 			expect(
 				resolveDbConfig({
 					DATABASE_DIALECT: 'postgres',
-					DATABASE_URL: 'postgres://u:p@db:5432/app',
+					DATABASE_URL: 'postgres://u:p@db:5432/app'
 				})
 			).toEqual({ dialect: 'postgres', connectionString: 'postgres://u:p@db:5432/app' });
 		});
@@ -35,7 +35,7 @@ describe('resolveDbConfig', () => {
 				resolveDbConfig({
 					DATABASE_DIALECT: 'sqlite',
 					DATABASE_URL: 'postgres://u:p@db:5432/app',
-					DATABASE_PATH: './sqlite.db',
+					DATABASE_PATH: './sqlite.db'
 				})
 			).toEqual({ dialect: 'sqlite', path: './sqlite.db' });
 		});
@@ -50,7 +50,7 @@ describe('resolveDbConfig', () => {
 			// Container runtimes routinely pass empty strings for unset variables.
 			expect(resolveDbConfig({ DATABASE_DIALECT: '   ' })).toEqual({
 				dialect: 'sqlite',
-				path: DEFAULT_SQLITE_PATH,
+				path: DEFAULT_SQLITE_PATH
 			});
 		});
 
@@ -79,7 +79,7 @@ describe('resolveDbConfig', () => {
 			(url) => {
 				expect(resolveDbConfig({ DATABASE_URL: url })).toEqual({
 					dialect: 'postgres',
-					connectionString: url,
+					connectionString: url
 				});
 			}
 		);
@@ -87,14 +87,14 @@ describe('resolveDbConfig', () => {
 		it('ignores a scheme no registered engine claims', () => {
 			expect(resolveDbConfig({ DATABASE_URL: 'mysql://user:pw@host/app' })).toEqual({
 				dialect: 'sqlite',
-				path: DEFAULT_SQLITE_PATH,
+				path: DEFAULT_SQLITE_PATH
 			});
 		});
 
 		it('ignores a value that is not a URL', () => {
 			expect(resolveDbConfig({ DATABASE_URL: 'not-a-url' })).toEqual({
 				dialect: 'sqlite',
-				path: DEFAULT_SQLITE_PATH,
+				path: DEFAULT_SQLITE_PATH
 			});
 		});
 	});
@@ -107,14 +107,14 @@ describe('resolveDbConfig', () => {
 		it('honours DATABASE_PATH', () => {
 			expect(resolveDbConfig({ DATABASE_PATH: './test-sqlite.db' })).toEqual({
 				dialect: 'sqlite',
-				path: './test-sqlite.db',
+				path: './test-sqlite.db'
 			});
 		});
 
 		it('treats a blank DATABASE_PATH as unset', () => {
 			expect(resolveDbConfig({ DATABASE_PATH: '' })).toEqual({
 				dialect: 'sqlite',
-				path: DEFAULT_SQLITE_PATH,
+				path: DEFAULT_SQLITE_PATH
 			});
 		});
 	});
@@ -137,7 +137,7 @@ describe('describeDbConfig', () => {
 	it('redacts postgres credentials so they never reach the logs', () => {
 		const described = describeDbConfig({
 			dialect: 'postgres',
-			connectionString: 'postgres://admin:hunter2@db.internal:5432/app',
+			connectionString: 'postgres://admin:hunter2@db.internal:5432/app'
 		});
 
 		expect(described).toBe('PostgreSQL (db.internal:5432/app)');

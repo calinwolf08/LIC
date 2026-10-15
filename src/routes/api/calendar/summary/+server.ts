@@ -62,7 +62,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			log.warn('Calendar summary validation failed', {
 				startDate,
 				endDate,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

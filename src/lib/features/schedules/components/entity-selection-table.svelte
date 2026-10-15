@@ -28,9 +28,7 @@
 	let searchQuery = $state('');
 
 	let filteredEntities = $derived(
-		entities.filter((entity) =>
-			entity.name.toLowerCase().includes(searchQuery.toLowerCase())
-		)
+		entities.filter((entity) => entity.name.toLowerCase().includes(searchQuery.toLowerCase()))
 	);
 
 	let allSelected = $derived(
@@ -81,7 +79,7 @@
 				type="text"
 				bind:value={searchQuery}
 				placeholder={searchPlaceholder}
-				class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+				class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 
@@ -90,14 +88,14 @@
 			<button
 				type="button"
 				onclick={selectAll}
-				class="px-3 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+				class="rounded-lg px-3 py-2 text-sm text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
 			>
 				Select All
 			</button>
 			<button
 				type="button"
 				onclick={deselectAll}
-				class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+				class="rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
 			>
 				Deselect All
 			</button>
@@ -110,7 +108,7 @@
 	</div>
 
 	<!-- Table -->
-	<div class="border border-gray-200 rounded-lg overflow-hidden">
+	<div class="overflow-hidden rounded-lg border border-gray-200">
 		<table class="min-w-full divide-y divide-gray-200">
 			<thead class="bg-gray-50">
 				<tr>
@@ -120,20 +118,24 @@
 							checked={allSelected}
 							indeterminate={someSelected}
 							onchange={toggleAll}
-							class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+							class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 						/>
 					</th>
-					<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+					<th
+						class="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+					>
 						Name
 					</th>
 					{#if columns}
-						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+						<th
+							class="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+						>
 							Details
 						</th>
 					{/if}
 				</tr>
 			</thead>
-			<tbody class="bg-white divide-y divide-gray-200">
+			<tbody class="divide-y divide-gray-200 bg-white">
 				{#if filteredEntities.length === 0}
 					<tr>
 						<td colspan={columns ? 3 : 2} class="px-4 py-8 text-center text-gray-500">
@@ -143,7 +145,9 @@
 				{:else}
 					{#each filteredEntities as entity}
 						<tr
-							class="hover:bg-gray-50 cursor-pointer {selectedIds.includes(entity.id) ? 'bg-blue-50' : ''}"
+							class="cursor-pointer hover:bg-gray-50 {selectedIds.includes(entity.id)
+								? 'bg-blue-50'
+								: ''}"
 							onclick={() => toggleEntity(entity.id)}
 						>
 							<td class="w-12 px-4 py-3">
@@ -152,7 +156,7 @@
 									checked={selectedIds.includes(entity.id)}
 									onchange={() => toggleEntity(entity.id)}
 									onclick={(e) => e.stopPropagation()}
-									class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+									class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 								/>
 							</td>
 							<td class="px-4 py-3 text-sm text-gray-900">

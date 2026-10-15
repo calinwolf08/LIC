@@ -214,7 +214,11 @@ export function manualWorld(): WorldSpec {
 				name: 'Dr. FM',
 				sites: ['Clinic'],
 				teaches: ['Family Medicine'],
-				availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+				availability: weekdayOffsets.map((day) => ({
+					day,
+					site: 'Clinic',
+					session: 'full' as const
+				}))
 			}
 		],
 		students: [
@@ -243,13 +247,21 @@ export function mutualExclusionWorld(): WorldSpec {
 				name: 'Dr. A',
 				sites: ['Clinic'],
 				teaches: ['Family Medicine'],
-				availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+				availability: weekdayOffsets.map((day) => ({
+					day,
+					site: 'Clinic',
+					session: 'full' as const
+				}))
 			},
 			{
 				name: 'Dr. B',
 				sites: ['Clinic'],
 				teaches: ['Family Medicine'],
-				availability: weekdayOffsets.map((day) => ({ day, site: 'Clinic', session: 'full' as const }))
+				availability: weekdayOffsets.map((day) => ({
+					day,
+					site: 'Clinic',
+					session: 'full' as const
+				}))
 			}
 		],
 		mutualExclusions: [['Dr. A', 'Dr. B']],
@@ -338,7 +350,9 @@ export function planWorld(): WorldSpec {
 		name: 'Planner',
 		healthSystems: ['Metro'],
 		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
-		clerkships: [{ name: 'Family Medicine', type: 'outpatient', requiredDays: 5, sites: ['Clinic'] }],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', requiredDays: 5, sites: ['Clinic'] }
+		],
 		preceptors: [avail('Dr. A'), avail('Dr. B')],
 		mutualExclusions: [['Dr. A', 'Dr. B']],
 		students: [
@@ -372,7 +386,13 @@ export function plannerConflictWorld(): WorldSpec {
 			{ name: 'Annex', healthSystem: 'Metro' } // NOT in Family Medicine's allowed sites
 		],
 		clerkships: [
-			{ name: 'Family Medicine', type: 'outpatient', kind: 'scattered', requiredDays: 30, sites: ['Clinic'] },
+			{
+				name: 'Family Medicine',
+				type: 'outpatient',
+				kind: 'scattered',
+				requiredDays: 30,
+				sites: ['Clinic']
+			},
 			{ name: 'Inpatient', type: 'inpatient', kind: 'block', requiredDays: 30, sites: ['Clinic'] }
 		],
 		preceptors: [

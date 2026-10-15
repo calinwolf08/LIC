@@ -49,12 +49,7 @@
 		}
 	}
 
-	function openEdit(schedule: {
-		id: string;
-		name: string;
-		start_date: string;
-		end_date: string;
-	}) {
+	function openEdit(schedule: { id: string; name: string; start_date: string; end_date: string }) {
 		editId = schedule.id;
 		editName = schedule.name;
 		editStart = schedule.start_date;
@@ -285,7 +280,9 @@
 		</Dialog.Header>
 		<div class="space-y-4">
 			{#if editError}
-				<div class="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+				<div
+					class="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+				>
 					{editError}
 				</div>
 			{/if}
@@ -316,7 +313,10 @@
 					Optional date ranges (e.g. Q1–Q4) that display alongside the schedule.
 				</p>
 				{#each quarters as q, i (i)}
-					<div class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2" data-testid="quarter-row">
+					<div
+						class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2"
+						data-testid="quarter-row"
+					>
 						<Input placeholder="Q1" bind:value={q.name} data-testid="quarter-name" />
 						<Input type="date" bind:value={q.start_date} data-testid="quarter-start" />
 						<Input type="date" bind:value={q.end_date} data-testid="quarter-end" />
@@ -340,7 +340,9 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (showEdit = false)} disabled={savingEdit}>Cancel</Button>
+			<Button variant="outline" onclick={() => (showEdit = false)} disabled={savingEdit}
+				>Cancel</Button
+			>
 			<Button onclick={saveEdit} disabled={savingEdit || !editName || !editStart || !editEnd}>
 				{savingEdit ? 'Saving…' : 'Save changes'}
 			</Button>

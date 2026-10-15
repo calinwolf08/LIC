@@ -1,15 +1,19 @@
 # Step 04 — Navigation & Information Architecture
 
 ## Objective
+
 Rebuild the sidebar and route naming around the spec's mental model so users can jump between any areas in one click, with one consistent term per concept.
 
 ## Context
+
 DESIGN_REVIEW B3/B5/B6: naming is split ("Schedule Periods" vs "Schedules" vs "scheduling period"), blackout dates have no nav presence, `/schedule/results` is orphaned, and there's no guidance on where to start.
 
 ## Prerequisites
+
 Step 01 (PageHeader with breadcrumbs). Step 03 helps (entitlement flag for the gated nav item) but a placeholder boolean is acceptable if 03 hasn't landed.
 
 ## Scope
+
 **In:** sidebar, route renames/redirects, terminology sweep, breadcrumbs adoption on existing detail pages. **Out:** page content redesigns (steps 05–13).
 
 ## Implementation
@@ -31,11 +35,13 @@ Step 01 (PageHeader with breadcrumbs). Step 03 helps (entitlement flag for the g
 6. Remove the "Getting Started" card logic from the dashboard only if step 12 has landed; otherwise leave (step 12 owns dashboard).
 
 ## Testing
+
 - E2E: sidebar shows exactly the specified items in order for a non-entitled user (no Auto-Generate) and includes Auto-Generate for the entitled user; each item navigates to a 200 page; `/sites` and `/health-systems` redirect to `/locations` tabs; `/schedule/results` redirects for entitled users and 403/redirects-away for non-entitled.
 - Unit: none beyond redirect load functions (test with SvelteKit's expected redirect throw).
 - Grep assertions (manual in PR): no user-facing "Schedule Periods"/"scheduling period" strings remain.
 
 ## Acceptance criteria
+
 - [ ] Sidebar matches the spec order, icons from lucide, active-state highlighting works for nested routes.
 - [ ] All old URLs redirect; zero 404s from any in-app link (crawl all sidebar + row links in e2e).
 - [ ] Every detail page has a working breadcrumb trail.

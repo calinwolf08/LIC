@@ -1,9 +1,11 @@
 # Step 18: Schedule Assignments - Service Layer
 
 ## Overview
+
 Implement the service layer for managing schedule assignments (the output of the scheduling algorithm). This includes CRUD operations, conflict detection, requirement tracking, and validation logic for schedule assignments.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -14,7 +16,9 @@ Implement the service layer for managing schedule assignments (the output of the
 ## Requirements
 
 ### Database Operations
+
 Implement assignment management operations:
+
 - Get all assignments (with filters)
 - Get single assignment by ID
 - Get assignments by student/preceptor/clerkship
@@ -25,6 +29,7 @@ Implement assignment management operations:
 - Bulk create assignments (for algorithm output)
 
 ### Business Rules
+
 - Student can only have one assignment at a time (no overlapping assignments)
 - Preceptor can only supervise max_students at once (MVP: 1)
 - Assignment must fit within preceptor availability
@@ -34,6 +39,7 @@ Implement assignment management operations:
 - start_date must be before end_date
 
 ### Validation
+
 - Zod schemas for create and update operations
 - Date range validation
 - Conflict detection (student and preceptor)
@@ -43,6 +49,7 @@ Implement assignment management operations:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/schedules/
 ├── services/
@@ -60,43 +67,48 @@ Implement assignment management operations:
 Zod validation schemas for assignment operations.
 
 **Exports:**
+
 ```typescript
 import { z } from 'zod';
 import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
 
-export const createAssignmentSchema = z.object({
-  student_id: uuidSchema,
-  preceptor_id: uuidSchema,
-  clerkship_id: uuidSchema,
-  start_date: dateStringSchema,
-  end_date: dateStringSchema,
-}).refine(data => data.start_date < data.end_date, {
-  message: 'start_date must be before end_date',
-});
+export const createAssignmentSchema = z
+	.object({
+		student_id: uuidSchema,
+		preceptor_id: uuidSchema,
+		clerkship_id: uuidSchema,
+		start_date: dateStringSchema,
+		end_date: dateStringSchema
+	})
+	.refine((data) => data.start_date < data.end_date, {
+		message: 'start_date must be before end_date'
+	});
 
-export const updateAssignmentSchema = z.object({
-  student_id: uuidSchema.optional(),
-  preceptor_id: uuidSchema.optional(),
-  clerkship_id: uuidSchema.optional(),
-  start_date: dateStringSchema.optional(),
-  end_date: dateStringSchema.optional(),
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided for update',
-}).refine(
-  data => !data.start_date || !data.end_date || data.start_date < data.end_date,
-  { message: 'start_date must be before end_date' }
-);
+export const updateAssignmentSchema = z
+	.object({
+		student_id: uuidSchema.optional(),
+		preceptor_id: uuidSchema.optional(),
+		clerkship_id: uuidSchema.optional(),
+		start_date: dateStringSchema.optional(),
+		end_date: dateStringSchema.optional()
+	})
+	.refine((data) => Object.keys(data).length > 0, {
+		message: 'At least one field must be provided for update'
+	})
+	.refine((data) => !data.start_date || !data.end_date || data.start_date < data.end_date, {
+		message: 'start_date must be before end_date'
+	});
 
 export const bulkAssignmentSchema = z.object({
-  assignments: z.array(createAssignmentSchema),
+	assignments: z.array(createAssignmentSchema)
 });
 
 export const assignmentFiltersSchema = z.object({
-  student_id: uuidSchema.optional(),
-  preceptor_id: uuidSchema.optional(),
-  clerkship_id: uuidSchema.optional(),
-  start_date: dateStringSchema.optional(),
-  end_date: dateStringSchema.optional(),
+	student_id: uuidSchema.optional(),
+	preceptor_id: uuidSchema.optional(),
+	clerkship_id: uuidSchema.optional(),
+	start_date: dateStringSchema.optional(),
+	end_date: dateStringSchema.optional()
 });
 
 export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
@@ -112,89 +124,94 @@ export type AssignmentFilters = z.infer<typeof assignmentFiltersSchema>;
 Service functions for assignment operations.
 
 **Exports:**
+
 ```typescript
 import type { Kysely } from 'kysely';
 import type { Database, ScheduleAssignmentsTable } from '$lib/db/types';
-import type { CreateAssignmentInput, UpdateAssignmentInput, BulkAssignmentInput, AssignmentFilters } from '../schemas';
+import type {
+	CreateAssignmentInput,
+	UpdateAssignmentInput,
+	BulkAssignmentInput,
+	AssignmentFilters
+} from '../schemas';
 
 export async function getAssignments(
-  db: Kysely<Database>,
-  filters?: AssignmentFilters
-): Promise<ScheduleAssignmentsTable[]>
+	db: Kysely<Database>,
+	filters?: AssignmentFilters
+): Promise<ScheduleAssignmentsTable[]>;
 
 export async function getAssignmentById(
-  db: Kysely<Database>,
-  id: string
-): Promise<ScheduleAssignmentsTable | null>
+	db: Kysely<Database>,
+	id: string
+): Promise<ScheduleAssignmentsTable | null>;
 
 export async function getAssignmentsByStudent(
-  db: Kysely<Database>,
-  studentId: string
-): Promise<ScheduleAssignmentsTable[]>
+	db: Kysely<Database>,
+	studentId: string
+): Promise<ScheduleAssignmentsTable[]>;
 
 export async function getAssignmentsByPreceptor(
-  db: Kysely<Database>,
-  preceptorId: string
-): Promise<ScheduleAssignmentsTable[]>
+	db: Kysely<Database>,
+	preceptorId: string
+): Promise<ScheduleAssignmentsTable[]>;
 
 export async function getAssignmentsByDateRange(
-  db: Kysely<Database>,
-  startDate: string,
-  endDate: string
-): Promise<ScheduleAssignmentsTable[]>
+	db: Kysely<Database>,
+	startDate: string,
+	endDate: string
+): Promise<ScheduleAssignmentsTable[]>;
 
 export async function createAssignment(
-  db: Kysely<Database>,
-  data: CreateAssignmentInput
-): Promise<ScheduleAssignmentsTable>
+	db: Kysely<Database>,
+	data: CreateAssignmentInput
+): Promise<ScheduleAssignmentsTable>;
 
 export async function updateAssignment(
-  db: Kysely<Database>,
-  id: string,
-  data: UpdateAssignmentInput
-): Promise<ScheduleAssignmentsTable>
+	db: Kysely<Database>,
+	id: string,
+	data: UpdateAssignmentInput
+): Promise<ScheduleAssignmentsTable>;
 
-export async function deleteAssignment(
-  db: Kysely<Database>,
-  id: string
-): Promise<void>
+export async function deleteAssignment(db: Kysely<Database>, id: string): Promise<void>;
 
 export async function bulkCreateAssignments(
-  db: Kysely<Database>,
-  data: BulkAssignmentInput
-): Promise<ScheduleAssignmentsTable[]>
+	db: Kysely<Database>,
+	data: BulkAssignmentInput
+): Promise<ScheduleAssignmentsTable[]>;
 
 export async function hasStudentConflict(
-  db: Kysely<Database>,
-  studentId: string,
-  startDate: string,
-  endDate: string,
-  excludeId?: string
-): Promise<boolean>
+	db: Kysely<Database>,
+	studentId: string,
+	startDate: string,
+	endDate: string,
+	excludeId?: string
+): Promise<boolean>;
 
 export async function hasPreceptorConflict(
-  db: Kysely<Database>,
-  preceptorId: string,
-  startDate: string,
-  endDate: string,
-  excludeId?: string
-): Promise<boolean>
+	db: Kysely<Database>,
+	preceptorId: string,
+	startDate: string,
+	endDate: string,
+	excludeId?: string
+): Promise<boolean>;
 
 export async function validateAssignment(
-  db: Kysely<Database>,
-  data: CreateAssignmentInput
-): Promise<{ valid: boolean; errors: string[] }>
+	db: Kysely<Database>,
+	data: CreateAssignmentInput
+): Promise<{ valid: boolean; errors: string[] }>;
 
 export async function getStudentProgress(
-  db: Kysely<Database>,
-  studentId: string
-): Promise<{
-  clerkship_id: string;
-  clerkship_name: string;
-  required_days: number;
-  completed_days: number;
-  percentage: number;
-}[]>
+	db: Kysely<Database>,
+	studentId: string
+): Promise<
+	{
+		clerkship_id: string;
+		clerkship_name: string;
+		required_days: number;
+		completed_days: number;
+		percentage: number;
+	}[]
+>;
 ```
 
 ---
@@ -206,12 +223,14 @@ export async function getStudentProgress(
 Get all assignments with optional filtering.
 
 **Logic:**
+
 - Query schedule_assignments table
 - Apply filters if provided (student_id, preceptor_id, clerkship_id, date range)
 - Order by start_date ascending
 - Return array of assignments
 
 **Parameters:**
+
 - `filters`: Optional object with filter criteria
 
 **Returns:** Array of assignments (empty if none match)
@@ -219,6 +238,7 @@ Get all assignments with optional filtering.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 // Get all assignments
 const all = await getAssignments(db);
@@ -234,10 +254,12 @@ const studentAssignments = await getAssignments(db, { student_id: 'student-123' 
 Get single assignment by ID.
 
 **Logic:**
+
 - Query schedule_assignments by ID
 - Return assignment if found, null if not
 
 **Parameters:**
+
 - `id`: Assignment UUID
 
 **Returns:** Assignment object or null
@@ -251,11 +273,13 @@ Get single assignment by ID.
 Get all assignments for a student.
 
 **Logic:**
+
 - Query schedule_assignments by student_id
 - Order by start_date ascending
 - Return array of assignments
 
 **Parameters:**
+
 - `studentId`: Student UUID
 
 **Returns:** Array of assignments for student
@@ -269,11 +293,13 @@ Get all assignments for a student.
 Get all assignments for a preceptor.
 
 **Logic:**
+
 - Query schedule_assignments by preceptor_id
 - Order by start_date ascending
 - Return array of assignments
 
 **Parameters:**
+
 - `preceptorId`: Preceptor UUID
 
 **Returns:** Array of assignments for preceptor
@@ -287,12 +313,14 @@ Get all assignments for a preceptor.
 Get assignments that overlap with a date range.
 
 **Logic:**
+
 - Query schedule_assignments
 - Filter where assignment overlaps with date range
 - Overlap condition: `assignment.start_date <= range.end_date AND assignment.end_date >= range.start_date`
 - Order by start_date ascending
 
 **Parameters:**
+
 - `startDate`: Range start (YYYY-MM-DD)
 - `endDate`: Range end (YYYY-MM-DD)
 
@@ -307,6 +335,7 @@ Get assignments that overlap with a date range.
 Create a new schedule assignment.
 
 **Logic:**
+
 1. Validate assignment data
 2. Check student exists
 3. Check preceptor exists
@@ -323,23 +352,26 @@ Create a new schedule assignment.
 14. Return created assignment
 
 **Parameters:**
+
 - `data`: Assignment data object
 
 **Returns:** Created assignment
 
 **Errors:**
+
 - `NotFoundError`: Student/Preceptor/Clerkship not found
 - `ValidationError`: Invalid data
 - `ConflictError`: Scheduling conflict detected
 
 **Example:**
+
 ```typescript
 const assignment = await createAssignment(db, {
-  student_id: 'student-123',
-  preceptor_id: 'preceptor-456',
-  clerkship_id: 'clerkship-789',
-  start_date: '2024-01-01',
-  end_date: '2024-01-28'
+	student_id: 'student-123',
+	preceptor_id: 'preceptor-456',
+	clerkship_id: 'clerkship-789',
+	start_date: '2024-01-01',
+	end_date: '2024-01-28'
 });
 ```
 
@@ -350,6 +382,7 @@ const assignment = await createAssignment(db, {
 Update an existing assignment.
 
 **Logic:**
+
 1. Check assignment exists
 2. Merge update data with existing data
 3. Validate updated assignment
@@ -359,12 +392,14 @@ Update an existing assignment.
 7. Return updated assignment
 
 **Parameters:**
+
 - `id`: Assignment UUID
 - `data`: Update data object
 
 **Returns:** Updated assignment
 
 **Errors:**
+
 - `NotFoundError`: Assignment not found
 - `ValidationError`: Invalid data
 - `ConflictError`: Update creates conflict
@@ -376,16 +411,19 @@ Update an existing assignment.
 Delete an assignment.
 
 **Logic:**
+
 1. Check assignment exists
 2. Throw NotFoundError if not found
 3. Delete from database
 
 **Parameters:**
+
 - `id`: Assignment UUID
 
 **Returns:** void
 
 **Errors:**
+
 - `NotFoundError`: Assignment not found
 
 ---
@@ -395,6 +433,7 @@ Delete an assignment.
 Create multiple assignments (for algorithm output).
 
 **Logic:**
+
 1. Begin transaction
 2. For each assignment:
    - Validate
@@ -403,11 +442,13 @@ Create multiple assignments (for algorithm output).
 4. Return created assignments
 
 **Parameters:**
+
 - `data`: Object with array of assignments
 
 **Returns:** Array of created assignments
 
 **Errors:**
+
 - `ValidationError`: Invalid assignment data
 - Rolls back transaction on any error
 
@@ -418,12 +459,14 @@ Create multiple assignments (for algorithm output).
 Check if student has conflicting assignments in date range.
 
 **Logic:**
+
 - Query schedule_assignments for student_id
 - Exclude assignment with excludeId if provided
 - Check if any assignments overlap with date range
 - Return true if conflict exists
 
 **Parameters:**
+
 - `studentId`: Student UUID
 - `startDate`: Start date
 - `endDate`: End date
@@ -440,12 +483,14 @@ Check if student has conflicting assignments in date range.
 Check if preceptor has conflicting assignments in date range.
 
 **Logic:**
+
 - Query schedule_assignments for preceptor_id
 - Exclude assignment with excludeId if provided
 - Check if any assignments overlap with date range
 - Return true if conflict exists (considers max_students)
 
 **Parameters:**
+
 - `preceptorId`: Preceptor UUID
 - `startDate`: Start date
 - `endDate`: End date
@@ -462,6 +507,7 @@ Check if preceptor has conflicting assignments in date range.
 Validate assignment against all business rules.
 
 **Logic:**
+
 1. Check student exists
 2. Check preceptor exists
 3. Check clerkship exists
@@ -474,6 +520,7 @@ Validate assignment against all business rules.
 10. Return validation result
 
 **Parameters:**
+
 - `data`: Assignment data to validate
 
 **Returns:** Object with valid flag and error messages
@@ -481,10 +528,11 @@ Validate assignment against all business rules.
 **Errors:** None (returns validation errors in result)
 
 **Example:**
+
 ```typescript
 const result = await validateAssignment(db, assignmentData);
 if (!result.valid) {
-  console.log('Validation errors:', result.errors);
+	console.log('Validation errors:', result.errors);
 }
 ```
 
@@ -495,6 +543,7 @@ if (!result.valid) {
 Calculate student's progress on required clerkships.
 
 **Logic:**
+
 1. Get all clerkships
 2. For each clerkship:
    - Get student's assignments for that clerkship
@@ -503,6 +552,7 @@ Calculate student's progress on required clerkships.
 3. Return progress information
 
 **Parameters:**
+
 - `studentId`: Student UUID
 
 **Returns:** Array of progress objects per clerkship
@@ -510,6 +560,7 @@ Calculate student's progress on required clerkships.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const progress = await getStudentProgress(db, 'student-123');
 // [{ clerkship_name: 'Internal Medicine', required_days: 28, completed_days: 28, percentage: 100 }]
@@ -522,12 +573,14 @@ const progress = await getStudentProgress(db, 'student-123');
 ### Unit Tests
 
 #### `/src/lib/features/schedules/schemas.test.ts`
+
 - ✅ Validate all schemas
 - ✅ Test date ordering refinements
 - ✅ Test required fields
 - ✅ Test optional fields
 
 #### `/src/lib/features/schedules/services/assignment-service.test.ts`
+
 - ✅ Test all CRUD operations
 - ✅ Test filtering logic
 - ✅ Test conflict detection
@@ -562,16 +615,16 @@ const progress = await getStudentProgress(db, 'student-123');
 ```typescript
 import { db } from '$lib/db';
 import {
-  createAssignment,
-  validateAssignment,
-  getStudentProgress
+	createAssignment,
+	validateAssignment,
+	getStudentProgress
 } from '$lib/features/schedules/services/assignment-service';
 
 // Validate before creating
 const validation = await validateAssignment(db, assignmentData);
 if (!validation.valid) {
-  console.error(validation.errors);
-  return;
+	console.error(validation.errors);
+	return;
 }
 
 // Create assignment

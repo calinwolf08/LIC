@@ -57,11 +57,8 @@ test.describe('CF-SETTINGS-UI global defaults form', { tag: ['@stage2', '@long']
 			await expect
 				.poll(
 					async () =>
-						(
-							await api.get<OutpatientDefaults>(
-								'/api/scheduling-config/global-defaults/outpatient'
-							)
-						).data?.defaultMaxStudentsPerDay,
+						(await api.get<OutpatientDefaults>('/api/scheduling-config/global-defaults/outpatient'))
+							.data?.defaultMaxStudentsPerDay,
 					{ timeout: 10000 }
 				)
 				.toBe(target);

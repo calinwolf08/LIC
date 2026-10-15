@@ -17,12 +17,12 @@ import { normalizeSession } from '../services/session-slots';
  * Pending assignment from current scheduling batch
  */
 export interface PendingAssignment {
-  studentId: string;
-  preceptorId: string;
-  clerkshipId: string;
-  date: string;
-  /** Session this placement occupies (L1). Defaults to a full day when absent. */
-  session?: 'full' | 'am' | 'pm';
+	studentId: string;
+	preceptorId: string;
+	clerkshipId: string;
+	date: string;
+	/** Session this placement occupies (L1). Defaults to a full day when absent. */
+	session?: 'full' | 'am' | 'pm';
 }
 
 /**
@@ -31,385 +31,385 @@ export interface PendingAssignment {
  * Fetches and assembles all data needed for scheduling strategies.
  */
 export class StrategyContextBuilder {
-  constructor(private db: Kysely<DB>) {}
+	constructor(private db: Kysely<DB>) {}
 
-  /**
-   * Build complete strategy context
-   */
-  async buildContext(
-    student: Student,
-    clerkship: Clerkship,
-    config: ResolvedRequirementConfiguration,
-    options: {
-      startDate?: string;
-      endDate?: string;
-      requirementType?: 'outpatient' | 'inpatient' | 'elective';
-      pendingAssignments?: PendingAssignment[];
-      /** When set, preceptors are limited to this schedule's members (F-02). */
-      scheduleId?: string;
-    } = {}
-  ): Promise<StrategyContext> {
-    if (!clerkship.id) {
-      throw new Error('Clerkship must have a valid ID');
-    }
+	/**
+	 * Build complete strategy context
+	 */
+	async buildContext(
+		student: Student,
+		clerkship: Clerkship,
+		config: ResolvedRequirementConfiguration,
+		options: {
+			startDate?: string;
+			endDate?: string;
+			requirementType?: 'outpatient' | 'inpatient' | 'elective';
+			pendingAssignments?: PendingAssignment[];
+			/** When set, preceptors are limited to this schedule's members (F-02). */
+			scheduleId?: string;
+		} = {}
+	): Promise<StrategyContext> {
+		if (!clerkship.id) {
+			throw new Error('Clerkship must have a valid ID');
+		}
 
-    // Build available dates
-    const pendingAssignments = options.pendingAssignments ?? [];
-    const availableDates = await this.buildAvailableDates(
-      clerkship,
-      student,
-      options.startDate,
-      options.endDate,
-      pendingAssignments,
-      options.scheduleId
-    );
+		// Build available dates
+		const pendingAssignments = options.pendingAssignments ?? [];
+		const availableDates = await this.buildAvailableDates(
+			clerkship,
+			student,
+			options.startDate,
+			options.endDate,
+			pendingAssignments,
+			options.scheduleId
+		);
 
-    // Get available preceptors (with pending assignment counts)
-    const availablePreceptors = await this.buildAvailablePreceptors(
-      clerkship,
-      config,
-      availableDates,
-      options.requirementType,
-      pendingAssignments,
-      options.scheduleId
-    );
+		// Get available preceptors (with pending assignment counts)
+		const availablePreceptors = await this.buildAvailablePreceptors(
+			clerkship,
+			config,
+			availableDates,
+			options.requirementType,
+			pendingAssignments,
+			options.scheduleId
+		);
 
-    // Build daily assignment counts per preceptor (includes both DB and pending)
-    const assignmentsByPreceptorDate = await this.buildAssignmentsByPreceptorDate(pendingAssignments);
+		// Build daily assignment counts per preceptor (includes both DB and pending)
+		const assignmentsByPreceptorDate =
+			await this.buildAssignmentsByPreceptorDate(pendingAssignments);
 
-    // Get teams if needed
-    const teams = await this.buildTeams(clerkship.id);
+		// Get teams if needed
+		const teams = await this.buildTeams(clerkship.id);
 
-    // Get existing assignments
-    const existingAssignments = await this.buildExistingAssignments();
+		// Get existing assignments
+		const existingAssignments = await this.buildExistingAssignments();
 
-    // Get health systems
-    const { healthSystems, sites } = await this.buildHealthSystemInfo();
+		// Get health systems
+		const { healthSystems, sites } = await this.buildHealthSystemInfo();
 
-    return {
-      student,
-      clerkship,
-      config,
-      availableDates,
-      availablePreceptors,
-      teams,
-      existingAssignments,
-      healthSystems,
-      sites,
-      assignmentsByPreceptorDate,
-    };
-  }
+		return {
+			student,
+			clerkship,
+			config,
+			availableDates,
+			availablePreceptors,
+			teams,
+			existingAssignments,
+			healthSystems,
+			sites,
+			assignmentsByPreceptorDate
+		};
+	}
 
-  /**
-   * Build daily assignment counts per preceptor from both DB and pending assignments
-   */
-  private async buildAssignmentsByPreceptorDate(
-    pendingAssignments: PendingAssignment[]
-  ): Promise<Map<string, Map<string, number>>> {
-    const result = new Map<string, Map<string, number>>();
+	/**
+	 * Build daily assignment counts per preceptor from both DB and pending assignments
+	 */
+	private async buildAssignmentsByPreceptorDate(
+		pendingAssignments: PendingAssignment[]
+	): Promise<Map<string, Map<string, number>>> {
+		const result = new Map<string, Map<string, number>>();
 
-    // First, load existing assignments from the database
-    const dbAssignments = await this.db
-      .selectFrom('schedule_assignments')
-      .select(['preceptor_id', 'date'])
-      .execute();
+		// First, load existing assignments from the database
+		const dbAssignments = await this.db
+			.selectFrom('schedule_assignments')
+			.select(['preceptor_id', 'date'])
+			.execute();
 
-    // Add DB assignments to the map
-    for (const assignment of dbAssignments) {
-      // Non-clinical days (free_day / exam) have no preceptor to occupy (M2/M3).
-      if (!assignment.preceptor_id) continue;
-      if (!result.has(assignment.preceptor_id)) {
-        result.set(assignment.preceptor_id, new Map());
-      }
-      const dateMap = result.get(assignment.preceptor_id)!;
-      const currentCount = dateMap.get(assignment.date) ?? 0;
-      dateMap.set(assignment.date, currentCount + 1);
-    }
+		// Add DB assignments to the map
+		for (const assignment of dbAssignments) {
+			// Non-clinical days (free_day / exam) have no preceptor to occupy (M2/M3).
+			if (!assignment.preceptor_id) continue;
+			if (!result.has(assignment.preceptor_id)) {
+				result.set(assignment.preceptor_id, new Map());
+			}
+			const dateMap = result.get(assignment.preceptor_id)!;
+			const currentCount = dateMap.get(assignment.date) ?? 0;
+			dateMap.set(assignment.date, currentCount + 1);
+		}
 
-    // Then add pending assignments from the current batch
-    for (const assignment of pendingAssignments) {
-      if (!result.has(assignment.preceptorId)) {
-        result.set(assignment.preceptorId, new Map());
-      }
-      const dateMap = result.get(assignment.preceptorId)!;
-      const currentCount = dateMap.get(assignment.date) ?? 0;
-      dateMap.set(assignment.date, currentCount + 1);
-    }
+		// Then add pending assignments from the current batch
+		for (const assignment of pendingAssignments) {
+			if (!result.has(assignment.preceptorId)) {
+				result.set(assignment.preceptorId, new Map());
+			}
+			const dateMap = result.get(assignment.preceptorId)!;
+			const currentCount = dateMap.get(assignment.date) ?? 0;
+			dateMap.set(assignment.date, currentCount + 1);
+		}
 
-    return result;
-  }
+		return result;
+	}
 
-  /**
-   * Build list of available dates (excluding blackouts and already-assigned dates for this student)
-   */
-  private async buildAvailableDates(
-    clerkship: Clerkship,
-    student: Student,
-    startDate?: string,
-    endDate?: string,
-    pendingAssignments: PendingAssignment[] = [],
-    scheduleId?: string
-  ): Promise<string[]> {
-    // Get blackout dates. Blackouts are schedule-scoped (finding P4-d), so when a
-    // schedule is known, only this schedule's blackouts (and any global ones with no
-    // schedule_id) apply — otherwise another schedule's blackouts would wrongly
-    // remove candidate days from this schedule's generation.
-    let blackoutQuery = this.db.selectFrom('blackout_dates').select('date');
-    if (scheduleId) {
-      blackoutQuery = blackoutQuery.where((eb) =>
-        eb.or([eb('schedule_id', '=', scheduleId), eb('schedule_id', 'is', null)])
-      );
-    }
-    const blackouts = await blackoutQuery.execute();
+	/**
+	 * Build list of available dates (excluding blackouts and already-assigned dates for this student)
+	 */
+	private async buildAvailableDates(
+		clerkship: Clerkship,
+		student: Student,
+		startDate?: string,
+		endDate?: string,
+		pendingAssignments: PendingAssignment[] = [],
+		scheduleId?: string
+	): Promise<string[]> {
+		// Get blackout dates. Blackouts are schedule-scoped (finding P4-d), so when a
+		// schedule is known, only this schedule's blackouts (and any global ones with no
+		// schedule_id) apply — otherwise another schedule's blackouts would wrongly
+		// remove candidate days from this schedule's generation.
+		let blackoutQuery = this.db.selectFrom('blackout_dates').select('date');
+		if (scheduleId) {
+			blackoutQuery = blackoutQuery.where((eb) =>
+				eb.or([eb('schedule_id', '=', scheduleId), eb('schedule_id', 'is', null)])
+			);
+		}
+		const blackouts = await blackoutQuery.execute();
 
-    const blackoutSet = new Set(blackouts.map(b => b.date));
+		const blackoutSet = new Set(blackouts.map((b) => b.date));
 
-    // Sessions the student already holds per date (DB + pending). A date is only
-    // excluded here when it is FULLY booked (a full-day slot, or both AM and PM); a
-    // day with one free half stays a candidate, and the engine's session-aware filter
-    // then decides per preceptor whether their slot fits the free half (L1).
-    const consumedByDate = new Map<string, Set<'full' | 'am' | 'pm'>>();
-    const addConsumed = (date: string, session: string | null | undefined) => {
-      const set = consumedByDate.get(date) ?? new Set<'full' | 'am' | 'pm'>();
-      set.add(normalizeSession(session));
-      consumedByDate.set(date, set);
-    };
-    try {
-      const existingAssignments = await this.db
-        .selectFrom('schedule_assignments')
-        .select(['date', 'session'])
-        .where('student_id', '=', student.id!)
-        .execute();
-      for (const a of existingAssignments) addConsumed(a.date, a.session);
-    } catch {
-      // Table doesn't exist or query failed - no existing assignments to filter
-    }
-    for (const a of pendingAssignments) {
-      if (a.studentId === student.id) addConsumed(a.date, a.session);
-    }
-    const dayFullyBlocked = (date: string): boolean => {
-      const held = consumedByDate.get(date);
-      if (!held) return false;
-      return held.has('full') || (held.has('am') && held.has('pm'));
-    };
+		// Sessions the student already holds per date (DB + pending). A date is only
+		// excluded here when it is FULLY booked (a full-day slot, or both AM and PM); a
+		// day with one free half stays a candidate, and the engine's session-aware filter
+		// then decides per preceptor whether their slot fits the free half (L1).
+		const consumedByDate = new Map<string, Set<'full' | 'am' | 'pm'>>();
+		const addConsumed = (date: string, session: string | null | undefined) => {
+			const set = consumedByDate.get(date) ?? new Set<'full' | 'am' | 'pm'>();
+			set.add(normalizeSession(session));
+			consumedByDate.set(date, set);
+		};
+		try {
+			const existingAssignments = await this.db
+				.selectFrom('schedule_assignments')
+				.select(['date', 'session'])
+				.where('student_id', '=', student.id!)
+				.execute();
+			for (const a of existingAssignments) addConsumed(a.date, a.session);
+		} catch {
+			// Table doesn't exist or query failed - no existing assignments to filter
+		}
+		for (const a of pendingAssignments) {
+			if (a.studentId === student.id) addConsumed(a.date, a.session);
+		}
+		const dayFullyBlocked = (date: string): boolean => {
+			const held = consumedByDate.get(date);
+			if (!held) return false;
+			return held.has('full') || (held.has('am') && held.has('pm'));
+		};
 
-    // Generate date range using UTC to avoid timezone issues
-    const start = startDate
-      ? new Date(startDate + 'T00:00:00.000Z')
-      : new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
-    const end = endDate
-      ? new Date(endDate + 'T00:00:00.000Z')
-      : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+		// Generate date range using UTC to avoid timezone issues
+		const start = startDate
+			? new Date(startDate + 'T00:00:00.000Z')
+			: new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+		const end = endDate
+			? new Date(endDate + 'T00:00:00.000Z')
+			: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-    const dates: string[] = [];
-    const current = new Date(start);
+		const dates: string[] = [];
+		const current = new Date(start);
 
-    while (current <= end) {
-      const dateStr = current.toISOString().split('T')[0];
-      // Exclude blackouts and days the student is already fully booked (session-aware).
-      if (!blackoutSet.has(dateStr) && !dayFullyBlocked(dateStr)) {
-        dates.push(dateStr);
-      }
-      current.setUTCDate(current.getUTCDate() + 1);
-    }
+		while (current <= end) {
+			const dateStr = current.toISOString().split('T')[0];
+			// Exclude blackouts and days the student is already fully booked (session-aware).
+			if (!blackoutSet.has(dateStr) && !dayFullyBlocked(dateStr)) {
+				dates.push(dateStr);
+			}
+			current.setUTCDate(current.getUTCDate() + 1);
+		}
 
-    return dates;
-  }
+		return dates;
+	}
 
-  /**
-   * Build list of available preceptors with their availability
-   */
-  private async buildAvailablePreceptors(
-    clerkship: Clerkship,
-    config: ResolvedRequirementConfiguration,
-    availableDates: string[],
-    requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
-    pendingAssignments: PendingAssignment[],
-    scheduleId?: string
-  ): Promise<StrategyContext['availablePreceptors']> {
-    // Resolve who may teach this clerkship through the shared eligibility
-    // predicate (03 §6, findings F-19/F-28): team members when teams exist,
-    // otherwise any preceptor with availability at an allowed site, always
-    // intersected with the schedule's preceptors (F-02) when a schedule is given.
-    const validPreceptorIds = await getEligiblePreceptorIds(this.db, clerkship.id!, {
-      scheduleId,
-    });
+	/**
+	 * Build list of available preceptors with their availability
+	 */
+	private async buildAvailablePreceptors(
+		clerkship: Clerkship,
+		config: ResolvedRequirementConfiguration,
+		availableDates: string[],
+		requirementType: 'outpatient' | 'inpatient' | 'elective' | undefined,
+		pendingAssignments: PendingAssignment[],
+		scheduleId?: string
+	): Promise<StrategyContext['availablePreceptors']> {
+		// Resolve who may teach this clerkship through the shared eligibility
+		// predicate (03 §6, findings F-19/F-28): team members when teams exist,
+		// otherwise any preceptor with availability at an allowed site, always
+		// intersected with the schedule's preceptors (F-02) when a schedule is given.
+		const validPreceptorIds = await getEligiblePreceptorIds(this.db, clerkship.id!, {
+			scheduleId
+		});
 
-    let preceptors: Selectable<Preceptors>[] = [];
-    if (validPreceptorIds.size > 0) {
-      preceptors = await this.db
-        .selectFrom('preceptors')
-        .selectAll()
-        .where('id', 'in', [...validPreceptorIds])
-        .execute();
-    }
+		let preceptors: Selectable<Preceptors>[] = [];
+		if (validPreceptorIds.size > 0) {
+			preceptors = await this.db
+				.selectFrom('preceptors')
+				.selectAll()
+				.where('id', 'in', [...validPreceptorIds])
+				.execute();
+		}
 
-    // Count pending assignments per preceptor (for yearly capacity)
-    const pendingCountByPreceptor = new Map<string, number>();
-    for (const pending of pendingAssignments) {
-      const current = pendingCountByPreceptor.get(pending.preceptorId) ?? 0;
-      pendingCountByPreceptor.set(pending.preceptorId, current + 1);
-    }
+		// Count pending assignments per preceptor (for yearly capacity)
+		const pendingCountByPreceptor = new Map<string, number>();
+		for (const pending of pendingAssignments) {
+			const current = pendingCountByPreceptor.get(pending.preceptorId) ?? 0;
+			pendingCountByPreceptor.set(pending.preceptorId, current + 1);
+		}
 
-    // For each preceptor, get availability and current assignments
-    const result: StrategyContext['availablePreceptors'] = [];
+		// For each preceptor, get availability and current assignments
+		const result: StrategyContext['availablePreceptors'] = [];
 
-    for (const preceptor of preceptors) {
-      // Get preceptor availability with site info and preference (H8)
-      const availability = await this.db
-        .selectFrom('preceptor_availability')
-        .select(['date', 'site_id', 'preference', 'session'])
-        .where('preceptor_id', '=', preceptor.id)
-        .where('is_available', '=', 1)
-        .execute();
+		for (const preceptor of preceptors) {
+			// Get preceptor availability with site info and preference (H8)
+			const availability = await this.db
+				.selectFrom('preceptor_availability')
+				.select(['date', 'site_id', 'preference', 'session'])
+				.where('preceptor_id', '=', preceptor.id)
+				.where('is_available', '=', 1)
+				.execute();
 
-      const availabilityDates = availability.map(a => a.date);
-      const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
-      const sessionByDate: Record<string, 'full' | 'am' | 'pm'> = {};
-      for (const a of availability) {
-        preferenceByDate[a.date] =
-          (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
-        sessionByDate[a.date] = normalizeSession(a.session);
-      }
+			const availabilityDates = availability.map((a) => a.date);
+			const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
+			const sessionByDate: Record<string, 'full' | 'am' | 'pm'> = {};
+			for (const a of availability) {
+				preferenceByDate[a.date] = (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
+				sessionByDate[a.date] = normalizeSession(a.session);
+			}
 
-      // Get current assignment count from database
-      const dbAssignmentCount = await this.db
-        .selectFrom('schedule_assignments')
-        .select(({ fn }) => [fn.count<number>('id').as('count')])
-        .where('preceptor_id', '=', preceptor.id)
-        .executeTakeFirst();
+			// Get current assignment count from database
+			const dbAssignmentCount = await this.db
+				.selectFrom('schedule_assignments')
+				.select(({ fn }) => [fn.count<number>('id').as('count')])
+				.where('preceptor_id', '=', preceptor.id)
+				.executeTakeFirst();
 
-      // Add pending assignments to get total current count
-      const dbCount = dbAssignmentCount?.count ?? 0;
-      const pendingCount = pendingCountByPreceptor.get(preceptor.id!) ?? 0;
-      const totalAssignmentCount = dbCount + pendingCount;
+			// Add pending assignments to get total current count
+			const dbCount = dbAssignmentCount?.count ?? 0;
+			const pendingCount = pendingCountByPreceptor.get(preceptor.id!) ?? 0;
+			const totalAssignmentCount = dbCount + pendingCount;
 
-      // Get capacity rules (simplified - would need to resolve hierarchy)
-      const capacityRule = await this.db
-        .selectFrom('preceptor_capacity_rules')
-        .selectAll()
-        .where('preceptor_id', '=', preceptor.id)
-        .where('clerkship_id', 'is', null)
-        .where('requirement_type', 'is', null)
-        .executeTakeFirst();
+			// Get capacity rules (simplified - would need to resolve hierarchy)
+			const capacityRule = await this.db
+				.selectFrom('preceptor_capacity_rules')
+				.selectAll()
+				.where('preceptor_id', '=', preceptor.id)
+				.where('clerkship_id', 'is', null)
+				.where('requirement_type', 'is', null)
+				.executeTakeFirst();
 
-      // Get preceptor's sites (from preceptor_sites table)
-      const preceptorSites = await this.db
-        .selectFrom('preceptor_sites')
-        .select('site_id')
-        .where('preceptor_id', '=', preceptor.id)
-        .execute();
+			// Get preceptor's sites (from preceptor_sites table)
+			const preceptorSites = await this.db
+				.selectFrom('preceptor_sites')
+				.select('site_id')
+				.where('preceptor_id', '=', preceptor.id)
+				.execute();
 
-      // Skip preceptors without valid IDs
-      if (!preceptor.id) continue;
+			// Skip preceptors without valid IDs
+			if (!preceptor.id) continue;
 
-      // Use preceptor's max_students as the default for max_students_per_day
-      // Fall back to capacity rule if it exists, otherwise use preceptor setting
-      const defaultMaxPerDay = preceptor.max_students ?? 1;
+			// Use preceptor's max_students as the default for max_students_per_day
+			// Fall back to capacity rule if it exists, otherwise use preceptor setting
+			const defaultMaxPerDay = preceptor.max_students ?? 1;
 
-      result.push({
-        id: preceptor.id,
-        name: preceptor.name,
-        healthSystemId: preceptor.health_system_id,
-        siteId: preceptorSites[0]?.site_id ?? null, // Use first site for backwards compat
-        siteIds: preceptorSites.map(ps => ps.site_id),
-        availability: availabilityDates,
-        preferenceByDate,
-        sessionByDate,
-        currentAssignmentCount: totalAssignmentCount,
-        maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
-        maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,
-        isGlobalFallbackOnly: Boolean(preceptor.is_global_fallback_only),
-      });
-    }
+			result.push({
+				id: preceptor.id,
+				name: preceptor.name,
+				healthSystemId: preceptor.health_system_id,
+				siteId: preceptorSites[0]?.site_id ?? null, // Use first site for backwards compat
+				siteIds: preceptorSites.map((ps) => ps.site_id),
+				availability: availabilityDates,
+				preferenceByDate,
+				sessionByDate,
+				currentAssignmentCount: totalAssignmentCount,
+				maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
+				maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,
+				isGlobalFallbackOnly: Boolean(preceptor.is_global_fallback_only)
+			});
+		}
 
-    return result;
-  }
+		return result;
+	}
 
-  /**
-   * Build team configurations
-   */
-  private async buildTeams(clerkshipId: string): Promise<StrategyContext['teams']> {
-    const teams = await this.db
-      .selectFrom('preceptor_teams')
-      .selectAll()
-      .where('clerkship_id', '=', clerkshipId)
-      .execute();
+	/**
+	 * Build team configurations
+	 */
+	private async buildTeams(clerkshipId: string): Promise<StrategyContext['teams']> {
+		const teams = await this.db
+			.selectFrom('preceptor_teams')
+			.selectAll()
+			.where('clerkship_id', '=', clerkshipId)
+			.execute();
 
-    const result: StrategyContext['teams'] = [];
+		const result: StrategyContext['teams'] = [];
 
-    for (const team of teams) {
-      // Skip teams without valid IDs
-      if (!team.id) continue;
+		for (const team of teams) {
+			// Skip teams without valid IDs
+			if (!team.id) continue;
 
-      const members = await this.db
-        .selectFrom('preceptor_team_members')
-        .selectAll()
-        .where('team_id', '=', team.id)
-        .orderBy('priority', 'asc')
-        .execute();
+			const members = await this.db
+				.selectFrom('preceptor_team_members')
+				.selectAll()
+				.where('team_id', '=', team.id)
+				.orderBy('priority', 'asc')
+				.execute();
 
-      result.push({
-        id: team.id,
-        members: members.map(m => ({
-          preceptorId: m.preceptor_id,
-          priority: m.priority,
-          role: m.role || undefined,
-          isFallbackOnly: Boolean(m.is_fallback_only),
-        })),
-        requireSameHealthSystem: Boolean(team.require_same_health_system),
-        requireSameSite: Boolean(team.require_same_site),
-        requireSameSpecialty: Boolean(team.require_same_specialty),
-      });
-    }
+			result.push({
+				id: team.id,
+				members: members.map((m) => ({
+					preceptorId: m.preceptor_id,
+					priority: m.priority,
+					role: m.role || undefined,
+					isFallbackOnly: Boolean(m.is_fallback_only)
+				})),
+				requireSameHealthSystem: Boolean(team.require_same_health_system),
+				requireSameSite: Boolean(team.require_same_site),
+				requireSameSpecialty: Boolean(team.require_same_specialty)
+			});
+		}
 
-    return result.length > 0 ? result : undefined;
-  }
+		return result.length > 0 ? result : undefined;
+	}
 
-  /**
-   * Build existing assignments
-   */
-  private async buildExistingAssignments(): Promise<StrategyContext['existingAssignments']> {
-    const assignments = await this.db
-      .selectFrom('schedule_assignments')
-      .select(['student_id', 'preceptor_id', 'date'])
-      // Non-clinical days (free_day / exam) have no preceptor and don't factor into
-      // scheduling occupancy (M2/M3).
-      .where('preceptor_id', 'is not', null)
-      .execute();
+	/**
+	 * Build existing assignments
+	 */
+	private async buildExistingAssignments(): Promise<StrategyContext['existingAssignments']> {
+		const assignments = await this.db
+			.selectFrom('schedule_assignments')
+			.select(['student_id', 'preceptor_id', 'date'])
+			// Non-clinical days (free_day / exam) have no preceptor and don't factor into
+			// scheduling occupancy (M2/M3).
+			.where('preceptor_id', 'is not', null)
+			.execute();
 
-    return assignments.map(a => ({
-      studentId: a.student_id,
-      preceptorId: a.preceptor_id as string,
-      date: a.date,
-    }));
-  }
+		return assignments.map((a) => ({
+			studentId: a.student_id,
+			preceptorId: a.preceptor_id as string,
+			date: a.date
+		}));
+	}
 
-  /**
-   * Build health system and site information
-   */
-  private async buildHealthSystemInfo(): Promise<{
-    healthSystems: Map<string, { id: string; name: string }>;
-    sites: Map<string, { id: string; healthSystemId: string | null; name: string }>;
-  }> {
-    const healthSystems = await this.db.selectFrom('health_systems').selectAll().execute();
+	/**
+	 * Build health system and site information
+	 */
+	private async buildHealthSystemInfo(): Promise<{
+		healthSystems: Map<string, { id: string; name: string }>;
+		sites: Map<string, { id: string; healthSystemId: string | null; name: string }>;
+	}> {
+		const healthSystems = await this.db.selectFrom('health_systems').selectAll().execute();
 
-    const sites = await this.db.selectFrom('sites').selectAll().execute();
+		const sites = await this.db.selectFrom('sites').selectAll().execute();
 
-    return {
-      healthSystems: new Map(
-        healthSystems
-          .filter(hs => hs.id !== null)
-          .map(hs => [hs.id as string, { id: hs.id as string, name: hs.name }])
-      ),
-      sites: new Map(
-        sites
-          .filter(s => s.id !== null)
-          .map(s => [
-            s.id as string,
-            { id: s.id as string, healthSystemId: s.health_system_id, name: s.name },
-          ])
-      ),
-    };
-  }
+		return {
+			healthSystems: new Map(
+				healthSystems
+					.filter((hs) => hs.id !== null)
+					.map((hs) => [hs.id as string, { id: hs.id as string, name: hs.name }])
+			),
+			sites: new Map(
+				sites
+					.filter((s) => s.id !== null)
+					.map((s) => [
+						s.id as string,
+						{ id: s.id as string, healthSystemId: s.health_system_id, name: s.name }
+					])
+			)
+		};
+	}
 }

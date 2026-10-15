@@ -12,6 +12,7 @@ Display violation statistics returned by the scheduling engine to help users und
 ## Current State
 
 **API Response** (`/api/schedules/generate`):
+
 ```typescript
 {
   success: boolean,
@@ -35,6 +36,7 @@ Display violation statistics returned by the scheduling engine to help users und
 ## Goal
 
 Add a "Constraint Violations" section to the schedule results page showing:
+
 - Top blocking constraints
 - How many times each constraint blocked assignments
 - Percentage breakdown
@@ -50,14 +52,14 @@ Add violation stats to results summary:
 
 ```typescript
 export interface ScheduleResultsSummary {
-  // ... existing fields
-  violationStats?: ViolationStat[];  // Add this
+	// ... existing fields
+	violationStats?: ViolationStat[]; // Add this
 }
 
 export interface ViolationStat {
-  constraintName: string;
-  count: number;
-  percentage: number;
+	constraintName: string;
+	count: number;
+	percentage: number;
 }
 ```
 
@@ -68,6 +70,7 @@ export interface ViolationStat {
 Currently loads schedule summary. Need to enhance to include violations.
 
 **Check**: Does the current summary query include violation data?
+
 - If yes: Pass it through
 - If no: Query from database or regenerate
 
@@ -83,84 +86,84 @@ Currently loads schedule summary. Need to enhance to include violations.
 
 ```svelte
 <script lang="ts">
-  import type { ViolationStat } from '../types/schedule-views';
-  import { Card } from '$lib/components/ui/card';
+	import type { ViolationStat } from '../types/schedule-views';
+	import { Card } from '$lib/components/ui/card';
 
-  interface Props {
-    violations: ViolationStat[];
-  }
+	interface Props {
+		violations: ViolationStat[];
+	}
 
-  let { violations }: Props = $props();
+	let { violations }: Props = $props();
 
-  // Format constraint names for display
-  function formatConstraintName(name: string): string {
-    return name
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  }
+	// Format constraint names for display
+	function formatConstraintName(name: string): string {
+		return name
+			.split('-')
+			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+			.join(' ');
+	}
 
-  // Get severity class based on percentage
-  function getSeverityClass(percentage: number): string {
-    if (percentage > 30) return 'bg-red-100 text-red-800';
-    if (percentage > 15) return 'bg-orange-100 text-orange-800';
-    return 'bg-yellow-100 text-yellow-800';
-  }
+	// Get severity class based on percentage
+	function getSeverityClass(percentage: number): string {
+		if (percentage > 30) return 'bg-red-100 text-red-800';
+		if (percentage > 15) return 'bg-orange-100 text-orange-800';
+		return 'bg-yellow-100 text-yellow-800';
+	}
 
-  let topViolations = $derived(violations.slice(0, 5));
+	let topViolations = $derived(violations.slice(0, 5));
 </script>
 
 <Card class="overflow-hidden">
-  <div class="bg-muted/50 px-4 py-3 border-b">
-    <h3 class="font-semibold">Top Blocking Constraints</h3>
-    <p class="text-sm text-muted-foreground mt-1">
-      Constraints that prevented the most assignments
-    </p>
-  </div>
+	<div class="border-b bg-muted/50 px-4 py-3">
+		<h3 class="font-semibold">Top Blocking Constraints</h3>
+		<p class="mt-1 text-sm text-muted-foreground">
+			Constraints that prevented the most assignments
+		</p>
+	</div>
 
-  {#if violations.length === 0}
-    <div class="p-8 text-center">
-      <div class="text-green-600 text-lg font-medium">
-        No Constraint Violations
-      </div>
-      <p class="text-sm text-muted-foreground mt-1">
-        All attempted assignments passed constraint validation.
-      </p>
-    </div>
-  {:else}
-    <div class="divide-y">
-      {#each topViolations as violation, index}
-        <div class="px-4 py-3 hover:bg-muted/30 transition-colors">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="text-lg font-bold text-muted-foreground">
-                #{index + 1}
-              </div>
-              <div>
-                <p class="font-medium">
-                  {formatConstraintName(violation.constraintName)}
-                </p>
-                <p class="text-sm text-muted-foreground">
-                  {violation.count} assignment{violation.count !== 1 ? 's' : ''} blocked
-                </p>
-              </div>
-            </div>
-            <div class="text-right">
-              <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityClass(violation.percentage)}`}>
-                {violation.percentage.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      {/each}
-    </div>
+	{#if violations.length === 0}
+		<div class="p-8 text-center">
+			<div class="text-lg font-medium text-green-600">No Constraint Violations</div>
+			<p class="mt-1 text-sm text-muted-foreground">
+				All attempted assignments passed constraint validation.
+			</p>
+		</div>
+	{:else}
+		<div class="divide-y">
+			{#each topViolations as violation, index}
+				<div class="px-4 py-3 transition-colors hover:bg-muted/30">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<div class="text-lg font-bold text-muted-foreground">
+								#{index + 1}
+							</div>
+							<div>
+								<p class="font-medium">
+									{formatConstraintName(violation.constraintName)}
+								</p>
+								<p class="text-sm text-muted-foreground">
+									{violation.count} assignment{violation.count !== 1 ? 's' : ''} blocked
+								</p>
+							</div>
+						</div>
+						<div class="text-right">
+							<span
+								class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getSeverityClass(violation.percentage)}`}
+							>
+								{violation.percentage.toFixed(1)}%
+							</span>
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
 
-    {#if violations.length > 5}
-      <div class="px-4 py-3 bg-muted/30 text-sm text-muted-foreground text-center">
-        +{violations.length - 5} more constraint types
-      </div>
-    {/if}
-  {/if}
+		{#if violations.length > 5}
+			<div class="bg-muted/30 px-4 py-3 text-center text-sm text-muted-foreground">
+				+{violations.length - 5} more constraint types
+			</div>
+		{/if}
+	{/if}
 </Card>
 ```
 
@@ -172,28 +175,28 @@ Update layout to include violations:
 
 ```svelte
 <div class="space-y-6">
-  <!-- Stats Overview -->
-  <ScheduleStatsCard stats={data.summary.stats} isComplete={data.summary.isComplete} />
+	<!-- Stats Overview -->
+	<ScheduleStatsCard stats={data.summary.stats} isComplete={data.summary.isComplete} />
 
-  <!-- NEW: Violation Stats (only show if available) -->
-  {#if data.summary.violationStats && data.summary.violationStats.length > 0}
-    <ViolationStatsCard violations={data.summary.violationStats} />
-  {/if}
+	<!-- NEW: Violation Stats (only show if available) -->
+	{#if data.summary.violationStats && data.summary.violationStats.length > 0}
+		<ViolationStatsCard violations={data.summary.violationStats} />
+	{/if}
 
-  <div class="grid gap-6 lg:grid-cols-2">
-    <!-- Unmet Requirements -->
-    <div class="lg:col-span-1">
-      <UnmetRequirementsTable
-        students={data.summary.studentsWithUnmetRequirements}
-        onStudentClick={handleStudentClick}
-      />
-    </div>
+	<div class="grid gap-6 lg:grid-cols-2">
+		<!-- Unmet Requirements -->
+		<div class="lg:col-span-1">
+			<UnmetRequirementsTable
+				students={data.summary.studentsWithUnmetRequirements}
+				onStudentClick={handleStudentClick}
+			/>
+		</div>
 
-    <!-- Clerkship Breakdown -->
-    <div class="lg:col-span-1">
-      <ClerkshipBreakdownTable breakdown={data.summary.clerkshipBreakdown} />
-    </div>
-  </div>
+		<!-- Clerkship Breakdown -->
+		<div class="lg:col-span-1">
+			<ClerkshipBreakdownTable breakdown={data.summary.clerkshipBreakdown} />
+		</div>
+	</div>
 </div>
 ```
 
@@ -238,15 +241,13 @@ await db.insertInto('schedule_generation_log').values({
 ```typescript
 // In +page.server.ts
 const latestLog = await db
-  .selectFrom('schedule_generation_log')
-  .where('period_id', '=', activePeriod.id)
-  .orderBy('generated_at', 'desc')
-  .selectAll()
-  .executeTakeFirst();
+	.selectFrom('schedule_generation_log')
+	.where('period_id', '=', activePeriod.id)
+	.orderBy('generated_at', 'desc')
+	.selectAll()
+	.executeTakeFirst();
 
-const violationStats = latestLog
-  ? JSON.parse(latestLog.violation_data)
-  : [];
+const violationStats = latestLog ? JSON.parse(latestLog.violation_data) : [];
 ```
 
 ## Testing

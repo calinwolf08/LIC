@@ -72,7 +72,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 
@@ -90,7 +90,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 
@@ -98,13 +98,16 @@ const DEFAULT_SITE_ID = 'test-site-1';
 
 async function createSiteDirect(db: Kysely<DB>, id: string = DEFAULT_SITE_ID): Promise<void> {
 	const timestamp = new Date().toISOString();
-	await db.insertInto('sites').values({
-		id,
-		name: 'Test Site',
-		health_system_id: null,
-		created_at: timestamp,
-		updated_at: timestamp
-	}).execute();
+	await db
+		.insertInto('sites')
+		.values({
+			id,
+			name: 'Test Site',
+			health_system_id: null,
+			created_at: timestamp,
+			updated_at: timestamp
+		})
+		.execute();
 }
 
 async function createPreceptorDirect(
@@ -124,7 +127,11 @@ async function createPreceptorDirect(
 		...data
 	};
 
-	return await db.insertInto('preceptors').values(preceptor).returningAll().executeTakeFirstOrThrow();
+	return await db
+		.insertInto('preceptors')
+		.values(preceptor)
+		.returningAll()
+		.executeTakeFirstOrThrow();
 }
 
 async function createAvailabilityDirect(
@@ -428,9 +435,9 @@ describe('Availability Service', () => {
 		});
 
 		it('throws NotFoundError when preceptor does not exist', async () => {
-			await expect(setAvailability(db, 'nonexistent-id', DEFAULT_SITE_ID, '2024-01-15', true)).rejects.toThrow(
-				NotFoundError
-			);
+			await expect(
+				setAvailability(db, 'nonexistent-id', DEFAULT_SITE_ID, '2024-01-15', true)
+			).rejects.toThrow(NotFoundError);
 		});
 
 		it('sets created_at and updated_at for new record', async () => {

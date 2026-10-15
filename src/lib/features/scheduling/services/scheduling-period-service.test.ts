@@ -110,7 +110,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('schedule_id', 'text')
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.addColumn('kind', 'text', (col) => col.notNull().defaultTo('clinical'))
 		.execute();
 }
@@ -332,9 +332,9 @@ describe('Scheduling Period Service', () => {
 					is_active: false
 				});
 
-				await expect(
-					updateSchedulingPeriod(db, inactive.id, { is_active: true })
-				).rejects.toThrow(ConflictError);
+				await expect(updateSchedulingPeriod(db, inactive.id, { is_active: true })).rejects.toThrow(
+					ConflictError
+				);
 			});
 
 			it('allows updating active period without conflict', async () => {
@@ -364,7 +364,7 @@ describe('Scheduling Period Service', () => {
 				});
 
 				// Small delay to ensure timestamp difference
-				await new Promise(resolve => setTimeout(resolve, 10));
+				await new Promise((resolve) => setTimeout(resolve, 10));
 
 				const updated = await updateSchedulingPeriod(db, created.id, {
 					name: 'Fall 2024 - Updated'
@@ -415,9 +415,7 @@ describe('Scheduling Period Service', () => {
 			});
 
 			it('throws NotFoundError when period not found', async () => {
-				await expect(
-					deleteSchedulingPeriod(db, 'nonexistent-id')
-				).rejects.toThrow(NotFoundError);
+				await expect(deleteSchedulingPeriod(db, 'nonexistent-id')).rejects.toThrow(NotFoundError);
 			});
 
 			it('throws ConflictError when deleting active period', async () => {
@@ -428,9 +426,7 @@ describe('Scheduling Period Service', () => {
 					is_active: true
 				});
 
-				await expect(
-					deleteSchedulingPeriod(db, active.id)
-				).rejects.toThrow(ConflictError);
+				await expect(deleteSchedulingPeriod(db, active.id)).rejects.toThrow(ConflictError);
 			});
 		});
 
@@ -461,9 +457,7 @@ describe('Scheduling Period Service', () => {
 			});
 
 			it('throws NotFoundError when period not found', async () => {
-				await expect(
-					activateSchedulingPeriod(db, 'nonexistent-id')
-				).rejects.toThrow(NotFoundError);
+				await expect(activateSchedulingPeriod(db, 'nonexistent-id')).rejects.toThrow(NotFoundError);
 			});
 		});
 
@@ -547,7 +541,7 @@ describe('Scheduling Period Service', () => {
 				const overlapping = await getOverlappingPeriods(db, '2024-02-15', '2024-05-15');
 
 				expect(overlapping).toHaveLength(2);
-				const names = overlapping.map(p => p.name);
+				const names = overlapping.map((p) => p.name);
 				expect(names).toContain('Q1 2024');
 				expect(names).toContain('Q2 2024');
 			});

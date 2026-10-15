@@ -1,12 +1,15 @@
 # Dev Plan: Manual Assignment Creation UI
 
 ## Overview
+
 Add the ability to manually create individual schedule assignments directly from the calendar view, without requiring a full schedule regeneration.
 
 ## Problem Statement
+
 Currently, if a coordinator needs to add a single assignment (e.g., a student was added late, or an additional day is needed), they must regenerate the entire schedule. This is disruptive and may override carefully made manual adjustments.
 
 ## Solution
+
 Add a "+" button on empty calendar day slots that opens a modal to create a single assignment with full validation.
 
 ---
@@ -19,14 +22,15 @@ Add a "+" button on empty calendar day slots that opens a modal to create a sing
 
 ```typescript
 interface Props {
-  open: boolean;
-  date: string;  // Pre-selected date from calendar click
-  onSave: () => void;
-  onCancel: () => void;
+	open: boolean;
+	date: string; // Pre-selected date from calendar click
+	onSave: () => void;
+	onCancel: () => void;
 }
 ```
 
 **Features:**
+
 - Date picker (pre-populated from clicked day)
 - Student dropdown (searchable, shows only students in active schedule)
 - Clerkship dropdown (shows remaining days needed for selected student)
@@ -35,6 +39,7 @@ interface Props {
 - "Create" and "Cancel" buttons
 
 **Validation Display:**
+
 - Green checkmark when valid
 - Red error messages for each constraint violation
 - Warning for assignments that would exceed clerkship requirements
@@ -48,17 +53,22 @@ Add POST handler for creating single assignments:
 ```typescript
 // POST /api/schedules/assignments
 export async function POST({ request, locals }) {
-  const { student_id, preceptor_id, clerkship_id, date, dry_run } = await request.json();
+	const { student_id, preceptor_id, clerkship_id, date, dry_run } = await request.json();
 
-  // If dry_run, only validate
-  if (dry_run) {
-    const validation = await validateAssignment(db, { student_id, preceptor_id, clerkship_id, date });
-    return json({ valid: validation.valid, errors: validation.errors });
-  }
+	// If dry_run, only validate
+	if (dry_run) {
+		const validation = await validateAssignment(db, {
+			student_id,
+			preceptor_id,
+			clerkship_id,
+			date
+		});
+		return json({ valid: validation.valid, errors: validation.errors });
+	}
 
-  // Create assignment
-  const assignment = await createAssignment(db, { student_id, preceptor_id, clerkship_id, date });
-  return json(assignment, { status: 201 });
+	// Create assignment
+	const assignment = await createAssignment(db, { student_id, preceptor_id, clerkship_id, date });
+	return json(assignment, { status: 201 });
 }
 ```
 
@@ -75,20 +85,22 @@ Add helper function:
  * Get preceptors available on a specific date for a clerkship
  */
 export async function getAvailablePreceptorsForDate(
-  db: Kysely<DB>,
-  date: string,
-  clerkshipId: string
-): Promise<Array<{
-  id: string;
-  name: string;
-  availableSlots: number;
-  isTeamMember: boolean;
-}>> {
-  // 1. Get preceptors with availability on this date
-  // 2. Filter by team membership for this clerkship
-  // 3. Check capacity (max_students - current assignments)
-  // 4. Exclude if on blackout date
-  // 5. Sort by: team members first, then by available slots
+	db: Kysely<DB>,
+	date: string,
+	clerkshipId: string
+): Promise<
+	Array<{
+		id: string;
+		name: string;
+		availableSlots: number;
+		isTeamMember: boolean;
+	}>
+> {
+	// 1. Get preceptors with availability on this date
+	// 2. Filter by team membership for this clerkship
+	// 3. Check capacity (max_students - current assignments)
+	// 4. Exclude if on blackout date
+	// 5. Sort by: team members first, then by available slots
 }
 ```
 
@@ -102,10 +114,10 @@ export async function getAvailablePreceptorsForDate(
 // GET /api/students/{id}/requirements
 // Returns remaining days needed per clerkship
 {
-  clerkships: [
-    { id: "...", name: "Family Medicine", required: 20, assigned: 15, remaining: 5 },
-    { id: "...", name: "Surgery", required: 28, assigned: 28, remaining: 0, complete: true }
-  ]
+	clerkships: [
+		{ id: '...', name: 'Family Medicine', required: 20, assigned: 15, remaining: 5 },
+		{ id: '...', name: 'Surgery', required: 28, assigned: 28, remaining: 0, complete: true }
+	];
 }
 ```
 
@@ -131,6 +143,7 @@ Modify to show "+" button on empty, available days:
 ```
 
 **Add new prop:**
+
 ```typescript
 onCreateClick?: (day: CalendarDay) => void;
 ```
@@ -143,34 +156,31 @@ Add state and handlers:
 
 ```svelte
 <script>
-  let showCreateModal = $state(false);
-  let createDate = $state<string>('');
+	let showCreateModal = $state(false);
+	let createDate = $state<string>('');
 
-  function handleCreateClick(day: CalendarDay) {
-    createDate = day.date;
-    showCreateModal = true;
-  }
+	function handleCreateClick(day: CalendarDay) {
+		createDate = day.date;
+		showCreateModal = true;
+	}
 
-  function handleCreateSave() {
-    showCreateModal = false;
-    loadCalendar();
-  }
+	function handleCreateSave() {
+		showCreateModal = false;
+		loadCalendar();
+	}
 </script>
 
 <!-- In calendar grid -->
-<ScheduleCalendarGrid
-  ...
-  onCreateClick={handleCreateClick}
-/>
+<ScheduleCalendarGrid ... onCreateClick={handleCreateClick} />
 
 <!-- Modal -->
 <CreateAssignmentModal
-  open={showCreateModal}
-  date={createDate}
-  students={data.students}
-  clerkships={data.clerkships}
-  onSave={handleCreateSave}
-  onCancel={() => showCreateModal = false}
+	open={showCreateModal}
+	date={createDate}
+	students={data.students}
+	clerkships={data.clerkships}
+	onSave={handleCreateSave}
+	onCancel={() => (showCreateModal = false)}
 />
 ```
 
@@ -271,26 +281,28 @@ Calendar refreshes
 
 ## Files to Create/Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/features/schedules/components/create-assignment-modal.svelte` | Create | New modal component |
-| `src/routes/api/schedules/assignments/+server.ts` | Modify | Add POST handler |
-| `src/routes/api/preceptors/available/+server.ts` | Create | Available preceptors endpoint |
-| `src/routes/api/students/[id]/requirements/+server.ts` | Create | Student requirements endpoint |
-| `src/lib/features/schedules/services/assignment-service.ts` | Modify | Add `getAvailablePreceptorsForDate` |
-| `src/lib/features/schedules/components/schedule-calendar-grid.svelte` | Modify | Add "+" button and callback |
-| `src/routes/calendar/+page.svelte` | Modify | Add modal state and handler |
+| File                                                                   | Action | Description                         |
+| ---------------------------------------------------------------------- | ------ | ----------------------------------- |
+| `src/lib/features/schedules/components/create-assignment-modal.svelte` | Create | New modal component                 |
+| `src/routes/api/schedules/assignments/+server.ts`                      | Modify | Add POST handler                    |
+| `src/routes/api/preceptors/available/+server.ts`                       | Create | Available preceptors endpoint       |
+| `src/routes/api/students/[id]/requirements/+server.ts`                 | Create | Student requirements endpoint       |
+| `src/lib/features/schedules/services/assignment-service.ts`            | Modify | Add `getAvailablePreceptorsForDate` |
+| `src/lib/features/schedules/components/schedule-calendar-grid.svelte`  | Modify | Add "+" button and callback         |
+| `src/routes/calendar/+page.svelte`                                     | Modify | Add modal state and handler         |
 
 ---
 
 ## Testing Plan
 
 ### Unit Tests
+
 - `getAvailablePreceptorsForDate` returns correct preceptors
 - `getAvailablePreceptorsForDate` respects capacity limits
 - `getAvailablePreceptorsForDate` excludes unavailable preceptors
 
 ### Integration Tests
+
 - Create assignment via API with valid data
 - Create assignment fails with student conflict
 - Create assignment fails with preceptor at capacity
@@ -298,6 +310,7 @@ Calendar refreshes
 - Dry-run returns validation errors without creating
 
 ### E2E Tests
+
 - Click "+" on calendar day opens modal
 - Select student shows their remaining requirements
 - Select clerkship filters preceptor list
@@ -310,15 +323,15 @@ Calendar refreshes
 
 ## Estimated Effort
 
-| Phase | Effort |
-|-------|--------|
-| Phase 1: Modal Component | Medium |
-| Phase 2: POST API | Small (service exists) |
-| Phase 3: Available Preceptors Query | Medium |
-| Phase 4: Student Requirements Query | Small |
-| Phase 5: Calendar Grid Changes | Small |
-| Phase 6: Page Integration | Small |
-| Testing | Medium |
+| Phase                               | Effort                 |
+| ----------------------------------- | ---------------------- |
+| Phase 1: Modal Component            | Medium                 |
+| Phase 2: POST API                   | Small (service exists) |
+| Phase 3: Available Preceptors Query | Medium                 |
+| Phase 4: Student Requirements Query | Small                  |
+| Phase 5: Calendar Grid Changes      | Small                  |
+| Phase 6: Page Integration           | Small                  |
+| Testing                             | Medium                 |
 
 **Total: ~3-4 days of development**
 

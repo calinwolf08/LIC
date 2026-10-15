@@ -59,7 +59,9 @@ async function main() {
 
 	if (!email) {
 		console.error('Error: --email=<address> is required');
-		console.error('Usage: npm run db:reset-user -- --email=someone@example.com [--dry-run] [--yes]');
+		console.error(
+			'Usage: npm run db:reset-user -- --email=someone@example.com [--dry-run] [--yes]'
+		);
 		process.exit(1);
 	}
 

@@ -8,7 +8,13 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { successResponse, errorResponse, handleApiError, validationErrorResponse, notFoundResponse } from '$lib/api';
+import {
+	successResponse,
+	errorResponse,
+	handleApiError,
+	validationErrorResponse,
+	notFoundResponse
+} from '$lib/api';
 import { TeamService } from '$lib/features/scheduling-config/services/teams.service';
 import { preceptorTeamInputSchema } from '$lib/features/scheduling-config/schemas/teams.schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
@@ -41,13 +47,10 @@ export const GET: RequestHandler = async ({ params }) => {
 		const siteIds = await service.getTeamSites(params.id);
 
 		// Get site details
-		const sites = siteIds.length > 0
-			? await db
-					.selectFrom('sites')
-					.select(['id', 'name'])
-					.where('id', 'in', siteIds)
-					.execute()
-			: [];
+		const sites =
+			siteIds.length > 0
+				? await db.selectFrom('sites').select(['id', 'name']).where('id', 'in', siteIds).execute()
+				: [];
 
 		log.info('Team fetched', {
 			teamId: params.id,
@@ -106,14 +109,17 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 				requireSameHealthSystem: z.boolean().optional(),
 				requireSameSite: z.boolean().optional(),
 				requireSameSpecialty: z.boolean().optional(),
-				requiresAdminApproval: z.boolean().optional(),
+				requiresAdminApproval: z.boolean().optional()
 			});
 
 			const validatedData = teamPropsSchema.parse(body);
 			const result = await service.updateTeamWithSites(params.id, validatedData, siteIds);
 
 			if (!result.success) {
-				log.warn('Failed to update team properties', { teamId: params.id, error: result.error.message });
+				log.warn('Failed to update team properties', {
+					teamId: params.id,
+					error: result.error.message
+				});
 				return errorResponse(result.error.message, 400);
 			}
 
@@ -130,7 +136,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		if (error instanceof ZodError) {
 			log.warn('Team update validation failed', {
 				teamId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

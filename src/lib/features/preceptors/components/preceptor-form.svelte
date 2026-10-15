@@ -272,7 +272,7 @@
 						aria-label="Phone type"
 						bind:value={formData.phone_type}
 						disabled={isSubmitting}
-						class="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+						class="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						<option value="">Type…</option>
 						<option value="cell">Cell</option>
@@ -285,14 +285,14 @@
 				{/if}
 			</div>
 
-				<div class="space-y-2">
+			<div class="space-y-2">
 				<Label for="health_system_id">Health System (Optional)</Label>
 				<select
 					id="health_system_id"
 					bind:value={formData.health_system_id}
 					onchange={handleHealthSystemChange}
 					disabled={isSubmitting}
-					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id
+					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 {errors.health_system_id
 						? 'border-destructive'
 						: ''}"
 				>
@@ -313,18 +313,21 @@
 				<Label>Sites (Optional)</Label>
 				<div class="max-h-40 overflow-y-auto rounded-md border border-input p-2">
 					{#if filteredSites.length === 0}
-						<p class="text-sm text-muted-foreground py-2">
+						<p class="py-2 text-sm text-muted-foreground">
 							{#if sitesList.length === 0}
 								No sites exist yet. Create a site first using the button below.
 							{:else if formData.health_system_id}
-								No sites found for this health system. Create one or select a different health system.
+								No sites found for this health system. Create one or select a different health
+								system.
 							{:else}
 								Select a health system to see available sites, or create a new site.
 							{/if}
 						</p>
 					{:else}
 						{#each filteredSites as site}
-							<label class="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-1 cursor-pointer">
+							<label
+								class="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-muted/50"
+							>
 								<input
 									type="checkbox"
 									checked={selectedSiteIds.includes(site.id)}
@@ -404,7 +407,7 @@
 		onclick={handleHealthSystemFormCancel}
 		role="presentation"
 	></div>
-	<div class="fixed left-1/2 top-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
+	<div class="fixed top-1/2 left-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
 		<HealthSystemForm
 			onSuccess={handleHealthSystemCreated}
 			onCancel={handleHealthSystemFormCancel}
@@ -419,7 +422,7 @@
 		onclick={handleSiteFormCancel}
 		role="presentation"
 	></div>
-	<div class="fixed left-1/2 top-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
+	<div class="fixed top-1/2 left-1/2 z-[60] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2">
 		<SiteForm
 			healthSystems={healthSystemsList}
 			onSuccess={handleSiteCreated}

@@ -11,6 +11,7 @@ This document explains how users can regenerate schedules while preserving past 
 **Location**: `/schedule/results`
 
 The user sees:
+
 1. **Stats Overview**: Total assignments, completion percentage, students with unmet requirements
 2. **Violation Statistics** (if schedule incomplete):
    - Top 5 blocking constraints
@@ -22,6 +23,7 @@ The user sees:
    - Direct links to fix the issues
 
 **Example Violation Display**:
+
 ```
 ┌─────────────────────────────────────────┐
 │ Top Blocking Constraints                 │
@@ -37,6 +39,7 @@ The user sees:
 ```
 
 **Example Suggestions Display**:
+
 ```
 ┌─────────────────────────────────────────┐
 │ Suggested Fixes                          │
@@ -90,6 +93,7 @@ User clicks action links from suggestions:
 2. RegenerateDialog opens with options:
 
 **UI State**:
+
 ```
 ┌─────────────────────────────────────────────────┐
 │ Regenerate Schedule                              │
@@ -154,63 +158,62 @@ POST /api/schedules/generate
    - Past assignments (before 2025-06-15) remain in database
 
 2. **Prepare Regeneration Context** (`prepareRegenerationContext`):
+
    ```typescript
    // Get all assignments before cutoff date
-   pastAssignments = getAssignmentsBefore("2025-06-15")
+   pastAssignments = getAssignmentsBefore('2025-06-15');
 
    // Credit past work to student requirements
    // Student had 10 days required, completed 3 → now needs 7
-   creditPastAssignmentsToRequirements(context, pastAssignments)
+   creditPastAssignmentsToRequirements(context, pastAssignments);
 
    // Get assignments after cutoff (to be replaced)
-   futureAssignments = getAssignmentsAfter("2025-06-15")
+   futureAssignments = getAssignmentsAfter('2025-06-15');
 
    // Analyze which future assignments can be preserved
-   if (strategy === "minimal-change") {
-     // Categorize future assignments
-     preservableAssignments = futureAssignments.filter(a =>
-       isPreceptorStillAvailable(a) &&
-       isWithinNewCapacity(a) &&
-       passesAllConstraints(a)
-     )
+   if (strategy === 'minimal-change') {
+   	// Categorize future assignments
+   	preservableAssignments = futureAssignments.filter(
+   		(a) => isPreceptorStillAvailable(a) && isWithinNewCapacity(a) && passesAllConstraints(a)
+   	);
 
-     affectedAssignments = futureAssignments.filter(a =>
-       !preservableAssignments.includes(a)
-     )
+   	affectedAssignments = futureAssignments.filter((a) => !preservableAssignments.includes(a));
 
-     // Try to find replacements for affected assignments
-     preserved = applyMinimalChangeStrategy(
-       context,
-       preservableAssignments,
-       affectedAssignments,
-       unavailablePreceptors
-     )
+   	// Try to find replacements for affected assignments
+   	preserved = applyMinimalChangeStrategy(
+   		context,
+   		preservableAssignments,
+   		affectedAssignments,
+   		unavailablePreceptors
+   	);
 
-     // Add preserved assignments to context
-     context.assignments = preserved
+   	// Add preserved assignments to context
+   	context.assignments = preserved;
    }
    ```
 
 3. **Run Scheduling Engine**:
+
    ```typescript
-   engine = new ConfigurableSchedulingEngine()
+   engine = new ConfigurableSchedulingEngine();
 
    // Engine only schedules for dates >= regenerateFromDate
    // Past assignments are already in the context
    result = engine.generateSchedule(context, {
-     startDate: "2025-06-15",  // Only schedule from here forward
-     endDate: "2025-12-31"
-   })
+   	startDate: '2025-06-15', // Only schedule from here forward
+   	endDate: '2025-12-31'
+   });
 
    // Combine past + preserved + newly generated assignments
    finalAssignments = [
-     ...pastAssignments,          // Kept unchanged
-     ...preservedFutureAssignments, // Validated and kept
-     ...newlyGeneratedAssignments   // Just created
-   ]
+   	...pastAssignments, // Kept unchanged
+   	...preservedFutureAssignments, // Validated and kept
+   	...newlyGeneratedAssignments // Just created
+   ];
    ```
 
 4. **Save to Database**:
+
    ```typescript
    // Delete only future assignments that weren't preserved
    deleteAssignmentsAfter("2025-06-15", excludeIds: preservedIds)
@@ -263,6 +266,7 @@ POST /api/schedules/generate
 5. Violation stats show reduced counts for adjusted constraints
 
 **Expected Improvement**:
+
 ```
 Before:
 - 45 preceptor-capacity violations
@@ -296,17 +300,17 @@ generateSchedule(context, { startDate: "2025-01-01", endDate: "2025-12-31" })
 // Only deletes future assignments that can't be preserved
 
 // Credits past work
-creditPastAssignmentsToRequirements(context, pastAssignments)
+creditPastAssignmentsToRequirements(context, pastAssignments);
 
 // Preserves valid future assignments
-preservedAssignments = validateAndPreserve(futureAssignments)
+preservedAssignments = validateAndPreserve(futureAssignments);
 
 // Only generates for missing requirements
 generateSchedule(context, {
-  startDate: regenerateFromDate,
-  endDate: "2025-12-31",
-  existingAssignments: preservedAssignments
-})
+	startDate: regenerateFromDate,
+	endDate: '2025-12-31',
+	existingAssignments: preservedAssignments
+});
 
 // Use case: Mid-year adjustments (capacity changes, availability tweaks)
 ```
@@ -318,13 +322,13 @@ generateSchedule(context, {
 // Deletes ALL future assignments
 
 // Credits past work
-creditPastAssignmentsToRequirements(context, pastAssignments)
+creditPastAssignmentsToRequirements(context, pastAssignments);
 
 // Generates completely new optimal solution for future
 generateSchedule(context, {
-  startDate: regenerateFromDate,
-  endDate: "2025-12-31"
-})
+	startDate: regenerateFromDate,
+	endDate: '2025-12-31'
+});
 
 // Use case: Major future changes but want to keep past work
 ```
@@ -333,18 +337,19 @@ generateSchedule(context, {
 
 The `/api/schedules/generate` endpoint supports:
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `startDate` | string | YYYY-MM-DD - Period start |
-| `endDate` | string | YYYY-MM-DD - Period end |
-| `regenerateFromDate` | string? | YYYY-MM-DD - Only regenerate from this date forward (optional, defaults to today) |
-| `strategy` | string? | `"minimal-change"` or `"full-reoptimize"` (optional, defaults to `"full-reoptimize"`) |
-| `preview` | boolean? | If true, returns impact analysis without making changes (optional) |
-| `bypassedConstraints` | string[]? | Constraints to bypass during generation (optional) |
+| Parameter             | Type      | Description                                                                           |
+| --------------------- | --------- | ------------------------------------------------------------------------------------- |
+| `startDate`           | string    | YYYY-MM-DD - Period start                                                             |
+| `endDate`             | string    | YYYY-MM-DD - Period end                                                               |
+| `regenerateFromDate`  | string?   | YYYY-MM-DD - Only regenerate from this date forward (optional, defaults to today)     |
+| `strategy`            | string?   | `"minimal-change"` or `"full-reoptimize"` (optional, defaults to `"full-reoptimize"`) |
+| `preview`             | boolean?  | If true, returns impact analysis without making changes (optional)                    |
+| `bypassedConstraints` | string[]? | Constraints to bypass during generation (optional)                                    |
 
 ## Testing
 
 See test coverage:
+
 - Unit tests: `src/lib/features/scheduling/services/regeneration-service.test.ts`
 - Integration tests: `src/routes/api/schedules/generate/+server.test.ts`
 - Component tests: `src/lib/features/schedules/components/regenerate-dialog.test.ts`

@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
-import {
-	getQuartersBySchedule,
-	replaceQuarters,
-	quarterForDate
-} from './quarter-service';
+import { getQuartersBySchedule, replaceQuarters, quarterForDate } from './quarter-service';
 
 const SCHEDULE = 'sched-q';
 

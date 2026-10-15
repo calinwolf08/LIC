@@ -29,9 +29,14 @@
 						data-done={item.done ? 'true' : 'false'}
 					>
 						{#if item.done}
-							<Check class="h-4 w-4 text-green-600" /><span class="text-gray-500 line-through">{item.label}</span>
+							<Check class="h-4 w-4 text-green-600" /><span class="text-gray-500 line-through"
+								>{item.label}</span
+							>
 						{:else}
-							<Circle class="h-4 w-4 text-gray-400" /><a href={item.href} class="text-primary hover:underline">{item.label}</a>
+							<Circle class="h-4 w-4 text-gray-400" /><a
+								href={item.href}
+								class="text-primary hover:underline">{item.label}</a
+							>
 						{/if}
 					</li>
 				{/each}
@@ -53,7 +58,9 @@
 			<Button onclick={() => (showDialog = true)}>Generate schedule…</Button>
 		{:else}
 			<p class="text-sm text-muted-foreground">No active schedule. Create one first.</p>
-			<Button variant="outline" class="mt-2" onclick={() => goto('/schedules')}>Manage schedules</Button>
+			<Button variant="outline" class="mt-2" onclick={() => goto('/schedules')}
+				>Manage schedules</Button
+			>
 		{/if}
 	</Card>
 </div>

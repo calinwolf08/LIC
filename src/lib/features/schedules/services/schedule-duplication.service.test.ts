@@ -53,13 +53,16 @@ describe('Schedule Duplication Service', () => {
 		const ids: string[] = [];
 		for (let i = 0; i < count; i++) {
 			const id = nanoid();
-			await db.insertInto('students').values({
-				id,
-				name: `Student ${i + 1}`,
-				email: `student${i + 1}@test.com`,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('students')
+				.values({
+					id,
+					name: `Student ${i + 1}`,
+					email: `student${i + 1}@test.com`,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 			ids.push(id);
 		}
 		return ids;
@@ -72,13 +75,16 @@ describe('Schedule Duplication Service', () => {
 		const ids: string[] = [];
 		for (let i = 0; i < count; i++) {
 			const id = nanoid();
-			await db.insertInto('preceptors').values({
-				id,
-				name: `Dr. Preceptor ${i + 1}`,
-				email: `preceptor${i + 1}@test.com`,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('preceptors')
+				.values({
+					id,
+					name: `Dr. Preceptor ${i + 1}`,
+					email: `preceptor${i + 1}@test.com`,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 			ids.push(id);
 		}
 		return ids;
@@ -89,12 +95,15 @@ describe('Schedule Duplication Service', () => {
 	 */
 	async function createTestHealthSystem(name: string): Promise<string> {
 		const id = nanoid();
-		await db.insertInto('health_systems').values({
-			id,
-			name,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
-		}).execute();
+		await db
+			.insertInto('health_systems')
+			.values({
+				id,
+				name,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			})
+			.execute();
 		return id;
 	}
 
@@ -106,13 +115,16 @@ describe('Schedule Duplication Service', () => {
 		const healthSystemId = await createTestHealthSystem('Test Health System');
 		for (let i = 0; i < count; i++) {
 			const id = nanoid();
-			await db.insertInto('sites').values({
-				id,
-				name: `Site ${i + 1}`,
-				health_system_id: healthSystemId,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('sites')
+				.values({
+					id,
+					name: `Site ${i + 1}`,
+					health_system_id: healthSystemId,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 			ids.push(id);
 		}
 		return ids;
@@ -178,7 +190,7 @@ describe('Schedule Duplication Service', () => {
 
 			const newStudents = await getScheduleEntities(db, result.schedule.id!, 'students');
 			expect(newStudents).toHaveLength(3);
-			studentIds.forEach(id => expect(newStudents).toContain(id));
+			studentIds.forEach((id) => expect(newStudents).toContain(id));
 			expect(result.entityCounts.students).toBe(3);
 		});
 

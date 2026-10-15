@@ -57,8 +57,8 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 			.values({
 				id: SCHED,
 				name: 'RT',
-				start_date: '2026-01-01',
-				end_date: '2026-12-31',
+				start_date: '2099-01-01',
+				end_date: '2099-12-31',
 				created_at: TS,
 				updated_at: TS
 			})
@@ -197,7 +197,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 				studentId: STU,
 				preceptorId: PREC,
 				clerkshipId: CLERK,
-				date: '2026-10-05',
+				date: '2099-10-05',
 				siteId: SITE,
 				electiveId: ELECT,
 				overrideCodes: ['not_onboarded'] // a bypassed auto day, like a manual override
@@ -238,7 +238,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 			clerkship_id: CLERK,
 			site_id: SITE,
 			elective_id: ELECT,
-			date: '2026-10-05'
+			date: '2099-10-05'
 		});
 	});
 
@@ -249,7 +249,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 			clerkship_id: CLERK,
 			site_id: SITE,
 			elective_id: ELECT_OTHER, // belongs to CLERK2, not CLERK
-			date: '2026-10-06'
+			date: '2099-10-06'
 		});
 		expect(wrongClerkship.ok).toBe(false);
 
@@ -259,7 +259,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 			clerkship_id: CLERK,
 			site_id: SITE,
 			elective_id: 'does-not-exist',
-			date: '2026-10-07'
+			date: '2099-10-07'
 		});
 		expect(unknownElective.ok).toBe(false);
 	});
@@ -270,7 +270,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 				studentId: STU,
 				preceptorId: PREC,
 				clerkshipId: CLERK,
-				date: '2026-10-10',
+				date: '2099-10-10',
 				siteId: SITE,
 				electiveId: ELECT
 			}
@@ -278,10 +278,10 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 		const id = inserted[0].id!;
 
 		// Move (change date) — a clean future slot.
-		const moved = await changeAssignmentDate(db, id, '2026-10-11', false);
+		const moved = await changeAssignmentDate(db, id, '2099-10-11', false);
 		expect(moved.valid).toBe(true);
 		let row = await getAssignmentById(db, id);
-		expect(row!.date).toBe('2026-10-11');
+		expect(row!.date).toBe('2099-10-11');
 		expect(row!.elective_id).toBe(ELECT);
 		expect(row!.source).toBe('generated');
 
@@ -308,7 +308,7 @@ describe('generated rows are round-trippable and editable like manual rows', () 
 				studentId: STU,
 				preceptorId: PREC,
 				clerkshipId: CLERK,
-				date: '2026-10-15',
+				date: '2099-10-15',
 				siteId: SITE,
 				electiveId: ELECT
 			}

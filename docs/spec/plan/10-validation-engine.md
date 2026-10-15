@@ -1,12 +1,15 @@
 # Step 10 — Standalone Validation & Requirement-Status Engine
 
 ## Objective
-A generation-independent service that answers, for the active schedule at any moment: *what is wrong* (violations) and *where does each student stand* (completed / scheduled / unscheduled per clerkship, as of today) — powering the student list/detail, preceptor detail, calendar markers, dashboard, and readiness checklist.
+
+A generation-independent service that answers, for the active schedule at any moment: _what is wrong_ (violations) and _where does each student stand_ (completed / scheduled / unscheduled per clerkship, as of today) — powering the student list/detail, preceptor detail, calendar markers, dashboard, and readiness checklist.
 
 ## Context
-DESIGN_REVIEW C2/C3: conflict detection only runs inside generation; requirement progress is a bare percentage that assumes generation ran. Stage 1 is a *manual* tool, so validation must run against whatever assignments exist.
+
+DESIGN*REVIEW C2/C3: conflict detection only runs inside generation; requirement progress is a bare percentage that assumes generation ran. Stage 1 is a \_manual* tool, so validation must run against whatever assignments exist.
 
 ## Prerequisites
+
 Steps 02, 09 (shares `assignment-validation.ts` and the `Violation` shape).
 
 ## Contract (other steps consume these — keep stable)
@@ -39,12 +42,14 @@ getSetupChecklist(db, scheduleId, entitled: boolean): Promise<ChecklistItem[]>
 5. **Wire minimal consumers now** (fuller UIs come in their own steps): student list/detail if step 06 already landed (replace its stubs); calendar day markers if step 11 hasn't landed yet, skip — step 11 owns it. Replace the `students/completion-stats` endpoint usages with the new status endpoint and delete the old one if nothing else consumes it.
 
 ## Testing
+
 - Unit (core of the step — be exhaustive): fixture schedule exercising every violation code; boundary dates (today, schedule start/end); student with no assignments; over-scheduled clerkship; onboarding missing; capacity exactly-at vs over; batch correctness vs per-assignment validator (property: `validateSchedule` finds exactly the union of per-assignment soft+hard violations).
 - Perf: fixture with ~5k assignments completes `validateSchedule` + `getStudentStatuses` under 2s in CI.
 - API: auth + scoping tests; response shapes.
 - E2E: seeded deliberate violation (from step 02 seed) appears in `GET /api/schedules/validation` and on whichever UI consumer exists at this point.
 
 ## Acceptance criteria
+
 - [ ] The three contract functions exist with tests proving the semantics above.
 - [ ] Requirement status works with zero generation involvement.
 - [ ] Old completion-stats path removed or delegating to the new service.

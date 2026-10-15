@@ -11,6 +11,7 @@ This document summarizes the major enhancements to the configurable scheduling f
 **Previous Design**: Per-clerkship configuration only
 
 **New Design**: Three-level hierarchy
+
 ```
 Level 1: Global Defaults (School-Wide)
          ↓ (inherited by default)
@@ -24,6 +25,7 @@ Level 3: Resolved Configuration (merged defaults + overrides)
 Three separate global default configurations:
 
 #### **Outpatient Defaults**
+
 ```
 Assignment Strategy: Continuous Single (default)
 Health System Rule: Enforce same (default)
@@ -33,6 +35,7 @@ Fallback Settings: Rules for fallback behavior
 ```
 
 #### **Inpatient Defaults**
+
 ```
 Assignment Strategy: Block-based (default)
 Block Size: 14 days (default)
@@ -43,6 +46,7 @@ Fallback Settings: Rules for fallback behavior
 ```
 
 #### **Elective Defaults**
+
 ```
 Assignment Strategy: Daily rotation (default)
 Health System Rule: No preference (default)
@@ -57,11 +61,13 @@ Fallback Settings: Allow cross-system (default)
 **New Design**: Configuration at requirement-type level
 
 Each clerkship can have different rules for:
+
 - Outpatient portion
 - Inpatient portion
 - Elective portion
 
 **Example**: Surgery Clerkship
+
 ```
 Surgery Outpatient (40 days):
   - Assignment Strategy: Team-based
@@ -79,6 +85,7 @@ Surgery Inpatient (20 days):
 Administrators can choose override granularity:
 
 #### **Option A: Inherit Everything**
+
 ```
 Surgery Outpatient:
   ○ Use all outpatient global defaults
@@ -86,6 +93,7 @@ Surgery Outpatient:
 ```
 
 #### **Option B: Override Specific Fields**
+
 ```
 Surgery Outpatient:
   Assignment Strategy: ● Override → Team-based
@@ -94,6 +102,7 @@ Surgery Outpatient:
 ```
 
 #### **Option C: Override Everything**
+
 ```
 Surgery Outpatient:
   ● Override entire section
@@ -105,6 +114,7 @@ Surgery Outpatient:
 When an admin changes a global default:
 
 **Prompt to Apply Changes**:
+
 ```
 ⚠️ Warning: This change affects 8 clerkships
 
@@ -129,6 +139,7 @@ This prevents unintended changes while allowing global updates when desired.
 ### Step 01: Database Schema (UPDATED)
 
 **Changes**:
+
 - Add 3 global defaults tables (outpatient, inpatient, elective)
 - Add `override_mode` field to `clerkship_requirements` table
 - Add all `override_*` fields to store per-requirement overrides
@@ -136,12 +147,14 @@ This prevents unintended changes while allowing global updates when desired.
 - Enhance `preceptor_capacity_rules` to support hierarchy
 
 **New Tables**: 13 total (previously 9)
+
 - `global_outpatient_defaults`
 - `global_inpatient_defaults`
 - `global_elective_defaults`
 - `clerkship_requirement_overrides` (new)
 
 **New Concepts**:
+
 - Configuration resolution algorithm (merge defaults + overrides)
 - Capacity rule hierarchy (5 levels of specificity)
 - Override modes (inherit, override_fields, override_section)
@@ -149,6 +162,7 @@ This prevents unintended changes while allowing global updates when desired.
 ### Step 02: Configuration Types (NEEDS UPDATE)
 
 **Changes**:
+
 - Add `GlobalOutpatientDefaults` type
 - Add `GlobalInpatientDefaults` type
 - Add `GlobalElectiveDefaults` type
@@ -157,6 +171,7 @@ This prevents unintended changes while allowing global updates when desired.
 - Add field-level override tracking types
 
 **New Validation Rules**:
+
 - Global defaults must have valid values for all fields
 - Override fields only valid when override_mode != 'inherit'
 - Resolved configuration must be complete (no null required fields)
@@ -164,11 +179,13 @@ This prevents unintended changes while allowing global updates when desired.
 ### Step 03: Configuration Services (NEEDS UPDATE)
 
 **New Services**:
+
 - `GlobalDefaultsService` - Manage school-wide defaults (CRUD + apply changes)
 - Enhanced `RequirementService` - Handle override modes and field tracking
 - `ConfigurationResolverService` - Resolve final config from defaults + overrides
 
 **New Service Methods**:
+
 ```
 GlobalDefaultsService:
   - getOutpatientDefaults()
@@ -191,6 +208,7 @@ ConfigurationResolverService:
 ```
 
 **New Business Rules**:
+
 - Can't delete global defaults (always must have defaults)
 - Changing global defaults prompts for application scope
 - Override fields must match schema of global defaults
@@ -199,11 +217,13 @@ ConfigurationResolverService:
 ### Step 04: Scheduling Strategies (MINOR UPDATE)
 
 **Changes**:
+
 - Remove "Hybrid" strategy (deprecated - each requirement type now has its own strategy)
 - Strategies receive `ResolvedRequirementConfiguration` instead of clerkship config
 - Each requirement type scheduled independently with its own strategy
 
 **Impact**:
+
 - Simpler - no special hybrid logic needed
 - Each requirement type is self-contained
 - Strategies don't need to know about global defaults (receive resolved config)
@@ -215,6 +235,7 @@ ConfigurationResolverService:
 ### Step 06: Scheduling Engine (NEEDS UPDATE)
 
 **Changes**:
+
 - Engine loads global defaults once at startup
 - For each clerkship requirement:
   1. Resolve configuration (defaults + overrides)
@@ -224,6 +245,7 @@ ConfigurationResolverService:
 - Configuration resolution happens before strategy selection
 
 **New Workflow**:
+
 ```
 1. Load global defaults (once)
 2. For each student:
@@ -241,6 +263,7 @@ ConfigurationResolverService:
 **New Endpoint Groups**:
 
 #### Global Defaults Endpoints
+
 ```
 GET    /api/school-settings/outpatient-defaults
 PUT    /api/school-settings/outpatient-defaults
@@ -258,6 +281,7 @@ GET    /api/school-settings/defaults/:defaultType/affected-clerkships
 ```
 
 #### Enhanced Requirement Endpoints
+
 ```
 GET    /api/clerkships/:id/requirements/:requirementId/resolved-config
        (returns merged defaults + overrides)
@@ -277,6 +301,7 @@ DELETE /api/clerkships/:id/requirements/:requirementId/override-field/:fieldName
 **New Pages**:
 
 #### School Settings Page
+
 ```
 Navigation → School Settings → Global Defaults
 
@@ -294,6 +319,7 @@ Each tab shows:
 #### Enhanced Clerkship Configuration
 
 **Screen: Requirements Setup**
+
 ```
 Surgery Configuration
 
@@ -325,6 +351,7 @@ Inpatient (20 days):
 ```
 
 **Visual Indicators**:
+
 - Fields using defaults: Normal text, "Using default" badge
 - Fields overridden: Bold text, "Custom" badge
 - Quick toggle: "Reset to default" button per field
@@ -334,6 +361,7 @@ Inpatient (20 days):
 **Changes**: Each school now includes global defaults setup
 
 #### School A Configuration
+
 ```
 Global Defaults:
   Outpatient: Continuous Single, Enforce same system, 1/day
@@ -348,6 +376,7 @@ Result: Extremely simple configuration, all rules consistent
 ```
 
 #### School B Configuration
+
 ```
 Global Defaults:
   Outpatient: Team-based, Enforce same system, 2/day
@@ -362,6 +391,7 @@ Result: Consistent team approach across all rotations
 ```
 
 #### School C Configuration
+
 ```
 Global Defaults:
   Outpatient: Continuous Single, Prefer same system, 1/day
@@ -376,6 +406,7 @@ Result: Hybrid approach via global defaults + selective overrides
 ```
 
 #### School D Configuration
+
 ```
 Global Defaults:
   Outpatient: Daily rotation, No preference, 3/day
@@ -394,6 +425,7 @@ Result: Maximum flexibility via permissive defaults
 **New Test Suites**:
 
 #### Global Defaults Tests
+
 ```
 1. Test setting outpatient/inpatient/elective defaults
 2. Test defaults apply to new clerkships automatically
@@ -403,6 +435,7 @@ Result: Maximum flexibility via permissive defaults
 ```
 
 #### Override Mode Tests
+
 ```
 1. Test inherit mode uses global defaults
 2. Test override_fields mode merges correctly
@@ -412,6 +445,7 @@ Result: Maximum flexibility via permissive defaults
 ```
 
 #### Configuration Resolution Tests
+
 ```
 1. Test resolution with inherit mode
 2. Test resolution with partial overrides
@@ -421,6 +455,7 @@ Result: Maximum flexibility via permissive defaults
 ```
 
 #### School Scenarios with Global Defaults
+
 ```
 1. School A: Set defaults once, all clerkships inherit
 2. School B: Set team defaults, pre-configure teams
@@ -434,6 +469,7 @@ Result: Maximum flexibility via permissive defaults
 ### For Initial Setup (New School)
 
 **Step 1: Set Global Defaults**
+
 ```
 Go to School Settings → Global Defaults
 
@@ -454,6 +490,7 @@ Set Elective Defaults:
 ```
 
 **Step 2: Configure Clerkships**
+
 ```
 For each clerkship:
   - Split requirements (40 outpatient / 20 inpatient)
@@ -467,6 +504,7 @@ Only override if this specific clerkship needs different rules
 ### For Ongoing Management
 
 **Scenario: Policy Change**
+
 ```
 Dean announces: "All clerkships must now enforce same health system"
 
@@ -481,6 +519,7 @@ New way:
 ```
 
 **Scenario: One Exception**
+
 ```
 Surgery needs different capacity limits than other clerkships
 
@@ -495,6 +534,7 @@ Surgery needs different capacity limits than other clerkships
 ### Visual Design Concepts
 
 #### School Settings Page
+
 ```
 ┌─────────────────────────────────────────────┐
 │ School Settings > Global Defaults            │
@@ -521,6 +561,7 @@ Surgery needs different capacity limits than other clerkships
 ```
 
 #### Clerkship Configuration with Overrides
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Surgery > Requirements > Outpatient          │
@@ -563,12 +604,12 @@ If deploying to existing system:
 
 1. **Insert Default Global Defaults**
    - Create sensible defaults based on most common current configurations
-   - Run migration to insert global_*_defaults rows
+   - Run migration to insert global\_\*\_defaults rows
 
 2. **Convert Existing Clerkships**
    - For each clerkship configuration:
      - Create requirement records with override_section mode
-     - Copy existing config to override_* fields
+     - Copy existing config to override\_\* fields
    - This preserves all existing behavior
 
 3. **Gradual Adoption**
@@ -591,6 +632,7 @@ Cache Invalidation: On update to defaults or requirement overrides
 ### Database Query Optimization
 
 Resolve configurations in batch:
+
 ```sql
 -- Load all requirements for scheduling run
 -- Load all global defaults (3 rows)
@@ -600,17 +642,17 @@ Resolve configurations in batch:
 
 ## Summary of Enhancements
 
-| Aspect | Previous Design | Enhanced Design |
-|--------|----------------|-----------------|
-| **Configuration Scope** | Per-clerkship only | School-wide defaults + per-clerkship overrides |
-| **Requirement Types** | Clerkship-level | Per-requirement-type (outpatient/inpatient/elective) |
-| **Override Granularity** | All-or-nothing | Inherit / Override fields / Override section |
-| **Global Changes** | Not possible | Update defaults, apply to many clerkships at once |
-| **Setup Time** | Configure each clerkship individually | Set defaults once, inherit for most clerkships |
-| **Flexibility** | High (each clerkship custom) | Higher (defaults + selective overrides) |
-| **Complexity** | Medium | Higher (3-level hierarchy, resolution logic) |
-| **Tables** | 9 new tables | 13 new tables |
-| **User Experience** | Configure each clerkship | Set & forget defaults, override exceptions only |
+| Aspect                   | Previous Design                       | Enhanced Design                                      |
+| ------------------------ | ------------------------------------- | ---------------------------------------------------- |
+| **Configuration Scope**  | Per-clerkship only                    | School-wide defaults + per-clerkship overrides       |
+| **Requirement Types**    | Clerkship-level                       | Per-requirement-type (outpatient/inpatient/elective) |
+| **Override Granularity** | All-or-nothing                        | Inherit / Override fields / Override section         |
+| **Global Changes**       | Not possible                          | Update defaults, apply to many clerkships at once    |
+| **Setup Time**           | Configure each clerkship individually | Set defaults once, inherit for most clerkships       |
+| **Flexibility**          | High (each clerkship custom)          | Higher (defaults + selective overrides)              |
+| **Complexity**           | Medium                                | Higher (3-level hierarchy, resolution logic)         |
+| **Tables**               | 9 new tables                          | 13 new tables                                        |
+| **User Experience**      | Configure each clerkship              | Set & forget defaults, override exceptions only      |
 
 ## Next Steps
 

@@ -179,12 +179,10 @@
 		<Accordion.Root type="multiple" class="space-y-4">
 			<!-- Outpatient Defaults -->
 			<Accordion.Item value="outpatient">
-				<Accordion.Trigger class="text-lg font-semibold">
-					Outpatient Defaults
-				</Accordion.Trigger>
+				<Accordion.Trigger class="text-lg font-semibold">Outpatient Defaults</Accordion.Trigger>
 				<Accordion.Content>
 					{#if outpatientDefaults}
-						<Card class="p-6 mt-4">
+						<Card class="mt-4 p-6">
 							<div class="space-y-4">
 								<div class="grid grid-cols-2 gap-4">
 									<div class="space-y-2">
@@ -193,7 +191,8 @@
 											bind:value={outpatientDefaults.assignmentStrategy}
 											class="w-full rounded-md border px-3 py-2"
 										>
-												<option value="continuous_single">Continuity — one preceptor (default)</option>
+											<option value="continuous_single">Continuity — one preceptor (default)</option
+											>
 											<option value="block_based">Block Based</option>
 											<option value="daily_rotation">Daily Rotation</option>
 										</select>
@@ -251,7 +250,7 @@
 				<Accordion.Trigger class="text-lg font-semibold">Inpatient Defaults</Accordion.Trigger>
 				<Accordion.Content>
 					{#if inpatientDefaults}
-						<Card class="p-6 mt-4">
+						<Card class="mt-4 p-6">
 							<div class="space-y-4">
 								<div class="grid grid-cols-2 gap-4">
 									<div class="space-y-2">
@@ -260,7 +259,8 @@
 											bind:value={inpatientDefaults.assignmentStrategy}
 											class="w-full rounded-md border px-3 py-2"
 										>
-												<option value="continuous_single">Continuity — one preceptor (default)</option>
+											<option value="continuous_single">Continuity — one preceptor (default)</option
+											>
 											<option value="block_based">Block Based</option>
 											<option value="daily_rotation">Daily Rotation</option>
 										</select>
@@ -329,7 +329,7 @@
 				<Accordion.Trigger class="text-lg font-semibold">Elective Defaults</Accordion.Trigger>
 				<Accordion.Content>
 					{#if electiveDefaults}
-						<Card class="p-6 mt-4">
+						<Card class="mt-4 p-6">
 							<div class="space-y-4">
 								<div class="grid grid-cols-2 gap-4">
 									<div class="space-y-2">
@@ -338,7 +338,8 @@
 											bind:value={electiveDefaults.assignmentStrategy}
 											class="w-full rounded-md border px-3 py-2"
 										>
-												<option value="continuous_single">Continuity — one preceptor (default)</option>
+											<option value="continuous_single">Continuity — one preceptor (default)</option
+											>
 											<option value="block_based">Block Based</option>
 											<option value="daily_rotation">Daily Rotation</option>
 										</select>

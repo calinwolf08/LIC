@@ -34,9 +34,7 @@ export interface ApiError {
 /**
  * Result type for client operations
  */
-export type ClientResult<T> =
-	| { success: true; data: T }
-	| { success: false; error: ApiError };
+export type ClientResult<T> = { success: true; data: T } | { success: false; error: ApiError };
 
 // ============================================================================
 // Client Implementation
@@ -226,7 +224,11 @@ export function formatDateRange(startDate: string, endDate: string): string {
 	const end = new Date(endDate + 'T00:00:00');
 
 	const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-	const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	const endStr = end.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric'
+	});
 
 	return `${startStr} - ${endStr}`;
 }

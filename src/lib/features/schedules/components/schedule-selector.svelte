@@ -49,26 +49,26 @@
 			data-testid="schedule-switcher"
 			data-schedule-id={$activeSchedule.id}
 			onclick={toggleDropdown}
-			class="w-full px-4 py-3 flex items-center justify-between text-left bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+			class="flex w-full items-center justify-between rounded-lg bg-gray-800 px-4 py-3 text-left transition-colors hover:bg-gray-700"
 		>
-			<div class="flex-1 min-w-0">
+			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2">
 					<span class="text-lg">📆</span>
-					<span class="font-medium text-white truncate">{$activeSchedule.name}</span>
+					<span class="truncate font-medium text-white">{$activeSchedule.name}</span>
 					{#if $activeSchedule.is_active === 1}
 						<span
-							class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300"
+							class="inline-flex items-center rounded bg-green-900 px-1.5 py-0.5 text-xs font-medium text-green-300"
 						>
 							Active
 						</span>
 					{/if}
 				</div>
-				<div class="text-xs text-gray-400 mt-0.5 ml-7">
+				<div class="mt-0.5 ml-7 text-xs text-gray-400">
 					{formatDateRange($activeSchedule.start_date, $activeSchedule.end_date)}
 				</div>
 			</div>
 			<svg
-				class="w-4 h-4 text-gray-400 transition-transform {dropdownOpen ? 'rotate-180' : ''}"
+				class="h-4 w-4 text-gray-400 transition-transform {dropdownOpen ? 'rotate-180' : ''}"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -89,7 +89,7 @@
 
 			<!-- Dropdown Content -->
 			<div
-				class="absolute left-0 right-0 mt-1 z-50 bg-gray-800 rounded-lg shadow-lg border border-gray-700 max-h-64 overflow-y-auto"
+				class="absolute right-0 left-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-700 bg-gray-800 shadow-lg"
 			>
 				{#each $scheduleStore.schedules as schedule}
 					<button
@@ -97,7 +97,7 @@
 						data-testid="schedule-switcher-option"
 						data-schedule-id={schedule.id}
 						onclick={() => handleScheduleChange(schedule)}
-						class="w-full px-4 py-2 flex items-center gap-3 text-left hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg {schedule.id ===
+						class="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-gray-700 {schedule.id ===
 						$activeSchedule?.id
 							? 'bg-gray-700'
 							: ''}"
@@ -109,12 +109,12 @@
 							{/if}
 						</span>
 
-						<div class="flex-1 min-w-0">
+						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2">
-								<span class="text-sm text-white truncate">{schedule.name}</span>
+								<span class="truncate text-sm text-white">{schedule.name}</span>
 								{#if schedule.is_active === 1}
 									<span
-										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-900 text-green-300"
+										class="inline-flex items-center rounded bg-green-900 px-1.5 py-0.5 text-[10px] font-medium text-green-300"
 									>
 										Server Active
 									</span>
@@ -131,14 +131,14 @@
 				{/each}
 
 				{#if $scheduleStore.schedules.length === 0}
-					<div class="px-4 py-3 text-sm text-gray-400 text-center">No schedules available</div>
+					<div class="px-4 py-3 text-center text-sm text-gray-400">No schedules available</div>
 				{/if}
 
 				<!-- Schedule actions: create a new one or manage the full list -->
 				<div class="border-t border-gray-700">
 					<a
 						href="/schedules/new"
-						class="w-full px-4 py-2 flex items-center gap-2 text-sm text-blue-400 hover:bg-gray-700 transition-colors"
+						class="flex w-full items-center gap-2 px-4 py-2 text-sm text-blue-400 transition-colors hover:bg-gray-700"
 						onclick={closeDropdown}
 					>
 						<span>+</span>
@@ -146,7 +146,7 @@
 					</a>
 					<a
 						href="/schedules"
-						class="w-full px-4 py-2 flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors rounded-b-lg"
+						class="flex w-full items-center gap-2 rounded-b-lg px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700"
 						onclick={closeDropdown}
 					>
 						<span>⚙️</span>
@@ -159,10 +159,7 @@
 		<!-- No schedules available -->
 		<div class="px-4 py-3">
 			<div class="text-sm text-gray-400">No schedule selected</div>
-			<a
-				href="/schedules/new"
-				class="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-			>
+			<a href="/schedules/new" class="text-sm text-blue-400 transition-colors hover:text-blue-300">
 				+ Create Schedule
 			</a>
 		</div>

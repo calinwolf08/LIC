@@ -63,7 +63,12 @@ export async function createTenant(db: Kysely<DB>, key: string): Promise<TenantI
 
 	await db
 		.insertInto('health_systems')
-		.values({ id: id('hs'), name: `Tenant ${key.toUpperCase()} HS`, created_at: ts, updated_at: ts })
+		.values({
+			id: id('hs'),
+			name: `Tenant ${key.toUpperCase()} HS`,
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
 	await db
 		.insertInto('sites')

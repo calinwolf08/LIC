@@ -157,9 +157,7 @@ describe('Form Helpers', () => {
 
 	describe('extractApiErrors()', () => {
 		it('should extract single API error', () => {
-			const apiErrors = [
-				{ field: 'name', message: 'Name is already taken' }
-			];
+			const apiErrors = [{ field: 'name', message: 'Name is already taken' }];
 
 			const fieldErrors = extractApiErrors(apiErrors);
 
@@ -229,9 +227,7 @@ describe('Form Helpers', () => {
 		});
 
 		it('should handle empty field names', () => {
-			const apiErrors = [
-				{ field: '', message: 'General error' }
-			];
+			const apiErrors = [{ field: '', message: 'General error' }];
 
 			const fieldErrors = extractApiErrors(apiErrors);
 

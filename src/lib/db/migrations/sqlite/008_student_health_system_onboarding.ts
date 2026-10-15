@@ -22,12 +22,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('is_completed', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('completed_date', 'text')
 		.addColumn('notes', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Create unique constraint on student_id and health_system_id

@@ -28,31 +28,29 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
 		onclick={onCancel}
 		role="presentation"
 	></div>
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
+	<div class="fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
 		<Card class="p-6">
-			<h3 class="text-lg font-semibold mb-4">Delete Elective</h3>
+			<h3 class="mb-4 text-lg font-semibold">Delete Elective</h3>
 			<div class="mb-6 text-sm">
 				{#if elective}
 					<p class="mb-4">
 						Are you sure you want to delete <strong>{elective.name}</strong>?
 					</p>
 					<p class="mb-2">This will remove:</p>
-					<ul class="list-disc list-inside space-y-1 ml-4">
+					<ul class="ml-4 list-inside list-disc space-y-1">
 						<li>The elective configuration</li>
 						<li>All associated site assignments</li>
 						<li>All associated preceptor assignments</li>
 					</ul>
-					<p class="mt-4 text-destructive font-medium">This action cannot be undone.</p>
+					<p class="mt-4 font-medium text-destructive">This action cannot be undone.</p>
 				{/if}
 			</div>
 			<div class="flex justify-end gap-2">
-				<Button variant="outline" onclick={onCancel} disabled={isDeleting}>
-					Cancel
-				</Button>
+				<Button variant="outline" onclick={onCancel} disabled={isDeleting}>Cancel</Button>
 				<Button
 					onclick={handleConfirm}
 					disabled={isDeleting}

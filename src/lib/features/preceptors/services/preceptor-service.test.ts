@@ -67,18 +67,20 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 
 // Helper to create mock preceptor
-function createMockPreceptorData(overrides: Partial<{
-	name: string;
-	email: string;
-	health_system_id: string | null;
-	phone: string | null;
-	max_students: number;
-}> = {}) {
+function createMockPreceptorData(
+	overrides: Partial<{
+		name: string;
+		email: string;
+		health_system_id: string | null;
+		phone: string | null;
+		max_students: number;
+	}> = {}
+) {
 	return {
 		name: overrides.name ?? 'Dr. Smith',
 		email: overrides.email ?? 'smith@example.com',
@@ -102,14 +104,20 @@ describe('Preceptor Service', () => {
 
 	describe('getPreceptors()', () => {
 		it('returns all preceptors', async () => {
-			await createPreceptor(db, createMockPreceptorData({ name: 'Dr. Alice', email: 'alice@example.com' }));
-			await createPreceptor(db, createMockPreceptorData({ name: 'Dr. Bob', email: 'bob@example.com' }));
+			await createPreceptor(
+				db,
+				createMockPreceptorData({ name: 'Dr. Alice', email: 'alice@example.com' })
+			);
+			await createPreceptor(
+				db,
+				createMockPreceptorData({ name: 'Dr. Bob', email: 'bob@example.com' })
+			);
 
 			const preceptors = await getPreceptors(db);
 
 			expect(preceptors).toHaveLength(2);
-			expect(preceptors.some(p => p.name === 'Dr. Alice')).toBe(true);
-			expect(preceptors.some(p => p.name === 'Dr. Bob')).toBe(true);
+			expect(preceptors.some((p) => p.name === 'Dr. Alice')).toBe(true);
+			expect(preceptors.some((p) => p.name === 'Dr. Bob')).toBe(true);
 		});
 
 		it('returns empty array when no preceptors', async () => {
@@ -118,9 +126,18 @@ describe('Preceptor Service', () => {
 		});
 
 		it('returns preceptors ordered by name', async () => {
-			await createPreceptor(db, createMockPreceptorData({ name: 'Dr. Zoe', email: 'zoe@example.com' }));
-			await createPreceptor(db, createMockPreceptorData({ name: 'Dr. Alice', email: 'alice@example.com' }));
-			await createPreceptor(db, createMockPreceptorData({ name: 'Dr. Bob', email: 'bob@example.com' }));
+			await createPreceptor(
+				db,
+				createMockPreceptorData({ name: 'Dr. Zoe', email: 'zoe@example.com' })
+			);
+			await createPreceptor(
+				db,
+				createMockPreceptorData({ name: 'Dr. Alice', email: 'alice@example.com' })
+			);
+			await createPreceptor(
+				db,
+				createMockPreceptorData({ name: 'Dr. Bob', email: 'bob@example.com' })
+			);
 
 			const preceptors = await getPreceptors(db);
 
@@ -146,11 +163,14 @@ describe('Preceptor Service', () => {
 		});
 
 		it('returns correct preceptor data', async () => {
-			const created = await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Johnson',
-				email: 'johnson@example.com',
-				max_students: 3
-			}));
+			const created = await createPreceptor(
+				db,
+				createMockPreceptorData({
+					name: 'Dr. Johnson',
+					email: 'johnson@example.com',
+					max_students: 3
+				})
+			);
 
 			const found = await getPreceptorById(db, created.id);
 
@@ -204,7 +224,9 @@ describe('Preceptor Service', () => {
 			const preceptor = await createPreceptor(db, createMockPreceptorData());
 
 			expect(preceptor.id).toBeDefined();
-			expect(preceptor.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+			expect(preceptor.id).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+			);
 		});
 
 		it('sets created_at and updated_at timestamps', async () => {
@@ -288,7 +310,7 @@ describe('Preceptor Service', () => {
 			const created = await createPreceptor(db, createMockPreceptorData());
 
 			// Wait a bit to ensure timestamp difference
-			await new Promise(resolve => setTimeout(resolve, 10));
+			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			const updated = await updatePreceptor(db, created.id, { name: 'Updated' });
 
@@ -298,16 +320,23 @@ describe('Preceptor Service', () => {
 		});
 
 		it('throws NotFoundError if preceptor not found', async () => {
-			await expect(updatePreceptor(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow(NotFoundError);
-			await expect(updatePreceptor(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow('Preceptor');
+			await expect(updatePreceptor(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow(
+				NotFoundError
+			);
+			await expect(updatePreceptor(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow(
+				'Preceptor'
+			);
 		});
 
 		it('throws ConflictError if new email is taken', async () => {
 			await createPreceptor(db, createMockPreceptorData({ email: 'existing@example.com' }));
-			const preceptor2 = await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Other',
-				email: 'other@example.com'
-			}));
+			const preceptor2 = await createPreceptor(
+				db,
+				createMockPreceptorData({
+					name: 'Dr. Other',
+					email: 'other@example.com'
+				})
+			);
 
 			await expect(
 				updatePreceptor(db, preceptor2.id, { email: 'existing@example.com' })
@@ -315,7 +344,10 @@ describe('Preceptor Service', () => {
 		});
 
 		it('allows keeping same email (excludes self from check)', async () => {
-			const created = await createPreceptor(db, createMockPreceptorData({ email: 'same@example.com' }));
+			const created = await createPreceptor(
+				db,
+				createMockPreceptorData({ email: 'same@example.com' })
+			);
 
 			const updated = await updatePreceptor(db, created.id, {
 				name: 'Dr. Updated Name',
@@ -354,16 +386,19 @@ describe('Preceptor Service', () => {
 			const preceptor = await createPreceptor(db, createMockPreceptorData());
 
 			// Create a schedule assignment
-			await db.insertInto('schedule_assignments').values({
-				id: crypto.randomUUID(),
-				student_id: crypto.randomUUID(),
-				preceptor_id: preceptor.id,
-				clerkship_id: crypto.randomUUID(),
-				date: '2024-01-01',
-				status: 'scheduled',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: crypto.randomUUID(),
+					student_id: crypto.randomUUID(),
+					preceptor_id: preceptor.id,
+					clerkship_id: crypto.randomUUID(),
+					date: '2024-01-01',
+					status: 'scheduled',
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 
 			await expect(deletePreceptor(db, preceptor.id)).rejects.toThrow(ConflictError);
 			await expect(deletePreceptor(db, preceptor.id)).rejects.toThrow('schedule assignments');
@@ -391,16 +426,19 @@ describe('Preceptor Service', () => {
 			const preceptor = await createPreceptor(db, createMockPreceptorData());
 
 			// Create assignment
-			await db.insertInto('schedule_assignments').values({
-				id: crypto.randomUUID(),
-				student_id: crypto.randomUUID(),
-				preceptor_id: preceptor.id,
-				clerkship_id: crypto.randomUUID(),
-				date: '2024-01-01',
-				status: 'scheduled',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: crypto.randomUUID(),
+					student_id: crypto.randomUUID(),
+					preceptor_id: preceptor.id,
+					clerkship_id: crypto.randomUUID(),
+					date: '2024-01-01',
+					status: 'scheduled',
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 
 			const canDelete = await canDeletePreceptor(db, preceptor.id);
 			expect(canDelete).toBe(false);
@@ -445,21 +483,30 @@ describe('Preceptor Service', () => {
 		});
 
 		it('excludes preceptor when excludeId provided', async () => {
-			const preceptor = await createPreceptor(db, createMockPreceptorData({ email: 'test@example.com' }));
+			const preceptor = await createPreceptor(
+				db,
+				createMockPreceptorData({ email: 'test@example.com' })
+			);
 
 			const taken = await isEmailTaken(db, 'test@example.com', preceptor.id);
 			expect(taken).toBe(false);
 		});
 
 		it('returns true when email taken by another preceptor (with excludeId)', async () => {
-			const preceptor1 = await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. One',
-				email: 'preceptor1@example.com'
-			}));
-			const preceptor2 = await createPreceptor(db, createMockPreceptorData({
-				name: 'Dr. Two',
-				email: 'preceptor2@example.com'
-			}));
+			const preceptor1 = await createPreceptor(
+				db,
+				createMockPreceptorData({
+					name: 'Dr. One',
+					email: 'preceptor1@example.com'
+				})
+			);
+			const preceptor2 = await createPreceptor(
+				db,
+				createMockPreceptorData({
+					name: 'Dr. Two',
+					email: 'preceptor2@example.com'
+				})
+			);
 
 			const taken = await isEmailTaken(db, 'preceptor1@example.com', preceptor2.id);
 			expect(taken).toBe(true);
@@ -479,7 +526,11 @@ import {
 	createTestPreceptors,
 	associatePreceptorWithSchedule
 } from '$lib/testing/integration-helpers';
-import { getPreceptorsBySchedule, getPreceptorSitesWithDetails, setPreceptorSites } from './preceptor-service';
+import {
+	getPreceptorsBySchedule,
+	getPreceptorSitesWithDetails,
+	setPreceptorSites
+} from './preceptor-service';
 
 describe('getPreceptorSitesWithDetails()', () => {
 	let db: Kysely<DB>;
@@ -546,8 +597,16 @@ describe('Preceptor Service - Multi-tenancy', () => {
 			const userAId = await createTestUser(db, { name: 'User A' });
 			const userBId = await createTestUser(db, { name: 'User B' });
 
-			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
-			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+			const scheduleAId = await createTestSchedule(db, {
+				userId: userAId,
+				name: 'Schedule A',
+				setAsActive: true
+			});
+			const scheduleBId = await createTestSchedule(db, {
+				userId: userBId,
+				name: 'Schedule B',
+				setAsActive: true
+			});
 
 			// Create preceptors
 			const [preceptorA1, preceptorA2] = await createTestPreceptors(db, 2);
@@ -561,19 +620,23 @@ describe('Preceptor Service - Multi-tenancy', () => {
 			// Get preceptors for Schedule A
 			const preceptorsA = await getPreceptorsBySchedule(db, scheduleAId);
 			expect(preceptorsA).toHaveLength(2);
-			expect(preceptorsA.map(p => p.id)).toContain(preceptorA1);
-			expect(preceptorsA.map(p => p.id)).toContain(preceptorA2);
-			expect(preceptorsA.map(p => p.id)).not.toContain(preceptorB1);
+			expect(preceptorsA.map((p) => p.id)).toContain(preceptorA1);
+			expect(preceptorsA.map((p) => p.id)).toContain(preceptorA2);
+			expect(preceptorsA.map((p) => p.id)).not.toContain(preceptorB1);
 
 			// Get preceptors for Schedule B
 			const preceptorsB = await getPreceptorsBySchedule(db, scheduleBId);
 			expect(preceptorsB).toHaveLength(1);
-			expect(preceptorsB.map(p => p.id)).toContain(preceptorB1);
+			expect(preceptorsB.map((p) => p.id)).toContain(preceptorB1);
 		});
 
 		it('returns empty array when schedule has no associated preceptors', async () => {
 			const userId = await createTestUser(db, { name: 'User' });
-			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+			const scheduleId = await createTestSchedule(db, {
+				userId,
+				name: 'Empty Schedule',
+				setAsActive: true
+			});
 
 			// Create preceptors but don't associate with the schedule
 			await createTestPreceptors(db, 3);
@@ -588,32 +651,44 @@ describe('Preceptor Service - Multi-tenancy', () => {
 
 			// Create preceptors with specific names
 			const timestamp = new Date().toISOString();
-			const preceptorZoe = await db.insertInto('preceptors').values({
-				id: crypto.randomUUID(),
-				name: 'Dr. Zoe',
-				email: 'zoe@test.edu',
-				max_students: 2,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const preceptorZoe = await db
+				.insertInto('preceptors')
+				.values({
+					id: crypto.randomUUID(),
+					name: 'Dr. Zoe',
+					email: 'zoe@test.edu',
+					max_students: 2,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-			const preceptorAlice = await db.insertInto('preceptors').values({
-				id: crypto.randomUUID(),
-				name: 'Dr. Alice',
-				email: 'alice@test.edu',
-				max_students: 2,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const preceptorAlice = await db
+				.insertInto('preceptors')
+				.values({
+					id: crypto.randomUUID(),
+					name: 'Dr. Alice',
+					email: 'alice@test.edu',
+					max_students: 2,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-			const preceptorBob = await db.insertInto('preceptors').values({
-				id: crypto.randomUUID(),
-				name: 'Dr. Bob',
-				email: 'bob@test.edu',
-				max_students: 2,
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const preceptorBob = await db
+				.insertInto('preceptors')
+				.values({
+					id: crypto.randomUUID(),
+					name: 'Dr. Bob',
+					email: 'bob@test.edu',
+					max_students: 2,
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
 			// Associate in non-alphabetical order
 			await associatePreceptorWithSchedule(db, preceptorZoe.id, scheduleId);
@@ -636,7 +711,11 @@ describe('Preceptor Service - Multi-tenancy', () => {
 		it('does not return preceptors from other schedules even if same user owns both', async () => {
 			const userId = await createTestUser(db);
 			const schedule1Id = await createTestSchedule(db, { userId, name: 'Schedule 1' });
-			const schedule2Id = await createTestSchedule(db, { userId, name: 'Schedule 2', setAsActive: true });
+			const schedule2Id = await createTestSchedule(db, {
+				userId,
+				name: 'Schedule 2',
+				setAsActive: true
+			});
 
 			const [preceptor1] = await createTestPreceptors(db, 1);
 			const [preceptor2] = await createTestPreceptors(db, 1);

@@ -22,15 +22,15 @@ therefore treats every assignment row as student PII, not public data.
 
 Fields that exist on/near an assignment and how each is classified:
 
-| Field | Classification | May leave the app? |
-| --- | --- | --- |
-| student name | PII (identifies the record's subject) | only to that student, or to a party that must know who they are supervising |
-| student email | PII, contact detail | only to the student themselves |
-| preceptor name / site name / clerkship name | operational, not student PII | yes, to the parties involved |
-| date / session (AM/PM/full) | education record when tied to a student | yes, scoped per recipient |
-| assignment kind (clinical / free_day / exam) | education record | coarse label only (see §3) |
-| `override_note`, `override_codes` | **sensitive** — free text / internal justifications, may reference health-system onboarding, capacity exceptions, or a student's circumstances | **never sent** to any external recipient |
-| requirement progress / completion %, conflicts, health flags | internal analytics | **never sent** — coordinator-only |
+| Field                                                        | Classification                                                                                                                                 | May leave the app?                                                          |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| student name                                                 | PII (identifies the record's subject)                                                                                                          | only to that student, or to a party that must know who they are supervising |
+| student email                                                | PII, contact detail                                                                                                                            | only to the student themselves                                              |
+| preceptor name / site name / clerkship name                  | operational, not student PII                                                                                                                   | yes, to the parties involved                                                |
+| date / session (AM/PM/full)                                  | education record when tied to a student                                                                                                        | yes, scoped per recipient                                                   |
+| assignment kind (clinical / free_day / exam)                 | education record                                                                                                                               | coarse label only (see §3)                                                  |
+| `override_note`, `override_codes`                            | **sensitive** — free text / internal justifications, may reference health-system onboarding, capacity exceptions, or a student's circumstances | **never sent** to any external recipient                                    |
+| requirement progress / completion %, conflicts, health flags | internal analytics                                                                                                                             | **never sent** — coordinator-only                                           |
 
 ---
 
@@ -40,11 +40,11 @@ Three recipient types can be selected for a send. Each gets **only** the rows an
 fields it needs to do its job. "Their own" is always evaluated against the
 **active schedule only** (tenant scope, §5).
 
-| Recipient | Rows it sees | Student identity shown | Never sees |
-| --- | --- | --- | --- |
+| Recipient     | Rows it sees                                           | Student identity shown                                                                      | Never sees                                                                                                                   |
+| ------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | **Preceptor** | only assignments whose `preceptor_id` = this preceptor | student **name** (a preceptor must know who they supervise), date, session, clerkship, site | any assignment with a different preceptor; any other preceptor's students; student email; override notes; progress/conflicts |
-| **Student** | only assignments whose `student_id` = this student | their **own** name + email (it's their record) | any other student's rows entirely; other students' names; override notes |
-| **Site** | only assignments whose `site_id` = this site | student **name**, date, session, clerkship, preceptor | assignments at other sites; student email; override notes; progress/conflicts |
+| **Student**   | only assignments whose `student_id` = this student     | their **own** name + email (it's their record)                                              | any other student's rows entirely; other students' names; override notes                                                     |
+| **Site**      | only assignments whose `site_id` = this site           | student **name**, date, session, clerkship, preceptor                                       | assignments at other sites; student email; override notes; progress/conflicts                                                |
 
 The controlling invariant, stated as the FERPA assertion the unit tests prove:
 

@@ -77,13 +77,13 @@
 {#if open}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
 		<Card class="w-full max-w-md p-6">
-			<h2 class="text-xl font-bold mb-4">Delete Site</h2>
-			<p class="text-sm text-muted-foreground mb-4">
+			<h2 class="mb-4 text-xl font-bold">Delete Site</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
 				Are you sure you want to delete <strong>{site.name}</strong>? This action cannot be undone.
 			</p>
 
 			{#if loading}
-				<p class="text-sm text-muted-foreground mb-6">Checking dependencies...</p>
+				<p class="mb-6 text-sm text-muted-foreground">Checking dependencies...</p>
 			{:else if dependencies}
 				{@const hasDependencies = dependencies.total > 0}
 				<div

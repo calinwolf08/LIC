@@ -99,8 +99,14 @@ test.describe('AG-7 smart regeneration', { tag: ['@stage2', '@long'] }, () => {
 		);
 
 		// The past day and the locked day both survived.
-		expect(rows.some((r) => r.date === pastDay), 'past day preserved').toBe(true);
-		expect(rows.some((r) => r.date === lockDay && r.locked === 1), 'locked day preserved').toBe(true);
+		expect(
+			rows.some((r) => r.date === pastDay),
+			'past day preserved'
+		).toBe(true);
+		expect(
+			rows.some((r) => r.date === lockDay && r.locked === 1),
+			'locked day preserved'
+		).toBe(true);
 
 		// Exactly one new future day was generated to complete the 3-day requirement.
 		expect(rows).toHaveLength(3);

@@ -24,7 +24,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			email,
 			emailVerified: 0,
 			createdAt: ts,
-			updatedAt: ts,
+			updatedAt: ts
 		})
 		.execute();
 	await db
@@ -35,7 +35,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			token: id('token'),
 			expiresAt: ts,
 			createdAt: ts,
-			updatedAt: ts,
+			updatedAt: ts
 		})
 		.execute();
 	await db
@@ -46,7 +46,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			accountId: id('acct'),
 			providerId: 'credential',
 			createdAt: ts,
-			updatedAt: ts,
+			updatedAt: ts
 		})
 		.execute();
 	await db
@@ -57,7 +57,22 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			value: 'x',
 			expiresAt: ts,
 			createdAt: ts,
-			updatedAt: ts,
+			updatedAt: ts
+		})
+		.execute();
+
+	await db
+		.insertInto('organization')
+		.values({ id: id('org'), name: `${key} Program`, slug: id('org'), createdAt: ts })
+		.execute();
+	await db
+		.insertInto('member')
+		.values({
+			id: id('member'),
+			organizationId: id('org'),
+			userId: id('user'),
+			role: 'owner',
+			createdAt: ts
 		})
 		.execute();
 
@@ -70,7 +85,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			end_date: '2026-12-31',
 			user_id: id('user'),
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 
@@ -85,7 +100,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			name: `${key} Site`,
 			health_system_id: id('hs'),
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 	await db
@@ -95,7 +110,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			name: `${key} Student`,
 			email: `${key}-student@x.com`,
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 	await db
@@ -107,7 +122,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			max_students: 1,
 			health_system_id: id('hs'),
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 	await db
@@ -118,7 +133,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			clerkship_type: 'outpatient',
 			required_days: 10,
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 
@@ -132,7 +147,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			date: '2026-02-01',
 			is_available: 1,
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 	await db
@@ -147,7 +162,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			health_system_id: id('hs'),
 			is_completed: 1,
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 
@@ -184,7 +199,7 @@ async function makeTenant(db: Kysely<DB>, key: string) {
 			site_id: id('site'),
 			date: '2026-02-01',
 			created_at: ts,
-			updated_at: ts,
+			updated_at: ts
 		})
 		.execute();
 }
@@ -217,16 +232,28 @@ describe('resetUser', () => {
 		// Alice gone.
 		expect(await count(db, 'user')).toBe(1);
 		expect(
-			await db.selectFrom('user').select('id').where('email', '=', 'alice@example.com').executeTakeFirst()
+			await db
+				.selectFrom('user')
+				.select('id')
+				.where('email', '=', 'alice@example.com')
+				.executeTakeFirst()
 		).toBeUndefined();
 		// A migration seeds an ownerless `default-2026` schedule; it must survive
 		// (reset-user only touches the target's own rows). So bob's schedule + the
 		// seed remain, and alice's is gone.
 		expect(
-			await db.selectFrom('scheduling_periods').select('id').where('id', '=', 'alice-sched').executeTakeFirst()
+			await db
+				.selectFrom('scheduling_periods')
+				.select('id')
+				.where('id', '=', 'alice-sched')
+				.executeTakeFirst()
 		).toBeUndefined();
 		expect(
-			await db.selectFrom('scheduling_periods').select('id').where('id', '=', 'bob-sched').executeTakeFirst()
+			await db
+				.selectFrom('scheduling_periods')
+				.select('id')
+				.where('id', '=', 'bob-sched')
+				.executeTakeFirst()
 		).toBeDefined();
 		expect(await count(db, 'schedule_assignments')).toBe(1);
 		expect(await count(db, 'schedule_students')).toBe(1);
@@ -241,6 +268,11 @@ describe('resetUser', () => {
 		expect(await count(db, 'session')).toBe(1);
 		expect(await count(db, 'account')).toBe(1);
 		expect(await count(db, 'verification')).toBe(1);
+		// Alice's sole-owned organization goes with her; Bob's stays.
+		expect(await count(db, 'member')).toBe(1);
+		expect(await db.selectFrom('organization').select('id').orderBy('id').execute()).toEqual([
+			{ id: 'bob-org' }
+		]);
 
 		// Bob fully intact.
 		const bob = await db
@@ -256,6 +288,47 @@ describe('resetUser', () => {
 		expect(result.dryRun).toBe(false);
 	});
 
+	it('keeps an organization another member still belongs to, minus the removed user', async () => {
+		await db
+			.insertInto('member')
+			.values({
+				id: 'bob-in-alice-org',
+				organizationId: 'alice-org',
+				userId: 'bob-user',
+				role: 'admin',
+				createdAt: ts
+			})
+			.execute();
+		await db
+			.insertInto('invitation')
+			.values({
+				id: 'alice-invite',
+				organizationId: 'alice-org',
+				email: 'carol@example.com',
+				role: 'admin',
+				expiresAt: ts,
+				inviterId: 'alice-user'
+			})
+			.execute();
+
+		const result = await resetUser(db, 'alice@example.com');
+
+		expect(await db.selectFrom('organization').select('id').orderBy('id').execute()).toEqual([
+			{ id: 'alice-org' },
+			{ id: 'bob-org' }
+		]);
+		expect(
+			await db.selectFrom('member').select(['organizationId', 'userId']).orderBy('id').execute()
+		).toEqual([
+			{ organizationId: 'alice-org', userId: 'bob-user' },
+			{ organizationId: 'bob-org', userId: 'bob-user' }
+		]);
+		// Alice's pending invitation is withdrawn along with her.
+		expect(await count(db, 'invitation')).toBe(0);
+		expect(result.counts['organization']).toBe(0);
+		expect(result.counts['member']).toBe(1);
+	});
+
 	it('keeps an entity shared with another user (only removes the junction row)', async () => {
 		// Attach Alice's clerkship to Bob's schedule too.
 		await db
@@ -264,7 +337,7 @@ describe('resetUser', () => {
 				id: 'shared-jc',
 				schedule_id: 'bob-sched',
 				clerkship_id: 'alice-clerk',
-				created_at: ts,
+				created_at: ts
 			})
 			.execute();
 
@@ -297,7 +370,7 @@ describe('resetUser', () => {
 				id: 'shared-js',
 				schedule_id: 'bob-sched',
 				student_id: 'alice-student',
-				created_at: ts,
+				created_at: ts
 			})
 			.execute();
 
@@ -305,7 +378,11 @@ describe('resetUser', () => {
 
 		// Student survives, and so does the assignment attached to that student.
 		expect(
-			await db.selectFrom('students').select('id').where('id', '=', 'alice-student').executeTakeFirst()
+			await db
+				.selectFrom('students')
+				.select('id')
+				.where('id', '=', 'alice-student')
+				.executeTakeFirst()
 		).toBeDefined();
 		expect(
 			await db
@@ -353,7 +430,14 @@ describe('resetAll', () => {
 	it('empties every table', async () => {
 		const result = await resetAll(db);
 		expect(result.counts['user']).toBe(2);
-		for (const table of ['user', 'scheduling_periods', 'students', 'schedule_assignments'] as const) {
+		for (const table of [
+			'user',
+			'organization',
+			'member',
+			'scheduling_periods',
+			'students',
+			'schedule_assignments'
+		] as const) {
 			expect(await count(db, table)).toBe(0);
 		}
 	});

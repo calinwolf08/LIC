@@ -14,7 +14,9 @@
  */
 
 import { createDB } from '../connection';
-import { auth } from '../../auth';
+import { identity } from '../../server/identity';
+import { billing } from '../../server/billing';
+import type { PlanId } from '../../billing/plans';
 import { nanoid } from 'nanoid';
 import type { Kysely } from 'kysely';
 import type { DB } from '../types';
@@ -52,6 +54,12 @@ const BASIC_USER = {
 	password: 'password123',
 	name: 'Basic User'
 };
+
+/** The organization each seeded user owns. */
+const SEED_ORGANIZATIONS = {
+	admin: 'Demo Program',
+	basic: 'Tenant B Program'
+} as const;
 
 // The seed owns its schedule outright — see seed-schedule.ts for why the range
 // is anchored to today. Previously the auth hook's "My Schedule" was silently
@@ -127,17 +135,11 @@ async function seed(db: Kysely<DB>) {
 		userId = existingUser.id;
 	} else {
 		try {
-			const result = await auth.api.signUpEmail({
-				body: {
-					email: TEST_USER.email,
-					password: TEST_USER.password,
-					name: TEST_USER.name
-				}
+			const result = await identity.signUpWithEmail({
+				email: TEST_USER.email,
+				password: TEST_USER.password,
+				name: TEST_USER.name
 			});
-
-			if (!result.user) {
-				throw new Error('Failed to create user');
-			}
 
 			userId = result.user.id;
 			console.log(`  Created user: ${TEST_USER.email}`);
@@ -157,15 +159,7 @@ async function seed(db: Kysely<DB>) {
 		}
 	}
 
-	// Grant the admin user the Stage 2 (auto-generation) entitlement.
-	await db
-		.updateTable('user')
-		.set({ entitlements: JSON.stringify(['autogen']) })
-		.where('id', '=', userId)
-		.execute();
-	console.log('  Granted "autogen" entitlement to admin user');
-
-	// Create a second user WITHOUT the autogen entitlement (for gating tests).
+	// Create a second user whose organization is on Standard (for gating tests).
 	const existingBasic = await db
 		.selectFrom('user')
 		.select('id')
@@ -173,16 +167,52 @@ async function seed(db: Kysely<DB>) {
 		.executeTakeFirst();
 	if (!existingBasic) {
 		try {
-			await auth.api.signUpEmail({
-				body: {
-					email: BASIC_USER.email,
-					password: BASIC_USER.password,
-					name: BASIC_USER.name
-				}
+			await identity.signUpWithEmail({
+				email: BASIC_USER.email,
+				password: BASIC_USER.password,
+				name: BASIC_USER.name
 			});
 			console.log(`  Created basic (non-entitled) user: ${BASIC_USER.email}`);
 		} catch {
 			console.log(`  Basic user ${BASIC_USER.email} already exists`);
+		}
+	}
+
+	// Each seeded user owns their own organization (program) on a fixed plan:
+	// the admin's is Pro (sees Stage 2), the basic user's is Standard.
+	for (const [email, orgName, planId] of [
+		[TEST_USER.email, SEED_ORGANIZATIONS.admin, 'pro'],
+		[BASIC_USER.email, SEED_ORGANIZATIONS.basic, 'standard']
+	] as const satisfies readonly (readonly [string, string, PlanId])[]) {
+		const user = await db
+			.selectFrom('user')
+			.select('id')
+			.where('email', '=', email)
+			.executeTakeFirstOrThrow();
+		let [membership] = await identity.listMemberships(user.id);
+		if (!membership) {
+			await identity.createOrganization({ name: orgName, ownerUserId: user.id });
+			[membership] = await identity.listMemberships(user.id);
+			console.log(`  Created organization "${orgName}" owned by ${email}`);
+		}
+
+		const subscription = await billing.getSubscription(membership.organizationId);
+		if (!subscription) {
+			await billing.subscribe({
+				organizationId: membership.organizationId,
+				organizationName: membership.organizationName,
+				billingEmail: email,
+				planId,
+				interval: 'year'
+			});
+			console.log(`  Subscribed "${membership.organizationName}" to ${planId}`);
+		} else if (subscription.planId !== planId) {
+			await billing.changePlan({
+				organizationId: membership.organizationId,
+				planId,
+				interval: subscription.interval
+			});
+			console.log(`  Moved "${membership.organizationName}" to ${planId}`);
 		}
 	}
 

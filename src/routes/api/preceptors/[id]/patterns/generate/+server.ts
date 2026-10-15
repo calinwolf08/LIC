@@ -6,11 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, handleApiError } from '$lib/api/errors';
 import { generateDatesFromPatterns } from '$lib/features/preceptors/services/pattern-service';
 import { preceptorIdSchema } from '$lib/features/preceptors/schemas';
@@ -44,7 +40,7 @@ export const POST: RequestHandler = async ({ params }) => {
 		if (error instanceof ZodError) {
 			log.warn('Pattern generation validation failed', {
 				preceptorId: params.id,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

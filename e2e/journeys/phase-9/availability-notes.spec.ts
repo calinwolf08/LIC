@@ -68,9 +68,7 @@ test.describe('CF-H6 availability notes', { tag: ['@stage1'] }, () => {
 				async () => {
 					const schedule = (await api.get<PreceptorSchedule>(`/api/preceptors/${precId}/schedule`))
 						.data;
-					const days = (schedule?.calendar ?? []).flatMap((m) =>
-						m.weeks.flatMap((w) => w.days)
-					);
+					const days = (schedule?.calendar ?? []).flatMap((m) => m.weeks.flatMap((w) => w.days));
 					return days.filter((d) => d.availabilityNote === noteText).length;
 				},
 				{ timeout: 15000 }

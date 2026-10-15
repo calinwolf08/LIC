@@ -11,14 +11,22 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
-import { createTwoTenants, tenantMarkerIds, containsNoneOf, type TwoTenants } from '$lib/testing/tenant-fixture';
+import {
+	createTwoTenants,
+	tenantMarkerIds,
+	containsNoneOf,
+	type TwoTenants
+} from '$lib/testing/tenant-fixture';
 import {
 	requireActiveScheduleId,
 	isEntityInSchedule,
 	assertEntityInSchedule
 } from './schedule-context';
 import { NotFoundError, UnauthorizedError, ValidationError } from './errors';
-import { getStudentsBySchedule, getStudentsWithOnboardingStatsBySchedule } from '$lib/features/students/services/student-service';
+import {
+	getStudentsBySchedule,
+	getStudentsWithOnboardingStatsBySchedule
+} from '$lib/features/students/services/student-service';
 import { getPreceptorsWithAssociationsBySchedule } from '$lib/features/preceptors/services/preceptor-service';
 import { getClerkshipsBySchedule } from '$lib/features/clerkships/services/clerkship-service';
 import { getCalendarEvents } from '$lib/features/schedules/services/calendar-service';
@@ -89,22 +97,34 @@ describe('tenant isolation — entity boundary helpers', () => {
 		expect(await isEntityInSchedule(db, t.a.scheduleId, 'student', t.b.studentId)).toBe(false);
 		expect(await isEntityInSchedule(db, t.a.scheduleId, 'preceptor', t.b.preceptorId)).toBe(false);
 		expect(await isEntityInSchedule(db, t.a.scheduleId, 'site', t.b.siteId)).toBe(false);
-		expect(await isEntityInSchedule(db, t.a.scheduleId, 'health_system', t.b.healthSystemId)).toBe(false);
+		expect(await isEntityInSchedule(db, t.a.scheduleId, 'health_system', t.b.healthSystemId)).toBe(
+			false
+		);
 		expect(await isEntityInSchedule(db, t.a.scheduleId, 'clerkship', t.b.clerkshipId)).toBe(false);
 	});
 
 	it("assertEntityInSchedule throws NotFoundError for another tenant's entity", async () => {
-		await expect(assertEntityInSchedule(db, t.a.scheduleId, 'student', t.b.studentId)).rejects.toBeInstanceOf(NotFoundError);
-		await expect(assertEntityInSchedule(db, t.a.scheduleId, 'student', t.a.studentId)).resolves.toBeUndefined();
+		await expect(
+			assertEntityInSchedule(db, t.a.scheduleId, 'student', t.b.studentId)
+		).rejects.toBeInstanceOf(NotFoundError);
+		await expect(
+			assertEntityInSchedule(db, t.a.scheduleId, 'student', t.a.studentId)
+		).resolves.toBeUndefined();
 	});
 
 	it('requireActiveScheduleId resolves the active schedule and rejects bad state', async () => {
 		await expect(
 			requireActiveScheduleId({ session: { user: { id: t.a.userId } } }, db)
 		).resolves.toBe(t.a.scheduleId);
-		await expect(requireActiveScheduleId({ session: null }, db)).rejects.toBeInstanceOf(UnauthorizedError);
+		await expect(requireActiveScheduleId({ session: null }, db)).rejects.toBeInstanceOf(
+			UnauthorizedError
+		);
 		// A user with no active_schedule_id set.
-		await db.updateTable('user').set({ active_schedule_id: null }).where('id', '=', t.a.userId).execute();
+		await db
+			.updateTable('user')
+			.set({ active_schedule_id: null })
+			.where('id', '=', t.a.userId)
+			.execute();
 		await expect(
 			requireActiveScheduleId({ session: { user: { id: t.a.userId } } }, db)
 		).rejects.toBeInstanceOf(ValidationError);

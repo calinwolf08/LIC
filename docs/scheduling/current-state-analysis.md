@@ -12,6 +12,7 @@ The scheduling engine has sophisticated backend capabilities for constraint trac
 ### 1. **No Visibility into Why Scheduling Failed**
 
 **What Users See:**
+
 ```
 Schedule Generated
 ⚠️ 3 students have unmet requirements
@@ -21,6 +22,7 @@ Schedule Generated
 ```
 
 **What Users DON'T See:**
+
 - Which constraints blocked the most assignments
 - Specific reasons (e.g., "Dr. Smith at capacity 45 times")
 - Actionable suggestions for fixes
@@ -31,18 +33,20 @@ Schedule Generated
 ### 2. **Destructive Regeneration Only**
 
 **Current Behavior** (`regenerate-dialog.svelte:43-52`):
+
 ```typescript
 // Step 1: DELETE ALL ASSIGNMENTS
 await fetch('/api/schedules', { method: 'DELETE' });
 
 // Step 2: Generate brand new schedule
 await fetch('/api/schedules/generate', {
-    method: 'POST',
-    body: JSON.stringify({ startDate, endDate })
+	method: 'POST',
+	body: JSON.stringify({ startDate, endDate })
 });
 ```
 
 **Problems:**
+
 - Destroys ALL existing assignments, even good ones
 - No way to preserve past work (already-completed rotations)
 - No incremental improvement option
@@ -54,27 +58,29 @@ await fetch('/api/schedules/generate', {
 
 The API supports advanced features that aren't available in the UI:
 
-| Feature | API Support | UI Exposure |
-|---------|------------|-------------|
-| Violation tracking | ✅ Full | ❌ None |
-| Top blocking constraints | ✅ Detailed stats | ❌ None |
-| Smart regeneration | ✅ Date-based | ❌ None |
-| Preserve past assignments | ✅ Credit system | ❌ None |
-| Preview changes | ✅ Impact analysis | ❌ None |
-| Regeneration strategies | ✅ 2 modes | ❌ None |
-| Constraint bypass | ✅ Optional | ❌ None |
+| Feature                   | API Support        | UI Exposure |
+| ------------------------- | ------------------ | ----------- |
+| Violation tracking        | ✅ Full            | ❌ None     |
+| Top blocking constraints  | ✅ Detailed stats  | ❌ None     |
+| Smart regeneration        | ✅ Date-based      | ❌ None     |
+| Preserve past assignments | ✅ Credit system   | ❌ None     |
+| Preview changes           | ✅ Impact analysis | ❌ None     |
+| Regeneration strategies   | ✅ 2 modes         | ❌ None     |
+| Constraint bypass         | ✅ Optional        | ❌ None     |
 
 ## Backend Capabilities (Already Built)
 
 ### 1. Violation Tracking System
 
 **What it does:**
+
 - Tracks every failed assignment attempt
 - Records which constraint blocked it
 - Counts frequency by constraint type
 - Provides detailed diagnostic data
 
 **API Response** (`/api/schedules/generate`):
+
 ```typescript
 {
   success: boolean,
@@ -103,12 +109,14 @@ The API supports advanced features that aren't available in the UI:
 ### 2. Smart Regeneration
 
 **What it does:**
+
 - Preserves assignments before a cutoff date
 - Credits students for completed days
 - Only regenerates future dates
 - Minimizes disruption to existing schedule
 
 **API Parameters** (not in UI):
+
 ```typescript
 {
   regenerateFromDate: "2025-03-01",  // Keep everything before this
@@ -118,6 +126,7 @@ The API supports advanced features that aren't available in the UI:
 ```
 
 **How it works:**
+
 1. Identifies past assignments (before cutoff date)
 2. Credits those days toward requirements
 3. Locks those assignments (preserved)
@@ -128,11 +137,13 @@ The API supports advanced features that aren't available in the UI:
 ### 3. Regeneration Strategies
 
 **Minimal Change:**
+
 - Try to keep as many future assignments as possible
 - Only change what's necessary
 - Good for: Small adjustments, availability changes
 
 **Full Reoptimize:**
+
 - Find completely new optimal solution
 - May change many assignments
 - Good for: Major requirement changes, new constraints
@@ -162,6 +173,7 @@ The API supports advanced features that aren't available in the UI:
 ```
 
 **Problems:**
+
 - No data-driven decisions
 - Trial and error only
 - Destructive regeneration discourages iteration
@@ -207,22 +219,24 @@ The API supports advanced features that aren't available in the UI:
 **Location**: `src/lib/features/scheduling/services/violation-tracker.ts`
 
 **Key Methods:**
+
 ```typescript
 class ViolationTracker {
-  recordViolation(constraintName: string, context: any): void
-  getTopViolations(limit: number): ViolationStat[]
-  getTotalViolations(): number
-  clear(): void
+	recordViolation(constraintName: string, context: any): void;
+	getTopViolations(limit: number): ViolationStat[];
+	getTotalViolations(): number;
+	clear(): void;
 }
 ```
 
 **Data Structure:**
+
 ```typescript
 interface ViolationStat {
-  constraintName: string;
-  count: number;
-  percentage: number;
-  examples?: any[];  // Sample violations for debugging
+	constraintName: string;
+	count: number;
+	percentage: number;
+	examples?: any[]; // Sample violations for debugging
 }
 ```
 
@@ -231,26 +245,27 @@ interface ViolationStat {
 **Location**: `src/lib/features/scheduling/services/regeneration-service.ts`
 
 **Key Functions:**
+
 ```typescript
 // Credit past assignments toward requirements
 function creditPastAssignmentsToRequirements(
-  context: SchedulingContext,
-  pastAssignments: Assignment[]
-): RequirementCreditResult
+	context: SchedulingContext,
+	pastAssignments: Assignment[]
+): RequirementCreditResult;
 
 // Analyze what would change before committing
 function analyzeRegenerationImpact(
-  db: Kysely<DB>,
-  regenerateFromDate: string,
-  strategy: RegenerationStrategy
-): Promise<RegenerationImpactAnalysis>
+	db: Kysely<DB>,
+	regenerateFromDate: string,
+	strategy: RegenerationStrategy
+): Promise<RegenerationImpactAnalysis>;
 
 // Prepare context with credited requirements
 function prepareRegenerationContext(
-  db: Kysely<DB>,
-  regenerateFromDate: string,
-  context: SchedulingContext
-): Promise<SchedulingContext>
+	db: Kysely<DB>,
+	regenerateFromDate: string,
+	context: SchedulingContext
+): Promise<SchedulingContext>;
 ```
 
 ### API Endpoint
@@ -258,6 +273,7 @@ function prepareRegenerationContext(
 **Location**: `src/routes/api/schedules/generate/+server.ts`
 
 **Supports (but UI doesn't use):**
+
 ```typescript
 POST /api/schedules/generate
 {
@@ -275,14 +291,17 @@ POST /api/schedules/generate
 ### Current Components
 
 **Schedule Results Page**: `src/routes/schedule/results/+page.svelte`
+
 - Shows: Unmet requirements, stats
 - Missing: Violation data, suggestions
 
 **Regenerate Dialog**: `src/lib/features/schedules/components/regenerate-dialog.svelte`
+
 - Shows: Date range only
 - Missing: Smart regeneration options, strategy choice, preview
 
 **Unmet Requirements Table**: `src/lib/features/schedules/components/unmet-requirements-table.svelte`
+
 - Shows: Students with gaps
 - Missing: Root cause analysis, suggestions
 
@@ -359,11 +378,13 @@ Based on typical usage:
 ### Expected Improvements
 
 **With Violation Visibility:**
+
 - Reduce iteration attempts: 3-5 → 1-2
 - Time to acceptable schedule: 45-90 min → 15-30 min
 - User confidence: Low → High
 
 **With Smart Regeneration:**
+
 - Preserved assignments: 0% → 80-90% (mid-year)
 - Regeneration time: Full → Partial only
 - User willingness to iterate: Low → High
@@ -371,6 +392,7 @@ Based on typical usage:
 ## Next Steps
 
 See implementation plans:
+
 1. `dev-plan-violation-display.md`
 2. `dev-plan-smart-regeneration.md`
 3. `dev-plan-suggestions-panel.md`

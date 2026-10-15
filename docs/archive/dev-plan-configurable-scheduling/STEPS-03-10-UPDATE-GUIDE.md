@@ -3,6 +3,7 @@
 This document outlines the specific changes needed for Steps 03-10 to align with the enhanced design (global defaults + per-requirement-type configuration). For full context, see `ENHANCED-DESIGN-SUMMARY.md`.
 
 **Already Updated**:
+
 - ✅ Step 01: Database Schema (complete rewrite)
 - ✅ Step 02: Configuration Types (complete rewrite)
 
@@ -61,6 +62,7 @@ This document outlines the specific changes needed for Steps 03-10 to align with
 **Remove**: Hybrid strategy (deprecated - each requirement type has its own strategy now)
 
 **Update**: All strategies receive `ResolvedRequirementConfiguration` instead of clerkship config
+
 - Strategies no longer need to know about global defaults
 - Strategies receive fully resolved config (all fields populated)
 - Each requirement type scheduled independently
@@ -96,6 +98,7 @@ This document outlines the specific changes needed for Steps 03-10 to align with
 ### Changes Required
 
 **New Workflow**:
+
 ```
 1. Load global defaults (once at startup)
 2. For each student:
@@ -109,6 +112,7 @@ This document outlines the specific changes needed for Steps 03-10 to align with
 ```
 
 **Key Changes**:
+
 - Engine loads global defaults once (cache them)
 - Configuration resolution happens before strategy selection
 - Each requirement type processed independently
@@ -133,6 +137,7 @@ This document outlines the specific changes needed for Steps 03-10 to align with
 ### New Endpoint Groups
 
 #### Global Defaults Endpoints (NEW)
+
 ```
 GET    /api/school-settings/outpatient-defaults
 PUT    /api/school-settings/outpatient-defaults
@@ -150,6 +155,7 @@ GET    /api/school-settings/defaults/:defaultType/affected-clerkships
 ```
 
 #### Enhanced Requirement Endpoints
+
 ```
 GET    /api/clerkships/:id/requirements/:requirementId/resolved-config
        (returns merged defaults + overrides)
@@ -178,6 +184,7 @@ DELETE /api/clerkships/:id/requirements/:requirementId/override-field/:fieldName
 ### New Pages
 
 #### School Settings Page (NEW)
+
 ```
 Navigation → School Settings
 
@@ -196,6 +203,7 @@ Features:
 ### Enhanced Pages
 
 #### Clerkship Configuration - Requirements Screen (ENHANCED)
+
 ```
 For each requirement (outpatient/inpatient/elective):
 
@@ -214,6 +222,7 @@ Configuration Mode selector:
 ```
 
 **Visual Indicators**:
+
 - Fields using defaults: Normal text, "Using default" badge
 - Fields overridden: Bold text, "Custom" badge
 - Quick action: "Reset to default" button per field
@@ -234,6 +243,7 @@ Configuration Mode selector:
 Each school now includes **global defaults setup** before clerkship configs.
 
 #### School A Configuration (UPDATED)
+
 ```
 1. Set Global Defaults:
    Outpatient: Continuous Single, Enforce same, 1/day
@@ -250,6 +260,7 @@ Result: Minimal configuration, all rules consistent
 ```
 
 #### School B Configuration (UPDATED)
+
 ```
 1. Set Global Defaults:
    Outpatient: Team-based, Enforce same, 2/day, team size 3-4
@@ -264,6 +275,7 @@ Result: Team approach via global defaults
 ```
 
 #### School C Configuration (UPDATED)
+
 ```
 1. Set Global Defaults:
    Outpatient: Continuous Single, Prefer same, 1/day
@@ -278,6 +290,7 @@ Result: Hybrid via defaults + selective overrides
 ```
 
 #### School D Configuration (UPDATED)
+
 ```
 1. Set Global Defaults:
    Outpatient: Daily Rotation, No preference, 3/day
@@ -305,6 +318,7 @@ Result: Maximum flexibility via permissive defaults
 ### New Test Suites
 
 #### Suite: Global Defaults Tests (NEW)
+
 ```
 1. Set outpatient/inpatient/elective defaults
 2. Create clerkship with inherit mode
@@ -316,6 +330,7 @@ Result: Maximum flexibility via permissive defaults
 ```
 
 #### Suite: Override Mode Tests (NEW)
+
 ```
 1. Test inherit mode uses global defaults
 2. Test override_fields mode merges correctly
@@ -325,6 +340,7 @@ Result: Maximum flexibility via permissive defaults
 ```
 
 #### Suite: Configuration Resolution Tests (NEW)
+
 ```
 1. Test resolution with inherit mode
 2. Test resolution with partial overrides (override_fields)
@@ -335,6 +351,7 @@ Result: Maximum flexibility via permissive defaults
 ```
 
 #### Suite: School Scenarios with Defaults (UPDATED)
+
 ```
 1. School A: Set defaults, all clerkships inherit
 2. School B: Team defaults, pre-configured teams
@@ -346,6 +363,7 @@ Result: Maximum flexibility via permissive defaults
 ### Enhanced Existing Suites
 
 **Update all existing integration tests** to work with new configuration system:
+
 - Tests that create clerkship configs should set override_mode
 - Tests should use ConfigurationResolverService where appropriate
 - Tests should validate resolved configurations
@@ -355,6 +373,7 @@ Result: Maximum flexibility via permissive defaults
 ## Summary of Key Additions Across All Steps
 
 ### New Concepts
+
 1. Global defaults (3 tables, 3 types)
 2. Override modes (inherit, override_fields, override_section)
 3. Configuration resolution (merging defaults + overrides)
@@ -362,19 +381,23 @@ Result: Maximum flexibility via permissive defaults
 5. Apply changes workflow (scope control)
 
 ### New Services
+
 1. GlobalDefaultsService
 2. ConfigurationResolverService
 3. Enhanced RequirementService (override methods)
 
 ### New API Endpoints
+
 - 12 global defaults endpoints
 - 4 enhanced requirement endpoints
 
 ### New UI
+
 - School Settings page (3 tabs)
 - Enhanced requirement configuration (override controls)
 
 ### New Tests
+
 - Global defaults CRUD tests
 - Configuration resolution tests (all modes)
 - Override mode switching tests
@@ -386,12 +409,15 @@ Result: Maximum flexibility via permissive defaults
 ## Implementation Approach
 
 ### Option 1: Update Files Now
+
 Go through each step file (03-10) and update based on this guide.
 
 ### Option 2: Use This Guide During Implementation
+
 Refer to this guide when implementing each step, making changes on-the-fly.
 
 ### Recommended: Option 2
+
 - This guide contains all necessary information
 - Avoids duplicating content across multiple large files
 - More flexible for implementers
@@ -401,22 +427,23 @@ Refer to this guide when implementing each step, making changes on-the-fly.
 
 ## Quick Reference: What Changed Per Step
 
-| Step | Major Changes | New Components |
-|------|---------------|----------------|
-| 03 | +2 new services, enhanced RequirementService | GlobalDefaultsService, ConfigurationResolverService |
-| 04 | Remove hybrid strategy, use ResolvedRequirementConfiguration | None |
-| 05 | Minor updates (no major changes) | None |
-| 06 | Add config resolution before strategy selection | Config resolution step |
-| 07 | +16 new endpoints | Global defaults API, override control API |
-| 08 | +1 new page, enhanced requirements page | School Settings page |
-| 09 | Add global defaults to all school configs | Global defaults seed data |
-| 10 | +4 new test suites, update existing suites | Global defaults tests, override tests, resolution tests |
+| Step | Major Changes                                                | New Components                                          |
+| ---- | ------------------------------------------------------------ | ------------------------------------------------------- |
+| 03   | +2 new services, enhanced RequirementService                 | GlobalDefaultsService, ConfigurationResolverService     |
+| 04   | Remove hybrid strategy, use ResolvedRequirementConfiguration | None                                                    |
+| 05   | Minor updates (no major changes)                             | None                                                    |
+| 06   | Add config resolution before strategy selection              | Config resolution step                                  |
+| 07   | +16 new endpoints                                            | Global defaults API, override control API               |
+| 08   | +1 new page, enhanced requirements page                      | School Settings page                                    |
+| 09   | Add global defaults to all school configs                    | Global defaults seed data                               |
+| 10   | +4 new test suites, update existing suites                   | Global defaults tests, override tests, resolution tests |
 
 ---
 
 ## Questions or Clarifications?
 
 If any step needs more detail during implementation, refer to:
+
 1. `ENHANCED-DESIGN-SUMMARY.md` for overall design
 2. `01-database-schema.md` for data model
 3. `02-configuration-types.md` for type definitions

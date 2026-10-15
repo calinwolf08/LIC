@@ -9,13 +9,15 @@ import type { PreceptorWithAssociations } from '$lib/features/preceptors/service
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
-		const [preceptorsRes, healthSystemsRes, sitesRes, clerkshipsRes, activeRes] = await Promise.all([
-			fetch('/api/preceptors'),
-			fetch('/api/health-systems'),
-			fetch('/api/sites'),
-			fetch('/api/clerkships'),
-			fetch('/api/user/active-schedule')
-		]);
+		const [preceptorsRes, healthSystemsRes, sitesRes, clerkshipsRes, activeRes] = await Promise.all(
+			[
+				fetch('/api/preceptors'),
+				fetch('/api/health-systems'),
+				fetch('/api/sites'),
+				fetch('/api/clerkships'),
+				fetch('/api/user/active-schedule')
+			]
+		);
 
 		const preceptorsResult = preceptorsRes.ok ? await preceptorsRes.json() : { data: [] };
 		const healthSystemsResult = healthSystemsRes.ok ? await healthSystemsRes.json() : { data: [] };
@@ -28,7 +30,11 @@ export const load: PageLoad = async ({ fetch }) => {
 		return {
 			preceptors: (preceptorsResult.data || []) as PreceptorWithAssociations[],
 			healthSystems: (healthSystemsResult.data || []) as Array<{ id: string; name: string }>,
-			sites: (sitesResult.data || []) as Array<{ id: string; name: string; health_system_id: string | null }>,
+			sites: (sitesResult.data || []) as Array<{
+				id: string;
+				name: string;
+				health_system_id: string | null;
+			}>,
 			clerkships: (clerkshipsResult.data || []) as Array<{ id: string; name: string }>,
 			hasActiveSchedule
 		};

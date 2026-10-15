@@ -1,18 +1,22 @@
 # Step 20 — Calendar Page: Default View, Readable Days, Unified Dialogs, Schedule Health
 
 ## Objective
+
 Make `/calendar` the real working surface: opens as a calendar, days are readable, assignment create/edit use the step-18 dialog, and schedule health (including overrides) is reviewable without going to the dashboard.
 
 ## Context (verified in code)
+
 1. `/calendar/+page.svelte:64` — `let viewMode = $state<'list' | 'calendar'>('list')`. It **opens in list mode**.
 2. **The "Int" bug.** `schedule-calendar-grid.svelte:121` renders `assignment.clerkshipAbbrev || assignment.clerkshipName.slice(0, 3)` — "Internal Medicine" → **"Int"**. The full detail exists only in the `title` tooltip (line 117).
 3. Day clicks open a bespoke edit modal rather than the assignment dialog, so the calendar cannot offer the cascading/availability behaviour the user wants.
 4. The page fetches `/api/schedules/validation` and keeps only `violationCount` (line ~150); nothing renders a breakdown, and overrides are not surfaced anywhere.
 
 ## Prerequisites
+
 Steps 15, 17, 18.
 
 ## Scope
+
 **In:** `/calendar` view default, day cell rendering, dialog wiring, health panel.
 **Out:** the dialog internals (18); dashboard (unchanged).
 
@@ -27,6 +31,7 @@ Steps 15, 17, 18.
 7. Refresh both panels after any create/edit/delete so health reflects the current state without a manual reload.
 
 ## Testing
+
 - **Component:** day cell renders student, clerkship and preceptor for a normal day; "+N more" appears past the fit limit; out-of-range days inert.
 - **Unit:** health panel groups violations by code with correct counts; override rows map codes to human labels.
 - **E2E:**
@@ -38,6 +43,7 @@ Steps 15, 17, 18.
   6. `?view=list` still renders the list view.
 
 ## Acceptance criteria
+
 - [ ] `/calendar` opens as a calendar and day cells identify student, clerkship and preceptor.
 - [ ] Create and edit both use the step-18 dialog; no bespoke assignment modal remains.
 - [ ] Schedule health and the override log are reviewable from `/calendar` and link back to the assignment.

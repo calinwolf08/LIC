@@ -12,55 +12,51 @@ export const load: PageServerLoad = async ({ url }) => {
 	const sourceScheduleId = url.searchParams.get('source');
 
 	// Load all entities
-	const [studentsRaw, preceptorsRaw, sitesRaw, healthSystemsRaw, clerkshipsRaw, teamsRaw, configurationsRaw, preceptorSitesRaw, teamMembersRaw] =
-		await Promise.all([
-			db.selectFrom('students').select(['id', 'name', 'email']).orderBy('name').execute(),
-			db.selectFrom('preceptors').select(['id', 'name', 'email']).orderBy('name').execute(),
-			db
-				.selectFrom('sites')
-				.leftJoin('health_systems', 'sites.health_system_id', 'health_systems.id')
-				.select([
-					'sites.id',
-					'sites.name',
-					'sites.health_system_id',
-					'health_systems.name as health_system_name'
-				])
-				.orderBy('sites.name')
-				.execute(),
-			db.selectFrom('health_systems').select(['id', 'name']).orderBy('name').execute(),
-			db
-				.selectFrom('clerkships')
-				.select(['id', 'name', 'clerkship_type'])
-				.orderBy('name')
-				.execute(),
-			db
-				.selectFrom('preceptor_teams')
-				.leftJoin('clerkships', 'preceptor_teams.clerkship_id', 'clerkships.id')
-				.select([
-					'preceptor_teams.id',
-					'preceptor_teams.name',
-					'preceptor_teams.clerkship_id',
-					'clerkships.name as clerkship_name'
-				])
-				.orderBy('preceptor_teams.name')
-				.execute(),
-			db
-				.selectFrom('clerkship_configurations')
-				.leftJoin('clerkships', 'clerkship_configurations.clerkship_id', 'clerkships.id')
-				.select([
-					'clerkship_configurations.id',
-					'clerkships.name as clerkship_name'
-				])
-				.execute(),
-			db
-				.selectFrom('preceptor_sites')
-				.select(['preceptor_id', 'site_id'])
-				.execute(),
-			db
-				.selectFrom('preceptor_team_members')
-				.select(['preceptor_id', 'team_id'])
-				.execute()
-		]);
+	const [
+		studentsRaw,
+		preceptorsRaw,
+		sitesRaw,
+		healthSystemsRaw,
+		clerkshipsRaw,
+		teamsRaw,
+		configurationsRaw,
+		preceptorSitesRaw,
+		teamMembersRaw
+	] = await Promise.all([
+		db.selectFrom('students').select(['id', 'name', 'email']).orderBy('name').execute(),
+		db.selectFrom('preceptors').select(['id', 'name', 'email']).orderBy('name').execute(),
+		db
+			.selectFrom('sites')
+			.leftJoin('health_systems', 'sites.health_system_id', 'health_systems.id')
+			.select([
+				'sites.id',
+				'sites.name',
+				'sites.health_system_id',
+				'health_systems.name as health_system_name'
+			])
+			.orderBy('sites.name')
+			.execute(),
+		db.selectFrom('health_systems').select(['id', 'name']).orderBy('name').execute(),
+		db.selectFrom('clerkships').select(['id', 'name', 'clerkship_type']).orderBy('name').execute(),
+		db
+			.selectFrom('preceptor_teams')
+			.leftJoin('clerkships', 'preceptor_teams.clerkship_id', 'clerkships.id')
+			.select([
+				'preceptor_teams.id',
+				'preceptor_teams.name',
+				'preceptor_teams.clerkship_id',
+				'clerkships.name as clerkship_name'
+			])
+			.orderBy('preceptor_teams.name')
+			.execute(),
+		db
+			.selectFrom('clerkship_configurations')
+			.leftJoin('clerkships', 'clerkship_configurations.clerkship_id', 'clerkships.id')
+			.select(['clerkship_configurations.id', 'clerkships.name as clerkship_name'])
+			.execute(),
+		db.selectFrom('preceptor_sites').select(['preceptor_id', 'site_id']).execute(),
+		db.selectFrom('preceptor_team_members').select(['preceptor_id', 'team_id']).execute()
+	]);
 
 	// If copying from source, load source schedule details and its entities
 	let sourceSchedule: { name: string; start_date: string; end_date: string } | null = null;
@@ -175,7 +171,12 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const sites = sitesRaw
 		.filter((s): s is typeof s & { id: string } => s.id !== null)
-		.map((s) => ({ id: s.id, name: s.name, health_system_id: s.health_system_id, health_system_name: s.health_system_name }));
+		.map((s) => ({
+			id: s.id,
+			name: s.name,
+			health_system_id: s.health_system_id,
+			health_system_name: s.health_system_name
+		}));
 
 	const healthSystems = healthSystemsRaw
 		.filter((h): h is typeof h & { id: string } => h.id !== null)
@@ -187,7 +188,12 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const teams = teamsRaw
 		.filter((t): t is typeof t & { id: string } => t.id !== null)
-		.map((t) => ({ id: t.id, name: t.name, clerkship_id: t.clerkship_id, clerkship_name: t.clerkship_name }));
+		.map((t) => ({
+			id: t.id,
+			name: t.name,
+			clerkship_id: t.clerkship_id,
+			clerkship_name: t.clerkship_name
+		}));
 
 	const configurations = configurationsRaw
 		.filter((c): c is typeof c & { id: string } => c.id !== null)

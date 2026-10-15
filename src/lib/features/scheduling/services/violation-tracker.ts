@@ -31,7 +31,7 @@ export class ViolationTracker {
 			timestamp: new Date(),
 			assignment,
 			reason,
-			metadata,
+			metadata
 		});
 	}
 
@@ -52,8 +52,8 @@ export class ViolationTracker {
 					summary: {
 						affectedStudents: new Set(),
 						affectedDates: new Set(),
-						affectedPreceptors: new Set(),
-					},
+						affectedPreceptors: new Set()
+					}
 				});
 			}
 

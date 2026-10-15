@@ -43,8 +43,8 @@ export class PreceptorCapacityConstraint implements Constraint {
 					maxCapacity: preceptor.max_students,
 					studentsAlreadyAssigned: preceptorAssignmentsOnDate.map((a) => ({
 						studentId: a.studentId,
-						studentName: context.students.find((s) => s.id === a.studentId)?.name,
-					})),
+						studentName: context.students.find((s) => s.id === a.studentId)?.name
+					}))
 				}
 			);
 		}

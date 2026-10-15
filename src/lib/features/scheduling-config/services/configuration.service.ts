@@ -235,9 +235,7 @@ export class ConfigurationService {
 			});
 		} catch (error) {
 			log.error('Failed to validate configuration', { clerkshipId, error });
-			return Result.failure(
-				ServiceErrors.databaseError('Failed to validate configuration', error)
-			);
+			return Result.failure(ServiceErrors.databaseError('Failed to validate configuration', error));
 		}
 	}
 
@@ -359,7 +357,10 @@ export class ConfigurationService {
 				}
 
 				// Delete electives
-				await trx.deleteFrom('clerkship_electives').where('clerkship_id', '=', clerkshipId).execute();
+				await trx
+					.deleteFrom('clerkship_electives')
+					.where('clerkship_id', '=', clerkshipId)
+					.execute();
 
 				// Delete team members
 				const teams = await trx

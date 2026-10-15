@@ -1,11 +1,16 @@
 import { error } from '@sveltejs/kit';
+import { ENTITLEMENT_AUTOGEN } from '../billing/plans';
 
-/** Known entitlement identifiers. */
-export const ENTITLEMENT_AUTOGEN = 'autogen';
+/** Known entitlement identifiers — defined with the plan catalog. */
+export { ENTITLEMENT_AUTOGEN };
 
 /**
  * Parse the raw `user.entitlements` JSON string into a string array.
  * Malformed or missing input is treated as no entitlements.
+ *
+ * `user.entitlements` is retired as a source of access (entitlements now come
+ * from the organization's plan); this survives only so the subscription
+ * backfill can carry an existing `autogen` grant over to a Pro plan.
  */
 export function parseEntitlements(raw: unknown): string[] {
 	if (typeof raw !== 'string' || raw.length === 0) return [];

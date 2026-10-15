@@ -9,11 +9,7 @@ import { nanoid } from 'nanoid';
  * Get user by email
  */
 export async function getUserByEmail(email: string) {
-	return db
-		.selectFrom('user')
-		.selectAll()
-		.where('email', '=', email)
-		.executeTakeFirst();
+	return db.selectFrom('user').selectAll().where('email', '=', email).executeTakeFirst();
 }
 
 /**
@@ -59,8 +55,8 @@ export function getAvailableScenarios(): Record<string, string> {
 	return {
 		'multi-team': 'Two teams with different availability, tests team aggregation',
 		'capacity-limited': 'Preceptors with max_students=1, tests double-booking prevention',
-		'electives': 'Multiple electives per clerkship, tests elective scheduling',
-		'partial-availability': 'Preceptors with gaps in availability, tests partial scheduling',
+		electives: 'Multiple electives per clerkship, tests elective scheduling',
+		'partial-availability': 'Preceptors with gaps in availability, tests partial scheduling'
 	};
 }
 
@@ -136,7 +132,7 @@ export async function createHealthSystem(name: string, location?: string) {
 			name,
 			location: location ?? null,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -155,7 +151,7 @@ export async function createSite(healthSystemId: string, name: string, address?:
 			name,
 			address: address ?? null,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -182,7 +178,7 @@ export async function createClerkship(
 			required_days: options.requiredDays ?? 20,
 			specialty: options.specialty ?? null,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -210,7 +206,7 @@ export async function createElective(
 			is_required: options.isRequired ? 1 : 0,
 			override_mode: 'inherit',
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -228,7 +224,7 @@ export async function createStudent(name: string, email: string) {
 			name,
 			email,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -260,7 +256,7 @@ export async function createPreceptor(
 			max_students: options.maxStudents ?? 1,
 			is_active: 1,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -278,7 +274,7 @@ export async function createTeam(clerkshipId: string, name: string, preceptorIds
 			clerkship_id: clerkshipId,
 			name,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -291,7 +287,7 @@ export async function createTeam(clerkshipId: string, name: string, preceptorIds
 				team_id: teamId,
 				preceptor_id: preceptorId,
 				is_primary: preceptorIds.indexOf(preceptorId) === 0 ? 1 : 0,
-				created_at: now,
+				created_at: now
 			})
 			.execute();
 	}
@@ -312,7 +308,7 @@ export async function createAvailability(preceptorId: string, siteId: string, da
 				date,
 				is_available: 1,
 				created_at: now,
-				updated_at: now,
+				updated_at: now
 			})
 			.execute();
 	}
@@ -336,7 +332,7 @@ export async function createCapacityRule(
 			max_students_per_day: options.maxStudentsPerDay ?? 1,
 			max_students_per_year: options.maxStudentsPerYear ?? 50,
 			created_at: now,
-			updated_at: now,
+			updated_at: now
 		})
 		.execute();
 
@@ -352,7 +348,7 @@ export async function linkElectivePreceptor(electiveId: string, preceptorId: str
 			id: nanoid(),
 			elective_id: electiveId,
 			preceptor_id: preceptorId,
-			created_at: now,
+			created_at: now
 		})
 		.execute();
 }

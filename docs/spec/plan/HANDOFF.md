@@ -37,7 +37,7 @@ Steps **15, 16, 22, 23** are complete, tested, committed, and pushed:
   availability editor sits above the calendar.
 - **22 / 23**: row actions renamed to **"Manage"**; `/locations` edit dialogs removed; new
   `/sites/[id]` detail page; shared **`DetailSummary`** component (`src/lib/components/`) on student
-  + site Overview; "Schedules" removed from sidebar and added as "Manage schedules" in the switcher.
+  - site Overview; "Schedules" removed from sidebar and added as "Manage schedules" in the switcher.
 
 ## Your task: implement Steps 17 → 18 → (19, 20, 21) → 24, in that dependency order
 
@@ -148,7 +148,7 @@ Shared FK-safe deletion logic lives in `src/lib/db/scripts/reset-lib.ts` (`reset
 the two CLIs wrap it. The reset targets `DATABASE_PATH` (default `./sqlite.db`), so prefix it to hit
 the e2e DB.
 
-- **Reset one account** (removes the user and everything it *exclusively* owns; entities shared with
+- **Reset one account** (removes the user and everything it _exclusively_ owns; entities shared with
   another user's schedule survive, and so does any entity pinned by a shared student's surviving
   assignment):
   ```

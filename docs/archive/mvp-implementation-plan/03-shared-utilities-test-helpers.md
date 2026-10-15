@@ -1,9 +1,11 @@
 # Step 03: Shared Utilities & Test Helpers
 
 ## Overview
+
 Create reusable utility functions and test helpers that will be used throughout the application. This includes API response formatting, error handling, validation utilities, and database mocking for tests.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Zod installed for validation
@@ -11,27 +13,35 @@ Create reusable utility functions and test helpers that will be used throughout 
 ## Requirements
 
 ### API Response Utilities
+
 Consistent response formats for all API endpoints:
+
 - Success responses with data
 - Error responses with appropriate status codes
 - Validation error formatting
 - Type-safe response builders
 
 ### Error Handling
+
 Standardized error handling:
+
 - Custom error classes for different error types
 - Error logging utilities
 - Error formatting for API responses
 - User-friendly error messages
 
 ### Validation Utilities
+
 Reusable validation helpers:
+
 - Common Zod schemas (email, UUID, dates)
 - Date validation and parsing
 - ISO date string utilities
 
 ### Test Helpers
+
 Database and API testing utilities:
+
 - In-memory database setup for tests
 - Database seeding functions
 - Mock data generators
@@ -40,6 +50,7 @@ Database and API testing utilities:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/
 ├── api/
@@ -68,35 +79,37 @@ Database and API testing utilities:
 Standardized API response formatting.
 
 **Exports:**
+
 ```typescript
 // Success response
-export function successResponse<T>(data: T, status = 200): Response
+export function successResponse<T>(data: T, status = 200): Response;
 
 // Error response
-export function errorResponse(message: string, status = 400, details?: unknown): Response
+export function errorResponse(message: string, status = 400, details?: unknown): Response;
 
 // Validation error response
-export function validationErrorResponse(errors: ZodError): Response
+export function validationErrorResponse(errors: ZodError): Response;
 
 // Not found response
-export function notFoundResponse(resource: string): Response
+export function notFoundResponse(resource: string): Response;
 
 // Type definitions
 export type ApiSuccessResponse<T> = {
-  success: true;
-  data: T;
-}
+	success: true;
+	data: T;
+};
 
 export type ApiErrorResponse = {
-  success: false;
-  error: {
-    message: string;
-    details?: unknown;
-  };
-}
+	success: false;
+	error: {
+		message: string;
+		details?: unknown;
+	};
+};
 ```
 
 **Requirements:**
+
 - Return proper Response objects with correct status codes
 - Include appropriate headers (Content-Type: application/json)
 - Format validation errors consistently
@@ -132,6 +145,7 @@ export type ApiErrorResponse = {
 Custom error classes and error handling utilities.
 
 **Exports:**
+
 ```typescript
 export class ApiError extends Error {
   constructor(message: string, public status: number, public details?: unknown)
@@ -147,6 +161,7 @@ export function isApiError(error: unknown): error is ApiError
 ```
 
 **Requirements:**
+
 - Extend Error class properly
 - Include status codes in custom errors
 - Provide error type guards
@@ -195,15 +210,17 @@ export function isApiError(error: unknown): error is ApiError
 Reusable Zod schemas used across the application.
 
 **Exports:**
+
 ```typescript
-export const uuidSchema: z.ZodString
-export const emailSchema: z.ZodString
-export const dateStringSchema: z.ZodString
-export const positiveIntSchema: z.ZodNumber
-export const nameSchema: z.ZodString
+export const uuidSchema: z.ZodString;
+export const emailSchema: z.ZodString;
+export const dateStringSchema: z.ZodString;
+export const positiveIntSchema: z.ZodNumber;
+export const nameSchema: z.ZodString;
 ```
 
 **Requirements:**
+
 - Use Zod for all schemas
 - Include helpful error messages
 - Reusable across different features
@@ -238,15 +255,17 @@ export const nameSchema: z.ZodString
 Date utility functions for parsing and validation.
 
 **Exports:**
+
 ```typescript
-export function isValidISODate(dateString: string): boolean
-export function parseISODate(dateString: string): Date
-export function formatToISODate(date: Date): string
-export function isDateInRange(date: string, start: string, end: string): boolean
-export function getDaysBetween(start: string, end: string): string[]
+export function isValidISODate(dateString: string): boolean;
+export function parseISODate(dateString: string): Date;
+export function formatToISODate(date: Date): string;
+export function isDateInRange(date: string, start: string, end: string): boolean;
+export function getDaysBetween(start: string, end: string): string[];
 ```
 
 **Requirements:**
+
 - Work with ISO date strings (YYYY-MM-DD)
 - Handle invalid dates gracefully
 - Provide timezone-safe operations
@@ -283,21 +302,23 @@ export function getDaysBetween(start: string, end: string): string[]
 Database testing utilities for creating test databases and cleaning up.
 
 **Exports:**
+
 ```typescript
-export function createTestDb(): Kysely<Database>
-export function resetTestDb(db: Kysely<Database>): Promise<void>
-export function closeTestDb(db: Kysely<Database>): Promise<void>
-export function seedTestDb(db: Kysely<Database>, data?: Partial<SeedData>): Promise<SeedData>
+export function createTestDb(): Kysely<Database>;
+export function resetTestDb(db: Kysely<Database>): Promise<void>;
+export function closeTestDb(db: Kysely<Database>): Promise<void>;
+export function seedTestDb(db: Kysely<Database>, data?: Partial<SeedData>): Promise<SeedData>;
 
 export type SeedData = {
-  students: StudentsTable[];
-  preceptors: PreceptorsTable[];
-  clerkships: ClerkshipsTable[];
-  // ... other tables
-}
+	students: StudentsTable[];
+	preceptors: PreceptorsTable[];
+	clerkships: ClerkshipsTable[];
+	// ... other tables
+};
 ```
 
 **Requirements:**
+
 - Use in-memory SQLite (`:memory:`)
 - Run migrations on test database
 - Provide cleanup utilities
@@ -331,14 +352,18 @@ export type SeedData = {
 Mock data generators for testing.
 
 **Exports:**
+
 ```typescript
-export function createMockStudent(overrides?: Partial<StudentsTable>): StudentsTable
-export function createMockPreceptor(overrides?: Partial<PreceptorsTable>): PreceptorsTable
-export function createMockClerkship(overrides?: Partial<ClerkshipsTable>): ClerkshipsTable
-export function createMockAssignment(overrides?: Partial<ScheduleAssignmentsTable>): ScheduleAssignmentsTable
+export function createMockStudent(overrides?: Partial<StudentsTable>): StudentsTable;
+export function createMockPreceptor(overrides?: Partial<PreceptorsTable>): PreceptorsTable;
+export function createMockClerkship(overrides?: Partial<ClerkshipsTable>): ClerkshipsTable;
+export function createMockAssignment(
+	overrides?: Partial<ScheduleAssignmentsTable>
+): ScheduleAssignmentsTable;
 ```
 
 **Requirements:**
+
 - Generate valid mock data
 - Allow partial overrides
 - Use realistic values
@@ -371,13 +396,15 @@ export function createMockAssignment(overrides?: Partial<ScheduleAssignmentsTabl
 Utilities for testing API endpoints.
 
 **Exports:**
+
 ```typescript
-export async function mockFetch(url: string, options?: RequestInit): Promise<Response>
-export function createMockRequest(method: string, url: string, body?: unknown): Request
-export async function parseJsonResponse<T>(response: Response): Promise<T>
+export async function mockFetch(url: string, options?: RequestInit): Promise<Response>;
+export function createMockRequest(method: string, url: string, body?: unknown): Request;
+export async function parseJsonResponse<T>(response: Response): Promise<T>;
 ```
 
 **Requirements:**
+
 - Simplify API endpoint testing
 - Mock fetch for unit tests
 - Parse responses easily
@@ -404,6 +431,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 ### Unit Tests
 
 #### `/src/lib/api/responses.test.ts`
+
 - ✅ `successResponse()` returns correct status and data
 - ✅ `errorResponse()` returns correct status and error message
 - ✅ `validationErrorResponse()` formats Zod errors correctly
@@ -411,6 +439,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 - ✅ All responses have correct Content-Type header
 
 #### `/src/lib/api/errors.test.ts`
+
 - ✅ Custom error classes extend Error correctly
 - ✅ Error classes include correct status codes
 - ✅ `handleApiError()` converts errors to responses
@@ -418,6 +447,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 - ✅ `isApiError()` type guard works correctly
 
 #### `/src/lib/validation/common-schemas.test.ts`
+
 - ✅ UUID schema validates correct UUIDs
 - ✅ UUID schema rejects invalid UUIDs
 - ✅ Email schema validates correct emails
@@ -430,6 +460,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 - ✅ Name schema rejects short names
 
 #### `/src/lib/validation/dates.test.ts`
+
 - ✅ `isValidISODate()` validates correct dates
 - ✅ `isValidISODate()` rejects invalid dates
 - ✅ `parseISODate()` parses valid dates
@@ -440,6 +471,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 - ✅ `getDaysBetween()` includes start and end dates
 
 #### `/src/lib/testing/db-helpers.test.ts`
+
 - ✅ `createTestDb()` creates database successfully
 - ✅ `createTestDb()` runs migrations
 - ✅ `resetTestDb()` clears all data
@@ -449,6 +481,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 - ✅ `seedTestDb()` returns inserted data with IDs
 
 #### `/src/lib/testing/fixtures.test.ts`
+
 - ✅ Mock generators create valid data
 - ✅ Mock generators respect overrides
 - ✅ Mock generators include required fields
@@ -471,6 +504,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T>
 ## Usage Examples
 
 ### API Responses
+
 ```typescript
 import { successResponse, errorResponse, NotFoundError } from '$lib/api';
 
@@ -485,6 +519,7 @@ throw new NotFoundError('Student');
 ```
 
 ### Validation
+
 ```typescript
 import { emailSchema, dateStringSchema } from '$lib/validation/common-schemas';
 import { getDaysBetween } from '$lib/validation/dates';
@@ -497,6 +532,7 @@ const dates = getDaysBetween('2024-01-01', '2024-01-31');
 ```
 
 ### Testing
+
 ```typescript
 import { createTestDb, seedTestDb } from '$lib/testing/db-helpers';
 import { createMockStudent } from '$lib/testing/fixtures';

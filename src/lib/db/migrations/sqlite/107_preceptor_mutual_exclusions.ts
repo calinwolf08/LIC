@@ -23,10 +23,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
 		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
-		.addUniqueConstraint('preceptor_mutual_exclusions_unique', [
-			'preceptor_a_id',
-			'preceptor_b_id'
-		])
+		.addUniqueConstraint('preceptor_mutual_exclusions_unique', ['preceptor_a_id', 'preceptor_b_id'])
 		.execute();
 }
 

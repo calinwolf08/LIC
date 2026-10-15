@@ -23,23 +23,27 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('outpatient_days', 'integer', (col) =>
 			col.check(sql`outpatient_days >= 0 OR outpatient_days IS NULL`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Step 2: Copy data from old table to new table
 	// For existing records, set required_days as before, inpatient/outpatient as null
 	await db
 		.insertInto('clerkships_new')
-		.columns(['id', 'name', 'specialty', 'inpatient_days', 'outpatient_days', 'required_days', 'description', 'created_at', 'updated_at'])
+		.columns([
+			'id',
+			'name',
+			'specialty',
+			'inpatient_days',
+			'outpatient_days',
+			'required_days',
+			'description',
+			'created_at',
+			'updated_at'
+		])
 		.expression((eb) =>
 			eb
 				.selectFrom('clerkships')
@@ -82,26 +86,36 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('id', 'text', (col) => col.primaryKey())
 		.addColumn('name', 'text', (col) => col.notNull().unique())
 		.addColumn('specialty', 'text', (col) => col.notNull())
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Copy data back (will fail if specialty is NULL in any row)
 	await db
 		.insertInto('clerkships_new')
-		.columns(['id', 'name', 'specialty', 'required_days', 'description', 'created_at', 'updated_at'])
+		.columns([
+			'id',
+			'name',
+			'specialty',
+			'required_days',
+			'description',
+			'created_at',
+			'updated_at'
+		])
 		.expression((eb) =>
 			eb
 				.selectFrom('clerkships')
-				.select(['id', 'name', 'specialty', 'required_days', 'description', 'created_at', 'updated_at'])
+				.select([
+					'id',
+					'name',
+					'specialty',
+					'required_days',
+					'description',
+					'created_at',
+					'updated_at'
+				])
 		)
 		.execute();
 

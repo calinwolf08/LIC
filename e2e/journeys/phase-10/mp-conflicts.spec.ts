@@ -66,13 +66,55 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 		await plan.goto();
 
 		// --- Build the conflict matrix (order defines pin ids) ---
-		await plan.addPin({ student: 'Unonboarded', clerkship: fm, preceptor: 'Dr. Cap', site: clinic, date: dayNotOnb });
-		await plan.addPin({ student: 'Student 2', clerkship: fm, preceptor: 'Dr. Busy', site: clinic, date: dayUnavail });
-		await plan.addPin({ student: 'Student 2', clerkship: fm, preceptor: 'Dr. Cap', site: annex, date: dayAnnex });
-		await plan.addPin({ student: 'Student 1', clerkship: fm, preceptor: 'Dr. Cap', site: clinic, date: dayCap });
-		await plan.addPin({ student: 'Student 2', clerkship: fm, preceptor: 'Dr. Cap', site: clinic, date: dayCap });
-		await plan.addPin({ student: 'Student 1', clerkship: inpatient, preceptor: 'Dr. Block', site: clinic, date: dayBlockMon });
-		await plan.addPin({ student: 'Student 1', clerkship: fm, preceptor: 'Dr. Cap', site: clinic, date: dayBlockWed });
+		await plan.addPin({
+			student: 'Unonboarded',
+			clerkship: fm,
+			preceptor: 'Dr. Cap',
+			site: clinic,
+			date: dayNotOnb
+		});
+		await plan.addPin({
+			student: 'Student 2',
+			clerkship: fm,
+			preceptor: 'Dr. Busy',
+			site: clinic,
+			date: dayUnavail
+		});
+		await plan.addPin({
+			student: 'Student 2',
+			clerkship: fm,
+			preceptor: 'Dr. Cap',
+			site: annex,
+			date: dayAnnex
+		});
+		await plan.addPin({
+			student: 'Student 1',
+			clerkship: fm,
+			preceptor: 'Dr. Cap',
+			site: clinic,
+			date: dayCap
+		});
+		await plan.addPin({
+			student: 'Student 2',
+			clerkship: fm,
+			preceptor: 'Dr. Cap',
+			site: clinic,
+			date: dayCap
+		});
+		await plan.addPin({
+			student: 'Student 1',
+			clerkship: inpatient,
+			preceptor: 'Dr. Block',
+			site: clinic,
+			date: dayBlockMon
+		});
+		await plan.addPin({
+			student: 'Student 1',
+			clerkship: fm,
+			preceptor: 'Dr. Cap',
+			site: clinic,
+			date: dayBlockWed
+		});
 
 		const ids = await plan.pinIds();
 		expect(ids).toHaveLength(7);
@@ -90,7 +132,13 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 
 		// blackout_date: add a pin on the blackout day, confirm it surfaces, then drop it
 		// (keeps the commit math below on the seven matrix pins).
-		await plan.addPin({ student: 'Student 1', clerkship: fm, preceptor: 'Dr. Cap', site: clinic, date: dayBlackout });
+		await plan.addPin({
+			student: 'Student 1',
+			clerkship: fm,
+			preceptor: 'Dr. Cap',
+			site: clinic,
+			date: dayBlackout
+		});
 		const blackoutId = (await plan.pinIds())[7];
 		await expect(plan.conflictRow('blackout_date')).toBeVisible();
 		await expect(plan.status(blackoutId)).toHaveText(/to resolve/i);

@@ -1,10 +1,12 @@
 # Step 32 — Schedule Health: Accurate Counts, Stale Overrides, Pagination & Filtering
 
 ## Objective
+
 Make the health panel trustworthy: count each problem once, stop listing exceptions that no longer
 apply, present conflicts and overrides consistently, and make a long list navigable.
 
 ## Context (verified in code)
+
 1. **Capacity is counted per assignment, not per over-subscribed slot.**
    `schedule-validation.ts:171-179` sits inside the per-assignment loop:
    ```ts
@@ -22,18 +24,20 @@ apply, present conflicts and overrides consistently, and make a long list naviga
    been onboarded.
 3. **The two sections are asymmetric.** "Conflicts by type" is fed by `validation.counts` (live
    violations) while "Overrides" is fed by the stored codes. An accepted override generally
-   *silences* the live violation, which is why capacity — the one code still firing live — appears in
+   _silences_ the live violation, which is why capacity — the one code still firing live — appears in
    both, and the rest only under Overrides. That is defensible behaviour, but it is not explained,
    so it reads as a bug.
 4. **No pagination or filtering.** `schedule-health-panel.svelte` renders every override row; with a
    day-per-row list this overflows and buries the capacity entries the user went looking for.
 
 ## Prerequisites
+
 Step 26 (health data must already be tenant-scoped).
 
 ## Scope
+
 **In:** violation aggregation, override staleness, panel information architecture, pagination and
-filtering. **Out:** the override *creation* flow (shipped in Round 2).
+filtering. **Out:** the override _creation_ flow (shipped in Round 2).
 
 ## Implementation
 
@@ -41,9 +45,9 @@ filtering. **Out:** the override *creation* flow (shipped in Round 2).
    `preceptor_capacity` **once per (preceptor, date)** that exceeds capacity, not once per
    assignment. Keep the affected assignment ids on the violation (`assignment_ids: string[]` or a
    repeated `entity_refs`) so `byDate`/`byPreceptor` indexing and click-through still work — the
-   goal is one *finding*, not the loss of detail.
-   - Audit the other codes for the same shape while you are here: anything that describes a *slot*
-     (capacity) rather than an *assignment* (onboarding, blackout, availability) should be
+   goal is one _finding_, not the loss of detail.
+   - Audit the other codes for the same shape while you are here: anything that describes a _slot_
+     (capacity) rather than an _assignment_ (onboarding, blackout, availability) should be
      slot-scoped. Say in the PR which codes you classified each way.
    - The top-level pill then counts findings, matching the by-type table by construction.
 2. **Resolve stale overrides.** Re-evaluate each stored code against current state and return a
@@ -55,7 +59,7 @@ filtering. **Out:** the override *creation* flow (shipped in Round 2).
    - Implement in the service (`listOverrides` gains the status), not the component, so the
      semantics are testable without a browser.
 3. **Explain the two sections.** Give each a one-line description: conflicts = problems live in the
-   schedule right now; overrides = exceptions a user explicitly accepted (which is *why* most of
+   schedule right now; overrides = exceptions a user explicitly accepted (which is _why_ most of
    them no longer appear as conflicts). This is a copy fix that removes most of the confusion.
 4. **Group override rows.** Collapse consecutive days for the same
    (student, clerkship, preceptor, code) into one row with a date range and a day count, expandable
@@ -65,6 +69,7 @@ filtering. **Out:** the override *creation* flow (shipped in Round 2).
    shared/reloaded. Keep the panel collapsed by default as it is now.
 
 ## Testing
+
 - **Unit — `validateSchedule`:** a max-1 preceptor with two students on each of four days yields
   **4** `preceptor_capacity` findings (not 8); `counts.preceptor_capacity === 4`;
   `violations.length` matches the sum of `counts`; each finding still references every affected
@@ -83,6 +88,7 @@ filtering. **Out:** the override *creation* flow (shipped in Round 2).
   page, pagination works and the type filter narrows to a single code.
 
 ## Acceptance criteria
+
 - [ ] One finding per over-subscribed preceptor-day; pill, by-type table and list all agree.
 - [ ] Overrides that no longer apply are marked resolved and hidden by default, not lost.
 - [ ] The difference between conflicts and overrides is stated in the UI.

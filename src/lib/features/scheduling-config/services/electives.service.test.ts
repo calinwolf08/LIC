@@ -333,7 +333,10 @@ describe('ElectiveService', () => {
 			await service.addSiteToElective(electiveResult.data.id, testSiteId);
 
 			// Now add preceptor
-			const addResult = await service.addPreceptorToElective(electiveResult.data.id, testPreceptorId);
+			const addResult = await service.addPreceptorToElective(
+				electiveResult.data.id,
+				testPreceptorId
+			);
 			expect(addResult.success).toBe(true);
 
 			// Verify association exists

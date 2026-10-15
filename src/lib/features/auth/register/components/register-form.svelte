@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { registerSchema } from "../utils";
-	import { authClient } from "$lib/auth-client";
-	import { FormField } from "$lib/components/forms";
-	import { useForm } from "$lib/components/forms";
-	import { Input } from "$lib/components/ui/input";
-	import { Button } from "$lib/components/ui/button";
-	import * as Alert from "$lib/components/ui/alert";
-	import PasswordInput from "$lib/features/auth/components/password-input.svelte";
-	import { AlertCircle, Loader2 } from "lucide-svelte";
+	import { registerSchema } from '../utils';
+	import { signUpWithEmail } from '$lib/identity-client';
+	import { FormField } from '$lib/components/forms';
+	import { useForm } from '$lib/components/forms';
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import * as Alert from '$lib/components/ui/alert';
+	import PasswordInput from '$lib/features/auth/components/password-input.svelte';
+	import { AlertCircle, Loader2 } from 'lucide-svelte';
 
 	interface Props {
 		serverErrors?: Record<string, string[]>;
@@ -38,21 +38,16 @@
 		async onSubmit(values) {
 			errorMessage = null;
 
-			await authClient.signUp.email(
-				{
-					name: values.name,
-					email: values.email,
-					password: values.password,
-				},
-				{
-					onSuccess: () => {
-						window.location.href = "/";
-					},
-					onError: (ctx) => {
-						errorMessage = ctx.error.message || "Failed to create account. Please try again.";
-					},
-				}
-			);
+			const result = await signUpWithEmail({
+				name: values.name,
+				email: values.email,
+				password: values.password
+			});
+			if (result.ok) {
+				window.location.href = '/';
+			} else {
+				errorMessage = result.message;
+			}
 		}
 	});
 
@@ -79,12 +74,7 @@
 		data-hydrated={hydrated}
 		class="space-y-4"
 	>
-		<FormField
-			label="Name"
-			name="name"
-			error={getFieldErrors('name')}
-			required
-		>
+		<FormField label="Name" name="name" error={getFieldErrors('name')} required>
 			<Input
 				id="name"
 				type="text"
@@ -97,12 +87,7 @@
 			/>
 		</FormField>
 
-		<FormField
-			label="Email"
-			name="email"
-			error={getFieldErrors('email')}
-			required
-		>
+		<FormField label="Email" name="email" error={getFieldErrors('email')} required>
 			<Input
 				id="email"
 				type="email"
@@ -161,7 +146,11 @@
 
 		<div class="text-center text-sm">
 			Already have an account?
-			<a href="/login" class="text-primary hover:underline" tabindex={formManager.isSubmitting ? -1 : 0}>
+			<a
+				href="/login"
+				class="text-primary hover:underline"
+				tabindex={formManager.isSubmitting ? -1 : 0}
+			>
 				Sign in
 			</a>
 		</div>

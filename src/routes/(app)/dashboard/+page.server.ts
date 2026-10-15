@@ -42,7 +42,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Totals must be scoped to the active schedule through the junction tables —
 	// a bare count leaks every tenant's entity counts. Assignments have no
 	// schedule_id, so they scope through schedule_students.
-	const countScoped = async (junction: 'schedule_students' | 'schedule_preceptors' | 'schedule_clerkships') => {
+	const countScoped = async (
+		junction: 'schedule_students' | 'schedule_preceptors' | 'schedule_clerkships'
+	) => {
 		if (!scheduleId) return { c: 0 };
 		return db
 			.selectFrom(junction)
@@ -59,9 +61,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			? db
 					.selectFrom('schedule_assignments as sa')
 					.innerJoin('schedule_students as ss', (join) =>
-						join
-							.onRef('ss.student_id', '=', 'sa.student_id')
-							.on('ss.schedule_id', '=', scheduleId)
+						join.onRef('ss.student_id', '=', 'sa.student_id').on('ss.schedule_id', '=', scheduleId)
 					)
 					.select((eb) => eb.fn.countAll<number>().as('c'))
 					.executeTakeFirst()

@@ -82,7 +82,7 @@ export class FallbackPreceptorResolver {
 							teamName: sameTeam.name,
 							priority: member.priority,
 							tier: 1,
-							isGlobalFallbackOnly: member.isGlobalFallbackOnly,
+							isGlobalFallbackOnly: member.isGlobalFallbackOnly
 						});
 					}
 				}
@@ -117,7 +117,7 @@ export class FallbackPreceptorResolver {
 								teamName: team.name,
 								priority: member.priority,
 								tier: 2,
-								isGlobalFallbackOnly: member.isGlobalFallbackOnly,
+								isGlobalFallbackOnly: member.isGlobalFallbackOnly
 							});
 						}
 					}
@@ -145,7 +145,7 @@ export class FallbackPreceptorResolver {
 						teamName: team.name,
 						priority: member.priority,
 						tier: 3,
-						isGlobalFallbackOnly: member.isGlobalFallbackOnly,
+						isGlobalFallbackOnly: member.isGlobalFallbackOnly
 					});
 				}
 			}
@@ -210,7 +210,7 @@ export class FallbackPreceptorResolver {
 					'preceptor_team_members.priority',
 					'preceptors.name',
 					'preceptors.health_system_id',
-					'preceptors.is_global_fallback_only',
+					'preceptors.is_global_fallback_only'
 				])
 				.where('preceptor_team_members.team_id', '=', team.id)
 				.orderBy('preceptor_team_members.priority', 'asc')
@@ -224,8 +224,8 @@ export class FallbackPreceptorResolver {
 					preceptorName: m.name,
 					healthSystemId: m.health_system_id,
 					priority: m.priority,
-					isGlobalFallbackOnly: Boolean(m.is_global_fallback_only),
-				})),
+					isGlobalFallbackOnly: Boolean(m.is_global_fallback_only)
+				}))
 			});
 		}
 
@@ -267,7 +267,7 @@ export class FallbackPreceptorResolver {
 			result.push({
 				id: team.id,
 				name: team.name,
-				healthSystemId,
+				healthSystemId
 			});
 		}
 

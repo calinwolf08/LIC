@@ -5,6 +5,7 @@ This document describes the sample configurations created to demonstrate the con
 ## Overview
 
 The sample data represents a realistic medical education scenario with:
+
 - Multiple health systems and sites
 - Different clerkships with varied scheduling requirements
 - Hierarchical capacity rules
@@ -18,6 +19,7 @@ tsx scripts/seed-scheduling-config.ts
 ```
 
 **Prerequisites:**
+
 - Existing clerkships in the database
 - Existing preceptors in the database
 - Database schema migrations applied
@@ -27,15 +29,18 @@ tsx scripts/seed-scheduling-config.ts
 ### 1. Health Systems & Sites
 
 **University Medical Center**
+
 - Main Campus
 - Downtown Clinic
 
 **Community Health Network**
+
 - Eastside Medical Center
 
 ### 2. Clerkship Requirements
 
 #### Family Medicine
+
 - **Type**: Outpatient
 - **Duration**: 20 days
 - **Strategy**: Continuous Single
@@ -46,6 +51,7 @@ tsx scripts/seed-scheduling-config.ts
 **Use Case**: Traditional outpatient family medicine where continuity with one preceptor is valued.
 
 #### Internal Medicine
+
 - **Inpatient Component**:
   - Duration: 28 days
   - Strategy: Block-Based (14-day blocks)
@@ -60,6 +66,7 @@ tsx scripts/seed-scheduling-config.ts
 **Use Case**: Split rotation with structured inpatient blocks and continuous outpatient experience.
 
 #### Surgery
+
 - **Type**: Inpatient
 - **Duration**: 42 days
 - **Strategy**: Daily Rotation
@@ -70,6 +77,7 @@ tsx scripts/seed-scheduling-config.ts
 **Use Case**: Exposure to multiple surgical subspecialties with high student capacity.
 
 #### Pediatrics
+
 - **Type**: Elective
 - **Duration**: 10 days
 - **Strategy**: Inherit from global defaults
@@ -106,6 +114,7 @@ The sample data demonstrates the 5-level capacity rule hierarchy:
 ### 4. Preceptor Teams
 
 **Surgery Teaching Team A**
+
 - 3 team members with priorities
 - Lead Surgeon + Team Members
 - Formation Rules:
@@ -119,16 +128,20 @@ The sample data demonstrates the 5-level capacity rule hierarchy:
 ### 5. Fallback Chains
 
 **Chain 1: Simple Cascade**
+
 ```
 Preceptor 1 → Preceptor 2 → Preceptor 3
 ```
+
 If P1 is unavailable, try P2. If P2 is unavailable, try P3.
 
 **Chain 2: Multiple Options**
+
 ```
 Preceptor 4 → Preceptor 2 (Priority 1)
            → Preceptor 5 (Priority 2)
 ```
+
 If P4 is unavailable, try P2 first, then P5.
 
 **Use Case**: Ensures coverage when primary preceptors are unavailable (vacation, conference, clinical demands).
@@ -142,6 +155,7 @@ Navigate to `/scheduling-config` to see all configured clerkships.
 ### 2. Inspect Clerkship Details
 
 Click "Configure" on any clerkship to see:
+
 - Requirements with resolved strategies
 - Configured teams
 - Capacity rules
@@ -162,35 +176,42 @@ Click "Configure" on any clerkship to see:
 ### 4. Test Different Scenarios
 
 **Scenario 1: Capacity Limits**
+
 - Select many students for Family Medicine
 - Max 2 students/day should create multiple assignments across different days
 
 **Scenario 2: Block-Based Strategy**
+
 - Execute for Internal Medicine
 - Inpatient assignments should be in 14-day blocks
 
 **Scenario 3: Fallback Resolution**
+
 - Mark Preceptor 1 as unavailable (via blackout dates)
 - Execute scheduling
 - Should automatically assign to Preceptor 2 (fallback)
 
 **Scenario 4: Team Assignments**
+
 - Enable team formation option
 - Execute for Surgery
 - Should use Surgery Teaching Team A
 
 **Scenario 5: Elective Selection**
+
 - Execute for Pediatrics elective requirement
 - Should respect minimum days per elective option
 
 ## API Testing
 
 ### Get Complete Configuration
+
 ```bash
 curl http://localhost:5173/api/scheduling-config/clerkships/{clerkship_id}
 ```
 
 ### Execute Scheduling Engine
+
 ```bash
 curl -X POST http://localhost:5173/api/scheduling/execute \
   -H "Content-Type: application/json" \
@@ -205,11 +226,13 @@ curl -X POST http://localhost:5173/api/scheduling/execute \
 ```
 
 ### Get Capacity Rules for Preceptor
+
 ```bash
 curl http://localhost:5173/api/scheduling-config/capacity-rules?preceptorId={preceptor_id}
 ```
 
 ### Get Teams for Clerkship
+
 ```bash
 curl http://localhost:5173/api/scheduling-config/teams?clerkshipId={clerkship_id}
 ```
@@ -229,24 +252,29 @@ With these sample configurations, the scheduling engine should:
 ## Troubleshooting
 
 ### No Clerkships Found
+
 - Run the base seeding script first to create clerkships
 - Ensure migrations are applied
 
 ### No Preceptors Found
+
 - Create preceptors via UI or API
 - Import preceptor data from CSV
 
 ### Capacity Rules Not Applied
+
 - Check that preceptor IDs match between rules and preceptors table
 - Verify clerkship IDs are correct
 - Use API to inspect resolved rules: `/api/scheduling-config/capacity-rules?preceptorId=X`
 
 ### Teams Not Forming
+
 - Verify team members exist
 - Check formation rules are satisfied
 - Enable `enableTeamFormation` option when executing
 
 ### Fallbacks Not Working
+
 - Ensure fallback chain is properly created
 - Enable `enableFallbacks` option when executing
 - Check for circular references (system prevents infinite loops)

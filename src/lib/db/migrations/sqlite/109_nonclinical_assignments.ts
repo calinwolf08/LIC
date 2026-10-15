@@ -61,7 +61,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await sql`CREATE INDEX "idx_assignments_clerkship" on "schedule_assignments" ("clerkship_id")`.execute(
 		db
 	);
-	await sql`CREATE INDEX idx_schedule_assignments_site ON schedule_assignments(site_id)`.execute(db);
+	await sql`CREATE INDEX idx_schedule_assignments_site ON schedule_assignments(site_id)`.execute(
+		db
+	);
 	await sql`CREATE INDEX "idx_assignments_elective" on "schedule_assignments" ("elective_id")`.execute(
 		db
 	);
@@ -133,7 +135,9 @@ export async function down(db: Kysely<any>): Promise<void> {
 	await sql`CREATE INDEX "idx_assignments_clerkship" on "schedule_assignments" ("clerkship_id")`.execute(
 		db
 	);
-	await sql`CREATE INDEX idx_schedule_assignments_site ON schedule_assignments(site_id)`.execute(db);
+	await sql`CREATE INDEX idx_schedule_assignments_site ON schedule_assignments(site_id)`.execute(
+		db
+	);
 	await sql`CREATE INDEX "idx_assignments_elective" on "schedule_assignments" ("elective_id")`.execute(
 		db
 	);

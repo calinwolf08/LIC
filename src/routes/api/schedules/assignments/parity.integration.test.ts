@@ -372,27 +372,27 @@ describe('one-validator parity across every mutation path', () => {
 			expected: ['session_clash']
 		});
 
-			// STU is on an inpatient block on 2026-11-10 -> the whole week is consumed, so
-			// a scattered (outpatient) day on 2026-11-11 (same week) trips block_week_conflict
-			// identically on both paths (L3).
-			await insertAssignment(db, {
-				id: 'occ-block',
+		// STU is on an inpatient block on 2026-11-10 -> the whole week is consumed, so
+		// a scattered (outpatient) day on 2026-11-11 (same week) trips block_week_conflict
+		// identically on both paths (L3).
+		await insertAssignment(db, {
+			id: 'occ-block',
+			student_id: STU,
+			preceptor_id: PREC2,
+			clerkship_id: CLERK_BLOCK,
+			date: '2026-11-10'
+		});
+		scenarios.push({
+			name: 'block_week_conflict',
+			cand: {
 				student_id: STU,
-				preceptor_id: PREC2,
-				clerkship_id: CLERK_BLOCK,
-				date: '2026-11-10'
-			});
-			scenarios.push({
-				name: 'block_week_conflict',
-				cand: {
-					student_id: STU,
-					preceptor_id: PREC,
-					clerkship_id: CLERK,
-					site_id: SITE,
-					date: '2026-11-11'
-				},
-				expected: ['block_week_conflict']
-			});
+				preceptor_id: PREC,
+				clerkship_id: CLERK,
+				site_id: SITE,
+				date: '2026-11-11'
+			},
+			expected: ['block_week_conflict']
+		});
 
 		const validator = new ProposalValidator(db, SCHED, new Set());
 		for (const { name, cand, expected } of scenarios) {

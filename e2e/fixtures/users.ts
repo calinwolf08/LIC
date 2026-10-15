@@ -39,16 +39,30 @@ export async function loginViaForm(page: Page, user: Credentials): Promise<void>
 }
 
 /**
- * Register a brand-new account through the real register form. The auth hook
- * creates a first schedule and routes the new user into the app.
+ * Name the organization on /onboarding/organization (where a new account lands)
+ * and wait until the app takes over.
+ */
+export async function completeOrganizationOnboarding(page: Page, name: string): Promise<void> {
+	await expect(page).toHaveURL(/\/onboarding\/organization/, { timeout: 15000 });
+	await page.locator('form[data-hydrated="true"]').waitFor({ state: 'attached', timeout: 15000 });
+	await page.locator('#name').fill(name);
+	await page.getByRole('button', { name: /continue/i }).click();
+	await expect(page).not.toHaveURL(/\/onboarding\//, { timeout: 15000 });
+}
+
+/**
+ * Register a brand-new account through the real register form, then name its
+ * organization. The auth hook creates a first schedule and the app routes the
+ * new user into the schedule-first flow.
  */
 export async function registerViaForm(
 	page: Page,
-	opts: { name?: string; password?: string; email?: string } = {}
-): Promise<Credentials & { name: string }> {
+	opts: { name?: string; password?: string; email?: string; organizationName?: string } = {}
+): Promise<Credentials & { name: string; organizationName: string }> {
 	const email = opts.email ?? uniqueEmail();
 	const password = opts.password ?? 'password123';
 	const name = opts.name ?? 'E2E User';
+	const organizationName = opts.organizationName ?? 'E2E Program';
 	await page.goto('/register');
 	await page.locator('form[data-hydrated="true"]').waitFor({ state: 'attached', timeout: 15000 });
 	await page.locator('#name').fill(name);
@@ -58,7 +72,8 @@ export async function registerViaForm(
 	if (await confirm.count()) await confirm.fill(password);
 	await page.getByRole('button', { name: /create account|sign up|register/i }).click();
 	await expect(page).not.toHaveURL(/\/register/, { timeout: 15000 });
-	return { email, password, name };
+	await completeOrganizationOnboarding(page, organizationName);
+	return { email, password, name, organizationName };
 }
 
 /** Drop the session cookie so the next navigation is anonymous. */

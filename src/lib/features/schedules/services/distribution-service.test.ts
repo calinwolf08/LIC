@@ -24,8 +24,22 @@ async function seed(db: Kysely<DB>) {
 	await db
 		.insertInto('scheduling_periods')
 		.values([
-			{ id: SCHED, name: 'S', start_date: '2026-01-01', end_date: '2026-12-31', created_at: ts, updated_at: ts },
-			{ id: OTHER_SCHED, name: 'O', start_date: '2026-01-01', end_date: '2026-12-31', created_at: ts, updated_at: ts }
+			{
+				id: SCHED,
+				name: 'S',
+				start_date: '2026-01-01',
+				end_date: '2026-12-31',
+				created_at: ts,
+				updated_at: ts
+			},
+			{
+				id: OTHER_SCHED,
+				name: 'O',
+				start_date: '2026-01-01',
+				end_date: '2026-12-31',
+				created_at: ts,
+				updated_at: ts
+			}
 		])
 		.execute();
 	await db
@@ -38,8 +52,22 @@ async function seed(db: Kysely<DB>) {
 	await db
 		.insertInto('preceptors')
 		.values([
-			{ id: PREC_1, name: 'Dr One', email: 'one@x.com', max_students: 5, created_at: ts, updated_at: ts },
-			{ id: PREC_2, name: 'Dr Two', email: 'two@x.com', max_students: 5, created_at: ts, updated_at: ts }
+			{
+				id: PREC_1,
+				name: 'Dr One',
+				email: 'one@x.com',
+				max_students: 5,
+				created_at: ts,
+				updated_at: ts
+			},
+			{
+				id: PREC_2,
+				name: 'Dr Two',
+				email: 'two@x.com',
+				max_students: 5,
+				created_at: ts,
+				updated_at: ts
+			}
 		])
 		.execute();
 	await db
@@ -52,7 +80,14 @@ async function seed(db: Kysely<DB>) {
 		.execute();
 	await db
 		.insertInto('clerkships')
-		.values({ id: CLERK, name: 'Medicine', clerkship_type: 'outpatient', required_days: 5, created_at: ts, updated_at: ts })
+		.values({
+			id: CLERK,
+			name: 'Medicine',
+			clerkship_type: 'outpatient',
+			required_days: 5,
+			created_at: ts,
+			updated_at: ts
+		})
 		.execute();
 }
 
@@ -95,10 +130,20 @@ describe('distribution-service (K1 / FERPA)', () => {
 		db = await createTestDatabaseWithMigrations();
 		await seed(db);
 		// Alice with Dr One; Bob with Dr Two; both at the shared site. A note on one row.
-		await addAssignment(db, 'a1', { student: STU_A, preceptor: PREC_1, date: '2026-03-02', note: 'sensitive note' });
+		await addAssignment(db, 'a1', {
+			student: STU_A,
+			preceptor: PREC_1,
+			date: '2026-03-02',
+			note: 'sensitive note'
+		});
 		await addAssignment(db, 'a2', { student: STU_B, preceptor: PREC_2, date: '2026-03-03' });
 		// A free day for Alice (non-clinical, no preceptor/site).
-		await addAssignment(db, 'a3', { student: STU_A, preceptor: null, date: '2026-03-04', kind: 'free_day' });
+		await addAssignment(db, 'a3', {
+			student: STU_A,
+			preceptor: null,
+			date: '2026-03-04',
+			kind: 'free_day'
+		});
 	});
 	afterEach(async () => {
 		await cleanupTestDatabase(db);
@@ -147,7 +192,12 @@ describe('distribution-service (K1 / FERPA)', () => {
 
 	it('scopes strictly to the schedule — assignments in another schedule never leak', async () => {
 		// Same preceptor, different schedule, different day.
-		await addAssignment(db, 'x1', { student: STU_B, preceptor: PREC_1, date: '2026-06-01', scheduleId: OTHER_SCHED });
+		await addAssignment(db, 'x1', {
+			student: STU_B,
+			preceptor: PREC_1,
+			date: '2026-06-01',
+			scheduleId: OTHER_SCHED
+		});
 		const view = (await buildRecipientView(db, SCHED, { type: 'preceptor', id: PREC_1 }))!;
 		expect(view.days).toHaveLength(1); // still only the in-schedule day
 		expect(view.days.some((d) => d.date === '2026-06-01')).toBe(false);
@@ -158,7 +208,14 @@ describe('distribution-service (K1 / FERPA)', () => {
 		const ts = new Date().toISOString();
 		await db
 			.insertInto('preceptors')
-			.values({ id: 'prec-3', name: 'Dr Three', email: 't3@x.com', max_students: 1, created_at: ts, updated_at: ts })
+			.values({
+				id: 'prec-3',
+				name: 'Dr Three',
+				email: 't3@x.com',
+				max_students: 1,
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 		const view = (await buildRecipientView(db, SCHED, { type: 'preceptor', id: 'prec-3' }))!;
 		expect(view.recipientName).toBe('Dr Three');

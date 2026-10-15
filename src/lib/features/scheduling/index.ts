@@ -12,7 +12,7 @@ export {
 	getMostNeededClerkship,
 	getStudentsNeedingAssignments,
 	checkUnmetRequirements,
-	initializeStudentRequirements,
+	initializeStudentRequirements
 } from './services/requirement-tracker';
 
 // Export utilities

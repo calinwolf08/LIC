@@ -1,9 +1,11 @@
 # Step 08: Preceptor Availability - Service Layer
 
 ## Overview
+
 Implement the service layer for managing preceptor availability periods. This includes setting date ranges when preceptors are available to teach, validating availability windows, detecting conflicts, and bulk update operations.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -12,7 +14,9 @@ Implement the service layer for managing preceptor availability periods. This in
 ## Requirements
 
 ### Database Operations
+
 Implement availability management operations:
+
 - Get availability for a preceptor
 - Set/create availability period
 - Update availability period
@@ -21,6 +25,7 @@ Implement availability management operations:
 - Get availability by date range
 
 ### Business Rules
+
 - start_date must be before end_date
 - Cannot create overlapping availability periods for same preceptor
 - Dates must be valid ISO 8601 format
@@ -28,6 +33,7 @@ Implement availability management operations:
 - Availability periods can span multiple weeks/months
 
 ### Validation
+
 - Zod schemas for create and update operations
 - Date format validation (YYYY-MM-DD)
 - Date range validation (start before end)
@@ -36,6 +42,7 @@ Implement availability management operations:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/preceptors/
 ├── services/
@@ -55,42 +62,51 @@ Implement availability management operations:
 Zod validation schemas for availability operations.
 
 **Exports:**
+
 ```typescript
 import { z } from 'zod';
 import { dateStringSchema, uuidSchema } from '$lib/validation/common-schemas';
 
-export const createAvailabilitySchema = z.object({
-  preceptor_id: uuidSchema,
-  start_date: dateStringSchema,
-  end_date: dateStringSchema,
-}).refine(data => data.start_date < data.end_date, {
-  message: 'start_date must be before end_date',
-});
+export const createAvailabilitySchema = z
+	.object({
+		preceptor_id: uuidSchema,
+		start_date: dateStringSchema,
+		end_date: dateStringSchema
+	})
+	.refine((data) => data.start_date < data.end_date, {
+		message: 'start_date must be before end_date'
+	});
 
-export const updateAvailabilitySchema = z.object({
-  start_date: dateStringSchema.optional(),
-  end_date: dateStringSchema.optional(),
-}).refine(
-  data => !data.start_date || !data.end_date || data.start_date < data.end_date,
-  { message: 'start_date must be before end_date' }
-);
+export const updateAvailabilitySchema = z
+	.object({
+		start_date: dateStringSchema.optional(),
+		end_date: dateStringSchema.optional()
+	})
+	.refine((data) => !data.start_date || !data.end_date || data.start_date < data.end_date, {
+		message: 'start_date must be before end_date'
+	});
 
-export const dateRangeSchema = z.object({
-  start_date: dateStringSchema,
-  end_date: dateStringSchema,
-}).refine(data => data.start_date <= data.end_date, {
-  message: 'start_date must be before or equal to end_date',
-});
+export const dateRangeSchema = z
+	.object({
+		start_date: dateStringSchema,
+		end_date: dateStringSchema
+	})
+	.refine((data) => data.start_date <= data.end_date, {
+		message: 'start_date must be before or equal to end_date'
+	});
 
 export const bulkAvailabilitySchema = z.object({
-  preceptor_id: uuidSchema,
-  periods: z.array(z.object({
-    start_date: dateStringSchema,
-    end_date: dateStringSchema,
-  })).refine(
-    periods => periods.every(p => p.start_date < p.end_date),
-    { message: 'All periods must have start_date before end_date' }
-  ),
+	preceptor_id: uuidSchema,
+	periods: z
+		.array(
+			z.object({
+				start_date: dateStringSchema,
+				end_date: dateStringSchema
+			})
+		)
+		.refine((periods) => periods.every((p) => p.start_date < p.end_date), {
+			message: 'All periods must have start_date before end_date'
+		})
 });
 
 export type CreateAvailabilityInput = z.infer<typeof createAvailabilitySchema>;
@@ -100,6 +116,7 @@ export type BulkAvailabilityInput = z.infer<typeof bulkAvailabilitySchema>;
 ```
 
 **Requirements:**
+
 - Use common date validation schemas
 - Validate date ordering (start before end)
 - Support bulk operations
@@ -112,63 +129,64 @@ export type BulkAvailabilityInput = z.infer<typeof bulkAvailabilitySchema>;
 Service functions for preceptor availability operations.
 
 **Exports:**
+
 ```typescript
 import type { Kysely } from 'kysely';
 import type { Database, PreceptorAvailabilityTable } from '$lib/db/types';
-import type { CreateAvailabilityInput, UpdateAvailabilityInput, DateRangeInput, BulkAvailabilityInput } from '../availability-schemas';
+import type {
+	CreateAvailabilityInput,
+	UpdateAvailabilityInput,
+	DateRangeInput,
+	BulkAvailabilityInput
+} from '../availability-schemas';
 
 export async function getAvailability(
-  db: Kysely<Database>,
-  preceptorId: string
-): Promise<PreceptorAvailabilityTable[]>
+	db: Kysely<Database>,
+	preceptorId: string
+): Promise<PreceptorAvailabilityTable[]>;
 
 export async function getAvailabilityById(
-  db: Kysely<Database>,
-  id: string
-): Promise<PreceptorAvailabilityTable | null>
+	db: Kysely<Database>,
+	id: string
+): Promise<PreceptorAvailabilityTable | null>;
 
 export async function getAvailabilityByDateRange(
-  db: Kysely<Database>,
-  preceptorId: string,
-  dateRange: DateRangeInput
-): Promise<PreceptorAvailabilityTable[]>
+	db: Kysely<Database>,
+	preceptorId: string,
+	dateRange: DateRangeInput
+): Promise<PreceptorAvailabilityTable[]>;
 
 export async function createAvailability(
-  db: Kysely<Database>,
-  data: CreateAvailabilityInput
-): Promise<PreceptorAvailabilityTable>
+	db: Kysely<Database>,
+	data: CreateAvailabilityInput
+): Promise<PreceptorAvailabilityTable>;
 
 export async function updateAvailability(
-  db: Kysely<Database>,
-  id: string,
-  data: UpdateAvailabilityInput
-): Promise<PreceptorAvailabilityTable>
+	db: Kysely<Database>,
+	id: string,
+	data: UpdateAvailabilityInput
+): Promise<PreceptorAvailabilityTable>;
 
-export async function deleteAvailability(
-  db: Kysely<Database>,
-  id: string
-): Promise<void>
+export async function deleteAvailability(db: Kysely<Database>, id: string): Promise<void>;
 
 export async function bulkUpdateAvailability(
-  db: Kysely<Database>,
-  data: BulkAvailabilityInput
-): Promise<PreceptorAvailabilityTable[]>
+	db: Kysely<Database>,
+	data: BulkAvailabilityInput
+): Promise<PreceptorAvailabilityTable[]>;
 
 export async function hasOverlap(
-  db: Kysely<Database>,
-  preceptorId: string,
-  startDate: string,
-  endDate: string,
-  excludeId?: string
-): Promise<boolean>
+	db: Kysely<Database>,
+	preceptorId: string,
+	startDate: string,
+	endDate: string,
+	excludeId?: string
+): Promise<boolean>;
 
-export async function canDeleteAvailability(
-  db: Kysely<Database>,
-  id: string
-): Promise<boolean>
+export async function canDeleteAvailability(db: Kysely<Database>, id: string): Promise<boolean>;
 ```
 
 **Requirements:**
+
 - All functions accept database instance as first parameter
 - Use Kysely type-safe queries
 - Throw appropriate errors (NotFoundError, ConflictError, ValidationError)
@@ -185,11 +203,13 @@ export async function canDeleteAvailability(
 Get all availability periods for a preceptor.
 
 **Logic:**
+
 - Query preceptor_availability table by preceptor_id
 - Order by start_date ascending
 - Return array of availability periods
 
 **Parameters:**
+
 - `preceptorId`: Preceptor UUID
 
 **Returns:** Array of availability periods (empty if none)
@@ -197,6 +217,7 @@ Get all availability periods for a preceptor.
 **Errors:** None (returns empty array)
 
 **Example:**
+
 ```typescript
 const availability = await getAvailability(db, 'preceptor-123');
 // [{ id: '...', preceptor_id: '...', start_date: '2024-01-01', end_date: '2024-01-31', ... }]
@@ -209,10 +230,12 @@ const availability = await getAvailability(db, 'preceptor-123');
 Get a single availability period by ID.
 
 **Logic:**
+
 - Query preceptor_availability by ID
 - Return availability if found, null if not
 
 **Parameters:**
+
 - `id`: Availability period UUID
 
 **Returns:** Availability object or null
@@ -220,6 +243,7 @@ Get a single availability period by ID.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const period = await getAvailabilityById(db, 'availability-123');
 ```
@@ -231,12 +255,14 @@ const period = await getAvailabilityById(db, 'availability-123');
 Get availability periods that overlap with a date range.
 
 **Logic:**
+
 - Query preceptor_availability for preceptor_id
 - Filter where periods overlap with given date range
 - Overlap condition: `period.start_date <= range.end_date AND period.end_date >= range.start_date`
 - Order by start_date ascending
 
 **Parameters:**
+
 - `preceptorId`: Preceptor UUID
 - `dateRange`: Object with start_date and end_date
 
@@ -245,10 +271,11 @@ Get availability periods that overlap with a date range.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const periods = await getAvailabilityByDateRange(db, 'preceptor-123', {
-  start_date: '2024-01-01',
-  end_date: '2024-01-31'
+	start_date: '2024-01-01',
+	end_date: '2024-01-31'
 });
 ```
 
@@ -259,6 +286,7 @@ const periods = await getAvailabilityByDateRange(db, 'preceptor-123', {
 Create a new availability period for a preceptor.
 
 **Logic:**
+
 1. Verify preceptor exists
 2. Throw NotFoundError if preceptor not found
 3. Check for overlapping availability periods
@@ -269,20 +297,23 @@ Create a new availability period for a preceptor.
 8. Return created availability period
 
 **Parameters:**
+
 - `data`: Object with preceptor_id, start_date, end_date
 
 **Returns:** Created availability period
 
 **Errors:**
+
 - `NotFoundError`: Preceptor not found
 - `ConflictError`: Overlapping availability period exists
 
 **Example:**
+
 ```typescript
 const availability = await createAvailability(db, {
-  preceptor_id: 'preceptor-123',
-  start_date: '2024-01-01',
-  end_date: '2024-01-31'
+	preceptor_id: 'preceptor-123',
+	start_date: '2024-01-01',
+	end_date: '2024-01-31'
 });
 ```
 
@@ -293,6 +324,7 @@ const availability = await createAvailability(db, {
 Update an existing availability period.
 
 **Logic:**
+
 1. Get existing availability period
 2. Throw NotFoundError if not found
 3. Merge update data with existing data
@@ -303,19 +335,22 @@ Update an existing availability period.
 8. Return updated availability period
 
 **Parameters:**
+
 - `id`: Availability period UUID
 - `data`: Object with optional start_date and/or end_date
 
 **Returns:** Updated availability period
 
 **Errors:**
+
 - `NotFoundError`: Availability period not found
 - `ConflictError`: Update would create overlap
 
 **Example:**
+
 ```typescript
 const updated = await updateAvailability(db, 'availability-123', {
-  end_date: '2024-02-15'
+	end_date: '2024-02-15'
 });
 ```
 
@@ -326,6 +361,7 @@ const updated = await updateAvailability(db, 'availability-123', {
 Delete an availability period.
 
 **Logic:**
+
 1. Check if availability period exists
 2. Throw NotFoundError if not found
 3. Check if period can be deleted (no assignments within dates)
@@ -333,15 +369,18 @@ Delete an availability period.
 5. Delete from database
 
 **Parameters:**
+
 - `id`: Availability period UUID
 
 **Returns:** void
 
 **Errors:**
+
 - `NotFoundError`: Availability period not found
 - `ConflictError`: Period has schedule assignments
 
 **Example:**
+
 ```typescript
 await deleteAvailability(db, 'availability-123');
 ```
@@ -353,6 +392,7 @@ await deleteAvailability(db, 'availability-123');
 Replace all availability periods for a preceptor with new periods.
 
 **Logic:**
+
 1. Verify preceptor exists
 2. Throw NotFoundError if not found
 3. Check that new periods don't overlap with each other
@@ -364,22 +404,25 @@ Replace all availability periods for a preceptor with new periods.
 9. Return array of created periods
 
 **Parameters:**
+
 - `data`: Object with preceptor_id and array of periods
 
 **Returns:** Array of created availability periods
 
 **Errors:**
+
 - `NotFoundError`: Preceptor not found
 - `ValidationError`: Periods overlap with each other
 
 **Example:**
+
 ```typescript
 const availability = await bulkUpdateAvailability(db, {
-  preceptor_id: 'preceptor-123',
-  periods: [
-    { start_date: '2024-01-01', end_date: '2024-01-31' },
-    { start_date: '2024-03-01', end_date: '2024-03-31' },
-  ]
+	preceptor_id: 'preceptor-123',
+	periods: [
+		{ start_date: '2024-01-01', end_date: '2024-01-31' },
+		{ start_date: '2024-03-01', end_date: '2024-03-31' }
+	]
 });
 ```
 
@@ -390,12 +433,14 @@ const availability = await bulkUpdateAvailability(db, {
 Check if a date range overlaps with existing availability periods.
 
 **Logic:**
+
 - Query preceptor_availability for preceptor_id
 - If excludeId provided, exclude that period from check
 - Check if any periods overlap with given date range
 - Return true if overlap exists, false otherwise
 
 **Parameters:**
+
 - `preceptorId`: Preceptor UUID
 - `startDate`: Start date (YYYY-MM-DD)
 - `endDate`: End date (YYYY-MM-DD)
@@ -406,10 +451,11 @@ Check if a date range overlaps with existing availability periods.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const overlap = await hasOverlap(db, 'preceptor-123', '2024-01-15', '2024-02-15');
 if (overlap) {
-  throw new ConflictError('Availability period overlaps with existing period');
+	throw new ConflictError('Availability period overlaps with existing period');
 }
 ```
 
@@ -420,12 +466,14 @@ if (overlap) {
 Check if an availability period can be deleted.
 
 **Logic:**
+
 - Get availability period
 - Query schedule_assignments for preceptor_id within date range
 - Return false if any assignments exist
 - Return true if no assignments
 
 **Parameters:**
+
 - `id`: Availability period UUID
 
 **Returns:** Boolean indicating if deletion is allowed
@@ -433,10 +481,11 @@ Check if an availability period can be deleted.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const canDelete = await canDeleteAvailability(db, 'availability-123');
 if (!canDelete) {
-  throw new ConflictError('Cannot delete availability with existing assignments');
+	throw new ConflictError('Cannot delete availability with existing assignments');
 }
 ```
 
@@ -449,6 +498,7 @@ if (!canDelete) {
 #### `/src/lib/features/preceptors/availability-schemas.test.ts`
 
 **Schema Validation Tests:**
+
 - ✅ createAvailabilitySchema validates valid input
 - ✅ createAvailabilitySchema requires preceptor_id
 - ✅ createAvailabilitySchema requires start_date
@@ -468,16 +518,19 @@ if (!canDelete) {
 **Service Function Tests:**
 
 **getAvailability():**
+
 - ✅ Returns all availability periods for preceptor
 - ✅ Returns empty array when no availability
 - ✅ Orders periods by start_date
 - ✅ Only returns periods for specified preceptor
 
 **getAvailabilityById():**
+
 - ✅ Returns availability period when found
 - ✅ Returns null when not found
 
 **getAvailabilityByDateRange():**
+
 - ✅ Returns periods overlapping with date range
 - ✅ Returns empty array when no overlap
 - ✅ Detects partial overlaps
@@ -486,6 +539,7 @@ if (!canDelete) {
 - ✅ Detects range contained within period
 
 **createAvailability():**
+
 - ✅ Creates availability with valid data
 - ✅ Generates UUID for new period
 - ✅ Sets timestamps
@@ -495,6 +549,7 @@ if (!canDelete) {
 - ✅ Allows adjacent periods (end_date = next start_date)
 
 **updateAvailability():**
+
 - ✅ Updates start_date
 - ✅ Updates end_date
 - ✅ Updates both dates
@@ -504,12 +559,14 @@ if (!canDelete) {
 - ✅ Allows update without creating overlap
 
 **deleteAvailability():**
+
 - ✅ Deletes period successfully
 - ✅ Throws NotFoundError if not found
 - ✅ Throws ConflictError if has assignments
 - ✅ Actually removes from database
 
 **bulkUpdateAvailability():**
+
 - ✅ Replaces all periods for preceptor
 - ✅ Deletes old periods
 - ✅ Creates new periods
@@ -519,6 +576,7 @@ if (!canDelete) {
 - ✅ Allows empty periods array (clears all)
 
 **hasOverlap():**
+
 - ✅ Returns true for exact overlap
 - ✅ Returns true for partial overlap
 - ✅ Returns false for adjacent periods
@@ -526,6 +584,7 @@ if (!canDelete) {
 - ✅ Excludes period when excludeId provided
 
 **canDeleteAvailability():**
+
 - ✅ Returns true when no assignments
 - ✅ Returns false when assignments exist
 
@@ -572,9 +631,9 @@ if (!canDelete) {
 ```typescript
 import { db } from '$lib/db';
 import {
-  getAvailability,
-  createAvailability,
-  bulkUpdateAvailability
+	getAvailability,
+	createAvailability,
+	bulkUpdateAvailability
 } from '$lib/features/preceptors/services/availability-service';
 
 // Get all availability for a preceptor
@@ -582,18 +641,18 @@ const periods = await getAvailability(db, 'preceptor-123');
 
 // Create single availability period
 const period = await createAvailability(db, {
-  preceptor_id: 'preceptor-123',
-  start_date: '2024-01-01',
-  end_date: '2024-01-31'
+	preceptor_id: 'preceptor-123',
+	start_date: '2024-01-01',
+	end_date: '2024-01-31'
 });
 
 // Bulk update (replace all)
 const newPeriods = await bulkUpdateAvailability(db, {
-  preceptor_id: 'preceptor-123',
-  periods: [
-    { start_date: '2024-01-01', end_date: '2024-02-28' },
-    { start_date: '2024-04-01', end_date: '2024-05-31' },
-  ]
+	preceptor_id: 'preceptor-123',
+	periods: [
+		{ start_date: '2024-01-01', end_date: '2024-02-28' },
+		{ start_date: '2024-04-01', end_date: '2024-05-31' }
+	]
 });
 ```
 

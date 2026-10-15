@@ -72,7 +72,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Clerkship-site association validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -121,7 +121,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
 			log.warn('Clerkship-site association validation failed', {
 				clerkshipId,
 				siteId,
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

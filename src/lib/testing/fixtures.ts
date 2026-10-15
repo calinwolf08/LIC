@@ -5,12 +5,7 @@
  * Mock data generators for testing
  */
 
-import type {
-	Students,
-	Preceptors,
-	Clerkships,
-	ScheduleAssignments
-} from '$lib/db/types';
+import type { Students, Preceptors, Clerkships, ScheduleAssignments } from '$lib/db/types';
 
 let studentCounter = 0;
 let preceptorCounter = 0;
@@ -20,9 +15,7 @@ let assignmentCounter = 0;
 /**
  * Creates a mock student with random data
  */
-export function createMockStudent(
-	overrides?: Partial<Students>
-): Students {
+export function createMockStudent(overrides?: Partial<Students>): Students {
 	studentCounter++;
 	const timestamp = new Date().toISOString();
 
@@ -39,9 +32,7 @@ export function createMockStudent(
 /**
  * Creates a mock preceptor with random data
  */
-export function createMockPreceptor(
-	overrides?: Partial<Preceptors>
-): Preceptors {
+export function createMockPreceptor(overrides?: Partial<Preceptors>): Preceptors {
 	preceptorCounter++;
 	const timestamp = new Date().toISOString();
 
@@ -59,9 +50,7 @@ export function createMockPreceptor(
 /**
  * Creates a mock clerkship with random data
  */
-export function createMockClerkship(
-	overrides?: Partial<Clerkships>
-): Clerkships {
+export function createMockClerkship(overrides?: Partial<Clerkships>): Clerkships {
 	clerkshipCounter++;
 	const timestamp = new Date().toISOString();
 

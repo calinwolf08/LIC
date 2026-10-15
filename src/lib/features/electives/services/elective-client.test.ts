@@ -55,7 +55,9 @@ describe('Elective Client Service', () => {
 
 			const result = await fetchElectivesByClerkship('clerk-1');
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/scheduling-config/electives?clerkshipId=clerk-1');
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/scheduling-config/electives?clerkshipId=clerk-1'
+			);
 			expect(result).toEqual(mockElectives);
 		});
 

@@ -12,7 +12,8 @@
  *   junction row in ANY schedule — entities shared with another user survive.
  * - `schedule_assignments` has no `schedule_id`; assignments attach to a
  *   student and scope transitively via `schedule_students`.
- * - better-auth owns `user`, `session`, `account`, `verification`.
+ * - better-auth owns `user`, `session`, `account`, `verification`, and the
+ *   organization plugin's `organization`, `member`, `invitation`.
  */
 
 import type { Kysely } from 'kysely';
@@ -252,7 +253,7 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('elective_id', 'in', orphanElectives.length ? orphanElectives : ['']),
-						eb('preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
+						eb('preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : [''])
 					])
 				),
 			noElectives && noPreceptors
@@ -263,7 +264,7 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('elective_id', 'in', orphanElectives.length ? orphanElectives : ['']),
-						eb('site_id', 'in', orphanSites.length ? orphanSites : ['']),
+						eb('site_id', 'in', orphanSites.length ? orphanSites : [''])
 					])
 				),
 			noElectives && noSites
@@ -291,7 +292,7 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
-						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : ['']),
+						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : [''])
 					])
 				),
 			noPreceptors && noClerkships
@@ -303,7 +304,7 @@ export async function resetUser(
 					eb.or([
 						eb('primary_preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
 						eb('fallback_preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
-						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : ['']),
+						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : [''])
 					])
 				),
 			noPreceptors && noClerkships
@@ -314,7 +315,7 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
-						eb('site_id', 'in', orphanSites.length ? orphanSites : ['']),
+						eb('site_id', 'in', orphanSites.length ? orphanSites : [''])
 					])
 				),
 			noPreceptors && noSites
@@ -325,18 +326,14 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
-						eb('team_id', 'in', orphanTeams.length ? orphanTeams : ['']),
+						eb('team_id', 'in', orphanTeams.length ? orphanTeams : [''])
 					])
 				),
 			noPreceptors && noTeams
 		);
 
 		// 5. Site dependents.
-		await del(
-			'site_availability',
-			(qb) => qb.where('site_id', 'in', orphanSites),
-			noSites
-		);
+		await del('site_availability', (qb) => qb.where('site_id', 'in', orphanSites), noSites);
 		await del(
 			'site_availability_patterns',
 			(qb) => qb.where('site_id', 'in', orphanSites),
@@ -348,7 +345,7 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('site_id', 'in', orphanSites.length ? orphanSites : ['']),
-						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : ['']),
+						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : [''])
 					])
 				),
 			noSites && noClerkships
@@ -359,7 +356,7 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('clerkship_id', 'in', orphanClerkships.length ? orphanClerkships : ['']),
-						eb('site_id', 'in', orphanSites.length ? orphanSites : ['']),
+						eb('site_id', 'in', orphanSites.length ? orphanSites : [''])
 					])
 				),
 			noClerkships && noSites
@@ -370,25 +367,21 @@ export async function resetUser(
 				qb.where((eb: any) =>
 					eb.or([
 						eb('team_id', 'in', orphanTeams.length ? orphanTeams : ['']),
-						eb('site_id', 'in', orphanSites.length ? orphanSites : ['']),
+						eb('site_id', 'in', orphanSites.length ? orphanSites : [''])
 					])
 				),
 			noTeams && noSites
 		);
 
 		// 6. Configuration + student dependents.
-		await del(
-			'clerkship_configurations',
-			(qb) => qb.where('id', 'in', orphanConfigs),
-			noConfigs
-		);
+		await del('clerkship_configurations', (qb) => qb.where('id', 'in', orphanConfigs), noConfigs);
 		await del(
 			'student_health_system_onboarding',
 			(qb) =>
 				qb.where((eb: any) =>
 					eb.or([
 						eb('student_id', 'in', orphanStudents.length ? orphanStudents : ['']),
-						eb('health_system_id', 'in', orphanHealthSystems.length ? orphanHealthSystems : ['']),
+						eb('health_system_id', 'in', orphanHealthSystems.length ? orphanHealthSystems : [''])
 					])
 				),
 			noStudents && noHealthSystems
@@ -405,7 +398,34 @@ export async function resetUser(
 		// 8. The schedules themselves.
 		await del('scheduling_periods', (qb) => qb.where('user_id', '=', userId));
 
-		// 9. better-auth rows.
+		// 9. better-auth rows. Organizations the user owns alone go with them;
+		// an organization with other members survives without this user.
+		const soleOwnedOrgs = (
+			await conn
+				.selectFrom('member as m')
+				.select('m.organizationId')
+				.where('m.userId', '=', userId)
+				.where(({ not, exists, selectFrom }) =>
+					not(
+						exists(
+							selectFrom('member as other')
+								.select('other.id')
+								.whereRef('other.organizationId', '=', 'm.organizationId')
+								.where('other.userId', '!=', userId)
+						)
+					)
+				)
+				.execute()
+		).map((r) => r.organizationId);
+		const noSoleOwnedOrgs = soleOwnedOrgs.length === 0;
+		await del('invitation', (qb) => qb.where('inviterId', '=', userId));
+		await del(
+			'invitation',
+			(qb) => qb.where('organizationId', 'in', soleOwnedOrgs),
+			noSoleOwnedOrgs
+		);
+		await del('member', (qb) => qb.where('userId', '=', userId));
+		await del('organization', (qb) => qb.where('id', 'in', soleOwnedOrgs), noSoleOwnedOrgs);
 		await del('session', (qb) => qb.where('userId', '=', userId));
 		await del('account', (qb) => qb.where('userId', '=', userId));
 		await del('verification', (qb) => qb.where('identifier', '=', email));
@@ -461,10 +481,13 @@ const ALL_TABLES_DELETE_ORDER: (keyof DB)[] = [
 	'clerkships',
 	'health_systems',
 	'scheduling_periods',
+	'invitation',
+	'member',
+	'organization',
 	'session',
 	'account',
 	'verification',
-	'user',
+	'user'
 ];
 
 export interface ResetAllResult {

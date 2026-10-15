@@ -25,6 +25,25 @@ export interface Account {
   userId: string;
 }
 
+export interface BillingCustomers {
+  created_at: Generated<string>;
+  id: string;
+  organization_id: string;
+  provider: string;
+  provider_customer_id: string | null;
+  updated_at: Generated<string>;
+}
+
+export interface BillingEvents {
+  created_at: Generated<string>;
+  id: string;
+  payload: string;
+  processed_at: string | null;
+  provider: string;
+  provider_event_id: string;
+  type: string;
+}
+
 export interface BlackoutDates {
   created_at: Generated<string>;
   date: string;
@@ -188,6 +207,33 @@ export interface HealthSystems {
   location: string | null;
   name: string;
   updated_at: Generated<string>;
+}
+
+export interface Invitation {
+  email: string;
+  expiresAt: string;
+  id: string;
+  inviterId: string;
+  organizationId: string;
+  role: string | null;
+  status: Generated<string>;
+}
+
+export interface Member {
+  createdAt: Generated<string>;
+  id: string;
+  organizationId: string;
+  role: Generated<string>;
+  userId: string;
+}
+
+export interface Organization {
+  createdAt: Generated<string>;
+  id: string;
+  logo: string | null;
+  metadata: string | null;
+  name: string;
+  slug: string;
 }
 
 export interface PreceptorAvailability {
@@ -424,6 +470,7 @@ export interface SchedulingPeriods {
 }
 
 export interface Session {
+  activeOrganizationId: string | null;
   createdAt: string;
   expiresAt: string;
   id: string;
@@ -502,6 +549,21 @@ export interface Students {
   updated_at: Generated<string>;
 }
 
+export interface Subscriptions {
+  billing_interval: string;
+  cancel_at_period_end: Generated<number>;
+  created_at: Generated<string>;
+  current_period_end: string | null;
+  grace_ends_at: string | null;
+  id: string;
+  organization_id: string;
+  plan_id: string;
+  provider: string;
+  provider_subscription_id: string | null;
+  status: string;
+  updated_at: Generated<string>;
+}
+
 export interface Teams {
   created_at: Generated<string>;
   description: string | null;
@@ -540,6 +602,8 @@ export interface Verification {
 
 export interface DB {
   account: Account;
+  billing_customers: BillingCustomers;
+  billing_events: BillingEvents;
   blackout_dates: BlackoutDates;
   clerkship_configurations: ClerkshipConfigurations;
   clerkship_electives: ClerkshipElectives;
@@ -552,6 +616,9 @@ export interface DB {
   global_inpatient_defaults: GlobalInpatientDefaults;
   global_outpatient_defaults: GlobalOutpatientDefaults;
   health_systems: HealthSystems;
+  invitation: Invitation;
+  member: Member;
+  organization: Organization;
   preceptor_availability: PreceptorAvailability;
   preceptor_availability_patterns: PreceptorAvailabilityPatterns;
   preceptor_capacity_rules: PreceptorCapacityRules;
@@ -582,6 +649,7 @@ export interface DB {
   student_health_system_onboarding: StudentHealthSystemOnboarding;
   students: Students;
   team_sites: TeamSites;
+  subscriptions: Subscriptions;
   teams: Teams;
   user: User;
   verification: Verification;

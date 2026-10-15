@@ -87,7 +87,7 @@ describe('StrategyContextBuilder', () => {
 				'2025-12-04', // Thursday
 				'2025-12-05', // Friday
 				'2025-12-06', // Saturday
-				'2025-12-07'  // Sunday
+				'2025-12-07' // Sunday
 			]);
 		});
 
@@ -116,18 +116,23 @@ describe('StrategyContextBuilder', () => {
 			const expectedDays = [1, 2, 3, 4, 5, 6, 0]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
 			for (let i = 0; i < 7; i++) {
 				const dayOfWeek = getUTCDayOfWeek(dates[i]);
-				expect(dayOfWeek, `Date ${dates[i]} should be ${dayNames[expectedDays[i]]}`).toBe(expectedDays[i]);
+				expect(dayOfWeek, `Date ${dates[i]} should be ${dayNames[expectedDays[i]]}`).toBe(
+					expectedDays[i]
+				);
 			}
 		});
 
 		it('correctly excludes blackout dates', async () => {
 			// Add a blackout date
-			await db.insertInto('blackout_dates').values({
-				id: 'blackout-1',
-				date: '2025-12-03',
-				reason: 'Holiday',
-				created_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('blackout_dates')
+				.values({
+					id: 'blackout-1',
+					date: '2025-12-03',
+					reason: 'Holiday',
+					created_at: new Date().toISOString()
+				})
+				.execute();
 
 			const buildAvailableDates = (builder as any).buildAvailableDates.bind(builder);
 

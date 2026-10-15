@@ -16,7 +16,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.alterTable('clerkships')
 		.addColumn('scheduling_kind', 'text', (col) =>
-			col.notNull().defaultTo('scattered').check(sql`scheduling_kind IN ('block', 'scattered')`)
+			col
+				.notNull()
+				.defaultTo('scattered')
+				.check(sql`scheduling_kind IN ('block', 'scattered')`)
 		)
 		.execute();
 }

@@ -1,9 +1,11 @@
 # Step 02: Database Schema & Migrations
 
 ## Overview
+
 Design and implement the complete database schema for the LIC Scheduling App. This includes tables for students, preceptors, availability, clerkships, blackout dates, and schedule assignments with proper relationships and constraints.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup (must be completed first)
 - ✅ SQLite database and better-sqlite3 installed
 - ✅ Kysely migration system configured
@@ -11,7 +13,9 @@ Design and implement the complete database schema for the LIC Scheduling App. Th
 ## Requirements
 
 ### Database Tables
+
 Create tables for:
+
 1. **students** - Student information
 2. **preceptors** - Preceptor (clinical supervisor) information
 3. **preceptor_availability** - Days when preceptors are available
@@ -20,6 +24,7 @@ Create tables for:
 6. **schedule_assignments** - Student-preceptor assignments
 
 ### Data Integrity
+
 - Foreign key constraints for relationships
 - Unique constraints for emails and business rules
 - NOT NULL constraints for required fields
@@ -27,6 +32,7 @@ Create tables for:
 - Indexes for frequently queried columns
 
 ### Type Generation
+
 - Generate TypeScript types from schema using kysely-codegen
 - Ensure types are available for all tables
 - Export types for use in service functions
@@ -34,6 +40,7 @@ Create tables for:
 ## Database Schema Design
 
 ### Table: `students`
+
 Stores student information.
 
 **Columns:**
@@ -46,15 +53,18 @@ Stores student information.
 | updated_at | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Record update timestamp |
 
 **Indexes:**
+
 - `idx_students_email` on `email` (for quick lookups)
 
 **Business Rules:**
+
 - Email must be unique across all students
 - Cannot delete student if they have schedule assignments
 
 ---
 
 ### Table: `preceptors`
+
 Stores preceptor (clinical supervisor) information.
 
 **Columns:**
@@ -69,10 +79,12 @@ Stores preceptor (clinical supervisor) information.
 | updated_at | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Record update timestamp |
 
 **Indexes:**
+
 - `idx_preceptors_email` on `email`
 - `idx_preceptors_specialty` on `specialty` (for filtering by specialty)
 
 **Business Rules:**
+
 - Email must be unique across all preceptors
 - Specialty cannot be empty
 - max_students defaults to 1 for MVP
@@ -80,6 +92,7 @@ Stores preceptor (clinical supervisor) information.
 ---
 
 ### Table: `preceptor_availability`
+
 Tracks which days preceptors are available to supervise students.
 
 **Columns:**
@@ -93,10 +106,12 @@ Tracks which days preceptors are available to supervise students.
 | updated_at | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Record update timestamp |
 
 **Indexes:**
+
 - `idx_availability_preceptor_date` on `(preceptor_id, date)` (UNIQUE)
 - `idx_availability_date` on `date` (for date range queries)
 
 **Business Rules:**
+
 - One availability record per preceptor per date
 - Cascading delete when preceptor is deleted
 - Defaults to available (is_available = 1)
@@ -104,6 +119,7 @@ Tracks which days preceptors are available to supervise students.
 ---
 
 ### Table: `clerkships`
+
 Defines clerkship types and their required duration.
 
 **Columns:**
@@ -118,10 +134,12 @@ Defines clerkship types and their required duration.
 | updated_at | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Record update timestamp |
 
 **Indexes:**
+
 - `idx_clerkships_name` on `name` (UNIQUE)
 - `idx_clerkships_specialty` on `specialty` (for matching preceptors)
 
 **Business Rules:**
+
 - Clerkship name must be unique
 - required_days must be positive integer
 - Specialty must match preceptor specialty for assignments
@@ -129,6 +147,7 @@ Defines clerkship types and their required duration.
 ---
 
 ### Table: `blackout_dates`
+
 System-wide dates when no scheduling occurs (holidays, exam periods).
 
 **Columns:**
@@ -140,9 +159,11 @@ System-wide dates when no scheduling occurs (holidays, exam periods).
 | created_at | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Record creation timestamp |
 
 **Indexes:**
+
 - `idx_blackout_dates_date` on `date` (UNIQUE)
 
 **Business Rules:**
+
 - One record per date
 - No assignments can be created on blackout dates
 - Applies system-wide to all students and preceptors
@@ -150,6 +171,7 @@ System-wide dates when no scheduling occurs (holidays, exam periods).
 ---
 
 ### Table: `schedule_assignments`
+
 Student-preceptor assignments for specific dates.
 
 **Columns:**
@@ -165,12 +187,14 @@ Student-preceptor assignments for specific dates.
 | updated_at | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Record update timestamp |
 
 **Indexes:**
+
 - `idx_assignments_student_date` on `(student_id, date)` (UNIQUE - prevents double-booking)
 - `idx_assignments_preceptor_date` on `(preceptor_id, date)` (for capacity checks)
 - `idx_assignments_date` on `date` (for calendar queries)
 - `idx_assignments_clerkship` on `clerkship_id` (for requirement tracking)
 
 **Business Rules:**
+
 - Student cannot be assigned to multiple preceptors on same date (unique constraint)
 - Preceptor cannot exceed max_students capacity on any date
 - Assignment date cannot be a blackout date
@@ -190,6 +214,7 @@ clerkships (1) ────< (many) schedule_assignments
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/db/migrations/
 ├── index.ts                                          # Migration runner (from Step 01)
@@ -210,22 +235,23 @@ import { Kysely, sql } from 'kysely';
  */
 
 export async function up(db: Kysely<any>): Promise<void> {
-  // Create students table
-  // Create preceptors table
-  // Create preceptor_availability table
-  // Create clerkships table
-  // Create blackout_dates table
-  // Create schedule_assignments table
-  // Create all indexes
+	// Create students table
+	// Create preceptors table
+	// Create preceptor_availability table
+	// Create clerkships table
+	// Create blackout_dates table
+	// Create schedule_assignments table
+	// Create all indexes
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  // Drop all tables in reverse order
-  // Handle foreign key dependencies
+	// Drop all tables in reverse order
+	// Handle foreign key dependencies
 }
 ```
 
 **Requirements:**
+
 - Use Kysely schema builder API
 - Create tables in dependency order (referenced tables first)
 - Add all constraints and indexes
@@ -234,6 +260,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 - Add comments for complex constraints
 
 **SQL Features to Use:**
+
 - `CREATE TABLE IF NOT EXISTS`
 - `FOREIGN KEY ... ON DELETE CASCADE/RESTRICT`
 - `UNIQUE` constraints
@@ -252,6 +279,7 @@ No business logic functions in this step - pure schema definition.
 #### `/src/lib/db/migrations/001_initial_schema.test.ts`
 
 **Schema Validation Tests:**
+
 - ✅ Migration runs successfully without errors
 - ✅ All tables are created
 - ✅ All columns exist with correct types
@@ -265,6 +293,7 @@ No business logic functions in this step - pure schema definition.
 - ✅ Down migration removes all tables
 
 **Constraint Tests:**
+
 - ✅ Cannot insert duplicate student email
 - ✅ Cannot insert duplicate preceptor email
 - ✅ Cannot insert duplicate clerkship name
@@ -277,6 +306,7 @@ No business logic functions in this step - pure schema definition.
 - ✅ Deleting clerkship with assignments fails (RESTRICT)
 
 ### Testing Strategy
+
 - Use separate test database (`:memory:` or test.db)
 - Run migration before each test suite
 - Clean up database after tests
@@ -295,20 +325,20 @@ This generates `/src/lib/db/types.ts` with:
 
 ```typescript
 export interface Database {
-  students: StudentsTable;
-  preceptors: PreceptorsTable;
-  preceptor_availability: PreceptorAvailabilityTable;
-  clerkships: ClerkshipsTable;
-  blackout_dates: BlackoutDatesTable;
-  schedule_assignments: ScheduleAssignmentsTable;
+	students: StudentsTable;
+	preceptors: PreceptorsTable;
+	preceptor_availability: PreceptorAvailabilityTable;
+	clerkships: ClerkshipsTable;
+	blackout_dates: BlackoutDatesTable;
+	schedule_assignments: ScheduleAssignmentsTable;
 }
 
 export interface StudentsTable {
-  id: string;
-  name: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
+	id: string;
+	name: string;
+	email: string;
+	created_at: string;
+	updated_at: string;
 }
 
 // ... other table types
@@ -338,44 +368,45 @@ After completion, the generated types enable type-safe queries:
 import { db } from '$lib/db';
 
 // Fully typed query
-const students = await db
-  .selectFrom('students')
-  .selectAll()
-  .execute();
+const students = await db.selectFrom('students').selectAll().execute();
 // students is typed as StudentsTable[]
 
 // Type-safe insert
 await db
-  .insertInto('students')
-  .values({
-    id: crypto.randomUUID(),
-    name: 'John Doe',
-    email: 'john@example.com',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  })
-  .execute();
+	.insertInto('students')
+	.values({
+		id: crypto.randomUUID(),
+		name: 'John Doe',
+		email: 'john@example.com',
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString()
+	})
+	.execute();
 ```
 
 ## Notes
 
 ### SQLite Data Types
+
 - Use TEXT for UUIDs and dates (ISO 8601 format)
 - Use INTEGER for booleans (0 = false, 1 = true)
 - Use INTEGER for counts and numbers
 - Use CURRENT_TIMESTAMP for default timestamps (returns TEXT in ISO format)
 
 ### Date Handling
+
 - Store all dates as TEXT in ISO 8601 format (YYYY-MM-DD)
 - Use JavaScript Date methods for parsing/formatting
 - Consider timezone handling (store in UTC)
 
 ### UUID Generation
+
 - Use `crypto.randomUUID()` for ID generation
 - IDs are TEXT type in database
 - No auto-increment needed
 
 ### Future Considerations
+
 - Schema can be extended with additional fields
 - Consider soft deletes vs hard deletes
 - May need audit log table in future

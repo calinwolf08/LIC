@@ -1,6 +1,7 @@
 # Step 17: Schedule Algorithm Implementation ✅ COMPLETED
 
 ## Overview
+
 Constraint-based scheduling algorithm with violation tracking and extensibility.
 
 ## Status: ✅ COMPLETED
@@ -10,13 +11,16 @@ This step was completed ahead of the planned order to establish the core schedul
 ## What Was Implemented
 
 ### Architecture
+
 Complete constraint-based scheduling system with:
+
 - Clean separation of concerns (types, constraints, services, utilities)
 - Extensible constraint interface
 - Comprehensive violation tracking
 - Greedy algorithm implementation
 
 ### File Structure
+
 ```
 /src/lib/features/scheduling/
 ├── types/                              # Type definitions
@@ -54,33 +58,37 @@ Complete constraint-based scheduling system with:
 ### 1. Type Definitions
 
 **Assignment**
+
 ```typescript
 interface Assignment {
-  studentId: string;
-  preceptorId: string;
-  clerkshipId: string;
-  date: string; // ISO format YYYY-MM-DD
+	studentId: string;
+	preceptorId: string;
+	clerkshipId: string;
+	date: string; // ISO format YYYY-MM-DD
 }
 ```
 
 **Constraint Interface**
+
 ```typescript
 interface Constraint {
-  name: string;
-  priority?: number;
-  bypassable?: boolean;
-  validate(assignment, context, violationTracker): boolean;
-  getViolationMessage(assignment, context): string;
+	name: string;
+	priority?: number;
+	bypassable?: boolean;
+	validate(assignment, context, violationTracker): boolean;
+	getViolationMessage(assignment, context): string;
 }
 ```
 
 **SchedulingContext**
+
 - All master data (students, preceptors, clerkships)
 - Blackout dates
 - Precomputed lookups (availability, requirements)
 - Assignment tracking maps (by date, student, preceptor)
 
 **Violation Tracking**
+
 - `ConstraintViolation` - Single violation record
 - `ViolationStats` - Aggregated statistics per constraint
 - Metadata support for debugging
@@ -88,6 +96,7 @@ interface Constraint {
 ### 2. Built-in Constraints
 
 **5 Core Constraints:**
+
 1. ✅ **NoDoubleBookingConstraint** - Students can't be assigned twice on same day
    - Priority: 1 (check early)
    - Bypassable: false (critical)
@@ -111,12 +120,14 @@ interface Constraint {
 ### 3. Services
 
 **ViolationTracker**
+
 - Records all constraint violations
 - Aggregates statistics by constraint
 - Provides top N violated constraints
 - Exports violations for analysis
 
 **SchedulingEngine**
+
 - Main algorithm orchestrator
 - Greedy scheduling approach
 - Validates all constraints
@@ -124,11 +135,13 @@ interface Constraint {
 - Returns comprehensive results
 
 **ContextBuilder**
+
 - Initializes scheduling context from database data
 - Builds lookup maps for performance
 - Sets up tracking structures
 
 **RequirementTracker**
+
 - Tracks student requirements remaining
 - Finds most needed clerkship per student
 - Identifies students needing assignments
@@ -137,11 +150,13 @@ interface Constraint {
 ### 4. Utilities
 
 **Date Utils**
+
 - `getDaysBetween()` - Generate date ranges
 - `formatToISODate()` - Date formatting
 - `getSchedulingDates()` - Valid dates excluding blackouts
 
 **Preceptor Matcher**
+
 - `getAvailablePreceptors()` - Find preceptors for clerkship on date
 - `getPreceptorsForClerkship()` - All preceptors for clerkship
 
@@ -182,15 +197,17 @@ interface Constraint {
 ### POST /api/schedules/generate
 
 **Request:**
+
 ```json
 {
-  "startDate": "2024-01-01",
-  "endDate": "2024-12-31",
-  "bypassedConstraints": [] // optional
+	"startDate": "2024-01-01",
+	"endDate": "2024-12-31",
+	"bypassedConstraints": [] // optional
 }
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -258,6 +275,7 @@ const engine = new SchedulingEngine([
 ⚠️ **Tests Not Yet Written**
 
 While the algorithm is implemented, comprehensive tests are still needed:
+
 - Unit tests for each constraint
 - Unit tests for ViolationTracker
 - Unit tests for requirement tracking

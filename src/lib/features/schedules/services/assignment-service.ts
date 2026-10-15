@@ -83,8 +83,7 @@ function toInsertable(row: NewAssignmentRow, timestamp: string): Insertable<Sche
 		source: row.source,
 		locked: row.locked ? 1 : 0,
 		override_codes: JSON.stringify(row.override_codes ?? []),
-		override_note:
-			(row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
+		override_note: (row.override_codes?.length ?? 0) > 0 ? (row.override_note ?? null) : null,
 		credit_value: normalizeCredit(row.credit_value),
 		session: normalizeSession(row.session),
 		kind: row.kind ?? 'clinical',

@@ -19,7 +19,7 @@ import {
 	clearAllTestData,
 	createPreceptorAvailability,
 	generateDateRange,
-	setOutpatientAssignmentStrategy,
+	setOutpatientAssignmentStrategy
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -28,7 +28,7 @@ import {
 	assertNoCapacityViolations,
 	assertHealthSystemContinuity,
 	assertNoDateConflicts,
-	assertTeamBalanced,
+	assertTeamBalanced
 } from '$lib/testing/assertion-helpers';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -65,7 +65,9 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			);
 
 			// Create single clerkship for simplified testing
-			const famMedId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 20 });
+			const famMedId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 20
+			});
 
 			// Create students
 			const studentIds = await createTestStudents(db, 5);
@@ -75,7 +77,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 5,
-				clerkshipId: famMedId,
+				clerkshipId: famMedId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -90,7 +92,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 5,
-					maxStudentsPerYear: 100,
+					maxStudentsPerYear: 100
 				});
 			}
 
@@ -101,15 +103,11 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			}
 
 			// Execute scheduling
-			const result = await engine.schedule(
-				studentIds,
-				[famMedId],
-				{
-					startDate,
-					endDate,
-					dryRun: false,
-				}
-			);
+			const result = await engine.schedule(studentIds, [famMedId], {
+				startDate,
+				endDate,
+				dryRun: false
+			});
 
 			// Assertions
 			expect(result.success).toBe(true);
@@ -131,11 +129,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			// - Balanced distribution across team members
 
 			// Setup
-			const { healthSystemId, siteIds } = await createTestHealthSystem(
-				db,
-				'Teaching Hospital',
-				1
-			);
+			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Teaching Hospital', 1);
 
 			// Create clerkship
 			const obId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics', { requiredDays: 14 });
@@ -147,7 +141,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			const obTeam = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
-				maxStudents: 4,
+				maxStudents: 4
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -160,7 +154,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			// Create team
 			const obTeamId = await createTestTeam(db, obId, 'OB Teaching Team', obTeam, {
 				requireSameHealthSystem: true,
-				requireSameSpecialty: true,
+				requireSameSpecialty: true
 			});
 
 			// Create preceptor availability for all preceptors
@@ -174,7 +168,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				startDate,
 				endDate,
 				enableTeamFormation: true,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -203,7 +197,9 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			);
 
 			// Create clerkship
-			const psychiatryId = await createTestClerkship(db, 'Psychiatry', 'Psychiatry', { requiredDays: 14 });
+			const psychiatryId = await createTestClerkship(db, 'Psychiatry', 'Psychiatry', {
+				requiredDays: 14
+			});
 
 			// Create students
 			const studentIds = await createTestStudents(db, 4);
@@ -213,7 +209,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 4,
-				clerkshipId: psychiatryId,
+				clerkshipId: psychiatryId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -228,7 +224,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 4,
-					maxStudentsPerYear: 100,
+					maxStudentsPerYear: 100
 				});
 			}
 
@@ -242,7 +238,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			const result = await engine.schedule(studentIds, [psychiatryId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -270,7 +266,9 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Regional Network', 1);
 
 			// Create clerkship
-			const emergencyId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', { requiredDays: 14 });
+			const emergencyId = await createTestClerkship(db, 'Emergency Medicine', 'outpatient', {
+				requiredDays: 14
+			});
 
 			// Create students (small group)
 			const studentIds = await createTestStudents(db, 3);
@@ -280,7 +278,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId: emergencyId,
+				clerkshipId: emergencyId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -294,7 +292,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 3,
-					maxStudentsPerYear: 100,
+					maxStudentsPerYear: 100
 				});
 			}
 
@@ -308,7 +306,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			const result = await engine.schedule(studentIds, [emergencyId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -346,7 +344,9 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			);
 
 			// Create single clerkship (inpatient uses block_based strategy by default)
-			const internalMedId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 14 });
+			const internalMedId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', {
+				requiredDays: 14
+			});
 
 			// Create students (large cohort)
 			const studentIds = await createTestStudents(db, 20);
@@ -356,7 +356,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 5,
-				clerkshipId: internalMedId,
+				clerkshipId: internalMedId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -371,7 +371,7 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 5,
-					maxStudentsPerYear: 200,
+					maxStudentsPerYear: 200
 				});
 			}
 
@@ -382,15 +382,11 @@ describe('Integration Suite 6: School Scenarios End-to-End', () => {
 			}
 
 			// Execute scheduling
-			const result = await engine.schedule(
-				studentIds,
-				[internalMedId],
-				{
-					startDate,
-					endDate,
-					dryRun: false,
-				}
-			);
+			const result = await engine.schedule(studentIds, [internalMedId], {
+				startDate,
+				endDate,
+				dryRun: false
+			});
 
 			// Assertions
 			expect(result.success).toBe(true);

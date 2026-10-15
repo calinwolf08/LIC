@@ -16,7 +16,7 @@ import * as fallbacks from './scheduling-config/fallbacks/+server';
 import * as globalInpatient from './scheduling-config/global-defaults/inpatient/+server';
 import * as clerkshipSettings from './clerkships/[id]/settings/+server';
 
-const nonEntitled = { session: null, entitlements: [] } as App.Locals;
+const nonEntitled = { session: null, organization: null, entitlements: [] } as App.Locals;
 
 function event(overrides: Record<string, unknown> = {}) {
 	return {

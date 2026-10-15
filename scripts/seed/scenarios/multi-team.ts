@@ -29,7 +29,7 @@ import {
 	createAvailability,
 	linkElectivePreceptor,
 	generateSpecificWeekdays,
-	generateWeekdaysInRange,
+	generateWeekdaysInRange
 } from '../helpers';
 
 export async function multiTeamScenario(userId: string, scheduleId: string): Promise<void> {
@@ -44,27 +44,35 @@ export async function multiTeamScenario(userId: string, scheduleId: string): Pro
 
 	// Create Sites
 	console.log('  Creating sites...');
-	const groupHealthSiteId = await createSite(groupHealthId, 'Group Health Main Clinic', '123 Health St, Seattle');
-	const cityHospitalSiteId = await createSite(cityHospitalId, 'City Hospital Downtown', '456 Medical Ave, Portland');
+	const groupHealthSiteId = await createSite(
+		groupHealthId,
+		'Group Health Main Clinic',
+		'123 Health St, Seattle'
+	);
+	const cityHospitalSiteId = await createSite(
+		cityHospitalId,
+		'City Hospital Downtown',
+		'456 Medical Ave, Portland'
+	);
 
 	// Create Clerkship
 	console.log('  Creating clerkship...');
 	const clerkshipId = await createClerkship('Internal Medicine', {
 		type: 'outpatient',
 		requiredDays: 20,
-		specialty: 'Internal Medicine',
+		specialty: 'Internal Medicine'
 	});
 
 	// Create Electives
 	console.log('  Creating electives...');
 	const elective1Id = await createElective(clerkshipId, 'Cardiology Elective', {
 		minimumDays: 5,
-		isRequired: true,
+		isRequired: true
 	});
 
 	const elective2Id = await createElective(clerkshipId, 'Pulmonology Elective', {
 		minimumDays: 8,
-		isRequired: true,
+		isRequired: true
 	});
 
 	// Create Students
@@ -79,14 +87,14 @@ export async function multiTeamScenario(userId: string, scheduleId: string): Pro
 		healthSystemId: groupHealthId,
 		siteId: groupHealthSiteId,
 		specialty: 'Internal Medicine',
-		maxStudents: 1,
+		maxStudents: 1
 	});
 
 	const drSId = await createPreceptor('Dr. S', {
 		healthSystemId: cityHospitalId,
 		siteId: cityHospitalSiteId,
 		specialty: 'Internal Medicine',
-		maxStudents: 1,
+		maxStudents: 1
 	});
 
 	// Create Teams (separate teams for each preceptor)

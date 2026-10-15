@@ -5,6 +5,7 @@
 This document describes the design for a **Constraint Factory Pattern** that bridges the gap between database-stored clerkship requirements and the constraint-based scheduling engine. This allows arbitrary new requirements to be added without modifying the core scheduling algorithm.
 
 **Goal:** Enable configuration-driven constraints so that new requirement types can be added by:
+
 1. Creating a new constraint class
 2. Adding configuration to the database
 3. Registering the constraint in the factory
@@ -40,6 +41,7 @@ class SchedulingEngine {
 ```
 
 **Key Benefits:**
+
 - ✅ Pluggable - any constraint implementing the interface works
 - ✅ Priority-based - cheap constraints checked first
 - ✅ Bypassable - some constraints can be optionally ignored
@@ -51,20 +53,17 @@ class SchedulingEngine {
 
 ```typescript
 interface Constraint {
-  name: string;
-  priority?: number;      // Lower = checked first
-  bypassable?: boolean;   // Can user ignore this?
+	name: string;
+	priority?: number; // Lower = checked first
+	bypassable?: boolean; // Can user ignore this?
 
-  validate(
-    assignment: Assignment,
-    context: SchedulingContext,
-    violationTracker: ViolationTracker
-  ): boolean;
+	validate(
+		assignment: Assignment,
+		context: SchedulingContext,
+		violationTracker: ViolationTracker
+	): boolean;
 
-  getViolationMessage(
-    assignment: Assignment,
-    context: SchedulingContext
-  ): string;
+	getViolationMessage(assignment: Assignment, context: SchedulingContext): string;
 }
 ```
 
@@ -73,6 +72,7 @@ interface Constraint {
 **Directory:** `src/lib/features/scheduling/constraints/`
 
 Currently implemented (hardcoded):
+
 - `BlackoutDateConstraint` - No assignments on blackout dates
 - `NoDoubleBookingConstraint` - Student can't be in two places at once
 - `PreceptorAvailabilityConstraint` - Preceptor must be available
@@ -107,12 +107,14 @@ CREATE TABLE clerkship_requirements (
 ### Current Problem
 
 **Configuration exists in database**, but:
+
 - ❌ No automatic instantiation of constraints from requirements
 - ❌ Adding new requirement type requires hardcoding
 - ❌ No way to make school-specific constraints without code changes
 - ❌ Constraint parameters are hardcoded, not from DB
 
 **Example:** To enforce "electives can't go cross-system", you need to:
+
 1. Add `allow_cross_system` field to database ✅
 2. Manually create `ElectiveCrossSystemConstraint` class ❌
 3. Manually instantiate it in engine initialization ❌
@@ -125,6 +127,7 @@ CREATE TABLE clerkship_requirements (
 ### Overview
 
 A factory that:
+
 1. Reads all `clerkship_requirements` from database
 2. Reads `global_*_defaults` configuration
 3. **Automatically instantiates** the correct constraint classes
@@ -215,164 +218,160 @@ import { CapacityConstraint } from '../constraints/capacity.constraint';
  * This bridges the gap between stored requirements and runtime constraints.
  */
 export class ConstraintFactory {
-  private globalDefaultsService: GlobalDefaultsService;
-  private requirementService: RequirementService;
+	private globalDefaultsService: GlobalDefaultsService;
+	private requirementService: RequirementService;
 
-  constructor(private db: Kysely<DB>) {
-    this.globalDefaultsService = new GlobalDefaultsService(db);
-    this.requirementService = new RequirementService(db);
-  }
+	constructor(private db: Kysely<DB>) {
+		this.globalDefaultsService = new GlobalDefaultsService(db);
+		this.requirementService = new RequirementService(db);
+	}
 
-  /**
-   * Build all constraints for scheduling
-   *
-   * Reads clerkship requirements, resolves configurations, and instantiates
-   * the appropriate constraint classes with parameters.
-   */
-  async buildConstraints(
-    clerkshipIds: string[]
-  ): Promise<Constraint[]> {
-    const constraints: Constraint[] = [];
+	/**
+	 * Build all constraints for scheduling
+	 *
+	 * Reads clerkship requirements, resolves configurations, and instantiates
+	 * the appropriate constraint classes with parameters.
+	 */
+	async buildConstraints(clerkshipIds: string[]): Promise<Constraint[]> {
+		const constraints: Constraint[] = [];
 
-    // 1. Add universal constraints (always active)
-    constraints.push(
-      new BlackoutDateConstraint(),
-      new NoDoubleBookingConstraint()
-    );
+		// 1. Add universal constraints (always active)
+		constraints.push(new BlackoutDateConstraint(), new NoDoubleBookingConstraint());
 
-    // 2. Load all global defaults
-    const [outpatientDefaults, inpatientDefaults, electiveDefaults] = await Promise.all([
-      this.globalDefaultsService.getOutpatientDefaults(),
-      this.globalDefaultsService.getInpatientDefaults(),
-      this.globalDefaultsService.getElectiveDefaults()
-    ]);
+		// 2. Load all global defaults
+		const [outpatientDefaults, inpatientDefaults, electiveDefaults] = await Promise.all([
+			this.globalDefaultsService.getOutpatientDefaults(),
+			this.globalDefaultsService.getInpatientDefaults(),
+			this.globalDefaultsService.getElectiveDefaults()
+		]);
 
-    // 3. Load all requirements for specified clerkships
-    const allRequirements = [];
-    for (const clerkshipId of clerkshipIds) {
-      const result = await this.requirementService.getRequirementsByClerkship(clerkshipId);
-      if (result.success) {
-        allRequirements.push(...result.data);
-      }
-    }
+		// 3. Load all requirements for specified clerkships
+		const allRequirements = [];
+		for (const clerkshipId of clerkshipIds) {
+			const result = await this.requirementService.getRequirementsByClerkship(clerkshipId);
+			if (result.success) {
+				allRequirements.push(...result.data);
+			}
+		}
 
-    // 4. Build requirement-specific constraints
-    for (const requirement of allRequirements) {
-      // Get resolved configuration (global defaults + overrides)
-      const resolvedConfig = this.resolveConfiguration(
-        requirement,
-        outpatientDefaults.data,
-        inpatientDefaults.data,
-        electiveDefaults.data
-      );
+		// 4. Build requirement-specific constraints
+		for (const requirement of allRequirements) {
+			// Get resolved configuration (global defaults + overrides)
+			const resolvedConfig = this.resolveConfiguration(
+				requirement,
+				outpatientDefaults.data,
+				inpatientDefaults.data,
+				electiveDefaults.data
+			);
 
-      // Add health system continuity constraint
-      if (resolvedConfig.healthSystemRule === 'enforce_same_system') {
-        constraints.push(
-          new HealthSystemContinuityConstraint(
-            requirement.id,
-            requirement.clerkshipId,
-            true // strict enforcement
-          )
-        );
-      } else if (resolvedConfig.healthSystemRule === 'prefer_same_system') {
-        constraints.push(
-          new HealthSystemContinuityConstraint(
-            requirement.id,
-            requirement.clerkshipId,
-            false // soft preference (bypassable)
-          )
-        );
-      }
+			// Add health system continuity constraint
+			if (resolvedConfig.healthSystemRule === 'enforce_same_system') {
+				constraints.push(
+					new HealthSystemContinuityConstraint(
+						requirement.id,
+						requirement.clerkshipId,
+						true // strict enforcement
+					)
+				);
+			} else if (resolvedConfig.healthSystemRule === 'prefer_same_system') {
+				constraints.push(
+					new HealthSystemContinuityConstraint(
+						requirement.id,
+						requirement.clerkshipId,
+						false // soft preference (bypassable)
+					)
+				);
+			}
 
-      // Add elective-specific constraints
-      if (requirement.requirementType === 'elective') {
-        if (!requirement.allowCrossSystem) {
-          constraints.push(
-            new ElectiveCrossSystemConstraint(
-              requirement.id,
-              requirement.clerkshipId
-            )
-          );
-        }
-      }
+			// Add elective-specific constraints
+			if (requirement.requirementType === 'elective') {
+				if (!requirement.allowCrossSystem) {
+					constraints.push(
+						new ElectiveCrossSystemConstraint(requirement.id, requirement.clerkshipId)
+					);
+				}
+			}
 
-      // Add capacity constraints
-      constraints.push(
-        new CapacityConstraint(
-          requirement.id,
-          resolvedConfig.maxStudentsPerDay,
-          resolvedConfig.maxStudentsPerYear,
-          resolvedConfig.maxStudentsPerBlock
-        )
-      );
+			// Add capacity constraints
+			constraints.push(
+				new CapacityConstraint(
+					requirement.id,
+					resolvedConfig.maxStudentsPerDay,
+					resolvedConfig.maxStudentsPerYear,
+					resolvedConfig.maxStudentsPerBlock
+				)
+			);
 
-      // Add student onboarding constraint
-      constraints.push(
-        new StudentOnboardingConstraint(requirement.id)
-      );
+			// Add student onboarding constraint
+			constraints.push(new StudentOnboardingConstraint(requirement.id));
 
-      // Add preceptor-clerkship association constraint
-      constraints.push(
-        new PreceptorClerkshipAssociationConstraint(
-          requirement.clerkshipId,
-          requirement.requirementType === 'elective' ? requirement.id : null
-        )
-      );
-    }
+			// Add preceptor-clerkship association constraint
+			constraints.push(
+				new PreceptorClerkshipAssociationConstraint(
+					requirement.clerkshipId,
+					requirement.requirementType === 'elective' ? requirement.id : null
+				)
+			);
+		}
 
-    return constraints;
-  }
+		return constraints;
+	}
 
-  /**
-   * Resolve configuration by merging global defaults with requirement overrides
-   */
-  private resolveConfiguration(
-    requirement: any,
-    outpatientDefaults: any,
-    inpatientDefaults: any,
-    electiveDefaults: any
-  ): any {
-    // Select appropriate global defaults
-    let defaults;
-    if (requirement.requirementType === 'outpatient' || requirement.clerkshipType === 'outpatient') {
-      defaults = outpatientDefaults;
-    } else if (requirement.requirementType === 'inpatient' || requirement.clerkshipType === 'inpatient') {
-      defaults = inpatientDefaults;
-    } else {
-      defaults = electiveDefaults;
-    }
+	/**
+	 * Resolve configuration by merging global defaults with requirement overrides
+	 */
+	private resolveConfiguration(
+		requirement: any,
+		outpatientDefaults: any,
+		inpatientDefaults: any,
+		electiveDefaults: any
+	): any {
+		// Select appropriate global defaults
+		let defaults;
+		if (
+			requirement.requirementType === 'outpatient' ||
+			requirement.clerkshipType === 'outpatient'
+		) {
+			defaults = outpatientDefaults;
+		} else if (
+			requirement.requirementType === 'inpatient' ||
+			requirement.clerkshipType === 'inpatient'
+		) {
+			defaults = inpatientDefaults;
+		} else {
+			defaults = electiveDefaults;
+		}
 
-    // Start with defaults
-    const resolved = {
-      healthSystemRule: defaults.healthSystemRule,
-      maxStudentsPerDay: defaults.defaultMaxStudentsPerDay,
-      maxStudentsPerYear: defaults.defaultMaxStudentsPerYear,
-      maxStudentsPerBlock: defaults.defaultMaxStudentsPerBlock,
-      assignmentStrategy: defaults.assignmentStrategy,
-    };
+		// Start with defaults
+		const resolved = {
+			healthSystemRule: defaults.healthSystemRule,
+			maxStudentsPerDay: defaults.defaultMaxStudentsPerDay,
+			maxStudentsPerYear: defaults.defaultMaxStudentsPerYear,
+			maxStudentsPerBlock: defaults.defaultMaxStudentsPerBlock,
+			assignmentStrategy: defaults.assignmentStrategy
+		};
 
-    // Apply overrides if override_mode is not 'inherit'
-    if (requirement.overrideMode !== 'inherit') {
-      if (requirement.overrideHealthSystemRule) {
-        resolved.healthSystemRule = requirement.overrideHealthSystemRule;
-      }
-      if (requirement.overrideMaxStudentsPerDay) {
-        resolved.maxStudentsPerDay = requirement.overrideMaxStudentsPerDay;
-      }
-      if (requirement.overrideMaxStudentsPerYear) {
-        resolved.maxStudentsPerYear = requirement.overrideMaxStudentsPerYear;
-      }
-      if (requirement.overrideMaxStudentsPerBlock) {
-        resolved.maxStudentsPerBlock = requirement.overrideMaxStudentsPerBlock;
-      }
-      if (requirement.overrideAssignmentStrategy) {
-        resolved.assignmentStrategy = requirement.overrideAssignmentStrategy;
-      }
-    }
+		// Apply overrides if override_mode is not 'inherit'
+		if (requirement.overrideMode !== 'inherit') {
+			if (requirement.overrideHealthSystemRule) {
+				resolved.healthSystemRule = requirement.overrideHealthSystemRule;
+			}
+			if (requirement.overrideMaxStudentsPerDay) {
+				resolved.maxStudentsPerDay = requirement.overrideMaxStudentsPerDay;
+			}
+			if (requirement.overrideMaxStudentsPerYear) {
+				resolved.maxStudentsPerYear = requirement.overrideMaxStudentsPerYear;
+			}
+			if (requirement.overrideMaxStudentsPerBlock) {
+				resolved.maxStudentsPerBlock = requirement.overrideMaxStudentsPerBlock;
+			}
+			if (requirement.overrideAssignmentStrategy) {
+				resolved.assignmentStrategy = requirement.overrideAssignmentStrategy;
+			}
+		}
 
-    return resolved;
-  }
+		return resolved;
+	}
 }
 ```
 
@@ -392,71 +391,71 @@ import type { ViolationTracker } from '../services/violation-tracker';
  * Configurable: can be strict (non-bypassable) or preference (bypassable)
  */
 export class HealthSystemContinuityConstraint implements Constraint {
-  name = 'HealthSystemContinuity';
-  priority = 2;
+	name = 'HealthSystemContinuity';
+	priority = 2;
 
-  constructor(
-    private requirementId: string,
-    private clerkshipId: string,
-    private strict: boolean // true = enforce, false = prefer
-  ) {
-    this.bypassable = !strict;
-  }
+	constructor(
+		private requirementId: string,
+		private clerkshipId: string,
+		private strict: boolean // true = enforce, false = prefer
+	) {
+		this.bypassable = !strict;
+	}
 
-  bypassable: boolean;
+	bypassable: boolean;
 
-  validate(
-    assignment: Assignment,
-    context: SchedulingContext,
-    violationTracker: ViolationTracker
-  ): boolean {
-    // Get student's existing assignments for this clerkship
-    const studentAssignments = context.assignmentsByStudent.get(assignment.studentId) || [];
-    const clerkshipAssignments = studentAssignments.filter(
-      a => a.clerkshipId === this.clerkshipId
-    );
+	validate(
+		assignment: Assignment,
+		context: SchedulingContext,
+		violationTracker: ViolationTracker
+	): boolean {
+		// Get student's existing assignments for this clerkship
+		const studentAssignments = context.assignmentsByStudent.get(assignment.studentId) || [];
+		const clerkshipAssignments = studentAssignments.filter(
+			(a) => a.clerkshipId === this.clerkshipId
+		);
 
-    if (clerkshipAssignments.length === 0) {
-      return true; // First assignment for this clerkship, any health system OK
-    }
+		if (clerkshipAssignments.length === 0) {
+			return true; // First assignment for this clerkship, any health system OK
+		}
 
-    // Get health system of first assignment
-    const firstAssignment = clerkshipAssignments[0];
-    const firstPreceptor = context.preceptors.find(p => p.id === firstAssignment.preceptorId);
-    const firstHealthSystem = firstPreceptor?.health_system_id;
+		// Get health system of first assignment
+		const firstAssignment = clerkshipAssignments[0];
+		const firstPreceptor = context.preceptors.find((p) => p.id === firstAssignment.preceptorId);
+		const firstHealthSystem = firstPreceptor?.health_system_id;
 
-    // Get health system of proposed assignment
-    const proposedPreceptor = context.preceptors.find(p => p.id === assignment.preceptorId);
-    const proposedHealthSystem = proposedPreceptor?.health_system_id;
+		// Get health system of proposed assignment
+		const proposedPreceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
+		const proposedHealthSystem = proposedPreceptor?.health_system_id;
 
-    const isValid = firstHealthSystem === proposedHealthSystem;
+		const isValid = firstHealthSystem === proposedHealthSystem;
 
-    if (!isValid) {
-      const student = context.students.find(s => s.id === assignment.studentId);
-      const clerkship = context.clerkships.find(c => c.id === assignment.clerkshipId);
+		if (!isValid) {
+			const student = context.students.find((s) => s.id === assignment.studentId);
+			const clerkship = context.clerkships.find((c) => c.id === assignment.clerkshipId);
 
-      violationTracker.recordViolation(
-        this.name,
-        assignment,
-        this.getViolationMessage(assignment, context),
-        {
-          studentName: student?.name,
-          clerkshipName: clerkship?.name,
-          establishedHealthSystem: firstHealthSystem,
-          proposedHealthSystem: proposedHealthSystem,
-          strict: this.strict
-        }
-      );
-    }
+			violationTracker.recordViolation(
+				this.name,
+				assignment,
+				this.getViolationMessage(assignment, context),
+				{
+					studentName: student?.name,
+					clerkshipName: clerkship?.name,
+					establishedHealthSystem: firstHealthSystem,
+					proposedHealthSystem: proposedHealthSystem,
+					strict: this.strict
+				}
+			);
+		}
 
-    return isValid;
-  }
+		return isValid;
+	}
 
-  getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
-    return this.strict
-      ? `Student must stay in same health system for entire clerkship`
-      : `Prefer student to stay in same health system for clerkship continuity`;
-  }
+	getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
+		return this.strict
+			? `Student must stay in same health system for entire clerkship`
+			: `Prefer student to stay in same health system for clerkship continuity`;
+	}
 }
 ```
 
@@ -471,64 +470,60 @@ export class HealthSystemContinuityConstraint implements Constraint {
  * Configuration: allow_cross_system field on requirement
  */
 export class ElectiveCrossSystemConstraint implements Constraint {
-  name = 'ElectiveCrossSystem';
-  priority = 3;
-  bypassable = false;
+	name = 'ElectiveCrossSystem';
+	priority = 3;
+	bypassable = false;
 
-  constructor(
-    private requirementId: string,
-    private clerkshipId: string
-  ) {}
+	constructor(
+		private requirementId: string,
+		private clerkshipId: string
+	) {}
 
-  validate(
-    assignment: Assignment,
-    context: SchedulingContext,
-    violationTracker: ViolationTracker
-  ): boolean {
-    // This constraint only applies if this assignment is for the elective
-    // requirement we're tracking
+	validate(
+		assignment: Assignment,
+		context: SchedulingContext,
+		violationTracker: ViolationTracker
+	): boolean {
+		// This constraint only applies if this assignment is for the elective
+		// requirement we're tracking
 
-    // Get student's main health system from their core clerkship assignments
-    const studentAssignments = context.assignmentsByStudent.get(assignment.studentId) || [];
-    const coreAssignments = studentAssignments.filter(
-      a => a.clerkshipId === this.clerkshipId && a.requirementId !== this.requirementId
-    );
+		// Get student's main health system from their core clerkship assignments
+		const studentAssignments = context.assignmentsByStudent.get(assignment.studentId) || [];
+		const coreAssignments = studentAssignments.filter(
+			(a) => a.clerkshipId === this.clerkshipId && a.requirementId !== this.requirementId
+		);
 
-    if (coreAssignments.length === 0) {
-      return true; // No core assignments yet, can't determine main health system
-    }
+		if (coreAssignments.length === 0) {
+			return true; // No core assignments yet, can't determine main health system
+		}
 
-    const corePreceptor = context.preceptors.find(
-      p => p.id === coreAssignments[0].preceptorId
-    );
-    const mainHealthSystem = corePreceptor?.health_system_id;
+		const corePreceptor = context.preceptors.find((p) => p.id === coreAssignments[0].preceptorId);
+		const mainHealthSystem = corePreceptor?.health_system_id;
 
-    // Get proposed elective preceptor's health system
-    const electivePreceptor = context.preceptors.find(
-      p => p.id === assignment.preceptorId
-    );
-    const electiveHealthSystem = electivePreceptor?.health_system_id;
+		// Get proposed elective preceptor's health system
+		const electivePreceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
+		const electiveHealthSystem = electivePreceptor?.health_system_id;
 
-    const isValid = mainHealthSystem === electiveHealthSystem;
+		const isValid = mainHealthSystem === electiveHealthSystem;
 
-    if (!isValid) {
-      violationTracker.recordViolation(
-        this.name,
-        assignment,
-        this.getViolationMessage(assignment, context),
-        {
-          mainHealthSystem,
-          electiveHealthSystem
-        }
-      );
-    }
+		if (!isValid) {
+			violationTracker.recordViolation(
+				this.name,
+				assignment,
+				this.getViolationMessage(assignment, context),
+				{
+					mainHealthSystem,
+					electiveHealthSystem
+				}
+			);
+		}
 
-    return isValid;
-  }
+		return isValid;
+	}
 
-  getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
-    return `Elective must be within student's main clerkship health system`;
-  }
+	getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
+		return `Elective must be within student's main clerkship health system`;
+	}
 }
 ```
 
@@ -541,51 +536,51 @@ export class ElectiveCrossSystemConstraint implements Constraint {
  * Ensures student has completed onboarding for health system before assignment
  */
 export class StudentOnboardingConstraint implements Constraint {
-  name = 'StudentOnboarding';
-  priority = 1; // Check early
-  bypassable = false;
+	name = 'StudentOnboarding';
+	priority = 1; // Check early
+	bypassable = false;
 
-  constructor(private requirementId: string) {}
+	constructor(private requirementId: string) {}
 
-  validate(
-    assignment: Assignment,
-    context: SchedulingContext,
-    violationTracker: ViolationTracker
-  ): boolean {
-    const preceptor = context.preceptors.find(p => p.id === assignment.preceptorId);
-    if (!preceptor) return false;
+	validate(
+		assignment: Assignment,
+		context: SchedulingContext,
+		violationTracker: ViolationTracker
+	): boolean {
+		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
+		if (!preceptor) return false;
 
-    const healthSystemId = preceptor.health_system_id;
+		const healthSystemId = preceptor.health_system_id;
 
-    // Check if student has completed onboarding for this health system
-    // This requires extending SchedulingContext to include onboarding data
-    const studentOnboarding = context.studentOnboarding?.get(assignment.studentId);
-    const isOnboarded = studentOnboarding?.has(healthSystemId);
+		// Check if student has completed onboarding for this health system
+		// This requires extending SchedulingContext to include onboarding data
+		const studentOnboarding = context.studentOnboarding?.get(assignment.studentId);
+		const isOnboarded = studentOnboarding?.has(healthSystemId);
 
-    if (!isOnboarded) {
-      const student = context.students.find(s => s.id === assignment.studentId);
-      const healthSystem = context.healthSystems?.find(h => h.id === healthSystemId);
+		if (!isOnboarded) {
+			const student = context.students.find((s) => s.id === assignment.studentId);
+			const healthSystem = context.healthSystems?.find((h) => h.id === healthSystemId);
 
-      violationTracker.recordViolation(
-        this.name,
-        assignment,
-        this.getViolationMessage(assignment, context),
-        {
-          studentName: student?.name,
-          healthSystemName: healthSystem?.name,
-          healthSystemId
-        }
-      );
-    }
+			violationTracker.recordViolation(
+				this.name,
+				assignment,
+				this.getViolationMessage(assignment, context),
+				{
+					studentName: student?.name,
+					healthSystemName: healthSystem?.name,
+					healthSystemId
+				}
+			);
+		}
 
-    return isOnboarded || false;
-  }
+		return isOnboarded || false;
+	}
 
-  getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
-    const preceptor = context.preceptors.find(p => p.id === assignment.preceptorId);
-    const healthSystem = context.healthSystems?.find(h => h.id === preceptor?.health_system_id);
-    return `Student must complete onboarding for ${healthSystem?.name} before assignment`;
-  }
+	getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
+		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
+		const healthSystem = context.healthSystems?.find((h) => h.id === preceptor?.health_system_id);
+		return `Student must complete onboarding for ${healthSystem?.name} before assignment`;
+	}
 }
 ```
 
@@ -598,52 +593,52 @@ export class StudentOnboardingConstraint implements Constraint {
  * Ensures preceptor is associated with the clerkship/elective they're teaching
  */
 export class PreceptorClerkshipAssociationConstraint implements Constraint {
-  name = 'PreceptorClerkshipAssociation';
-  priority = 1;
-  bypassable = false;
+	name = 'PreceptorClerkshipAssociation';
+	priority = 1;
+	bypassable = false;
 
-  constructor(
-    private clerkshipId: string,
-    private electiveRequirementId: string | null // null if core, ID if elective
-  ) {}
+	constructor(
+		private clerkshipId: string,
+		private electiveRequirementId: string | null // null if core, ID if elective
+	) {}
 
-  validate(
-    assignment: Assignment,
-    context: SchedulingContext,
-    violationTracker: ViolationTracker
-  ): boolean {
-    // Check if preceptor is in the association list
-    // This requires extending SchedulingContext to include associations
-    const associations = this.electiveRequirementId
-      ? context.preceptorElectiveAssociations?.get(this.electiveRequirementId)
-      : context.preceptorClerkshipAssociations?.get(this.clerkshipId);
+	validate(
+		assignment: Assignment,
+		context: SchedulingContext,
+		violationTracker: ViolationTracker
+	): boolean {
+		// Check if preceptor is in the association list
+		// This requires extending SchedulingContext to include associations
+		const associations = this.electiveRequirementId
+			? context.preceptorElectiveAssociations?.get(this.electiveRequirementId)
+			: context.preceptorClerkshipAssociations?.get(this.clerkshipId);
 
-    const isAssociated = associations?.has(assignment.preceptorId) || false;
+		const isAssociated = associations?.has(assignment.preceptorId) || false;
 
-    if (!isAssociated) {
-      const preceptor = context.preceptors.find(p => p.id === assignment.preceptorId);
-      const clerkship = context.clerkships.find(c => c.id === this.clerkshipId);
+		if (!isAssociated) {
+			const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
+			const clerkship = context.clerkships.find((c) => c.id === this.clerkshipId);
 
-      violationTracker.recordViolation(
-        this.name,
-        assignment,
-        this.getViolationMessage(assignment, context),
-        {
-          preceptorName: preceptor?.name,
-          clerkshipName: clerkship?.name,
-          isElective: !!this.electiveRequirementId
-        }
-      );
-    }
+			violationTracker.recordViolation(
+				this.name,
+				assignment,
+				this.getViolationMessage(assignment, context),
+				{
+					preceptorName: preceptor?.name,
+					clerkshipName: clerkship?.name,
+					isElective: !!this.electiveRequirementId
+				}
+			);
+		}
 
-    return isAssociated;
-  }
+		return isAssociated;
+	}
 
-  getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
-    const preceptor = context.preceptors.find(p => p.id === assignment.preceptorId);
-    const clerkship = context.clerkships.find(c => c.id === this.clerkshipId);
-    return `Preceptor ${preceptor?.name} is not authorized to teach ${clerkship?.name}`;
-  }
+	getViolationMessage(assignment: Assignment, context: SchedulingContext): string {
+		const preceptor = context.preceptors.find((p) => p.id === assignment.preceptorId);
+		const clerkship = context.clerkships.find((c) => c.id === this.clerkshipId);
+		return `Preceptor ${preceptor?.name} is not authorized to teach ${clerkship?.name}`;
+	}
 }
 ```
 
@@ -655,30 +650,30 @@ Add new fields to support new constraints:
 
 ```typescript
 export interface SchedulingContext {
-  // ... existing fields ...
+	// ... existing fields ...
 
-  /**
-   * Student onboarding completion by health system
-   * Map: studentId -> Set of health system IDs they've completed onboarding for
-   */
-  studentOnboarding?: Map<string, Set<string>>;
+	/**
+	 * Student onboarding completion by health system
+	 * Map: studentId -> Set of health system IDs they've completed onboarding for
+	 */
+	studentOnboarding?: Map<string, Set<string>>;
 
-  /**
-   * Preceptor-clerkship associations
-   * Map: clerkshipId -> Set of preceptor IDs authorized to teach it
-   */
-  preceptorClerkshipAssociations?: Map<string, Set<string>>;
+	/**
+	 * Preceptor-clerkship associations
+	 * Map: clerkshipId -> Set of preceptor IDs authorized to teach it
+	 */
+	preceptorClerkshipAssociations?: Map<string, Set<string>>;
 
-  /**
-   * Preceptor-elective associations
-   * Map: electiveRequirementId -> Set of preceptor IDs authorized to teach it
-   */
-  preceptorElectiveAssociations?: Map<string, Set<string>>;
+	/**
+	 * Preceptor-elective associations
+	 * Map: electiveRequirementId -> Set of preceptor IDs authorized to teach it
+	 */
+	preceptorElectiveAssociations?: Map<string, Set<string>>;
 
-  /**
-   * Health systems (for onboarding constraint)
-   */
-  healthSystems?: Array<{ id: string; name: string }>;
+	/**
+	 * Health systems (for onboarding constraint)
+	 */
+	healthSystems?: Array<{ id: string; name: string }>;
 }
 ```
 
@@ -696,26 +691,26 @@ import { SchedulingEngine } from './scheduling-engine';
 
 // In scheduling workflow/service
 async function runScheduling(clerkshipIds: string[]) {
-  const factory = new ConstraintFactory(db);
+	const factory = new ConstraintFactory(db);
 
-  // Build constraints from database configuration
-  const constraints = await factory.buildConstraints(clerkshipIds);
+	// Build constraints from database configuration
+	const constraints = await factory.buildConstraints(clerkshipIds);
 
-  // Create engine with dynamically generated constraints
-  const engine = new SchedulingEngine(constraints);
+	// Create engine with dynamically generated constraints
+	const engine = new SchedulingEngine(constraints);
 
-  // Run scheduling (no changes to this part)
-  const result = await engine.generateSchedule(
-    students,
-    preceptors,
-    clerkships,
-    blackoutDates,
-    availabilityRecords,
-    startDate,
-    endDate
-  );
+	// Run scheduling (no changes to this part)
+	const result = await engine.generateSchedule(
+		students,
+		preceptors,
+		clerkships,
+		blackoutDates,
+		availabilityRecords,
+		startDate,
+		endDate
+	);
 
-  return result;
+	return result;
 }
 ```
 
@@ -728,6 +723,7 @@ async function runScheduling(clerkshipIds: string[]) {
 **Step 1: Define the requirement in database**
 
 Admin creates requirement via UI:
+
 - requirement_type: 'block_scheduling'
 - min_block_size: 7 days
 - max_block_size: 14 days
@@ -737,20 +733,20 @@ Admin creates requirement via UI:
 ```typescript
 // src/lib/features/scheduling/constraints/block-scheduling.constraint.ts
 export class BlockSchedulingConstraint implements Constraint {
-  name = 'BlockScheduling';
-  priority = 4;
-  bypassable = false;
+	name = 'BlockScheduling';
+	priority = 4;
+	bypassable = false;
 
-  constructor(
-    private requirementId: string,
-    private minBlockSize: number,
-    private maxBlockSize: number
-  ) {}
+	constructor(
+		private requirementId: string,
+		private minBlockSize: number,
+		private maxBlockSize: number
+	) {}
 
-  validate(assignment, context, tracker): boolean {
-    // Logic to ensure assignments form blocks of min/max size
-    // ...
-  }
+	validate(assignment, context, tracker): boolean {
+		// Logic to ensure assignments form blocks of min/max size
+		// ...
+	}
 }
 ```
 
@@ -759,17 +755,18 @@ export class BlockSchedulingConstraint implements Constraint {
 ```typescript
 // In ConstraintFactory.buildConstraints()
 if (requirement.requirementType === 'block_scheduling') {
-  constraints.push(
-    new BlockSchedulingConstraint(
-      requirement.id,
-      requirement.minBlockSize,
-      requirement.maxBlockSize
-    )
-  );
+	constraints.push(
+		new BlockSchedulingConstraint(
+			requirement.id,
+			requirement.minBlockSize,
+			requirement.maxBlockSize
+		)
+	);
 }
 ```
 
 **That's it!** No changes to:
+
 - ❌ Scheduling algorithm
 - ❌ Database schema (if using JSON config)
 - ❌ Any other constraints
@@ -780,26 +777,31 @@ if (requirement.requirementType === 'block_scheduling') {
 ## Benefits of This Design
 
 ### 1. **Extensibility**
+
 - Add new requirement types without touching core algorithm
 - School-specific requirements = new constraint classes
 - No risk of breaking existing functionality
 
 ### 2. **Configuration-Driven**
+
 - All configuration lives in database
 - Changes to requirements don't require code deployments
 - Different schools can have different requirements
 
 ### 3. **Maintainability**
+
 - Each constraint is isolated in its own file
 - Clear separation of concerns
 - Easy to test constraints independently
 
 ### 4. **Flexibility**
+
 - Can enable/disable constraints per school
 - Can adjust constraint parameters via admin UI
 - Can bypass certain constraints if needed
 
 ### 5. **Transparency**
+
 - Violation tracking shows which constraints blocked assignments
 - Easy to debug scheduling failures
 - Clear audit trail of why assignments were/weren't made
@@ -809,6 +811,7 @@ if (requirement.requirementType === 'block_scheduling') {
 ## Migration Path
 
 ### Phase 1: Infrastructure (This PR)
+
 1. ✅ Create database migrations for new requirement structure
 2. ✅ Update clerkship schemas and services
 3. ⬜ Implement ConstraintFactory class
@@ -816,6 +819,7 @@ if (requirement.requirementType === 'block_scheduling') {
 5. ⬜ Update context builder to load new data
 
 ### Phase 2: Core Constraints (Next PR)
+
 1. ⬜ Implement HealthSystemContinuityConstraint
 2. ⬜ Implement ElectiveCrossSystemConstraint
 3. ⬜ Implement StudentOnboardingConstraint
@@ -823,12 +827,14 @@ if (requirement.requirementType === 'block_scheduling') {
 5. ⬜ Refactor existing CapacityConstraint to be parametrized
 
 ### Phase 3: Integration (Following PR)
+
 1. ⬜ Wire up factory in scheduling workflow
 2. ⬜ Update scheduling UI to use factory
 3. ⬜ Add admin UI for managing requirement configurations
 4. ⬜ Write integration tests
 
 ### Phase 4: Advanced Features (Future)
+
 1. ⬜ Constraint dependency graph (some constraints depend on others)
 2. ⬜ Dynamic constraint priority based on context
 3. ⬜ Machine learning to optimize constraint parameters
@@ -839,17 +845,20 @@ if (requirement.requirementType === 'block_scheduling') {
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test each constraint class independently
 - Mock SchedulingContext
 - Verify violation messages
 - Test priority ordering
 
 ### Integration Tests
+
 - Test ConstraintFactory.buildConstraints()
 - Verify constraints are instantiated correctly
 - Test configuration resolution (inherit vs override)
 
 ### End-to-End Tests
+
 - Create sample requirements in test database
 - Run factory → generate constraints
 - Run scheduling with generated constraints

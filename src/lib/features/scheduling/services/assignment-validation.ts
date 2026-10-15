@@ -450,7 +450,9 @@ export async function validateAssignmentCandidate(
 			.execute();
 		const excludedWith = new Set<string>();
 		for (const e of exclusions) {
-			excludedWith.add(e.preceptor_a_id === candidate.preceptor_id ? e.preceptor_b_id : e.preceptor_a_id);
+			excludedWith.add(
+				e.preceptor_a_id === candidate.preceptor_id ? e.preceptor_b_id : e.preceptor_a_id
+			);
 		}
 		const clashPreceptor = sameDayPreceptorIds.find((p) => excludedWith.has(p));
 		if (clashPreceptor) {

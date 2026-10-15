@@ -6,11 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-	createBlackoutDateSchema,
-	blackoutDateIdSchema,
-	dateRangeSchema
-} from './schemas';
+import { createBlackoutDateSchema, blackoutDateIdSchema, dateRangeSchema } from './schemas';
 
 describe('createBlackoutDateSchema', () => {
 	it('validates valid date', () => {
@@ -106,10 +102,7 @@ describe('createBlackoutDateSchema', () => {
 	});
 
 	it('accepts year boundaries', () => {
-		const validInputs = [
-			{ date: '2024-01-01' },
-			{ date: '2024-12-31' }
-		];
+		const validInputs = [{ date: '2024-01-01' }, { date: '2024-12-31' }];
 
 		for (const input of validInputs) {
 			const result = createBlackoutDateSchema.safeParse(input);
@@ -120,7 +113,7 @@ describe('createBlackoutDateSchema', () => {
 	it('accepts reason with special characters', () => {
 		const validInput = {
 			date: '2024-01-15',
-			reason: 'Holiday: New Year\'s Day & Celebration!'
+			reason: "Holiday: New Year's Day & Celebration!"
 		};
 
 		const result = createBlackoutDateSchema.safeParse(validInput);

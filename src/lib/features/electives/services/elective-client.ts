@@ -29,12 +29,8 @@ export interface ElectiveDaysSummary {
 /**
  * Fetch electives for a clerkship
  */
-export async function fetchElectivesByClerkship(
-	clerkshipId: string
-): Promise<ClerkshipElective[]> {
-	const response = await fetch(
-		`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`
-	);
+export async function fetchElectivesByClerkship(clerkshipId: string): Promise<ClerkshipElective[]> {
+	const response = await fetch(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`);
 
 	if (!response.ok) {
 		const error = await response.json();
@@ -48,9 +44,7 @@ export async function fetchElectivesByClerkship(
 /**
  * Fetch elective days summary for a clerkship
  */
-export async function fetchElectiveDaysSummary(
-	clerkshipId: string
-): Promise<ElectiveDaysSummary> {
+export async function fetchElectiveDaysSummary(clerkshipId: string): Promise<ElectiveDaysSummary> {
 	const response = await fetch(
 		`/api/scheduling-config/electives/summary?clerkshipId=${clerkshipId}`
 	);
@@ -67,12 +61,8 @@ export async function fetchElectiveDaysSummary(
 /**
  * Fetch single elective with details
  */
-export async function fetchElectiveWithDetails(
-	electiveId: string
-): Promise<ElectiveWithDetails> {
-	const response = await fetch(
-		`/api/scheduling-config/electives/${electiveId}?details=true`
-	);
+export async function fetchElectiveWithDetails(electiveId: string): Promise<ElectiveWithDetails> {
+	const response = await fetch(`/api/scheduling-config/electives/${electiveId}?details=true`);
 
 	if (!response.ok) {
 		const error = await response.json();
@@ -90,14 +80,11 @@ export async function createElective(
 	clerkshipId: string,
 	data: ElectiveFormData
 ): Promise<ClerkshipElective> {
-	const response = await fetch(
-		`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`,
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(data)
-		}
-	);
+	const response = await fetch(`/api/scheduling-config/electives?clerkshipId=${clerkshipId}`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data)
+	});
 
 	if (!response.ok) {
 		const error = await response.json();
@@ -147,18 +134,12 @@ export async function deleteElective(electiveId: string): Promise<void> {
 /**
  * Add site to elective
  */
-export async function addSiteToElective(
-	electiveId: string,
-	siteId: string
-): Promise<void> {
-	const response = await fetch(
-		`/api/scheduling-config/electives/${electiveId}/sites`,
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ siteId })
-		}
-	);
+export async function addSiteToElective(electiveId: string, siteId: string): Promise<void> {
+	const response = await fetch(`/api/scheduling-config/electives/${electiveId}/sites`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ siteId })
+	});
 
 	if (!response.ok) {
 		const error = await response.json();
@@ -169,10 +150,7 @@ export async function addSiteToElective(
 /**
  * Remove site from elective
  */
-export async function removeSiteFromElective(
-	electiveId: string,
-	siteId: string
-): Promise<void> {
+export async function removeSiteFromElective(electiveId: string, siteId: string): Promise<void> {
 	const response = await fetch(
 		`/api/scheduling-config/electives/${electiveId}/sites?siteId=${siteId}`,
 		{
@@ -193,14 +171,11 @@ export async function addPreceptorToElective(
 	electiveId: string,
 	preceptorId: string
 ): Promise<void> {
-	const response = await fetch(
-		`/api/scheduling-config/electives/${electiveId}/preceptors`,
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ preceptorId })
-		}
-	);
+	const response = await fetch(`/api/scheduling-config/electives/${electiveId}/preceptors`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ preceptorId })
+	});
 
 	if (!response.ok) {
 		const error = await response.json();

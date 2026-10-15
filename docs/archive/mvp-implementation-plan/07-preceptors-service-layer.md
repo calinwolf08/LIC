@@ -1,9 +1,11 @@
 # Step 07: Preceptors - Service Layer
 
 ## Overview
+
 Implement the service layer for preceptor management, including CRUD operations, validation, and business logic. Preceptors are clinical supervisors who teach students in specific medical specialties.
 
 ## Dependencies
+
 - ✅ Step 01: Kysely Database Setup
 - ✅ Step 02: Database Schema & Migrations
 - ✅ Step 03: Shared Utilities & Test Helpers
@@ -11,7 +13,9 @@ Implement the service layer for preceptor management, including CRUD operations,
 ## Requirements
 
 ### Database Operations
+
 Implement CRUD operations for preceptors:
+
 - Get all preceptors
 - Get single preceptor by ID
 - Create new preceptor
@@ -20,6 +24,7 @@ Implement CRUD operations for preceptors:
 - Filter preceptors by specialty
 
 ### Business Rules
+
 - Email must be unique across all preceptors
 - Specialty is required and cannot be empty
 - max_students defaults to 1 (MVP constraint)
@@ -27,6 +32,7 @@ Implement CRUD operations for preceptors:
 - Preceptor name and email are required
 
 ### Validation
+
 - Zod schemas for create and update operations
 - Email format validation
 - Name and specialty validation
@@ -35,6 +41,7 @@ Implement CRUD operations for preceptors:
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/lib/features/preceptors/
 ├── services/
@@ -52,30 +59,38 @@ Implement CRUD operations for preceptors:
 Zod validation schemas for preceptor operations.
 
 **Exports:**
+
 ```typescript
 import { z } from 'zod';
-import { emailSchema, nameSchema, uuidSchema, positiveIntSchema } from '$lib/validation/common-schemas';
+import {
+	emailSchema,
+	nameSchema,
+	uuidSchema,
+	positiveIntSchema
+} from '$lib/validation/common-schemas';
 
 export const specialtySchema = z.string().min(1, 'Specialty is required');
 
 export const createPreceptorSchema = z.object({
-  name: nameSchema,
-  email: emailSchema,
-  specialty: specialtySchema,
-  max_students: positiveIntSchema.default(1),
+	name: nameSchema,
+	email: emailSchema,
+	specialty: specialtySchema,
+	max_students: positiveIntSchema.default(1)
 });
 
-export const updatePreceptorSchema = z.object({
-  name: nameSchema.optional(),
-  email: emailSchema.optional(),
-  specialty: specialtySchema.optional(),
-  max_students: positiveIntSchema.optional(),
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided for update',
-});
+export const updatePreceptorSchema = z
+	.object({
+		name: nameSchema.optional(),
+		email: emailSchema.optional(),
+		specialty: specialtySchema.optional(),
+		max_students: positiveIntSchema.optional()
+	})
+	.refine((data) => Object.keys(data).length > 0, {
+		message: 'At least one field must be provided for update'
+	});
 
 export const preceptorIdSchema = z.object({
-  id: uuidSchema,
+	id: uuidSchema
 });
 
 export type CreatePreceptorInput = z.infer<typeof createPreceptorSchema>;
@@ -83,6 +98,7 @@ export type UpdatePreceptorInput = z.infer<typeof updatePreceptorSchema>;
 ```
 
 **Requirements:**
+
 - Use common schemas from shared validation utilities
 - Export both schemas and TypeScript types
 - Default max_students to 1
@@ -96,62 +112,55 @@ export type UpdatePreceptorInput = z.infer<typeof updatePreceptorSchema>;
 Service functions for preceptor database operations.
 
 **Exports:**
+
 ```typescript
 import type { Kysely } from 'kysely';
 import type { Database, PreceptorsTable } from '$lib/db/types';
 import type { CreatePreceptorInput, UpdatePreceptorInput } from '../schemas';
 
-export async function getPreceptors(db: Kysely<Database>): Promise<PreceptorsTable[]>
+export async function getPreceptors(db: Kysely<Database>): Promise<PreceptorsTable[]>;
 
 export async function getPreceptorById(
-  db: Kysely<Database>,
-  id: string
-): Promise<PreceptorsTable | null>
+	db: Kysely<Database>,
+	id: string
+): Promise<PreceptorsTable | null>;
 
 export async function getPreceptorsBySpecialty(
-  db: Kysely<Database>,
-  specialty: string
-): Promise<PreceptorsTable[]>
+	db: Kysely<Database>,
+	specialty: string
+): Promise<PreceptorsTable[]>;
 
 export async function getPreceptorByEmail(
-  db: Kysely<Database>,
-  email: string
-): Promise<PreceptorsTable | null>
+	db: Kysely<Database>,
+	email: string
+): Promise<PreceptorsTable | null>;
 
 export async function createPreceptor(
-  db: Kysely<Database>,
-  data: CreatePreceptorInput
-): Promise<PreceptorsTable>
+	db: Kysely<Database>,
+	data: CreatePreceptorInput
+): Promise<PreceptorsTable>;
 
 export async function updatePreceptor(
-  db: Kysely<Database>,
-  id: string,
-  data: UpdatePreceptorInput
-): Promise<PreceptorsTable>
+	db: Kysely<Database>,
+	id: string,
+	data: UpdatePreceptorInput
+): Promise<PreceptorsTable>;
 
-export async function deletePreceptor(
-  db: Kysely<Database>,
-  id: string
-): Promise<void>
+export async function deletePreceptor(db: Kysely<Database>, id: string): Promise<void>;
 
-export async function canDeletePreceptor(
-  db: Kysely<Database>,
-  id: string
-): Promise<boolean>
+export async function canDeletePreceptor(db: Kysely<Database>, id: string): Promise<boolean>;
 
-export async function preceptorExists(
-  db: Kysely<Database>,
-  id: string
-): Promise<boolean>
+export async function preceptorExists(db: Kysely<Database>, id: string): Promise<boolean>;
 
 export async function isEmailTaken(
-  db: Kysely<Database>,
-  email: string,
-  excludeId?: string
-): Promise<boolean>
+	db: Kysely<Database>,
+	email: string,
+	excludeId?: string
+): Promise<boolean>;
 ```
 
 **Requirements:**
+
 - All functions accept database instance as first parameter
 - Use Kysely type-safe queries
 - Throw appropriate errors (NotFoundError, ConflictError)
@@ -168,6 +177,7 @@ export async function isEmailTaken(
 Retrieve all preceptors from database.
 
 **Logic:**
+
 - Query all preceptors from preceptors table
 - Order by name alphabetically
 - Return array of preceptors (empty array if none)
@@ -177,6 +187,7 @@ Retrieve all preceptors from database.
 **Errors:** None (returns empty array if no preceptors)
 
 **Example:**
+
 ```typescript
 const preceptors = await getPreceptors(db);
 // [{ id: '...', name: 'Dr. Smith', email: 'smith@example.com', specialty: 'Internal Medicine', max_students: 1, ... }]
@@ -189,10 +200,12 @@ const preceptors = await getPreceptors(db);
 Retrieve single preceptor by ID.
 
 **Logic:**
+
 - Query preceptor by ID
 - Return preceptor if found, null if not found
 
 **Parameters:**
+
 - `id`: Preceptor UUID
 
 **Returns:** Preceptor object or null
@@ -200,10 +213,11 @@ Retrieve single preceptor by ID.
 **Errors:** None (returns null if not found)
 
 **Example:**
+
 ```typescript
 const preceptor = await getPreceptorById(db, '123-456-789');
 if (!preceptor) {
-  throw new NotFoundError('Preceptor');
+	throw new NotFoundError('Preceptor');
 }
 ```
 
@@ -214,12 +228,14 @@ if (!preceptor) {
 Retrieve all preceptors with a specific medical specialty.
 
 **Logic:**
+
 - Query preceptors by specialty
 - Case-sensitive match
 - Order by name alphabetically
 - Return array of matching preceptors
 
 **Parameters:**
+
 - `specialty`: Medical specialty (e.g., "Internal Medicine")
 
 **Returns:** Array of preceptors with matching specialty
@@ -227,6 +243,7 @@ Retrieve all preceptors with a specific medical specialty.
 **Errors:** None (returns empty array if no matches)
 
 **Example:**
+
 ```typescript
 const preceptors = await getPreceptorsBySpecialty(db, 'Internal Medicine');
 ```
@@ -238,10 +255,12 @@ const preceptors = await getPreceptorsBySpecialty(db, 'Internal Medicine');
 Retrieve preceptor by email address.
 
 **Logic:**
+
 - Query preceptor by email (case-insensitive)
 - Return preceptor if found, null if not found
 
 **Parameters:**
+
 - `email`: Preceptor email address
 
 **Returns:** Preceptor object or null
@@ -249,6 +268,7 @@ Retrieve preceptor by email address.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const preceptor = await getPreceptorByEmail(db, 'smith@example.com');
 ```
@@ -260,6 +280,7 @@ const preceptor = await getPreceptorByEmail(db, 'smith@example.com');
 Create new preceptor.
 
 **Logic:**
+
 1. Check if email is already taken
 2. Throw ConflictError if email exists
 3. Generate UUID for new preceptor
@@ -269,20 +290,23 @@ Create new preceptor.
 7. Return created preceptor
 
 **Parameters:**
+
 - `data`: Object with name, email, specialty, and optional max_students
 
 **Returns:** Created preceptor object
 
 **Errors:**
+
 - `ConflictError`: Email already exists
 
 **Example:**
+
 ```typescript
 const preceptor = await createPreceptor(db, {
-  name: 'Dr. John Smith',
-  email: 'smith@example.com',
-  specialty: 'Internal Medicine',
-  max_students: 1,
+	name: 'Dr. John Smith',
+	email: 'smith@example.com',
+	specialty: 'Internal Medicine',
+	max_students: 1
 });
 ```
 
@@ -293,6 +317,7 @@ const preceptor = await createPreceptor(db, {
 Update existing preceptor.
 
 **Logic:**
+
 1. Check if preceptor exists
 2. Throw NotFoundError if not found
 3. If email is being updated, check if new email is taken
@@ -302,19 +327,22 @@ Update existing preceptor.
 7. Return updated preceptor
 
 **Parameters:**
+
 - `id`: Preceptor UUID
 - `data`: Object with optional name, email, specialty, and/or max_students
 
 **Returns:** Updated preceptor object
 
 **Errors:**
+
 - `NotFoundError`: Preceptor not found
 - `ConflictError`: Email already exists
 
 **Example:**
+
 ```typescript
 const updated = await updatePreceptor(db, '123-456-789', {
-  specialty: 'Cardiology',
+	specialty: 'Cardiology'
 });
 ```
 
@@ -325,6 +353,7 @@ const updated = await updatePreceptor(db, '123-456-789', {
 Delete preceptor.
 
 **Logic:**
+
 1. Check if preceptor exists
 2. Throw NotFoundError if not found
 3. Check if preceptor can be deleted (no assignments)
@@ -333,15 +362,18 @@ Delete preceptor.
 6. Note: Cascading delete will remove preceptor_availability records
 
 **Parameters:**
+
 - `id`: Preceptor UUID
 
 **Returns:** void
 
 **Errors:**
+
 - `NotFoundError`: Preceptor not found
 - `ConflictError`: Preceptor has schedule assignments
 
 **Example:**
+
 ```typescript
 await deletePreceptor(db, '123-456-789');
 ```
@@ -353,11 +385,13 @@ await deletePreceptor(db, '123-456-789');
 Check if preceptor can be deleted (has no assignments).
 
 **Logic:**
+
 - Query schedule_assignments table for preceptor_id
 - Return false if any assignments exist
 - Return true if no assignments
 
 **Parameters:**
+
 - `id`: Preceptor UUID
 
 **Returns:** Boolean indicating if deletion is allowed
@@ -365,10 +399,11 @@ Check if preceptor can be deleted (has no assignments).
 **Errors:** None
 
 **Example:**
+
 ```typescript
 const canDelete = await canDeletePreceptor(db, '123-456-789');
 if (!canDelete) {
-  throw new ConflictError('Cannot delete preceptor with existing schedule assignments');
+	throw new ConflictError('Cannot delete preceptor with existing schedule assignments');
 }
 ```
 
@@ -379,10 +414,12 @@ if (!canDelete) {
 Check if preceptor exists.
 
 **Logic:**
+
 - Query preceptor by ID
 - Return true if found, false if not
 
 **Parameters:**
+
 - `id`: Preceptor UUID
 
 **Returns:** Boolean
@@ -390,9 +427,10 @@ Check if preceptor exists.
 **Errors:** None
 
 **Example:**
+
 ```typescript
-if (!await preceptorExists(db, '123-456-789')) {
-  throw new NotFoundError('Preceptor');
+if (!(await preceptorExists(db, '123-456-789'))) {
+	throw new NotFoundError('Preceptor');
 }
 ```
 
@@ -403,11 +441,13 @@ if (!await preceptorExists(db, '123-456-789')) {
 Check if email is already in use by another preceptor.
 
 **Logic:**
+
 - Query preceptors by email (case-insensitive)
 - If excludeId provided, exclude that preceptor from check (for updates)
 - Return true if email exists, false if not
 
 **Parameters:**
+
 - `email`: Email to check
 - `excludeId`: Optional preceptor ID to exclude from check
 
@@ -416,6 +456,7 @@ Check if email is already in use by another preceptor.
 **Errors:** None
 
 **Example:**
+
 ```typescript
 // Check if email is available
 const taken = await isEmailTaken(db, 'test@example.com');
@@ -433,6 +474,7 @@ const takenByOther = await isEmailTaken(db, 'test@example.com', currentPreceptor
 #### `/src/lib/features/preceptors/schemas.test.ts`
 
 **Schema Validation Tests:**
+
 - ✅ createPreceptorSchema validates valid input
 - ✅ createPreceptorSchema requires name
 - ✅ createPreceptorSchema requires email
@@ -452,27 +494,32 @@ const takenByOther = await isEmailTaken(db, 'test@example.com', currentPreceptor
 **Service Function Tests:**
 
 **getPreceptors():**
+
 - ✅ Returns all preceptors
 - ✅ Returns empty array when no preceptors
 - ✅ Returns preceptors ordered by name
 
 **getPreceptorById():**
+
 - ✅ Returns preceptor when found
 - ✅ Returns null when not found
 - ✅ Returns correct preceptor data
 
 **getPreceptorsBySpecialty():**
+
 - ✅ Returns preceptors matching specialty
 - ✅ Returns empty array when no matches
 - ✅ Case-sensitive specialty matching
 - ✅ Returns preceptors ordered by name
 
 **getPreceptorByEmail():**
+
 - ✅ Returns preceptor when found
 - ✅ Returns null when not found
 - ✅ Case-insensitive email matching
 
 **createPreceptor():**
+
 - ✅ Creates preceptor with valid data
 - ✅ Generates UUID for new preceptor
 - ✅ Sets created_at and updated_at timestamps
@@ -481,6 +528,7 @@ const takenByOther = await isEmailTaken(db, 'test@example.com', currentPreceptor
 - ✅ Returns created preceptor with all fields
 
 **updatePreceptor():**
+
 - ✅ Updates preceptor name
 - ✅ Updates preceptor email
 - ✅ Updates preceptor specialty
@@ -493,6 +541,7 @@ const takenByOther = await isEmailTaken(db, 'test@example.com', currentPreceptor
 - ✅ Returns updated preceptor
 
 **deletePreceptor():**
+
 - ✅ Deletes preceptor successfully
 - ✅ Throws NotFoundError if preceptor not found
 - ✅ Throws ConflictError if preceptor has assignments
@@ -500,14 +549,17 @@ const takenByOther = await isEmailTaken(db, 'test@example.com', currentPreceptor
 - ✅ Cascades delete to preceptor_availability
 
 **canDeletePreceptor():**
+
 - ✅ Returns true when preceptor has no assignments
 - ✅ Returns false when preceptor has assignments
 
 **preceptorExists():**
+
 - ✅ Returns true when preceptor exists
 - ✅ Returns false when preceptor doesn't exist
 
 **isEmailTaken():**
+
 - ✅ Returns true when email exists
 - ✅ Returns false when email doesn't exist
 - ✅ Case-insensitive email check
@@ -563,7 +615,11 @@ After completion, API routes will use the service like this:
 
 ```typescript
 import { db } from '$lib/db';
-import { getPreceptors, createPreceptor, getPreceptorsBySpecialty } from '$lib/features/preceptors/services/preceptor-service';
+import {
+	getPreceptors,
+	createPreceptor,
+	getPreceptorsBySpecialty
+} from '$lib/features/preceptors/services/preceptor-service';
 import { createPreceptorSchema } from '$lib/features/preceptors/schemas';
 
 // Get all preceptors
@@ -574,9 +630,9 @@ const internists = await getPreceptorsBySpecialty(db, 'Internal Medicine');
 
 // Create preceptor
 const input = createPreceptorSchema.parse({
-  name: 'Dr. Smith',
-  email: 'smith@example.com',
-  specialty: 'Internal Medicine',
+	name: 'Dr. Smith',
+	email: 'smith@example.com',
+	specialty: 'Internal Medicine'
 });
 const newPreceptor = await createPreceptor(db, input);
 ```

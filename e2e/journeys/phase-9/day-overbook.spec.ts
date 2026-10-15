@@ -113,9 +113,9 @@ test.describe('CF-L1 half-day sessions and session-clash visibility', { tag: ['@
 		await dialog.submitAndExpectCreated();
 
 		// d1 holds a morning + an afternoon: no session clash for the student.
-		const afterHalves = await api.get<{ byStudent: Record<string, Array<{ date: string; code: string }>> }>(
-			'/api/schedules/validation'
-		);
+		const afterHalves = await api.get<{
+			byStudent: Record<string, Array<{ date: string; code: string }>>;
+		}>('/api/schedules/validation');
 		const d1Conflicts = (afterHalves.data?.byStudent?.[sid!] ?? []).filter(
 			(v) => v.date === d1 && v.code === 'session_clash'
 		);

@@ -1,151 +1,151 @@
 import { describe, it, expect } from 'vitest';
 import {
-  healthSystemInputSchema,
-  siteInputSchema,
-  siteValidationSchema,
+	healthSystemInputSchema,
+	siteInputSchema,
+	siteValidationSchema
 } from './health-systems.schemas';
 
 describe('Health Systems Schemas', () => {
-  describe('healthSystemInputSchema', () => {
-    it('should validate health system with all fields', () => {
-      const validHealthSystem = {
-        name: 'Memorial Health System',
-        location: 'Downtown',
-        description: 'Large urban teaching hospital system',
-      };
+	describe('healthSystemInputSchema', () => {
+		it('should validate health system with all fields', () => {
+			const validHealthSystem = {
+				name: 'Memorial Health System',
+				location: 'Downtown',
+				description: 'Large urban teaching hospital system'
+			};
 
-      const result = healthSystemInputSchema.safeParse(validHealthSystem);
-      expect(result.success).toBe(true);
-    });
+			const result = healthSystemInputSchema.safeParse(validHealthSystem);
+			expect(result.success).toBe(true);
+		});
 
-    it('should validate with only required fields', () => {
-      const minimalHealthSystem = {
-        name: 'Memorial Health System',
-      };
+		it('should validate with only required fields', () => {
+			const minimalHealthSystem = {
+				name: 'Memorial Health System'
+			};
 
-      const result = healthSystemInputSchema.safeParse(minimalHealthSystem);
-      expect(result.success).toBe(true);
-    });
+			const result = healthSystemInputSchema.safeParse(minimalHealthSystem);
+			expect(result.success).toBe(true);
+		});
 
-    it('should reject empty name', () => {
-      const invalidHealthSystem = {
-        name: '',
-        location: 'Downtown',
-      };
+		it('should reject empty name', () => {
+			const invalidHealthSystem = {
+				name: '',
+				location: 'Downtown'
+			};
 
-      const result = healthSystemInputSchema.safeParse(invalidHealthSystem);
-      expect(result.success).toBe(false);
-    });
+			const result = healthSystemInputSchema.safeParse(invalidHealthSystem);
+			expect(result.success).toBe(false);
+		});
 
-    it('should reject missing name', () => {
-      const invalidHealthSystem = {
-        location: 'Downtown',
-        description: 'Test',
-      };
+		it('should reject missing name', () => {
+			const invalidHealthSystem = {
+				location: 'Downtown',
+				description: 'Test'
+			};
 
-      const result = healthSystemInputSchema.safeParse(invalidHealthSystem);
-      expect(result.success).toBe(false);
-    });
+			const result = healthSystemInputSchema.safeParse(invalidHealthSystem);
+			expect(result.success).toBe(false);
+		});
 
-    it('should allow optional location and description', () => {
-      const healthSystemWithLocation = {
-        name: 'Memorial Health System',
-        location: 'Downtown',
-      };
+		it('should allow optional location and description', () => {
+			const healthSystemWithLocation = {
+				name: 'Memorial Health System',
+				location: 'Downtown'
+			};
 
-      const result1 = healthSystemInputSchema.safeParse(healthSystemWithLocation);
-      expect(result1.success).toBe(true);
+			const result1 = healthSystemInputSchema.safeParse(healthSystemWithLocation);
+			expect(result1.success).toBe(true);
 
-      const healthSystemWithDescription = {
-        name: 'Memorial Health System',
-        description: 'Test description',
-      };
+			const healthSystemWithDescription = {
+				name: 'Memorial Health System',
+				description: 'Test description'
+			};
 
-      const result2 = healthSystemInputSchema.safeParse(healthSystemWithDescription);
-      expect(result2.success).toBe(true);
-    });
-  });
+			const result2 = healthSystemInputSchema.safeParse(healthSystemWithDescription);
+			expect(result2.success).toBe(true);
+		});
+	});
 
-  describe('siteInputSchema', () => {
-    it('should validate site with all fields', () => {
-      const validSite = {
-        name: 'Memorial Main Hospital',
-        address: '123 Health St, Downtown',
-      };
+	describe('siteInputSchema', () => {
+		it('should validate site with all fields', () => {
+			const validSite = {
+				name: 'Memorial Main Hospital',
+				address: '123 Health St, Downtown'
+			};
 
-      const result = siteInputSchema.safeParse(validSite);
-      expect(result.success).toBe(true);
-    });
+			const result = siteInputSchema.safeParse(validSite);
+			expect(result.success).toBe(true);
+		});
 
-    it('should validate with only required fields', () => {
-      const minimalSite = {
-        name: 'Memorial Main Hospital',
-      };
+		it('should validate with only required fields', () => {
+			const minimalSite = {
+				name: 'Memorial Main Hospital'
+			};
 
-      const result = siteInputSchema.safeParse(minimalSite);
-      expect(result.success).toBe(true);
-    });
+			const result = siteInputSchema.safeParse(minimalSite);
+			expect(result.success).toBe(true);
+		});
 
-    it('should reject empty name', () => {
-      const invalidSite = {
-        name: '',
-      };
+		it('should reject empty name', () => {
+			const invalidSite = {
+				name: ''
+			};
 
-      const result = siteInputSchema.safeParse(invalidSite);
-      expect(result.success).toBe(false);
-    });
+			const result = siteInputSchema.safeParse(invalidSite);
+			expect(result.success).toBe(false);
+		});
 
-    it('should reject missing required fields', () => {
-      const invalidSites = [
-        {}, // Missing name
-      ];
+		it('should reject missing required fields', () => {
+			const invalidSites = [
+				{} // Missing name
+			];
 
-      invalidSites.forEach(site => {
-        const result = siteInputSchema.safeParse(site);
-        expect(result.success).toBe(false);
-      });
-    });
+			invalidSites.forEach((site) => {
+				const result = siteInputSchema.safeParse(site);
+				expect(result.success).toBe(false);
+			});
+		});
 
-    it('should allow optional address', () => {
-      const siteWithAddress = {
-        name: 'Memorial Main Hospital',
-        address: '123 Health St',
-      };
+		it('should allow optional address', () => {
+			const siteWithAddress = {
+				name: 'Memorial Main Hospital',
+				address: '123 Health St'
+			};
 
-      const result = siteInputSchema.safeParse(siteWithAddress);
-      expect(result.success).toBe(true);
-    });
-  });
+			const result = siteInputSchema.safeParse(siteWithAddress);
+			expect(result.success).toBe(true);
+		});
+	});
 
-  describe('siteValidationSchema', () => {
-    it('should validate site with health system ID', () => {
-      const validSite = {
-        healthSystemId: 'hs-1',
-        name: 'Memorial Main Hospital',
-        address: '123 Health St',
-      };
+	describe('siteValidationSchema', () => {
+		it('should validate site with health system ID', () => {
+			const validSite = {
+				healthSystemId: 'hs-1',
+				name: 'Memorial Main Hospital',
+				address: '123 Health St'
+			};
 
-      const result = siteValidationSchema.safeParse(validSite);
-      expect(result.success).toBe(true);
-    });
+			const result = siteValidationSchema.safeParse(validSite);
+			expect(result.success).toBe(true);
+		});
 
-    it('should reject empty health system ID', () => {
-      const invalidSite = {
-        healthSystemId: '',
-        name: 'Memorial Main Hospital',
-      };
+		it('should reject empty health system ID', () => {
+			const invalidSite = {
+				healthSystemId: '',
+				name: 'Memorial Main Hospital'
+			};
 
-      const result = siteValidationSchema.safeParse(invalidSite);
-      expect(result.success).toBe(false);
-    });
+			const result = siteValidationSchema.safeParse(invalidSite);
+			expect(result.success).toBe(false);
+		});
 
-    it('should reject missing health system ID', () => {
-      const invalidSite = {
-        name: 'Memorial Main Hospital',
-      };
+		it('should reject missing health system ID', () => {
+			const invalidSite = {
+				name: 'Memorial Main Hospital'
+			};
 
-      const result = siteValidationSchema.safeParse(invalidSite);
-      expect(result.success).toBe(false);
-    });
-  });
+			const result = siteValidationSchema.safeParse(invalidSite);
+			expect(result.success).toBe(false);
+		});
+	});
 });

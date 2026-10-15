@@ -27,7 +27,9 @@ describe('FallbackGapFiller', () => {
 	let studentId: string;
 
 	// Helper to create config
-	const createConfig = (overrides: Partial<ResolvedRequirementConfiguration> = {}): ResolvedRequirementConfiguration => ({
+	const createConfig = (
+		overrides: Partial<ResolvedRequirementConfiguration> = {}
+	): ResolvedRequirementConfiguration => ({
 		clerkshipId,
 		requirementType: 'outpatient',
 		requiredDays: 5,
@@ -40,7 +42,7 @@ describe('FallbackGapFiller', () => {
 		fallbackRequiresApproval: false,
 		fallbackAllowCrossSystem: false,
 		source: 'global_defaults',
-		...overrides,
+		...overrides
 	});
 
 	beforeEach(async () => {
@@ -54,69 +56,116 @@ describe('FallbackGapFiller', () => {
 		studentId = nanoid();
 
 		// Create health system and site
-		await db.insertInto('health_systems').values({
-			id: healthSystemId,
-			name: 'Test Hospital',
-		}).execute();
+		await db
+			.insertInto('health_systems')
+			.values({
+				id: healthSystemId,
+				name: 'Test Hospital'
+			})
+			.execute();
 
-		await db.insertInto('sites').values({
-			id: siteId,
-			name: 'Test Site',
-			health_system_id: healthSystemId,
-		}).execute();
+		await db
+			.insertInto('sites')
+			.values({
+				id: siteId,
+				name: 'Test Site',
+				health_system_id: healthSystemId
+			})
+			.execute();
 
 		// Create clerkship
-		await db.insertInto('clerkships').values({
-			id: clerkshipId,
-			name: 'Test Clerkship',
-			clerkship_type: 'outpatient',
-			required_days: 5,
-		}).execute();
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: clerkshipId,
+				name: 'Test Clerkship',
+				clerkship_type: 'outpatient',
+				required_days: 5
+			})
+			.execute();
 
 		// Create student
-		await db.insertInto('students').values({
-			id: studentId,
-			name: 'Test Student',
-			email: 'student@test.edu',
-		}).execute();
+		await db
+			.insertInto('students')
+			.values({
+				id: studentId,
+				name: 'Test Student',
+				email: 'student@test.edu'
+			})
+			.execute();
 
 		// Create preceptors
 		preceptor1Id = nanoid();
 		preceptor2Id = nanoid();
 
-		await db.insertInto('preceptors').values([
-			{ id: preceptor1Id, name: 'Dr. One', email: 'one@test.edu', health_system_id: healthSystemId },
-			{ id: preceptor2Id, name: 'Dr. Two', email: 'two@test.edu', health_system_id: healthSystemId },
-		]).execute();
+		await db
+			.insertInto('preceptors')
+			.values([
+				{
+					id: preceptor1Id,
+					name: 'Dr. One',
+					email: 'one@test.edu',
+					health_system_id: healthSystemId
+				},
+				{
+					id: preceptor2Id,
+					name: 'Dr. Two',
+					email: 'two@test.edu',
+					health_system_id: healthSystemId
+				}
+			])
+			.execute();
 
 		// Create team
 		teamId = nanoid();
-		await db.insertInto('preceptor_teams').values({
-			id: teamId,
-			clerkship_id: clerkshipId,
-			name: 'Test Team',
-		}).execute();
+		await db
+			.insertInto('preceptor_teams')
+			.values({
+				id: teamId,
+				clerkship_id: clerkshipId,
+				name: 'Test Team'
+			})
+			.execute();
 
 		// Add both preceptors to team
-		await db.insertInto('preceptor_team_members').values([
-			{ id: nanoid(), team_id: teamId, preceptor_id: preceptor1Id, priority: 1, role: 'lead' },
-			{ id: nanoid(), team_id: teamId, preceptor_id: preceptor2Id, priority: 2, role: 'member' },
-		]).execute();
+		await db
+			.insertInto('preceptor_team_members')
+			.values([
+				{ id: nanoid(), team_id: teamId, preceptor_id: preceptor1Id, priority: 1, role: 'lead' },
+				{ id: nanoid(), team_id: teamId, preceptor_id: preceptor2Id, priority: 2, role: 'member' }
+			])
+			.execute();
 
 		// Create availability for both preceptors (5 days each)
 		const dates = ['2025-12-01', '2025-12-02', '2025-12-03', '2025-12-04', '2025-12-05'];
 		for (const date of dates) {
-			await db.insertInto('preceptor_availability').values([
-				{ id: nanoid(), preceptor_id: preceptor1Id, site_id: siteId, date, is_available: 1 },
-				{ id: nanoid(), preceptor_id: preceptor2Id, site_id: siteId, date, is_available: 1 },
-			]).execute();
+			await db
+				.insertInto('preceptor_availability')
+				.values([
+					{ id: nanoid(), preceptor_id: preceptor1Id, site_id: siteId, date, is_available: 1 },
+					{ id: nanoid(), preceptor_id: preceptor2Id, site_id: siteId, date, is_available: 1 }
+				])
+				.execute();
 		}
 
 		// Create capacity rules
-		await db.insertInto('preceptor_capacity_rules').values([
-			{ id: nanoid(), preceptor_id: preceptor1Id, max_students_per_day: 1, max_students_per_year: 20 },
-			{ id: nanoid(), preceptor_id: preceptor2Id, max_students_per_day: 1, max_students_per_year: 20 },
-		]).execute();
+		await db
+			.insertInto('preceptor_capacity_rules')
+			.values([
+				{
+					id: nanoid(),
+					preceptor_id: preceptor1Id,
+					max_students_per_day: 1,
+					max_students_per_year: 20
+				},
+				{
+					id: nanoid(),
+					preceptor_id: preceptor2Id,
+					max_students_per_day: 1,
+					max_students_per_year: 20
+				}
+			])
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -128,12 +177,10 @@ describe('FallbackGapFiller', () => {
 			const configs = new Map<string, ResolvedRequirementConfiguration>();
 			configs.set(clerkshipId, createConfig());
 
-			const result = await gapFiller.fillGaps(
-				[],
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([], [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			expect(result.assignments).toEqual([]);
 			expect(result.fulfilledRequirements).toEqual([]);
@@ -154,15 +201,13 @@ describe('FallbackGapFiller', () => {
 				requiredDays: 5,
 				assignedDays: 0,
 				remainingDays: 5,
-				reason: 'No availability',
+				reason: 'No availability'
 			};
 
-			const result = await gapFiller.fillGaps(
-				[unmetRequirement],
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([unmetRequirement], [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			expect(result.assignments.length).toBe(0);
 			expect(result.stillUnmet.length).toBe(1);
@@ -184,15 +229,13 @@ describe('FallbackGapFiller', () => {
 				remainingDays: 5,
 				reason: 'No availability',
 				primaryTeamId: teamId,
-				primaryHealthSystemId: healthSystemId,
+				primaryHealthSystemId: healthSystemId
 			};
 
-			const result = await gapFiller.fillGaps(
-				[unmetRequirement],
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([unmetRequirement], [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			// Should create assignments
 			expect(result.assignments.length).toBe(5);
@@ -203,11 +246,14 @@ describe('FallbackGapFiller', () => {
 		it('should process students with largest gaps first', async () => {
 			// Create second student
 			const student2Id = nanoid();
-			await db.insertInto('students').values({
-				id: student2Id,
-				name: 'Test Student 2',
-				email: 'student2@test.edu',
-			}).execute();
+			await db
+				.insertInto('students')
+				.values({
+					id: student2Id,
+					name: 'Test Student 2',
+					email: 'student2@test.edu'
+				})
+				.execute();
 
 			const configs = new Map<string, ResolvedRequirementConfiguration>();
 			configs.set(clerkshipId, createConfig());
@@ -226,7 +272,7 @@ describe('FallbackGapFiller', () => {
 					remainingDays: 2,
 					reason: 'Partial',
 					primaryTeamId: teamId,
-					primaryHealthSystemId: healthSystemId,
+					primaryHealthSystemId: healthSystemId
 				},
 				{
 					studentId: student2Id,
@@ -239,16 +285,14 @@ describe('FallbackGapFiller', () => {
 					remainingDays: 5,
 					reason: 'None',
 					primaryTeamId: teamId,
-					primaryHealthSystemId: healthSystemId,
-				},
+					primaryHealthSystemId: healthSystemId
+				}
 			];
 
-			const result = await gapFiller.fillGaps(
-				requirements,
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps(requirements, [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			// With capacity 1/day per preceptor and 2 preceptors with 5 days each:
 			// Total capacity = 10 days
@@ -257,18 +301,21 @@ describe('FallbackGapFiller', () => {
 			expect(result.assignments.length).toBeGreaterThan(0);
 
 			// Check student 2 was processed (has assignments)
-			const student2Assignments = result.assignments.filter(a => a.studentId === student2Id);
+			const student2Assignments = result.assignments.filter((a) => a.studentId === student2Id);
 			expect(student2Assignments.length).toBeGreaterThan(0);
 		});
 
 		it('should respect capacity limits', async () => {
 			// Create two students
 			const student2Id = nanoid();
-			await db.insertInto('students').values({
-				id: student2Id,
-				name: 'Test Student 2',
-				email: 'student2@test.edu',
-			}).execute();
+			await db
+				.insertInto('students')
+				.values({
+					id: student2Id,
+					name: 'Test Student 2',
+					email: 'student2@test.edu'
+				})
+				.execute();
 
 			const configs = new Map<string, ResolvedRequirementConfiguration>();
 			configs.set(clerkshipId, createConfig());
@@ -286,7 +333,7 @@ describe('FallbackGapFiller', () => {
 					remainingDays: 5,
 					reason: 'None',
 					primaryTeamId: teamId,
-					primaryHealthSystemId: healthSystemId,
+					primaryHealthSystemId: healthSystemId
 				},
 				{
 					studentId: student2Id,
@@ -299,16 +346,14 @@ describe('FallbackGapFiller', () => {
 					remainingDays: 5,
 					reason: 'None',
 					primaryTeamId: teamId,
-					primaryHealthSystemId: healthSystemId,
-				},
+					primaryHealthSystemId: healthSystemId
+				}
 			];
 
-			const result = await gapFiller.fillGaps(
-				requirements,
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps(requirements, [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			// Each preceptor has capacity 1/day, 5 days available
 			// Total capacity: 2 preceptors * 5 days = 10 days
@@ -344,15 +389,13 @@ describe('FallbackGapFiller', () => {
 				remainingDays: 5,
 				reason: 'No availability',
 				primaryTeamId: teamId,
-				primaryHealthSystemId: healthSystemId,
+				primaryHealthSystemId: healthSystemId
 			};
 
-			const result = await gapFiller.fillGaps(
-				[unmetRequirement],
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([unmetRequirement], [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			// All assignments should have tier 1 (same team)
 			for (const assignment of result.assignments) {
@@ -368,13 +411,16 @@ describe('FallbackGapFiller', () => {
 
 			const dates = ['2025-12-01', '2025-12-02', '2025-12-03'];
 			for (const date of dates) {
-				await db.insertInto('preceptor_availability').values({
-					id: nanoid(),
-					preceptor_id: preceptor1Id,
-					site_id: siteId,
-					date,
-					is_available: 1,
-				}).execute();
+				await db
+					.insertInto('preceptor_availability')
+					.values({
+						id: nanoid(),
+						preceptor_id: preceptor1Id,
+						site_id: siteId,
+						date,
+						is_available: 1
+					})
+					.execute();
 			}
 
 			const configs = new Map<string, ResolvedRequirementConfiguration>();
@@ -391,15 +437,13 @@ describe('FallbackGapFiller', () => {
 				remainingDays: 5,
 				reason: 'No availability',
 				primaryTeamId: teamId,
-				primaryHealthSystemId: healthSystemId,
+				primaryHealthSystemId: healthSystemId
 			};
 
-			const result = await gapFiller.fillGaps(
-				[unmetRequirement],
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([unmetRequirement], [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			// Should have partial fulfillment (3 days out of 5)
 			expect(result.assignments.length).toBe(3);
@@ -423,15 +467,13 @@ describe('FallbackGapFiller', () => {
 				requiredDays: 5,
 				assignedDays: 0,
 				remainingDays: 5,
-				reason: 'No availability',
+				reason: 'No availability'
 			};
 
-			const result = await gapFiller.fillGaps(
-				[unmetRequirement],
-				[],
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([unmetRequirement], [], configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			expect(result.assignments.length).toBe(0);
 			expect(result.stillUnmet.length).toBe(1);
@@ -444,7 +486,7 @@ describe('FallbackGapFiller', () => {
 			// Student already has 2 days assigned
 			const existingAssignments = [
 				{ studentId, preceptorId: preceptor1Id, clerkshipId, date: '2025-12-01' },
-				{ studentId, preceptorId: preceptor1Id, clerkshipId, date: '2025-12-02' },
+				{ studentId, preceptorId: preceptor1Id, clerkshipId, date: '2025-12-02' }
 			];
 
 			const unmetRequirement: UnmetRequirement = {
@@ -458,18 +500,16 @@ describe('FallbackGapFiller', () => {
 				remainingDays: 3,
 				reason: 'Partial',
 				primaryTeamId: teamId,
-				primaryHealthSystemId: healthSystemId,
+				primaryHealthSystemId: healthSystemId
 			};
 
-			const result = await gapFiller.fillGaps(
-				[unmetRequirement],
-				existingAssignments,
-				configs,
-				{ startDate: '2025-12-01', endDate: '2025-12-31' }
-			);
+			const result = await gapFiller.fillGaps([unmetRequirement], existingAssignments, configs, {
+				startDate: '2025-12-01',
+				endDate: '2025-12-31'
+			});
 
 			// Should not include Dec 1 or Dec 2 (already assigned)
-			const dates = result.assignments.map(a => a.date);
+			const dates = result.assignments.map((a) => a.date);
 			expect(dates).not.toContain('2025-12-01');
 			expect(dates).not.toContain('2025-12-02');
 

@@ -12,7 +12,7 @@
 	const progressWidth = $derived(`${Math.min(100, progress.percentComplete)}%`);
 </script>
 
-<div class="border rounded-lg p-4 space-y-3">
+<div class="space-y-3 rounded-lg border p-4">
 	<div class="flex items-start justify-between">
 		<div>
 			<h4 class="font-semibold" style="color: {color};">
@@ -29,7 +29,7 @@
 
 	<!-- Progress bar -->
 	<div class="space-y-1">
-		<div class="h-2 bg-muted rounded-full overflow-hidden">
+		<div class="h-2 overflow-hidden rounded-full bg-muted">
 			<div
 				class="h-full rounded-full transition-all duration-300"
 				style="width: {progressWidth}; background-color: {progress.isComplete ? '#16a34a' : color};"
@@ -47,11 +47,11 @@
 
 	<!-- Preceptors assigned -->
 	{#if progress.preceptors.length > 0}
-		<div class="pt-2 border-t">
-			<p class="text-xs font-medium text-muted-foreground mb-1">Preceptors:</p>
+		<div class="border-t pt-2">
+			<p class="mb-1 text-xs font-medium text-muted-foreground">Preceptors:</p>
 			<div class="flex flex-wrap gap-1">
 				{#each progress.preceptors as preceptor}
-					<span class="inline-flex items-center text-xs bg-muted px-2 py-0.5 rounded">
+					<span class="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs">
 						{preceptor.name}
 						<span class="ml-1 text-muted-foreground">({preceptor.daysAssigned}d)</span>
 					</span>
@@ -59,7 +59,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="pt-2 border-t">
+		<div class="border-t pt-2">
 			<p class="text-xs text-amber-600">No assignments yet</p>
 		</div>
 	{/if}

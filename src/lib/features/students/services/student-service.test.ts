@@ -69,15 +69,17 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('created_at', 'text', (col) => col.notNull())
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.execute();
 }
 
 // Helper to create mock student
-function createMockStudentData(overrides: Partial<{
-	name: string;
-	email: string;
-}> = {}) {
+function createMockStudentData(
+	overrides: Partial<{
+		name: string;
+		email: string;
+	}> = {}
+) {
 	return {
 		name: overrides.name ?? 'John Doe',
 		email: overrides.email ?? 'john@example.com'
@@ -105,8 +107,8 @@ describe('Student Service', () => {
 			const students = await getStudents(db);
 
 			expect(students).toHaveLength(2);
-			expect(students.some(s => s.name === 'Alice')).toBe(true);
-			expect(students.some(s => s.name === 'Bob')).toBe(true);
+			expect(students.some((s) => s.name === 'Alice')).toBe(true);
+			expect(students.some((s) => s.name === 'Bob')).toBe(true);
 		});
 
 		it('returns empty array when no students', async () => {
@@ -144,10 +146,13 @@ describe('Student Service', () => {
 		});
 
 		it('returns correct student data', async () => {
-			const created = await createStudent(db, createMockStudentData({
-				name: 'Jane Doe',
-				email: 'jane@example.com'
-			}));
+			const created = await createStudent(
+				db,
+				createMockStudentData({
+					name: 'Jane Doe',
+					email: 'jane@example.com'
+				})
+			);
 
 			const found = await getStudentById(db, created.id);
 
@@ -263,7 +268,7 @@ describe('Student Service', () => {
 			const created = await createStudent(db, createMockStudentData());
 
 			// Wait a bit to ensure timestamp difference
-			await new Promise(resolve => setTimeout(resolve, 10));
+			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			const updated = await updateStudent(db, created.id, { name: 'Updated' });
 
@@ -273,13 +278,20 @@ describe('Student Service', () => {
 		});
 
 		it('throws NotFoundError if student not found', async () => {
-			await expect(updateStudent(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow(NotFoundError);
-			await expect(updateStudent(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow('Student');
+			await expect(updateStudent(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow(
+				NotFoundError
+			);
+			await expect(updateStudent(db, 'non-existent-id', { name: 'Test' })).rejects.toThrow(
+				'Student'
+			);
 		});
 
 		it('throws ConflictError if new email is taken', async () => {
 			await createStudent(db, createMockStudentData({ email: 'existing@example.com' }));
-			const student2 = await createStudent(db, createMockStudentData({ email: 'other@example.com' }));
+			const student2 = await createStudent(
+				db,
+				createMockStudentData({ email: 'other@example.com' })
+			);
 
 			await expect(
 				updateStudent(db, student2.id, { email: 'existing@example.com' })
@@ -327,16 +339,19 @@ describe('Student Service', () => {
 			const student = await createStudent(db, createMockStudentData());
 
 			// Create a schedule assignment for this student
-			await db.insertInto('schedule_assignments').values({
-				id: crypto.randomUUID(),
-				student_id: student.id,
-				preceptor_id: crypto.randomUUID(),
-				clerkship_id: crypto.randomUUID(),
-				date: '2024-01-01',
-				status: 'scheduled',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: crypto.randomUUID(),
+					student_id: student.id,
+					preceptor_id: crypto.randomUUID(),
+					clerkship_id: crypto.randomUUID(),
+					date: '2024-01-01',
+					status: 'scheduled',
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 
 			await expect(deleteStudent(db, student.id)).rejects.toThrow(ConflictError);
 			await expect(deleteStudent(db, student.id)).rejects.toThrow('schedule assignments');
@@ -364,16 +379,19 @@ describe('Student Service', () => {
 			const student = await createStudent(db, createMockStudentData());
 
 			// Create assignment
-			await db.insertInto('schedule_assignments').values({
-				id: crypto.randomUUID(),
-				student_id: student.id,
-				preceptor_id: crypto.randomUUID(),
-				clerkship_id: crypto.randomUUID(),
-				date: '2024-01-01',
-				status: 'scheduled',
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}).execute();
+			await db
+				.insertInto('schedule_assignments')
+				.values({
+					id: crypto.randomUUID(),
+					student_id: student.id,
+					preceptor_id: crypto.randomUUID(),
+					clerkship_id: crypto.randomUUID(),
+					date: '2024-01-01',
+					status: 'scheduled',
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.execute();
 
 			const canDelete = await canDeleteStudent(db, student.id);
 			expect(canDelete).toBe(false);
@@ -426,8 +444,14 @@ describe('Student Service', () => {
 		});
 
 		it('returns true when email taken by another student (with excludeId)', async () => {
-			const student1 = await createStudent(db, createMockStudentData({ email: 'student1@example.com' }));
-			const student2 = await createStudent(db, createMockStudentData({ email: 'student2@example.com' }));
+			const student1 = await createStudent(
+				db,
+				createMockStudentData({ email: 'student1@example.com' })
+			);
+			const student2 = await createStudent(
+				db,
+				createMockStudentData({ email: 'student2@example.com' })
+			);
 
 			// Checking if student1's email is taken while excluding student2
 			const taken = await isEmailTaken(db, 'student1@example.com', student2.id);
@@ -458,8 +482,16 @@ describe('Student Service - Multi-tenancy', () => {
 			const userAId = await createTestUser(db, { name: 'User A' });
 			const userBId = await createTestUser(db, { name: 'User B' });
 
-			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
-			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+			const scheduleAId = await createTestSchedule(db, {
+				userId: userAId,
+				name: 'Schedule A',
+				setAsActive: true
+			});
+			const scheduleBId = await createTestSchedule(db, {
+				userId: userBId,
+				name: 'Schedule B',
+				setAsActive: true
+			});
 
 			// Create students
 			const [studentA1, studentA2] = await createTestStudents(db, 2);
@@ -473,19 +505,23 @@ describe('Student Service - Multi-tenancy', () => {
 			// Get students for Schedule A
 			const studentsA = await getStudentsBySchedule(db, scheduleAId);
 			expect(studentsA).toHaveLength(2);
-			expect(studentsA.map(s => s.id)).toContain(studentA1);
-			expect(studentsA.map(s => s.id)).toContain(studentA2);
-			expect(studentsA.map(s => s.id)).not.toContain(studentB1);
+			expect(studentsA.map((s) => s.id)).toContain(studentA1);
+			expect(studentsA.map((s) => s.id)).toContain(studentA2);
+			expect(studentsA.map((s) => s.id)).not.toContain(studentB1);
 
 			// Get students for Schedule B
 			const studentsB = await getStudentsBySchedule(db, scheduleBId);
 			expect(studentsB).toHaveLength(1);
-			expect(studentsB.map(s => s.id)).toContain(studentB1);
+			expect(studentsB.map((s) => s.id)).toContain(studentB1);
 		});
 
 		it('returns empty array when schedule has no associated students', async () => {
 			const userId = await createTestUser(db, { name: 'User' });
-			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+			const scheduleId = await createTestSchedule(db, {
+				userId,
+				name: 'Empty Schedule',
+				setAsActive: true
+			});
 
 			// Create students but don't associate with the schedule
 			await createTestStudents(db, 3);
@@ -500,29 +536,41 @@ describe('Student Service - Multi-tenancy', () => {
 
 			// Create students with specific names
 			const timestamp = new Date().toISOString();
-			const studentZoe = await db.insertInto('students').values({
-				id: crypto.randomUUID(),
-				name: 'Zoe Student',
-				email: 'zoe@test.edu',
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const studentZoe = await db
+				.insertInto('students')
+				.values({
+					id: crypto.randomUUID(),
+					name: 'Zoe Student',
+					email: 'zoe@test.edu',
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-			const studentAlice = await db.insertInto('students').values({
-				id: crypto.randomUUID(),
-				name: 'Alice Student',
-				email: 'alice@test.edu',
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const studentAlice = await db
+				.insertInto('students')
+				.values({
+					id: crypto.randomUUID(),
+					name: 'Alice Student',
+					email: 'alice@test.edu',
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-			const studentBob = await db.insertInto('students').values({
-				id: crypto.randomUUID(),
-				name: 'Bob Student',
-				email: 'bob@test.edu',
-				created_at: timestamp,
-				updated_at: timestamp
-			}).returningAll().executeTakeFirstOrThrow();
+			const studentBob = await db
+				.insertInto('students')
+				.values({
+					id: crypto.randomUUID(),
+					name: 'Bob Student',
+					email: 'bob@test.edu',
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
 			// Associate in non-alphabetical order
 			await associateStudentWithSchedule(db, studentZoe.id, scheduleId);
@@ -545,7 +593,11 @@ describe('Student Service - Multi-tenancy', () => {
 		it('does not return students from other schedules even if same user owns both', async () => {
 			const userId = await createTestUser(db);
 			const schedule1Id = await createTestSchedule(db, { userId, name: 'Schedule 1' });
-			const schedule2Id = await createTestSchedule(db, { userId, name: 'Schedule 2', setAsActive: true });
+			const schedule2Id = await createTestSchedule(db, {
+				userId,
+				name: 'Schedule 2',
+				setAsActive: true
+			});
 
 			const [student1] = await createTestStudents(db, 1);
 			const [student2] = await createTestStudents(db, 1);

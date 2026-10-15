@@ -62,48 +62,48 @@
 	{#if !data.hasActiveSchedule}
 		<NoActiveSchedule surface="clerkships" />
 	{:else}
-	<!-- Tabs -->
-	<div class="mb-6 border-b">
-		<nav class="-mb-px flex space-x-8">
-			<button
-				onclick={() => (activeTab = 'clerkships')}
-				class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-					activeTab === 'clerkships'
-						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
-				}`}
-			>
-				Clerkships ({data.clerkships.length})
-			</button>
-			{#if hasAutogen}
+		<!-- Tabs -->
+		<div class="mb-6 border-b">
+			<nav class="-mb-px flex space-x-8">
 				<button
-					onclick={() => (activeTab = 'scheduling-defaults')}
+					onclick={() => (activeTab = 'clerkships')}
 					class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
-						activeTab === 'scheduling-defaults'
+						activeTab === 'clerkships'
 							? 'border-primary text-primary'
 							: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
 					}`}
 				>
-					Default Scheduling Rules
+					Clerkships ({data.clerkships.length})
 				</button>
-			{/if}
-		</nav>
-	</div>
-
-	<!-- Tab Content -->
-	{#if activeTab === 'clerkships'}
-		<div class="mb-6 flex items-center justify-end">
-			<Button onclick={handleAdd}>Add Clerkship</Button>
+				{#if hasAutogen}
+					<button
+						onclick={() => (activeTab = 'scheduling-defaults')}
+						class={`border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap ${
+							activeTab === 'scheduling-defaults'
+								? 'border-primary text-primary'
+								: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground'
+						}`}
+					>
+						Default Scheduling Rules
+					</button>
+				{/if}
+			</nav>
 		</div>
 
-		<ClerkshipList
-			clerkships={data.clerkships}
-			onDelete={handleDelete}
-			onConfigure={handleConfigure}
-		/>
-	{:else if activeTab === 'scheduling-defaults'}
-		<GlobalDefaultsForm />
-	{/if}
+		<!-- Tab Content -->
+		{#if activeTab === 'clerkships'}
+			<div class="mb-6 flex items-center justify-end">
+				<Button onclick={handleAdd}>Add Clerkship</Button>
+			</div>
+
+			<ClerkshipList
+				clerkships={data.clerkships}
+				onDelete={handleDelete}
+				onConfigure={handleConfigure}
+			/>
+		{:else if activeTab === 'scheduling-defaults'}
+			<GlobalDefaultsForm />
+		{/if}
 	{/if}
 </div>
 

@@ -20,7 +20,7 @@ import {
 	clearAllTestData,
 	createPreceptorAvailability,
 	generateDateRange,
-	setOutpatientAssignmentStrategy,
+	setOutpatientAssignmentStrategy
 } from '$lib/testing/integration-helpers';
 import {
 	assertStudentHasCompleteAssignments,
@@ -30,7 +30,7 @@ import {
 	assertHealthSystemContinuity,
 	assertNoDateConflicts,
 	assertTeamBalanced,
-	assertFallbackUsed,
+	assertFallbackUsed
 } from '$lib/testing/assertion-helpers';
 import { ConfigurableSchedulingEngine } from '$lib/features/scheduling/engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -56,13 +56,15 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should assign students to single preceptor for entire rotation', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Test Medical Center');
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 20 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 20
+			});
 			const studentIds = await createTestStudents(db, 3);
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId, // Associate preceptors with clerkship via team
+				clerkshipId // Associate preceptors with clerkship via team
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -77,7 +79,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 3, // Sufficient for 3 students
-					maxStudentsPerYear: 100, // Sufficient for 3 students × 20 days
+					maxStudentsPerYear: 100 // Sufficient for 3 students × 20 days
 				});
 			}
 
@@ -91,7 +93,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -117,13 +119,15 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'University Hospital');
 			// Inpatient clerkships use block_based strategy by default
-			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', { requiredDays: 28 });
+			const clerkshipId = await createTestClerkship(db, 'Internal Medicine', 'inpatient', {
+				requiredDays: 28
+			});
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -137,7 +141,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
-					maxStudentsPerDay: 2,
+					maxStudentsPerDay: 2
 				});
 			}
 
@@ -151,7 +155,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -174,13 +178,15 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Surgery Center');
-			const clerkshipId = await createTestClerkship(db, 'Surgery', 'outpatient', { requiredDays: 42 });
+			const clerkshipId = await createTestClerkship(db, 'Surgery', 'outpatient', {
+				requiredDays: 42
+			});
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 4, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 4,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -194,7 +200,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
-					maxStudentsPerDay: 3,
+					maxStudentsPerDay: 3
 				});
 			}
 
@@ -208,7 +214,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -229,12 +235,14 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should assign students to teams and balance across team members', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Teaching Hospital');
-			const clerkshipId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics', { requiredDays: 28 });
+			const clerkshipId = await createTestClerkship(db, 'Obstetrics', 'Obstetrics', {
+				requiredDays: 28
+			});
 			const studentIds = await createTestStudents(db, 2);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
-				maxStudents: 3,
+				maxStudents: 3
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -247,7 +255,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Create pre-configured team
 			const teamId = await createTestTeam(db, clerkshipId, 'OB Teaching Team', preceptorIds, {
 				requireSameHealthSystem: true,
-				requireSameSpecialty: true,
+				requireSameSpecialty: true
 			});
 
 			// Create preceptor availability for required dates
@@ -261,7 +269,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				startDate,
 				endDate,
 				enableTeamFormation: true,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -286,7 +294,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// createTestRequirement is now a no-op - NOTE: This test may need review for hybrid strategy
@@ -309,7 +317,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			// Set capacity rules
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
-					maxStudentsPerDay: 2,
+					maxStudentsPerDay: 2
 				});
 			}
 
@@ -323,7 +331,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions
@@ -343,12 +351,14 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 		it('should use fallback preceptors when primary is unavailable', async () => {
 			// Setup
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Community Hospital');
-			const clerkshipId = await createTestClerkship(db, 'Cardiology', 'Cardiology', { requiredDays: 14 });
+			const clerkshipId = await createTestClerkship(db, 'Cardiology', 'Cardiology', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 1);
 			const preceptorIds = await createTestPreceptors(db, 3, {
 				healthSystemId,
 				siteId: siteIds[0],
-				maxStudents: 3,
+				maxStudents: 3
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -366,8 +376,8 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				{
 					start: today,
 					end: in60Days,
-					reason: 'Sabbatical',
-				},
+					reason: 'Sabbatical'
+				}
 			]);
 
 			// Create fallback chain: P1 -> P2 -> P3
@@ -383,7 +393,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				startDate,
 				endDate,
 				enableFallbacks: false, // Fallbacks disabled per requirements
-				dryRun: false,
+				dryRun: false
 			});
 
 			// With fallbacks disabled but alternative preceptors available,
@@ -400,7 +410,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 
 			// Two outpatient clerkships, one required day each.
 			const clerkА = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
-				requiredDays: 1,
+				requiredDays: 1
 			});
 			const clerkB = await createTestClerkship(db, 'Pediatrics', 'outpatient', { requiredDays: 1 });
 			const [studentId] = await createTestStudents(db, 1);
@@ -410,13 +420,13 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId: clerkА,
+				clerkshipId: clerkА
 			});
 			const [precB] = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId: siteIds[0],
 				maxStudents: 3,
-				clerkshipId: clerkB,
+				clerkshipId: clerkB
 			});
 			for (const p of [precA, precB]) {
 				await createCapacityRule(db, p, { maxStudentsPerDay: 3, maxStudentsPerYear: 100 });
@@ -429,7 +439,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const result = await engine.schedule(studentId ? [studentId] : [], [clerkА, clerkB], {
 				startDate: day,
 				endDate: day,
-				dryRun: false,
+				dryRun: false
 			});
 			expect(result.success).toBe(true);
 
@@ -484,7 +494,12 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const [a, b] = precA <= precB ? [precA, precB] : [precB, precA];
 			await db
 				.insertInto('preceptor_mutual_exclusions')
-				.values({ id: 'me-1', preceptor_a_id: a, preceptor_b_id: b, created_at: new Date().toISOString() })
+				.values({
+					id: 'me-1',
+					preceptor_a_id: a,
+					preceptor_b_id: b,
+					created_at: new Date().toISOString()
+				})
 				.execute();
 
 			await engine.schedule(studentId ? [studentId] : [], [clerkA, clerkB], {
@@ -572,7 +587,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 	});
 
 	describe('Test 10b: Blackout dates are schedule-scoped', () => {
-		it('does not apply another schedule\'s blackout to this schedule\'s generation', async () => {
+		it("does not apply another schedule's blackout to this schedule's generation", async () => {
 			// Regression guard: strategy-context used to read ALL blackout_dates, so a
 			// blackout on a *different* schedule removed a candidate day here. That broke
 			// L3 in the real pipeline (a seeded Demo blackout landed on the only valid
@@ -596,14 +611,49 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const ts = new Date().toISOString();
 			// This schedule (A) owns the entities; schedule B is a separate schedule that
 			// has a blackout on exactly `day`.
-			await db.insertInto('scheduling_periods').values([
-				{ id: 'sched-A', name: 'A', start_date: day, end_date: day, created_at: ts, updated_at: ts },
-				{ id: 'sched-B', name: 'B', start_date: day, end_date: day, created_at: ts, updated_at: ts }
-			]).execute();
-			await db.insertInto('schedule_clerkships').values({ id: 'sc-A', schedule_id: 'sched-A', clerkship_id: clerkshipId, created_at: ts }).execute();
-			await db.insertInto('schedule_preceptors').values({ id: 'sp-A', schedule_id: 'sched-A', preceptor_id: preceptorId, created_at: ts }).execute();
-			await db.insertInto('schedule_sites').values({ id: 'ss-A', schedule_id: 'sched-A', site_id: siteIds[0], created_at: ts }).execute();
-			await db.insertInto('blackout_dates').values({ id: 'bo-B', schedule_id: 'sched-B', date: day, reason: 'Other schedule holiday', created_at: ts }).execute();
+			await db
+				.insertInto('scheduling_periods')
+				.values([
+					{
+						id: 'sched-A',
+						name: 'A',
+						start_date: day,
+						end_date: day,
+						created_at: ts,
+						updated_at: ts
+					},
+					{
+						id: 'sched-B',
+						name: 'B',
+						start_date: day,
+						end_date: day,
+						created_at: ts,
+						updated_at: ts
+					}
+				])
+				.execute();
+			await db
+				.insertInto('schedule_clerkships')
+				.values({ id: 'sc-A', schedule_id: 'sched-A', clerkship_id: clerkshipId, created_at: ts })
+				.execute();
+			await db
+				.insertInto('schedule_preceptors')
+				.values({ id: 'sp-A', schedule_id: 'sched-A', preceptor_id: preceptorId, created_at: ts })
+				.execute();
+			await db
+				.insertInto('schedule_sites')
+				.values({ id: 'ss-A', schedule_id: 'sched-A', site_id: siteIds[0], created_at: ts })
+				.execute();
+			await db
+				.insertInto('blackout_dates')
+				.values({
+					id: 'bo-B',
+					schedule_id: 'sched-B',
+					date: day,
+					reason: 'Other schedule holiday',
+					created_at: ts
+				})
+				.execute();
 
 			await engine.schedule([studentId], [clerkshipId], {
 				startDate: day,
@@ -621,7 +671,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			expect(rows.map((r) => r.date)).toEqual([day]);
 		});
 
-		it('still applies this schedule\'s own blackout', async () => {
+		it("still applies this schedule's own blackout", async () => {
 			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Own Blackout Clinic');
 			const day = '2025-02-10'; // Monday
 			const clerkshipId = await createTestClerkship(db, 'Family Medicine', {
@@ -639,11 +689,49 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			await createPreceptorAvailability(db, preceptorId, siteIds[0], [day]);
 
 			const ts = new Date().toISOString();
-			await db.insertInto('scheduling_periods').values({ id: 'sched-own', name: 'Own', start_date: day, end_date: day, created_at: ts, updated_at: ts }).execute();
-			await db.insertInto('schedule_clerkships').values({ id: 'sc-own', schedule_id: 'sched-own', clerkship_id: clerkshipId, created_at: ts }).execute();
-			await db.insertInto('schedule_preceptors').values({ id: 'sp-own', schedule_id: 'sched-own', preceptor_id: preceptorId, created_at: ts }).execute();
-			await db.insertInto('schedule_sites').values({ id: 'ss-own', schedule_id: 'sched-own', site_id: siteIds[0], created_at: ts }).execute();
-			await db.insertInto('blackout_dates').values({ id: 'bo-own', schedule_id: 'sched-own', date: day, reason: 'Own holiday', created_at: ts }).execute();
+			await db
+				.insertInto('scheduling_periods')
+				.values({
+					id: 'sched-own',
+					name: 'Own',
+					start_date: day,
+					end_date: day,
+					created_at: ts,
+					updated_at: ts
+				})
+				.execute();
+			await db
+				.insertInto('schedule_clerkships')
+				.values({
+					id: 'sc-own',
+					schedule_id: 'sched-own',
+					clerkship_id: clerkshipId,
+					created_at: ts
+				})
+				.execute();
+			await db
+				.insertInto('schedule_preceptors')
+				.values({
+					id: 'sp-own',
+					schedule_id: 'sched-own',
+					preceptor_id: preceptorId,
+					created_at: ts
+				})
+				.execute();
+			await db
+				.insertInto('schedule_sites')
+				.values({ id: 'ss-own', schedule_id: 'sched-own', site_id: siteIds[0], created_at: ts })
+				.execute();
+			await db
+				.insertInto('blackout_dates')
+				.values({
+					id: 'bo-own',
+					schedule_id: 'sched-own',
+					date: day,
+					reason: 'Own holiday',
+					created_at: ts
+				})
+				.execute();
 
 			await engine.schedule([studentId], [clerkshipId], {
 				startDate: day,
@@ -665,13 +753,18 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 	describe('Test 7: Capacity Enforcement', () => {
 		it('should respect per-day capacity limits', async () => {
 			// Setup
-			const { healthSystemId, siteIds } = await createTestHealthSystem(db, 'Limited Capacity Clinic');
-			const clerkshipId = await createTestClerkship(db, 'Dermatology', 'Dermatology', { requiredDays: 14 });
+			const { healthSystemId, siteIds } = await createTestHealthSystem(
+				db,
+				'Limited Capacity Clinic'
+			);
+			const clerkshipId = await createTestClerkship(db, 'Dermatology', 'Dermatology', {
+				requiredDays: 14
+			});
 			const studentIds = await createTestStudents(db, 5); // Many students
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId: siteIds[0],
-				maxStudents: 2,
+				maxStudents: 2
 			});
 
 			// createTestRequirement is now a no-op - configuration moved to createTestClerkship
@@ -685,7 +778,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			for (const preceptorId of preceptorIds) {
 				await createCapacityRule(db, preceptorId, {
 					maxStudentsPerDay: 1,
-					maxStudentsPerYear: 5,
+					maxStudentsPerYear: 5
 				});
 			}
 
@@ -699,7 +792,7 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate,
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Assertions - not all students may be scheduled due to capacity constraints

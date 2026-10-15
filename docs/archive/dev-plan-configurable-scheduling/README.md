@@ -7,6 +7,7 @@ This directory contains the complete step-by-step development plan for implement
 ## 🆕 Enhanced Design (Updated 2025-11-19)
 
 The design now includes **global defaults** with **flexible override system**:
+
 - Set school-wide defaults once for outpatient/inpatient/elective
 - Each clerkship can inherit defaults or override specific settings
 - Per-requirement-type configuration (different rules for outpatient vs inpatient vs elective)
@@ -19,6 +20,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 ### Project Scope
 
 **Included** (8 Configuration Areas):
+
 1. Assignment Strategy (how to schedule)
 2. Grouping Rules (team formation)
 3. Requirement Structure (requirement splits)
@@ -46,6 +48,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 ### Phase 1: Foundation (Days 1-8)
 
 **Step 01: Database Schema Design** ✅ UPDATED (1-2 days)
+
 - Design relational schema with **global defaults** + **override tracking**
 - Create migration SQL
 - Generate TypeScript types
@@ -53,6 +56,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 - **Key Addition**: 3 global defaults tables, override tracking table
 
 **Step 02: Configuration Types and Models** ✅ UPDATED (1-2 days)
+
 - Define TypeScript types including **global defaults** and **resolved config**
 - Create Zod validation schemas for defaults + overrides
 - Build domain models with override support
@@ -60,6 +64,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 - **Key Addition**: GlobalDefaults types, OverrideMode enum, ResolvedConfiguration type
 
 **Step 03: Configuration Services** 📋 NEEDS UPDATE (2-4 days)
+
 - Implement CRUD services + **2 new services**
 - Add business rule validation
 - Create service result types
@@ -69,6 +74,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 ### Phase 2: Core Scheduling Engine (Days 9-17)
 
 **Step 04: Scheduling Strategies** 📋 NEEDS UPDATE (2-3 days)
+
 - Implement strategy pattern
 - Build **4 scheduling strategies** (removed hybrid)
 - Create strategy selector
@@ -76,12 +82,14 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 - **Key Change**: Remove Hybrid (each requirement type has its own strategy now)
 
 **Step 05: Team and Fallback Logic** ✓ NO CHANGES (2-3 days)
+
 - Build team formation engine
 - Implement fallback resolver
 - Create capacity checker
 - **Deliverable**: Team formation, validation, fallback resolution, capacity checking
 
 **Step 06: New Scheduling Engine** 📋 NEEDS UPDATE (2-3 days)
+
 - Build configurable scheduling engine with **config resolution**
 - Integrate all strategies
 - Add conflict resolution
@@ -91,6 +99,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 ### Phase 3: Integration (Days 18-21)
 
 **Step 07: API Endpoints** 📋 NEEDS UPDATE (1-2 days)
+
 - Create RESTful API for configuration management
 - **Add global defaults endpoints** (12 new)
 - Add authentication/authorization
@@ -98,6 +107,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 - **Key Addition**: School Settings API, override control API
 
 **Step 08: UI Components** 📋 NEEDS UPDATE (1-2 days)
+
 - Build admin configuration UI
 - **Add School Settings page**
 - Create forms and wizards with override controls
@@ -107,6 +117,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 ### Phase 4: Validation (Days 22-25)
 
 **Step 09: Sample School Configurations** 📋 NEEDS UPDATE (1-2 days)
+
 - Create School A with **global defaults** (traditional)
 - Create School B with **global defaults** (team-based)
 - Create School C with **global defaults + overrides** (hybrid)
@@ -115,6 +126,7 @@ See **`ENHANCED-DESIGN-SUMMARY.md`** for complete details.
 - **Key Addition**: Global defaults configuration for each school
 
 **Step 10: Integration Testing** 📋 NEEDS UPDATE (1-2 days)
+
 - Write end-to-end tests
 - **Add global defaults tests**
 - **Add override mode tests**
@@ -164,26 +176,31 @@ docs/dev-plan-configurable-scheduling/
 ## New Concepts in Enhanced Design
 
 ### 1. Global Defaults
+
 - School-wide configuration for outpatient, inpatient, and elective rotations
 - Set once, apply to all clerkships by default
 - Reduces configuration time from hours to minutes
 
 ### 2. Override Modes
+
 - **Inherit**: Use all global defaults (fastest)
 - **Override Fields**: Mix defaults + custom settings (flexible)
 - **Override Section**: Fully customize (most control)
 
 ### 3. Per-Requirement-Type Configuration
+
 - Different rules for outpatient vs inpatient vs elective
 - Example: Outpatient uses continuous single, Inpatient uses 14-day blocks
 - Each requirement type can have different capacity, health system rules, etc.
 
 ### 4. Configuration Resolution
+
 - System merges global defaults + overrides at runtime
 - Produces "resolved configuration" for scheduling engine
 - Cached for performance
 
 ### 5. Change Management
+
 - Updating global defaults prompts: apply to existing or new only
 - Prevents unintended changes to existing clerkships
 - Audit trail of configuration changes
@@ -191,21 +208,25 @@ docs/dev-plan-configurable-scheduling/
 ## Sample School Configurations
 
 ### School A: Traditional Conservative
+
 - **Global Defaults**: Continuous single, enforce same system, 1/day
 - **Clerkships**: All inherit defaults (no overrides)
 - **Setup Time**: 5 minutes (set defaults once)
 
 ### School B: Collaborative Team-Based
+
 - **Global Defaults**: Team-based (3-4 preceptors), enforce same system
 - **Clerkships**: All inherit, pre-configured teams
 - **Setup Time**: 10 minutes (set defaults + create teams)
 
 ### School C: Hybrid Flexible
+
 - **Global Defaults**: Continuous for outpatient, blocks for inpatient
 - **Clerkships**: Most inherit, Surgery overrides outpatient to use teams
 - **Setup Time**: 15 minutes (defaults + selective overrides)
 
 ### School D: Modern Maximally Flexible
+
 - **Global Defaults**: Daily rotation, no preferences, high capacity
 - **Clerkships**: All inherit, extensive fallback chains
 - **Setup Time**: 20 minutes (defaults + fallback setup)
@@ -213,6 +234,7 @@ docs/dev-plan-configurable-scheduling/
 ## Success Metrics
 
 ### Technical Success
+
 - [ ] All 8 configuration areas implemented
 - [ ] Global defaults system fully functional
 - [ ] All 3 override modes working correctly
@@ -223,6 +245,7 @@ docs/dev-plan-configurable-scheduling/
 - [ ] No data integrity issues
 
 ### Functional Success
+
 - [ ] All 4 school scenarios work end-to-end with global defaults
 - [ ] Admin can set global defaults via UI
 - [ ] Admin can override per-clerkship via UI
@@ -232,6 +255,7 @@ docs/dev-plan-configurable-scheduling/
 - [ ] UI provides intuitive configuration experience
 
 ### Business Success
+
 - [ ] System supports any medical school's rules
 - [ ] Configuration changes don't require deployments
 - [ ] Global defaults reduce setup time by 90%
@@ -242,6 +266,7 @@ docs/dev-plan-configurable-scheduling/
 ## Dependencies
 
 ### External Dependencies
+
 - SQLite (database)
 - Kysely (query builder)
 - Zod (validation)
@@ -249,6 +274,7 @@ docs/dev-plan-configurable-scheduling/
 - TypeScript 5+ (language)
 
 ### Internal Dependencies
+
 - Existing database migration system
 - Existing authentication system
 - Existing UI component library
@@ -267,6 +293,7 @@ docs/dev-plan-configurable-scheduling/
 ## Questions Before Starting?
 
 Before implementing, ensure:
+
 - [ ] Enhanced design understood (global defaults + overrides)
 - [ ] All clarifying questions answered
 - [ ] Approach approved
@@ -276,16 +303,16 @@ Before implementing, ensure:
 
 ## Key Metrics
 
-| Metric | Previous Design | Enhanced Design |
-|--------|----------------|-----------------|
-| **New Tables** | 9 | 13 (+3 global defaults, +1 overrides) |
-| **Configuration Levels** | 1 | 3 (global → clerkship → resolved) |
-| **Setup Time** | ~2 hours per school | ~5-20 minutes |
-| **Policy Changes** | Edit each clerkship | Update defaults once |
-| **Flexibility** | High | Very High |
-| **API Endpoints** | 30+ | 46+ |
-| **Services** | 7 | 9 |
-| **Test Suites** | 10 | 14 |
+| Metric                   | Previous Design     | Enhanced Design                       |
+| ------------------------ | ------------------- | ------------------------------------- |
+| **New Tables**           | 9                   | 13 (+3 global defaults, +1 overrides) |
+| **Configuration Levels** | 1                   | 3 (global → clerkship → resolved)     |
+| **Setup Time**           | ~2 hours per school | ~5-20 minutes                         |
+| **Policy Changes**       | Edit each clerkship | Update defaults once                  |
+| **Flexibility**          | High                | Very High                             |
+| **API Endpoints**        | 30+                 | 46+                                   |
+| **Services**             | 7                   | 9                                     |
+| **Test Suites**          | 10                  | 14                                    |
 
 ---
 

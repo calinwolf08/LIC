@@ -38,7 +38,7 @@ let postgresSchema: Schema = {};
 
 beforeAll(async () => {
 	sqliteDb = new Kysely<any>({
-		dialect: new SqliteDialect({ database: new Database(':memory:') }),
+		dialect: new SqliteDialect({ database: new Database(':memory:') })
 	});
 
 	const { dialect } = await KyselyPGlite.create();
@@ -150,7 +150,7 @@ function printDiff(sqlite: Schema, postgres: Schema): void {
 			`only on postgres:   ${onlyPostgres.length ? onlyPostgres.join(', ') : '(none)'}`,
 			`column differences: ${columnDiffs.length ? '\n' + columnDiffs.join('\n') : '(none)'}`,
 			'────────────────────────────────────',
-			'',
+			''
 		].join('\n')
 	);
 }

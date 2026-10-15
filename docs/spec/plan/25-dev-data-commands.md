@@ -1,17 +1,20 @@
 # Step 25 — Dev Data Commands (reset one user / reset everything)
 
 ## Objective
+
 Two commands: wipe a single account and everything it owns (leaving other accounts intact, so
 cross-tenant checks stay possible), and wipe the database back to a fresh state.
 
 ## Context
+
 `package.json` has `db:migrate`, `db:seed`, `seed:scenario` — nothing that removes data.
 `src/lib/db/scripts/` contains only `seed.ts` and `seed-schedule.ts`. Manual QA of steps 26–27
-depends on being able to (a) recreate a test account from scratch and (b) keep a *second* account's
+depends on being able to (a) recreate a test account from scratch and (b) keep a _second_ account's
 data around to prove it is not visible. That makes this step a prerequisite for verifying the
 privacy work by hand, so it goes first.
 
 Ownership model to respect (do not guess — read it):
+
 - `scheduling_periods.user_id` is the owner column.
 - Entities (`students`, `preceptors`, `clerkships`, `sites`, `health_systems`, `preceptor_teams`)
   have **no** `user_id`; they belong to a schedule through the `schedule_*` junction tables.
@@ -20,6 +23,7 @@ Ownership model to respect (do not guess — read it):
 - better-auth owns `user`, `session`, `account`, `verification`.
 
 ## Scope
+
 **In:** two CLI scripts + npm scripts, dry-run output, confirmation for the destructive one.
 **Out:** any admin UI (explicitly deferred).
 
@@ -42,7 +46,7 @@ Ownership model to respect (do not guess — read it):
    - **Shared entities are the trap:** an entity referenced by another user's schedule must be left
      alone. Delete an entity only when it has zero junction rows after step 2. Assert this with a
      test.
-   - Flags: `--dry-run` (default off) printing a per-table count of what *would* go; `--yes` to skip
+   - Flags: `--dry-run` (default off) printing a per-table count of what _would_ go; `--yes` to skip
      the interactive confirmation.
 2. **`src/lib/db/scripts/reset-all.ts`** — `npm run db:reset`
    - Drops/recreates the schema by re-running migrations against a truncated DB (simplest correct
@@ -58,6 +62,7 @@ Ownership model to respect (do not guess — read it):
    one implementation rather than duplicating the FK order.
 
 ## Testing
+
 - **Unit/integration (`reset-lib`), against a migrated test DB:**
   - Two users each with a schedule and their own entities → resetting user A removes A's schedule,
     entities, assignments and auth rows, and leaves **every one of B's rows untouched** (assert
@@ -73,6 +78,7 @@ Ownership model to respect (do not guess — read it):
   up again with the same email successfully.
 
 ## Acceptance criteria
+
 - [ ] `npm run db:reset-user -- --email=…` removes exactly that account and its exclusively-owned
       data, provably leaving other accounts intact.
 - [ ] Entities shared with another user's schedule are never deleted.

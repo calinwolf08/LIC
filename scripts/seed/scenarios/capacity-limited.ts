@@ -23,7 +23,7 @@ import {
 	createPreceptor,
 	createTeam,
 	createAvailability,
-	generateWeekdaysInRange,
+	generateWeekdaysInRange
 } from '../helpers';
 
 export async function capacityLimitedScenario(userId: string, scheduleId: string): Promise<void> {
@@ -43,13 +43,19 @@ export async function capacityLimitedScenario(userId: string, scheduleId: string
 	const clerkshipId = await createClerkship('Family Medicine', {
 		type: 'outpatient',
 		requiredDays: 10,
-		specialty: 'Family Medicine',
+		specialty: 'Family Medicine'
 	});
 
 	// Create Students
 	console.log('  Creating students...');
 	const studentIds: string[] = [];
-	const studentNames = ['Emma Davis', 'James Wilson', 'Olivia Brown', 'William Taylor', 'Sophia Anderson'];
+	const studentNames = [
+		'Emma Davis',
+		'James Wilson',
+		'Olivia Brown',
+		'William Taylor',
+		'Sophia Anderson'
+	];
 	for (const name of studentNames) {
 		const email = name.toLowerCase().replace(' ', '.') + '@medical.edu';
 		const id = await createStudent(name, email);
@@ -62,26 +68,30 @@ export async function capacityLimitedScenario(userId: string, scheduleId: string
 		healthSystemId,
 		siteId,
 		specialty: 'Family Medicine',
-		maxStudents: 1, // Only 1 student at a time
+		maxStudents: 1 // Only 1 student at a time
 	});
 
 	const drMedCapacityId = await createPreceptor('Dr. Med Capacity', {
 		healthSystemId,
 		siteId,
 		specialty: 'Family Medicine',
-		maxStudents: 2, // Up to 2 students at a time
+		maxStudents: 2 // Up to 2 students at a time
 	});
 
 	const drHighCapacityId = await createPreceptor('Dr. High Capacity', {
 		healthSystemId,
 		siteId,
 		specialty: 'Family Medicine',
-		maxStudents: 3, // Up to 3 students at a time
+		maxStudents: 3 // Up to 3 students at a time
 	});
 
 	// Create Team with all preceptors
 	console.log('  Creating team...');
-	await createTeam(clerkshipId, 'Family Medicine Team', [drLowCapacityId, drMedCapacityId, drHighCapacityId]);
+	await createTeam(clerkshipId, 'Family Medicine Team', [
+		drLowCapacityId,
+		drMedCapacityId,
+		drHighCapacityId
+	]);
 
 	// Create Availability - all preceptors available all weekdays
 	console.log('  Creating availability...');

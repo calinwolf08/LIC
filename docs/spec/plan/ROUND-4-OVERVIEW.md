@@ -9,11 +9,11 @@ each step below has its own context, implementation notes and test requirements.
 
 > **Admin/ops tooling is explicitly out of scope for this round** and will be planned separately.
 > **Legacy `site_id IS NULL` backfill is also out of scope** — the database will be reset rather
-> than migrated. The *seed* must be updated to match the post-Round-3 rules (step 36).
+> than migrated. The _seed_ must be updated to match the post-Round-3 rules (step 36).
 
 ## Read this first: step 34 is a live security hole
 
-Round 3 assumed every API route already required a session and only the *tenant* check was missing.
+Round 3 assumed every API route already required a session and only the _tenant_ check was missing.
 **That assumption was wrong.** `src/hooks.server.ts` resolves the session into `event.locals` but
 **never rejects an unauthenticated request** — there is no global guard on `/api/*`. Each route is
 individually responsible, and **14 route files with mutating handlers never reference `locals` at
@@ -38,15 +38,15 @@ and do not batch it with anything else.
    └─> 40 (calendar colour scale + health panel IA)
 ```
 
-| Step | Title | Depends on | Priority |
-|---|---|---|---|
-| 34 | API authentication baseline | — | **Critical (security)** |
-| 35 | Tenant-scope Stage-2 config routes + student-schedule leak | 34 | **High (privacy)** |
-| 36 | Seed refresh for post-Round-3 rules | 35 | High (unblocks 37/38) |
-| 37 | Component tests: date picker + calendar grid | 36 | Medium |
-| 38 | E2E login hydration signal + flake elimination | 36 | Medium |
-| 39 | Empty and no-active-schedule states | 35 | Medium |
-| 40 | Calendar colour scale + health panel information architecture | — | Low |
+| Step | Title                                                         | Depends on | Priority                |
+| ---- | ------------------------------------------------------------- | ---------- | ----------------------- |
+| 34   | API authentication baseline                                   | —          | **Critical (security)** |
+| 35   | Tenant-scope Stage-2 config routes + student-schedule leak    | 34         | **High (privacy)**      |
+| 36   | Seed refresh for post-Round-3 rules                           | 35         | High (unblocks 37/38)   |
+| 37   | Component tests: date picker + calendar grid                  | 36         | Medium                  |
+| 38   | E2E login hydration signal + flake elimination                | 36         | Medium                  |
+| 39   | Empty and no-active-schedule states                           | 35         | Medium                  |
+| 40   | Calendar colour scale + health panel information architecture | —          | Low                     |
 
 ## Root causes (verified in code, this session)
 
@@ -74,10 +74,12 @@ and do not batch it with anything else.
 # Step 34 — API Authentication Baseline
 
 ## Objective
+
 Every non-public API endpoint requires a valid session, enforced centrally so a new route cannot
 forget. Remove the environment-variable auth bypass from the production path.
 
 ## Context (verified in code)
+
 - `src/hooks.server.ts` never rejects: it resolves the session and calls `resolve(event)` regardless.
 - These **14 route files expose a mutating handler and never reference `locals`**:
   ```
@@ -126,13 +128,14 @@ forget. Remove the environment-variable auth bypass from the production path.
      grep -qE "export const (POST|PUT|PATCH|DELETE)" "$f" && ! grep -q "locals" "$f" && echo "$f"
    done
    ```
-   Files may legitimately remain on that list *after* the central guard exists — the point of the
+   Files may legitimately remain on that list _after_ the central guard exists — the point of the
    sweep is that each remaining one is a conscious decision, not an oversight. List them with a
    one-line justification each.
 
 ## Testing
+
 - **Unit — the hook:** a request to `/api/students` with no session returns **401**; with a session,
-  passes through. `/api/auth/sign-in/email` is never blocked. A path that merely *contains* `/api/`
+  passes through. `/api/auth/sign-in/email` is never blocked. A path that merely _contains_ `/api/`
   later in the string (e.g. `/dashboard/api/x`) is not treated as public.
 - **API integration — table-driven over every mutating endpoint:** with `locals.session = null`,
   each returns **401** and **writes nothing** (re-read the target table and compare row counts
@@ -146,6 +149,7 @@ forget. Remove the environment-variable auth bypass from the production path.
   (they should return 200/201). A security test that never failed is not evidence.
 
 ## Acceptance criteria
+
 - [ ] Unauthenticated requests to any non-allowlisted `/api/*` route return 401 and mutate nothing.
 - [ ] The allowlist is explicit, small, and default-deny.
 - [ ] `E2E_TESTING` no longer disables auth in a production build.
@@ -157,10 +161,12 @@ forget. Remove the environment-variable auth bypass from the production path.
 # Step 35 — Tenant-Scope Stage-2 Config Routes & Close the Student-Schedule Leak
 
 ## Objective
+
 Finish the tenant boundary: the Stage-2 configuration surface and the one confirmed Stage-1 leak
 that survived Round 3.
 
 ## Context (verified in code)
+
 - **Every** `scheduling-config/*` route has zero tenant guards. Nine also lack `requireAutogen`:
   `clerkships/[id]`, `electives/*` (6 files), `requirements/*` (2 files). The rest
   (`capacity-rules/*`, `fallbacks/*`, `global-defaults/*`) gate on `autogen` but not on tenancy —
@@ -187,7 +193,7 @@ that survived Round 3.
      Leave them tenant-unguarded but keep `requireAutogen`, and **say so explicitly** in the PR with
      the reason. If they should be per-tenant, that is a schema change and belongs in its own step —
      do not smuggle it in here.
-3. **Add the missing `requireAutogen`** to the nine routes that lack it *if* they are Stage-2
+3. **Add the missing `requireAutogen`** to the nine routes that lack it _if_ they are Stage-2
    surfaces. Check first: electives and requirements may legitimately be Stage-1 clerkship
    configuration. Whichever way it lands, the answer must be deliberate and stated — a route that is
    Stage 1 gets a tenant guard only; a Stage-2 route gets both.
@@ -195,6 +201,7 @@ that survived Round 3.
    `assertEntityInSchedule` → validation → work. 404 for cross-tenant, never 403.
 
 ## Testing
+
 - **API integration, two-tenant fixture, table-driven per endpoint:** as A, every `GET` against B's
   config id returns **404**; every mutating call returns **404** and B's row is byte-identical
   afterwards; the same calls against A's own ids succeed.
@@ -208,6 +215,7 @@ that survived Round 3.
   the current commit before fixing; record the failures.
 
 ## Acceptance criteria
+
 - [ ] No scheduling-config endpoint returns or mutates another tenant's row.
 - [ ] `/api/students/[id]/schedule` no longer discloses a cross-tenant student's name/email.
 - [ ] `getStudentScheduleData` is safe independent of its caller.
@@ -219,11 +227,13 @@ that survived Round 3.
 # Step 36 — Seed Refresh for the Post-Round-3 Rules
 
 ## Objective
+
 Make a freshly seeded database exercise the features Round 3 changed. Today the admin account has
 **no assignments**, so the calendar, schedule health, and override review are all empty on first run
 — nothing to look at by hand, and nothing for e2e to assert against.
 
 ## Context (verified in code)
+
 - `src/lib/db/scripts/seed.ts` creates health systems, sites, clerkships, 10 students, 8 preceptors
   and 4 teams — and **never inserts into `schedule_assignments`** for the admin. Only
   `seedSecondTenant` creates one (for Tenant B).
@@ -242,10 +252,10 @@ Make a freshly seeded database exercise the features Round 3 changed. Today the 
    - a student **fully complete** (exercises the completed state);
    - a **double-booked preceptor-day across 4 consecutive days** with `override_codes` containing
      `preceptor_capacity` (exercises step 32's "4 findings, not 8" and the grouped override row);
-   - one **`not_onboarded` override that is already resolved** (the student *is* onboarded), so the
+   - one **`not_onboarded` override that is already resolved** (the student _is_ onboarded), so the
      active/resolved toggle has something to show.
-   Anchor every date with `fromToday()` / the `TEST_SCHEDULE` range from `seed-schedule.ts` so the
-   data always straddles today — never hard-code a calendar date.
+     Anchor every date with `fromToday()` / the `TEST_SCHEDULE` range from `seed-schedule.ts` so the
+     data always straddles today — never hard-code a calendar date.
 2. **Keep it idempotent.** Follow the existing pattern: check for an existing marker row and return
    early. Re-running `npm run db:seed` must not duplicate assignments.
 3. **Give Tenant B the same shape at smaller scale** — it already has one assignment; add a second
@@ -256,6 +266,7 @@ Make a freshly seeded database exercise the features Round 3 changed. Today the 
    so a new user knows what they are looking at.
 
 ## Testing
+
 - **Unit/integration:** after running the seed helper against a migrated in-memory DB —
   every seeded assignment has a non-null `site_id`; that site is linked to the assignment's
   preceptor via `preceptor_sites`; every assignment's student is in `schedule_students` for the
@@ -266,11 +277,12 @@ Make a freshly seeded database exercise the features Round 3 changed. Today the 
   `groupOverrides` collapses the 4-day capacity run into **one** row with `days: 4`.
 - **E2E smoke:** on a cold seeded DB, `/calendar` renders at least one assignment cell containing a
   seeded student's name, and Schedule health shows a non-zero conflict pill.
-- Re-run the full existing e2e suite — several journeys assume a *quiet* seed; any that break
+- Re-run the full existing e2e suite — several journeys assume a _quiet_ seed; any that break
   because data now exists must be made self-isolating (create their own entities) rather than
   papered over by shrinking the seed.
 
 ## Acceptance criteria
+
 - [ ] A fresh seed produces a calendar, health panel and override list with content.
 - [ ] Every seeded assignment satisfies the required-site rule and is internally consistent.
 - [ ] The seed is idempotent and date-anchored to the schedule range.
@@ -282,16 +294,18 @@ Make a freshly seeded database exercise the features Round 3 changed. Today the 
 # Step 37 — Component Tests: Date Picker & Calendar Grid
 
 ## Objective
-Cover the *rendered* behaviour of the two components Round 3 changed most. Steps 29 and 30 shipped
+
+Cover the _rendered_ behaviour of the two components Round 3 changed most. Steps 29 and 30 shipped
 with unit coverage of the pure logic and the APIs, but the visual contracts — the ones that were
 actually reported as bugs — are asserted only indirectly through e2e.
 
 ## Context (verified in code)
+
 - The `client` Vitest project already exists (`vite.config.ts`): browser environment, Playwright
   chromium provider, `include: ['src/**/*.svelte.{test,spec}.{js,ts}']`, setup
   `vitest-setup-client.ts`. **No component tests exist yet.**
 - `assignment-date-picker.svelte` exposes `data-state` (`available|unavailable|unset|taken|full|busy|
-  blackout|out-of-range`), `data-selected`, and `data-testid="day-<date>"` /
+blackout|out-of-range`), `data-selected`, and `data-testid="day-<date>"` /
   `data-testid="selected-conflicts"`.
 - `schedule-calendar-grid.svelte` exposes `data-testid="calendar-assignment"` and `data-color`,
   and takes `mode` and `colorBy` props.
@@ -301,7 +315,7 @@ actually reported as bugs — are asserted only indirectly through e2e.
 1. **`assignment-date-picker.svelte.test.ts`** — mount with a hand-built `dayStates` map (no network):
    - one day per state; assert each cell's `data-state`.
    - **The reported bug, asserted directly:** a day that is both `selected` **and** booked keeps its
-     conflict styling *and* gains the selection ring — assert `data-state="taken"` **and**
+     conflict styling _and_ gains the selection ring — assert `data-state="taken"` **and**
      `data-selected="true"` **and** that the class list still contains the amber state class. This is
      the regression that must fail if anyone reintroduces the early-return.
    - `selected-conflicts` lists exactly the conflicting members of a multi-day selection, with the
@@ -314,12 +328,14 @@ actually reported as bugs — are asserted only indirectly through e2e.
      students differ; the value is stable across a re-render.
    - `colorBy="clerkship"` (the default) keeps the service-provided colour.
    - the `+N more` affordance appears past `fitLimit` and its drawer inherits the same labels.
-3. **Wire it into the scripts.** Confirm `npm run test:unit` runs *both* Vitest projects; if it only
+3. **Wire it into the scripts.** Confirm `npm run test:unit` runs _both_ Vitest projects; if it only
    runs `server`, add an explicit script (e.g. `test:unit:client`) and include it in `npm test` so
    these cannot silently stop running.
 
 ## Testing
-This step *is* testing. Required evidence:
+
+This step _is_ testing. Required evidence:
+
 - Both component test files pass locally against the `client` project.
 - Each new test **fails** when the corresponding fix is reverted — demonstrate at least for the
   selected-and-conflicting case and the `mode="schedule"` label case, since those are the two
@@ -327,6 +343,7 @@ This step *is* testing. Required evidence:
 - No increase in flakiness: run the client project twice with `--retries=0`.
 
 ## Acceptance criteria
+
 - [ ] Picker states, the selected-and-conflicting composition, the conflict list and the legend are
       covered by mounted-component assertions.
 - [ ] Grid mode and colour semantics are covered, including the student-page no-regression case.
@@ -338,10 +355,12 @@ This step *is* testing. Required evidence:
 # Step 38 — E2E Login Hydration Signal & Flake Elimination
 
 ## Objective
+
 Make `login()` deterministic. It is the first call in nearly every journey, so when it flakes the
 whole suite is unusable — which is exactly what happened at the end of Round 3.
 
 ## Context (verified in code)
+
 - `e2e/journeys/helpers.ts` fills the form then clicks **blind**, retrying on a timeout, because the
   submit handler only exists after hydration. Round 3 widened the retry window; that reduces the
   failure rate but does not remove the race.
@@ -366,6 +385,7 @@ whole suite is unusable — which is exactly what happened at the end of Round 3
    per `GUIDELINES.md`. Record what you changed.
 
 ## Testing
+
 - **E2E:** `login()` succeeds on the **first** click — assert the retry loop did not engage (e.g.
   count clicks via an instrumented helper, or assert navigation within a single short timeout).
 - **Stability:** run the three cross-cutting journeys (`end-to-end`, `entity-consistency`,
@@ -375,6 +395,7 @@ whole suite is unusable — which is exactly what happened at the end of Round 3
   degraded container, and it is the real acceptance evidence for this step.
 
 ## Acceptance criteria
+
 - [ ] The login helper waits on an explicit hydration signal instead of retrying blind clicks.
 - [ ] Full Playwright suite green from a cold seeded DB, twice, zero retries.
 - [ ] Remaining `waitForTimeout` calls in journeys are removed or individually justified.
@@ -385,14 +406,16 @@ whole suite is unusable — which is exactly what happened at the end of Round 3
 # Step 39 — Empty and No-Active-Schedule States
 
 ## Objective
+
 When a surface has nothing to show, say why and what to do next. Round 3's scoping work made several
 loaders correctly return `[]` when there is no active schedule — and the pages now render blank.
 
 ## Context (verified in code)
+
 - `(app)/locations/+page.server.ts` returns `{ healthSystems: [], sites: [] }` when
   `getActiveScheduleId` is null. `(app)/calendar/+page.server.ts` resolves empty filter lists the
   same way. `(app)/dashboard/+page.server.ts` reports zero counts.
-- These are *correct* (never fall back to a global list) but produce an unexplained empty screen,
+- These are _correct_ (never fall back to a global list) but produce an unexplained empty screen,
   which reads as breakage rather than "you have no schedule selected".
 - `EmptyState` already exists as a shared primitive (`GUIDELINES.md`) — this is composition, not new
   UI vocabulary.
@@ -414,6 +437,7 @@ loaders correctly return `[]` when there is no active schedule — and the pages
    no-schedule case leads into it rather than showing zeros.
 
 ## Testing
+
 - **Component:** with `hasActiveSchedule: false`, each surface renders the no-schedule empty state
   and its call to action; with `hasActiveSchedule: true` and no rows, it renders the per-entity empty
   copy instead; with rows, neither appears.
@@ -421,10 +445,11 @@ loaders correctly return `[]` when there is no active schedule — and the pages
   calendar and locations, and the primary action navigates to schedule management. Build this from a
   freshly registered account (`fresh-signup.spec.ts` already has the pattern) rather than by mutating
   a seeded user.
-- **Regression:** the seeded admin (who *has* a schedule and, after step 36, data) sees neither empty
+- **Regression:** the seeded admin (who _has_ a schedule and, after step 36, data) sees neither empty
   state.
 
 ## Acceptance criteria
+
 - [ ] "No active schedule" and "no data yet" are visually and textually distinct everywhere.
 - [ ] The distinction comes from the loader, not from a length check in the component.
 - [ ] One shared component owns the no-schedule copy.
@@ -435,9 +460,11 @@ loaders correctly return `[]` when there is no active schedule — and the pages
 # Step 40 — Calendar Colour Scale & Health Panel Information Architecture
 
 ## Objective
+
 Two polish items deferred from Round 3, both about legibility at realistic scale.
 
 ## Context (verified in code)
+
 - `entity-colors.ts` has an **8-colour** palette; the seed has **10** students, so schedule-wide
   colour-by-student repeats. The student name is always rendered in the cell, so colour is never the
   only identifier (accessibility is satisfied) — but two students sharing a colour is still
@@ -460,13 +487,14 @@ Two polish items deferred from Round 3, both about legibility at realistic scale
    - **(a) Keep two sections**, but make the relationship explicit in the UI — e.g. show, on each
      override row, whether it is currently suppressing a conflict; or
    - **(b) Merge into a single "Issues" list** with a `type` column (`conflict` / `accepted
-     exception`) and a status, filterable by both — one list, one mental model.
-   Prefer (b) if user testing shows the split is still confusing; prefer (a) if the audit-trail
-   framing is valued. Do not build both.
+exception`) and a status, filterable by both — one list, one mental model.
+     Prefer (b) if user testing shows the split is still confusing; prefer (a) if the audit-trail
+     framing is valued. Do not build both.
 4. This step is **user-facing polish with no security or correctness impact** — if time is short it
    is the one to defer.
 
 ## Testing
+
 - **Unit:** the expanded palette is still deterministic per id, still distributes across the whole
   palette, and every entry is a valid hex; the initials helper handles single-word, multi-word and
   empty names.
@@ -479,6 +507,7 @@ Two polish items deferred from Round 3, both about legibility at realistic scale
   present in the DOM, not conveyed by style alone).
 
 ## Acceptance criteria
+
 - [ ] Colour repeats are mitigated and identity never depends on hue alone.
 - [ ] The schedule-wide calendar has a legend.
 - [ ] The health panel's structure is settled deliberately and documented.

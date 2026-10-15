@@ -9,6 +9,7 @@ This document describes the design for a pattern-based availability system that 
 ### Current Implementation
 
 The existing system (`enhanced-availability-manager.svelte`) provides:
+
 - Weekly repeating patterns
 - Date range blocks
 - Individual date selection
@@ -16,6 +17,7 @@ The existing system (`enhanced-availability-manager.svelte`) provides:
 - Bulk save to `preceptor_availability` table
 
 **Limitations:**
+
 - Patterns not persisted (cannot edit after saving)
 - No monthly pattern support
 - No override hierarchy
@@ -55,6 +57,7 @@ CREATE UNIQUE INDEX idx_active_period ON scheduling_periods(is_active) WHERE is_
 ```
 
 **Purpose**: Defines the time scope for all scheduling operations. For example:
+
 - "Academic Year 2025-2026" (Sep 1, 2025 - Jun 30, 2026)
 - "Calendar Year 2025" (Jan 1, 2025 - Dec 31, 2025)
 - "Spring Semester 2025" (Jan 15, 2025 - May 15, 2025)
@@ -88,13 +91,15 @@ CREATE INDEX idx_patterns_specificity ON preceptor_availability_patterns(specifi
 **Pattern Types:**
 
 1. **Weekly** (`specificity = 1`)
+
    ```json
    {
-     "days_of_week": [1, 3, 5] // Mon, Wed, Fri (0=Sun, 6=Sat)
+   	"days_of_week": [1, 3, 5] // Mon, Wed, Fri (0=Sun, 6=Sat)
    }
    ```
 
 2. **Monthly** (`specificity = 1`)
+
    ```json
    {
      "monthly_type": "first_week" | "last_week" | "first_business_week" | "specific_days",
@@ -104,6 +109,7 @@ CREATE INDEX idx_patterns_specificity ON preceptor_availability_patterns(specifi
    ```
 
 3. **Block** (`specificity = 2`)
+
    ```json
    {
      "exclude_weekends": true | false
@@ -151,6 +157,7 @@ Pattern 3 (Individual, Spec 3): Available Feb 3, 4, 5, 2025
 ```
 
 **Result:**
+
 - All Mon-Wed-Fri in 2025 are marked available
 - Feb 1-14 are marked unavailable (overrides weekly pattern)
 - Feb 3, 4, 5 are marked available (overrides block pattern)
@@ -159,28 +166,26 @@ Pattern 3 (Individual, Spec 3): Available Feb 3, 4, 5, 2025
 
 ```typescript
 function generateAvailabilityDates(patterns: Pattern[]): AvailabilityDate[] {
-  // Sort patterns by specificity
-  const sorted = patterns
-    .filter(p => p.enabled)
-    .sort((a, b) => a.specificity - b.specificity);
+	// Sort patterns by specificity
+	const sorted = patterns.filter((p) => p.enabled).sort((a, b) => a.specificity - b.specificity);
 
-  // Map to store final availability state for each date
-  const dateMap = new Map<string, boolean>();
+	// Map to store final availability state for each date
+	const dateMap = new Map<string, boolean>();
 
-  // Apply patterns in order of specificity
-  for (const pattern of sorted) {
-    const dates = generateDatesForPattern(pattern);
+	// Apply patterns in order of specificity
+	for (const pattern of sorted) {
+		const dates = generateDatesForPattern(pattern);
 
-    for (const date of dates) {
-      dateMap.set(date, pattern.is_available);
-    }
-  }
+		for (const date of dates) {
+			dateMap.set(date, pattern.is_available);
+		}
+	}
 
-  // Convert map to array
-  return Array.from(dateMap.entries()).map(([date, is_available]) => ({
-    date,
-    is_available
-  }));
+	// Convert map to array
+	return Array.from(dateMap.entries()).map(([date, is_available]) => ({
+		date,
+		is_available
+	}));
 }
 ```
 
@@ -189,61 +194,53 @@ function generateAvailabilityDates(patterns: Pattern[]): AvailabilityDate[] {
 #### Weekly Pattern
 
 ```typescript
-function generateWeeklyDates(
-  startDate: string,
-  endDate: string,
-  daysOfWeek: number[]
-): string[] {
-  const dates: string[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+function generateWeeklyDates(startDate: string, endDate: string, daysOfWeek: number[]): string[] {
+	const dates: string[] = [];
+	const start = new Date(startDate);
+	const end = new Date(endDate);
 
-  let current = new Date(start);
-  while (current <= end) {
-    const dayOfWeek = current.getDay();
-    if (daysOfWeek.includes(dayOfWeek)) {
-      dates.push(formatDate(current));
-    }
-    current.setDate(current.getDate() + 1);
-  }
+	let current = new Date(start);
+	while (current <= end) {
+		const dayOfWeek = current.getDay();
+		if (daysOfWeek.includes(dayOfWeek)) {
+			dates.push(formatDate(current));
+		}
+		current.setDate(current.getDate() + 1);
+	}
 
-  return dates;
+	return dates;
 }
 ```
 
 #### Monthly Pattern
 
 ```typescript
-function generateMonthlyDates(
-  startDate: string,
-  endDate: string,
-  config: MonthlyConfig
-): string[] {
-  const dates: string[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+function generateMonthlyDates(startDate: string, endDate: string, config: MonthlyConfig): string[] {
+	const dates: string[] = [];
+	const start = new Date(startDate);
+	const end = new Date(endDate);
 
-  // Get all months in range
-  const months = getMonthsInRange(start, end);
+	// Get all months in range
+	const months = getMonthsInRange(start, end);
 
-  for (const month of months) {
-    switch (config.monthly_type) {
-      case 'first_week':
-        dates.push(...getFirstWeekDates(month, config.week_definition));
-        break;
-      case 'last_week':
-        dates.push(...getLastWeekDates(month, config.week_definition));
-        break;
-      case 'first_business_week':
-        dates.push(...getFirstBusinessWeekDates(month));
-        break;
-      case 'specific_days':
-        dates.push(...getSpecificDaysOfMonth(month, config.specific_days));
-        break;
-    }
-  }
+	for (const month of months) {
+		switch (config.monthly_type) {
+			case 'first_week':
+				dates.push(...getFirstWeekDates(month, config.week_definition));
+				break;
+			case 'last_week':
+				dates.push(...getLastWeekDates(month, config.week_definition));
+				break;
+			case 'first_business_week':
+				dates.push(...getFirstBusinessWeekDates(month));
+				break;
+			case 'specific_days':
+				dates.push(...getSpecificDaysOfMonth(month, config.specific_days));
+				break;
+		}
+	}
 
-  return dates.filter(date => date >= startDate && date <= endDate);
+	return dates.filter((date) => date >= startDate && date <= endDate);
 }
 ```
 
@@ -257,26 +254,26 @@ function generateMonthlyDates(
 
 ```typescript
 function generateBlockDates(
-  startDate: string,
-  endDate: string,
-  excludeWeekends: boolean
+	startDate: string,
+	endDate: string,
+	excludeWeekends: boolean
 ): string[] {
-  const dates: string[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+	const dates: string[] = [];
+	const start = new Date(startDate);
+	const end = new Date(endDate);
 
-  let current = new Date(start);
-  while (current <= end) {
-    const dayOfWeek = current.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+	let current = new Date(start);
+	while (current <= end) {
+		const dayOfWeek = current.getDay();
+		const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-    if (!excludeWeekends || !isWeekend) {
-      dates.push(formatDate(current));
-    }
-    current.setDate(current.getDate() + 1);
-  }
+		if (!excludeWeekends || !isWeekend) {
+			dates.push(formatDate(current));
+		}
+		current.setDate(current.getDate() + 1);
+	}
 
-  return dates;
+	return dates;
 }
 ```
 
@@ -284,9 +281,9 @@ function generateBlockDates(
 
 ```typescript
 function generateIndividualDate(
-  startDate: string // Same as endDate for individual
+	startDate: string // Same as endDate for individual
 ): string[] {
-  return [startDate];
+	return [startDate];
 }
 ```
 
@@ -342,6 +339,7 @@ pattern-availability-builder.svelte (main)
 ### Pattern Add/Edit Form
 
 **Weekly Pattern:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Weekly Pattern                               │
@@ -361,6 +359,7 @@ pattern-availability-builder.svelte (main)
 ```
 
 **Monthly Pattern:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Monthly Pattern                              │
@@ -388,6 +387,7 @@ pattern-availability-builder.svelte (main)
 ```
 
 **Block Pattern:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Block Pattern                                │
@@ -405,6 +405,7 @@ pattern-availability-builder.svelte (main)
 ```
 
 **Individual Override:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Individual Date                              │
@@ -429,26 +430,27 @@ pattern-availability-builder.svelte (main)
 Get all patterns for a preceptor.
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": "pattern-1",
-      "preceptor_id": "preceptor-1",
-      "pattern_type": "weekly",
-      "is_available": true,
-      "specificity": 1,
-      "date_range_start": "2025-01-01",
-      "date_range_end": "2025-12-31",
-      "config": {
-        "days_of_week": [1, 3, 5]
-      },
-      "enabled": true,
-      "created_at": "2025-01-01T00:00:00Z",
-      "updated_at": "2025-01-01T00:00:00Z"
-    }
-  ]
+	"success": true,
+	"data": [
+		{
+			"id": "pattern-1",
+			"preceptor_id": "preceptor-1",
+			"pattern_type": "weekly",
+			"is_available": true,
+			"specificity": 1,
+			"date_range_start": "2025-01-01",
+			"date_range_end": "2025-12-31",
+			"config": {
+				"days_of_week": [1, 3, 5]
+			},
+			"enabled": true,
+			"created_at": "2025-01-01T00:00:00Z",
+			"updated_at": "2025-01-01T00:00:00Z"
+		}
+	]
 }
 ```
 
@@ -457,15 +459,16 @@ Get all patterns for a preceptor.
 Create a new pattern.
 
 **Request:**
+
 ```json
 {
-  "pattern_type": "weekly",
-  "is_available": true,
-  "date_range_start": "2025-01-01",
-  "date_range_end": "2025-12-31",
-  "config": {
-    "days_of_week": [1, 3, 5]
-  }
+	"pattern_type": "weekly",
+	"is_available": true,
+	"date_range_start": "2025-01-01",
+	"date_range_end": "2025-12-31",
+	"config": {
+		"days_of_week": [1, 3, 5]
+	}
 }
 ```
 
@@ -482,22 +485,23 @@ Delete a pattern.
 Generate availability dates from all enabled patterns.
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "data": {
-    "generated_dates": 156,
-    "available_dates": 142,
-    "unavailable_dates": 14,
-    "preview": [
-      {
-        "date": "2025-01-01",
-        "is_available": true,
-        "source_pattern_id": "pattern-1",
-        "source_pattern_type": "weekly"
-      }
-    ]
-  }
+	"success": true,
+	"data": {
+		"generated_dates": 156,
+		"available_dates": 142,
+		"unavailable_dates": 14,
+		"preview": [
+			{
+				"date": "2025-01-01",
+				"is_available": true,
+				"source_pattern_id": "pattern-1",
+				"source_pattern_type": "weekly"
+			}
+		]
+	}
 }
 ```
 
@@ -590,6 +594,7 @@ Set a period as active (deactivates others).
 ### Backward Compatibility
 
 Existing availability data remains intact:
+
 - Current `preceptor_availability` records are preserved
 - New pattern system adds features without breaking existing data
 - Users can choose to create patterns or continue using existing data
@@ -597,6 +602,7 @@ Existing availability data remains intact:
 ### Data Migration
 
 No migration needed for existing data. New features are additive:
+
 1. Existing availability dates remain in `preceptor_availability`
 2. New patterns are stored in `preceptor_availability_patterns`
 3. Users can create patterns that generate new availability dates

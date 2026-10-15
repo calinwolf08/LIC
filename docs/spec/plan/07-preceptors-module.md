@@ -1,15 +1,19 @@
 # Step 07 — Preceptors Module Rework
 
 ## Objective
+
 Consolidate all preceptor viewing/editing onto a detail page, make availability a first-class tab with a calendar visualization (feedback F5), and remove the modal/page split.
 
 ## Context
-DESIGN_REVIEW A1, C5. Create is a full-page wizard (good) but edit is a modal, availability is edited via a modal from the list *and* via `/preceptors/[id]/availability`, and there is no way to *see* resulting availability on a calendar. Teams UI is entangled with this page (handled in steps 08/13).
+
+DESIGN*REVIEW A1, C5. Create is a full-page wizard (good) but edit is a modal, availability is edited via a modal from the list \_and* via `/preceptors/[id]/availability`, and there is no way to _see_ resulting availability on a calendar. Teams UI is entangled with this page (handled in steps 08/13).
 
 ## Prerequisites
+
 Steps 01, 04. Uses step 10's status service for readiness/load data (stub allowed as in step 06).
 
 ## Scope
+
 **In:** `/preceptors` list, `/preceptors/[id]` detail, availability UX, keeping `/preceptors/new` wizard. **Out:** teams (moved by steps 08/13), the scheduling engine.
 
 ## Implementation
@@ -25,11 +29,13 @@ Steps 01, 04. Uses step 10's status service for readiness/load data (stub allowe
 4. `resolveAvailability` util must handle: weekly patterns, date-range overrides, exceptions, notes passthrough; timezone-safe UTC date math (reuse `features/scheduling/utils/date-utils`).
 
 ## Testing
+
 - Unit: `resolveAvailability` — weekly pattern, override precedence, exceptions, range boundaries, empty patterns (all-unavailable), leap-day/DST-safe date iteration.
 - E2E: list → click name → detail; edit details inline (dirty-guard fires); availability tab shows calendar matching a seeded pattern (assert a known available and unavailable day); add a pattern and see the calendar change; schedule tab lists seeded assignments with working links; old `/preceptors/[id]/availability` and `/preceptors/[id]/schedule` URLs redirect.
 - API: no new endpoints expected; if any added, scope + auth tests.
 
 ## Acceptance criteria
+
 - [ ] No preceptor edit/availability modals remain on the list page.
 - [ ] Availability visually verifiable on a calendar (F5 closed); indicator column retained (F4).
 - [ ] Detail page provides overview / availability / schedule / details with cross-links (R3.4).

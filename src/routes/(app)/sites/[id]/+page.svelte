@@ -23,8 +23,9 @@
 	let activeTab = $state('overview');
 
 	let healthSystemName = $derived(
-		data.healthSystems.find((hs: { id: string; name: string }) => hs.id === data.site.health_system_id)
-			?.name ?? null
+		data.healthSystems.find(
+			(hs: { id: string; name: string }) => hs.id === data.site.health_system_id
+		)?.name ?? null
 	);
 
 	let summaryItems = $derived<DetailSummaryItem[]>([
@@ -83,7 +84,11 @@
 				</div>
 			{/if}
 			<div class="max-w-xl">
-				<SiteForm site={data.site} healthSystems={data.healthSystems} onSuccess={handleFormSuccess} />
+				<SiteForm
+					site={data.site}
+					healthSystems={data.healthSystems}
+					onSuccess={handleFormSuccess}
+				/>
 			</div>
 		</Card>
 

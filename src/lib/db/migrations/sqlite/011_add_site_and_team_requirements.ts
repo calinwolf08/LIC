@@ -14,10 +14,7 @@ import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
 	// Get existing requirements
-	const existingRequirements = await db
-		.selectFrom('clerkship_requirements')
-		.selectAll()
-		.execute();
+	const existingRequirements = await db.selectFrom('clerkship_requirements').selectAll().execute();
 
 	// Create new table with additional fields
 	await db.schema
@@ -29,9 +26,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('requirement_type', 'text', (col) =>
 			col.notNull().check(sql`requirement_type IN ('inpatient', 'outpatient', 'elective')`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('allow_cross_system', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('require_same_site', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('require_same_preceptor_team', 'integer', (col) => col.notNull().defaultTo(0))
@@ -47,12 +42,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('override_allow_split_assignments', 'integer')
 		.addColumn('override_preceptor_continuity_preference', 'text')
 		.addColumn('override_team_continuity_preference', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Copy existing data, setting new fields to 0 (false) by default
@@ -71,9 +62,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable('clerkship_requirements').execute();
 
 	// Rename new table
-	await sql`ALTER TABLE clerkship_requirements_new RENAME TO clerkship_requirements`.execute(
-		db
-	);
+	await sql`ALTER TABLE clerkship_requirements_new RENAME TO clerkship_requirements`.execute(db);
 
 	// Recreate indexes
 	await db.schema
@@ -91,10 +80,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 export async function down(db: Kysely<any>): Promise<void> {
 	// Get existing requirements
-	const existingRequirements = await db
-		.selectFrom('clerkship_requirements')
-		.selectAll()
-		.execute();
+	const existingRequirements = await db.selectFrom('clerkship_requirements').selectAll().execute();
 
 	// Create table without new fields
 	await db.schema
@@ -106,9 +92,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('requirement_type', 'text', (col) =>
 			col.notNull().check(sql`requirement_type IN ('inpatient', 'outpatient', 'elective')`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('allow_cross_system', 'integer', (col) => col.notNull().defaultTo(0))
 		.addColumn('override_mode', 'text', (col) =>
 			col
@@ -122,12 +106,8 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('override_allow_split_assignments', 'integer')
 		.addColumn('override_preceptor_continuity_preference', 'text')
 		.addColumn('override_team_continuity_preference', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Copy data back (dropping new fields)
@@ -140,9 +120,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable('clerkship_requirements').execute();
 
 	// Rename new table
-	await sql`ALTER TABLE clerkship_requirements_new RENAME TO clerkship_requirements`.execute(
-		db
-	);
+	await sql`ALTER TABLE clerkship_requirements_new RENAME TO clerkship_requirements`.execute(db);
 
 	// Recreate indexes
 	await db.schema

@@ -7,11 +7,7 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { handleApiError } from '$lib/api/errors';
 import {
 	getBlackoutDates,
@@ -43,9 +39,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			dateRangeSchema.parse({ start_date: startDate, end_date: endDate });
 		}
 
-		const blackoutDates = startDate || endDate
-			? await getBlackoutDatesByRange(db, scheduleId, startDate, endDate)
-			: await getBlackoutDates(db, scheduleId);
+		const blackoutDates =
+			startDate || endDate
+				? await getBlackoutDatesByRange(db, scheduleId, startDate, endDate)
+				: await getBlackoutDates(db, scheduleId);
 
 		log.info('Blackout dates fetched', {
 			count: blackoutDates.length,
@@ -56,7 +53,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Date range validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}
@@ -89,7 +86,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Blackout date validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

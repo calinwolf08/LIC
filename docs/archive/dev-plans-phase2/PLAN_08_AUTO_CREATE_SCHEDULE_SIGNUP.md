@@ -30,20 +30,21 @@ Ensure migration runs and adds `active_schedule_id` to user table:
 import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
-  await db.schema
-    .alterTable('user')
-    .addColumn('active_schedule_id', 'text', (col) =>
-      col.references('scheduling_periods.id').onDelete('set null')
-    )
-    .execute();
+	await db.schema
+		.alterTable('user')
+		.addColumn('active_schedule_id', 'text', (col) =>
+			col.references('scheduling_periods.id').onDelete('set null')
+		)
+		.execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.alterTable('user').dropColumn('active_schedule_id').execute();
+	await db.schema.alterTable('user').dropColumn('active_schedule_id').execute();
 }
 ```
 
 Run migrations:
+
 ```bash
 npm run db:migrate
 ```
@@ -60,40 +61,36 @@ import { generateId } from '$lib/utils/id';
 
 // In better-auth configuration, add after user creation:
 async function createDefaultScheduleForUser(userId: string): Promise<string> {
-  const now = new Date();
-  const currentYear = now.getFullYear();
+	const now = new Date();
+	const currentYear = now.getFullYear();
 
-  // Default to academic year (July - June) or calendar year
-  const startDate = now.getMonth() >= 6
-    ? `${currentYear}-07-01`
-    : `${currentYear}-01-01`;
-  const endDate = now.getMonth() >= 6
-    ? `${currentYear + 1}-06-30`
-    : `${currentYear}-12-31`;
+	// Default to academic year (July - June) or calendar year
+	const startDate = now.getMonth() >= 6 ? `${currentYear}-07-01` : `${currentYear}-01-01`;
+	const endDate = now.getMonth() >= 6 ? `${currentYear + 1}-06-30` : `${currentYear}-12-31`;
 
-  const scheduleId = generateId();
+	const scheduleId = generateId();
 
-  await db
-    .insertInto('scheduling_periods')
-    .values({
-      id: scheduleId,
-      name: 'My Schedule',
-      start_date: startDate,
-      end_date: endDate,
-      user_id: userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .execute();
+	await db
+		.insertInto('scheduling_periods')
+		.values({
+			id: scheduleId,
+			name: 'My Schedule',
+			start_date: startDate,
+			end_date: endDate,
+			user_id: userId,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.execute();
 
-  // Set as active schedule
-  await db
-    .updateTable('user')
-    .set({ active_schedule_id: scheduleId })
-    .where('id', '=', userId)
-    .execute();
+	// Set as active schedule
+	await db
+		.updateTable('user')
+		.set({ active_schedule_id: scheduleId })
+		.where('id', '=', userId)
+		.execute();
 
-  return scheduleId;
+	return scheduleId;
 }
 ```
 
@@ -104,7 +101,7 @@ Integrate with better-auth signup flow:
 ```typescript
 // After successful signup, create default schedule
 if (isSignup && user.id) {
-  await createDefaultScheduleForUser(user.id);
+	await createDefaultScheduleForUser(user.id);
 }
 ```
 
@@ -114,117 +111,117 @@ if (isSignup && user.id) {
 
 ```svelte
 <script lang="ts">
-  import { enhance } from '$app/forms';
+	import { enhance } from '$app/forms';
 
-  interface Props {
-    open: boolean;
-    schedule: { id: string; name: string; start_date: string; end_date: string };
-    onComplete: () => void;
-  }
+	interface Props {
+		open: boolean;
+		schedule: { id: string; name: string; start_date: string; end_date: string };
+		onComplete: () => void;
+	}
 
-  let { open, schedule, onComplete }: Props = $props();
+	let { open, schedule, onComplete }: Props = $props();
 
-  let name = $state(schedule.name);
-  let startDate = $state(schedule.start_date);
-  let endDate = $state(schedule.end_date);
-  let isSubmitting = $state(false);
-  let error = $state('');
+	let name = $state(schedule.name);
+	let startDate = $state(schedule.start_date);
+	let endDate = $state(schedule.end_date);
+	let isSubmitting = $state(false);
+	let error = $state('');
 
-  async function handleSubmit(event: SubmitEvent) {
-    event.preventDefault();
-    isSubmitting = true;
-    error = '';
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		isSubmitting = true;
+		error = '';
 
-    try {
-      const response = await fetch(`/api/scheduling-periods/${schedule.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, start_date: startDate, end_date: endDate })
-      });
+		try {
+			const response = await fetch(`/api/scheduling-periods/${schedule.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name, start_date: startDate, end_date: endDate })
+			});
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update schedule');
-      }
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || 'Failed to update schedule');
+			}
 
-      // Mark as configured in localStorage to prevent showing again
-      localStorage.setItem('schedule_configured', 'true');
-      onComplete();
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'An error occurred';
-    } finally {
-      isSubmitting = false;
-    }
-  }
+			// Mark as configured in localStorage to prevent showing again
+			localStorage.setItem('schedule_configured', 'true');
+			onComplete();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'An error occurred';
+		} finally {
+			isSubmitting = false;
+		}
+	}
 </script>
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-black/50"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
-      <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome to LIC Scheduler!</h2>
-      <p class="text-gray-600 mb-6">
-        Let's set up your first schedule. You can change these settings anytime.
-      </p>
+	<div class="fixed inset-0 z-50 flex items-center justify-center">
+		<div class="absolute inset-0 bg-black/50"></div>
+		<div class="relative mx-4 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+			<h2 class="mb-2 text-2xl font-bold text-gray-900">Welcome to LIC Scheduler!</h2>
+			<p class="mb-6 text-gray-600">
+				Let's set up your first schedule. You can change these settings anytime.
+			</p>
 
-      <form onsubmit={handleSubmit} class="space-y-4">
-        <div>
-          <label for="schedule-name" class="block text-sm font-medium text-gray-700 mb-1">
-            Schedule Name
-          </label>
-          <input
-            id="schedule-name"
-            type="text"
-            bind:value={name}
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="e.g., Fall 2025 Clerkships"
-            required
-          />
-        </div>
+			<form onsubmit={handleSubmit} class="space-y-4">
+				<div>
+					<label for="schedule-name" class="mb-1 block text-sm font-medium text-gray-700">
+						Schedule Name
+					</label>
+					<input
+						id="schedule-name"
+						type="text"
+						bind:value={name}
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+						placeholder="e.g., Fall 2025 Clerkships"
+						required
+					/>
+				</div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">
-              Start Date
-            </label>
-            <input
-              id="start-date"
-              type="date"
-              bind:value={startDate}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">
-              End Date
-            </label>
-            <input
-              id="end-date"
-              type="date"
-              bind:value={endDate}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
-          </div>
-        </div>
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label for="start-date" class="mb-1 block text-sm font-medium text-gray-700">
+							Start Date
+						</label>
+						<input
+							id="start-date"
+							type="date"
+							bind:value={startDate}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+							required
+						/>
+					</div>
+					<div>
+						<label for="end-date" class="mb-1 block text-sm font-medium text-gray-700">
+							End Date
+						</label>
+						<input
+							id="end-date"
+							type="date"
+							bind:value={endDate}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+							required
+						/>
+					</div>
+				</div>
 
-        {#if error}
-          <p class="text-red-600 text-sm">{error}</p>
-        {/if}
+				{#if error}
+					<p class="text-sm text-red-600">{error}</p>
+				{/if}
 
-        <div class="flex justify-end gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : 'Get Started'}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+				<div class="flex justify-end gap-3 pt-4">
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+					>
+						{isSubmitting ? 'Saving...' : 'Get Started'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
 {/if}
 ```
 
@@ -234,29 +231,29 @@ if (isSignup && user.id) {
 
 ```svelte
 <script lang="ts">
-  import WelcomeScheduleModal from '$lib/features/schedules/components/welcome-schedule-modal.svelte';
-  import { browser } from '$app/environment';
-  import { invalidateAll } from '$app/navigation';
+	import WelcomeScheduleModal from '$lib/features/schedules/components/welcome-schedule-modal.svelte';
+	import { browser } from '$app/environment';
+	import { invalidateAll } from '$app/navigation';
 
-  let { data } = $props();
+	let { data } = $props();
 
-  // Check if this is first visit (schedule not configured yet)
-  let showWelcome = $state(false);
+	// Check if this is first visit (schedule not configured yet)
+	let showWelcome = $state(false);
 
-  $effect(() => {
-    if (browser && data.activeSchedule) {
-      const configured = localStorage.getItem('schedule_configured');
-      // Show welcome if schedule has default name and not previously configured
-      if (!configured && data.activeSchedule.name === 'My Schedule') {
-        showWelcome = true;
-      }
-    }
-  });
+	$effect(() => {
+		if (browser && data.activeSchedule) {
+			const configured = localStorage.getItem('schedule_configured');
+			// Show welcome if schedule has default name and not previously configured
+			if (!configured && data.activeSchedule.name === 'My Schedule') {
+				showWelcome = true;
+			}
+		}
+	});
 
-  function handleWelcomeComplete() {
-    showWelcome = false;
-    invalidateAll();
-  }
+	function handleWelcomeComplete() {
+		showWelcome = false;
+		invalidateAll();
+	}
 </script>
 
 <!-- Existing dashboard content -->
@@ -264,11 +261,11 @@ if (isSignup && user.id) {
 
 <!-- Welcome Modal -->
 {#if showWelcome && data.activeSchedule}
-  <WelcomeScheduleModal
-    open={showWelcome}
-    schedule={data.activeSchedule}
-    onComplete={handleWelcomeComplete}
-  />
+	<WelcomeScheduleModal
+		open={showWelcome}
+		schedule={data.activeSchedule}
+		onComplete={handleWelcomeComplete}
+	/>
 {/if}
 ```
 
@@ -284,19 +281,19 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ request }) => {
-  const session = await auth.api.getSession({ headers: request.headers });
+	const session = await auth.api.getSession({ headers: request.headers });
 
-  if (!session?.user?.id) {
-    return json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  }
+	if (!session?.user?.id) {
+		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+	}
 
-  const schedules = await db
-    .selectFrom('scheduling_periods')
-    .where('user_id', '=', session.user.id)
-    .selectAll()
-    .execute();
+	const schedules = await db
+		.selectFrom('scheduling_periods')
+		.where('user_id', '=', session.user.id)
+		.selectAll()
+		.execute();
 
-  return json({ success: true, data: schedules });
+	return json({ success: true, data: schedules });
 };
 ```
 
@@ -309,22 +306,22 @@ Remove check for `user_id IS NULL` schedules:
 ```typescript
 // Before (buggy):
 const schedule = await db
-  .selectFrom('scheduling_periods')
-  .where((eb) =>
-    eb.or([
-      eb('user_id', '=', user.id),
-      eb('user_id', 'is', null)  // Remove this line
-    ])
-  )
-  .selectAll()
-  .executeTakeFirst();
+	.selectFrom('scheduling_periods')
+	.where((eb) =>
+		eb.or([
+			eb('user_id', '=', user.id),
+			eb('user_id', 'is', null) // Remove this line
+		])
+	)
+	.selectAll()
+	.executeTakeFirst();
 
 // After (correct):
 const schedule = await db
-  .selectFrom('scheduling_periods')
-  .where('user_id', '=', user.id)
-  .selectAll()
-  .executeTakeFirst();
+	.selectFrom('scheduling_periods')
+	.where('user_id', '=', user.id)
+	.selectAll()
+	.executeTakeFirst();
 ```
 
 ### Phase 7: Fix Schedule Selector Component
@@ -335,43 +332,43 @@ Handle unauthenticated state gracefully:
 
 ```svelte
 <script lang="ts">
-  import { page } from '$app/stores';
+	import { page } from '$app/stores';
 
-  let schedules = $state<Array<{ id: string; name: string }>>([]);
-  let loading = $state(true);
-  let error = $state('');
+	let schedules = $state<Array<{ id: string; name: string }>>([]);
+	let loading = $state(true);
+	let error = $state('');
 
-  $effect(() => {
-    loadSchedules();
-  });
+	$effect(() => {
+		loadSchedules();
+	});
 
-  async function loadSchedules() {
-    try {
-      const response = await fetch('/api/scheduling-periods');
-      if (response.status === 401) {
-        // Not authenticated - don't show any schedules
-        schedules = [];
-        return;
-      }
-      const data = await response.json();
-      if (data.success) {
-        schedules = data.data;
-      }
-    } catch (e) {
-      error = 'Failed to load schedules';
-    } finally {
-      loading = false;
-    }
-  }
+	async function loadSchedules() {
+		try {
+			const response = await fetch('/api/scheduling-periods');
+			if (response.status === 401) {
+				// Not authenticated - don't show any schedules
+				schedules = [];
+				return;
+			}
+			const data = await response.json();
+			if (data.success) {
+				schedules = data.data;
+			}
+		} catch (e) {
+			error = 'Failed to load schedules';
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 {#if loading}
-  <div class="text-gray-400 text-sm">Loading...</div>
+	<div class="text-sm text-gray-400">Loading...</div>
 {:else if schedules.length === 0}
-  <div class="text-gray-400 text-sm">No schedules</div>
+	<div class="text-sm text-gray-400">No schedules</div>
 {:else}
-  <!-- Schedule selector dropdown -->
-  ...
+	<!-- Schedule selector dropdown -->
+	...
 {/if}
 ```
 
@@ -385,13 +382,13 @@ Ensure seed data creates schedules with proper user association:
 // Remove any orphan schedules (user_id = null)
 // All seeded schedules should be associated with test user
 const testSchedule = {
-  id: 'test-schedule-001',
-  name: 'Demo Schedule 2025',
-  start_date: '2025-01-06',
-  end_date: '2025-06-30',
-  user_id: testUser.id,  // Must have user_id
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString()
+	id: 'test-schedule-001',
+	name: 'Demo Schedule 2025',
+	start_date: '2025-01-06',
+	end_date: '2025-06-30',
+	user_id: testUser.id, // Must have user_id
+	created_at: new Date().toISOString(),
+	updated_at: new Date().toISOString()
 };
 ```
 

@@ -33,7 +33,7 @@
 	let { patterns, sites = [], onEdit, onDelete, onToggleEnabled }: Props = $props();
 
 	function getSiteName(siteId: string): string {
-		const site = sites.find(s => s.id === siteId);
+		const site = sites.find((s) => s.id === siteId);
 		return site?.name || 'Unknown Site';
 	}
 
@@ -118,10 +118,8 @@
 
 {#if patterns.length === 0}
 	<Card class="p-6">
-		<div class="text-center py-8">
-			<p class="text-muted-foreground">
-				No patterns yet. Add your first pattern to get started.
-			</p>
+		<div class="py-8 text-center">
+			<p class="text-muted-foreground">No patterns yet. Add your first pattern to get started.</p>
 		</div>
 	</Card>
 {:else}
@@ -132,13 +130,13 @@
 					<!-- Pattern Info -->
 					<div class="flex-1 space-y-2">
 						<!-- Header -->
-						<div class="flex items-center gap-2 flex-wrap">
+						<div class="flex flex-wrap items-center gap-2">
 							<span class="font-semibold">
 								{getPatternTypeLabel(pattern.pattern_type)}
 							</span>
 							<span class="text-sm text-muted-foreground">•</span>
 							<span
-								class={`px-2 py-0.5 text-xs font-medium rounded ${
+								class={`rounded px-2 py-0.5 text-xs font-medium ${
 									pattern.is_available
 										? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
 										: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
@@ -157,17 +155,23 @@
 								</span>
 							{/if}
 							<span class="text-sm text-muted-foreground">•</span>
-							<span class={`px-2 py-0.5 text-xs font-medium rounded ${getSpecificityColor(pattern.specificity)}`}>
+							<span
+								class={`rounded px-2 py-0.5 text-xs font-medium ${getSpecificityColor(pattern.specificity)}`}
+							>
 								{getSpecificityLabel(pattern.specificity)}
 							</span>
 							{#if sites.length > 0}
 								<span class="text-sm text-muted-foreground">•</span>
-								<span class="px-2 py-0.5 text-xs font-medium rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+								<span
+									class="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+								>
 									{getSiteName(pattern.site_id)}
 								</span>
 							{/if}
 							{#if !pattern.enabled}
-								<span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+								<span
+									class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+								>
 									Disabled
 								</span>
 							{/if}
@@ -200,20 +204,10 @@
 							</Button>
 						{/if}
 						{#if onEdit}
-							<Button
-								size="sm"
-								variant="outline"
-								onclick={() => onEdit?.(pattern)}
-							>
-								Edit
-							</Button>
+							<Button size="sm" variant="outline" onclick={() => onEdit?.(pattern)}>Edit</Button>
 						{/if}
 						{#if onDelete}
-							<Button
-								size="sm"
-								variant="destructive"
-								onclick={() => onDelete?.(pattern.id!)}
-							>
+							<Button size="sm" variant="destructive" onclick={() => onDelete?.(pattern.id!)}>
 								Delete
 							</Button>
 						{/if}

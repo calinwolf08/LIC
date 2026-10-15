@@ -13,7 +13,10 @@ import Database from 'better-sqlite3';
 import type { DB } from '$lib/db/types';
 
 // Import the actual production code paths
-import { generateWeeklyDates, parseDate } from '$lib/features/preceptors/services/pattern-generators';
+import {
+	generateWeeklyDates,
+	parseDate
+} from '$lib/features/preceptors/services/pattern-generators';
 import { SchedulingEngine } from '$lib/features/scheduling/services/scheduling-engine';
 import { buildSchedulingContext } from '$lib/features/scheduling/services/context-builder';
 import { getSchedulingDates } from '$lib/features/scheduling/utils/date-utils';
@@ -108,7 +111,7 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('notes', 'text')
 		.addColumn('created_at', 'text')
 		.addColumn('updated_at', 'text')
-				.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
+		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
 		.execute();
 }
@@ -147,34 +150,72 @@ describe('Pattern-to-Schedule End-to-End Integration', () => {
 		// =====================================================
 		const now = new Date().toISOString();
 
-		await db.insertInto('health_systems').values({
-			id: 'hs-1', name: 'Test Health System', created_at: now, updated_at: now
-		}).execute();
+		await db
+			.insertInto('health_systems')
+			.values({
+				id: 'hs-1',
+				name: 'Test Health System',
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
-		await db.insertInto('sites').values({
-			id: 'site-1', name: 'Test Site', health_system_id: 'hs-1',
-			created_at: now, updated_at: now
-		}).execute();
+		await db
+			.insertInto('sites')
+			.values({
+				id: 'site-1',
+				name: 'Test Site',
+				health_system_id: 'hs-1',
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
-		await db.insertInto('students').values({
-			id: 'student-1', name: 'Test Student', email: 'student@test.com',
-			created_at: now, updated_at: now
-		}).execute();
+		await db
+			.insertInto('students')
+			.values({
+				id: 'student-1',
+				name: 'Test Student',
+				email: 'student@test.com',
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
-		await db.insertInto('preceptors').values({
-			id: 'preceptor-1', name: 'Dr. Test', email: 'dr@test.com',
-			health_system_id: 'hs-1', max_students: 5,
-			created_at: now, updated_at: now
-		}).execute();
+		await db
+			.insertInto('preceptors')
+			.values({
+				id: 'preceptor-1',
+				name: 'Dr. Test',
+				email: 'dr@test.com',
+				health_system_id: 'hs-1',
+				max_students: 5,
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
-		await db.insertInto('preceptor_sites').values({
-			preceptor_id: 'preceptor-1', site_id: 'site-1', created_at: now
-		}).execute();
+		await db
+			.insertInto('preceptor_sites')
+			.values({
+				preceptor_id: 'preceptor-1',
+				site_id: 'site-1',
+				created_at: now
+			})
+			.execute();
 
-		await db.insertInto('clerkships').values({
-			id: 'clerkship-1', name: 'Family Medicine', clerkship_type: 'outpatient',
-			specialty: 'Family Medicine', required_days: 10, created_at: now, updated_at: now
-		}).execute();
+		await db
+			.insertInto('clerkships')
+			.values({
+				id: 'clerkship-1',
+				name: 'Family Medicine',
+				clerkship_type: 'outpatient',
+				specialty: 'Family Medicine',
+				required_days: 10,
+				created_at: now,
+				updated_at: now
+			})
+			.execute();
 
 		// =====================================================
 		// STEP 2: Generate availability dates using pattern-generators
@@ -203,15 +244,18 @@ describe('Pattern-to-Schedule End-to-End Integration', () => {
 		// This simulates what /api/preceptors/[id]/patterns/save does
 		// =====================================================
 		for (const date of availabilityDates) {
-			await db.insertInto('preceptor_availability').values({
-				id: `avail-${date}`,
-				preceptor_id: 'preceptor-1',
-				site_id: 'site-1',
-				date: date,
-				is_available: 1,
-				created_at: now,
-				updated_at: now
-			}).execute();
+			await db
+				.insertInto('preceptor_availability')
+				.values({
+					id: `avail-${date}`,
+					preceptor_id: 'preceptor-1',
+					site_id: 'site-1',
+					date: date,
+					is_available: 1,
+					created_at: now,
+					updated_at: now
+				})
+				.execute();
 		}
 
 		// Verify saved correctly
@@ -291,10 +335,13 @@ describe('Pattern-to-Schedule End-to-End Integration', () => {
 			}
 		}
 
-		expect(wrongDates, `Expected all assignments on Mon/Wed/Fri but found: ${wrongDates.join(', ')}`).toHaveLength(0);
+		expect(
+			wrongDates,
+			`Expected all assignments on Mon/Wed/Fri but found: ${wrongDates.join(', ')}`
+		).toHaveLength(0);
 
 		// Verify specific dates
-		const assignmentDates = result.assignments.map(a => a.date);
+		const assignmentDates = result.assignments.map((a) => a.date);
 		expect(assignmentDates).toContain('2025-12-01'); // Monday
 		expect(assignmentDates).toContain('2025-12-03'); // Wednesday
 		expect(assignmentDates).toContain('2025-12-05'); // Friday

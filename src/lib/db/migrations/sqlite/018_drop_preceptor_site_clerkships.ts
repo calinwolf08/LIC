@@ -28,15 +28,11 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
 		.addColumn('clerkship_id', 'text', (col) =>
 			col.notNull().references('clerkships.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('preceptor_site_clerkships_pk', [
 			'preceptor_id',
 			'site_id',

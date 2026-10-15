@@ -34,7 +34,7 @@ table in every database that has already run them.
    ```
 
 3. **No raw SQL defaults that only one engine understands.** `CURRENT_TIMESTAMP`
-   and `datetime('now')` both yield a *timestamp*, not text, and the app stores
+   and `datetime('now')` both yield a _timestamp_, not text, and the app stores
    ISO-8601 **text**. If a migration needs a "now" default, detect the engine
    from the connection (import only from `'kysely'`) and pick the matching SQL:
 
@@ -43,8 +43,8 @@ table in every database that has already run them.
 
    const isPg = db.getExecutor().adapter instanceof PostgresAdapter;
    const nowText = isPg
-     ? sql`to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')`
-     : sql`CURRENT_TIMESTAMP`;
+   	? sql`to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')`
+   	: sql`CURRENT_TIMESTAMP`;
    ```
 
 4. **Booleans stay `integer` holding 0/1** on every engine. The app compares

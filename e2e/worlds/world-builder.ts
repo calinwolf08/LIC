@@ -130,7 +130,13 @@ export interface WorldSpec {
 	students: StudentSpec[];
 	mutualExclusions?: Array<[string, string]>;
 	blackouts?: Array<{ date?: string; day?: number; reason?: string }>;
-	quarters?: Array<{ name: string; start?: string; end?: string; startDay?: number; endDay?: number }>;
+	quarters?: Array<{
+		name: string;
+		start?: string;
+		end?: string;
+		startDay?: number;
+		endDay?: number;
+	}>;
 }
 
 export interface World {
@@ -246,11 +252,13 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 		if (c.sites?.length) {
 			await db
 				.insertInto('clerkship_sites')
-				.values(c.sites.map((siteName) => ({
-					clerkship_id: r.data!.id,
-					site_id: siteId(ids, siteName),
-					created_at: ts
-				})))
+				.values(
+					c.sites.map((siteName) => ({
+						clerkship_id: r.data!.id,
+						site_id: siteId(ids, siteName),
+						created_at: ts
+					}))
+				)
 				.execute();
 		}
 		if (c.strategy) {
@@ -268,7 +276,8 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 				`/api/scheduling-config/electives?clerkshipId=${r.data.id}`,
 				{ name: display, minimumDays: e.minimumDays, isRequired: e.required ?? false }
 			);
-			if (!er.ok || !er.data?.id) throw new Error(`world: elective ${e.name} failed (${er.status})`);
+			if (!er.ok || !er.data?.id)
+				throw new Error(`world: elective ${e.name} failed (${er.status})`);
 			ids.elective[e.name] = er.data.id;
 			labels.elective[e.name] = display;
 		}
@@ -309,7 +318,12 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 			}
 			await db
 				.insertInto('preceptor_team_members')
-				.values({ id: crypto.randomUUID(), team_id: teamId, preceptor_id: r.data.id, created_at: ts })
+				.values({
+					id: crypto.randomUUID(),
+					team_id: teamId,
+					preceptor_id: r.data.id,
+					created_at: ts
+				})
 				.execute();
 		}
 	}
@@ -339,7 +353,9 @@ export async function buildWorld(page: Page, db: Kysely<DB>, spec: WorldSpec): P
 		}
 		for (const precName of s.corePreceptors ?? []) {
 			await api
-				.post(`/api/students/${r.data.id}/core-preceptors`, { preceptorId: preceptorId(ids, precName) })
+				.post(`/api/students/${r.data.id}/core-preceptors`, {
+					preceptorId: preceptorId(ids, precName)
+				})
 				.catch(() => {});
 		}
 	}

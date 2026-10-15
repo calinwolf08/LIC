@@ -19,29 +19,32 @@ Implement account-based isolation to ensure each user's data (students, precepto
 #### New Tables
 
 **`accounts` Table**
+
 ```typescript
 interface Account {
-  id: string;                    // Primary key (UUID)
-  name: string;                  // Organization/program name (e.g., "University Hospital Medical School")
-  created_at: string;            // ISO timestamp
-  updated_at: string;            // ISO timestamp
+	id: string; // Primary key (UUID)
+	name: string; // Organization/program name (e.g., "University Hospital Medical School")
+	created_at: string; // ISO timestamp
+	updated_at: string; // ISO timestamp
 }
 ```
 
 **`account_users` Table** (Junction table for future multi-user support)
+
 ```typescript
 interface AccountUser {
-  id: string;                    // Primary key (UUID)
-  account_id: string;            // Foreign key -> accounts.id
-  user_id: string;               // Foreign key -> user.id (from better-auth)
-  role: 'admin' | 'coordinator'; // User role within account (future: 'student', 'preceptor')
-  created_at: string;            // ISO timestamp
+	id: string; // Primary key (UUID)
+	account_id: string; // Foreign key -> accounts.id
+	user_id: string; // Foreign key -> user.id (from better-auth)
+	role: 'admin' | 'coordinator'; // User role within account (future: 'student', 'preceptor')
+	created_at: string; // ISO timestamp
 }
 ```
 
 #### Modified Tables
 
 Add `account_id` foreign key to all data tables:
+
 - `students`
 - `preceptors`
 - `health_systems`
@@ -73,99 +76,94 @@ Add `account_id` foreign key to all data tables:
 import type { Kysely } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
-  // Create accounts table
-  await db.schema
-    .createTable('accounts')
-    .addColumn('id', 'text', (col) => col.primaryKey())
-    .addColumn('name', 'text', (col) => col.notNull())
-    .addColumn('created_at', 'text', (col) => col.notNull())
-    .addColumn('updated_at', 'text', (col) => col.notNull())
-    .execute();
+	// Create accounts table
+	await db.schema
+		.createTable('accounts')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('name', 'text', (col) => col.notNull())
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addColumn('updated_at', 'text', (col) => col.notNull())
+		.execute();
 
-  // Create account_users junction table
-  await db.schema
-    .createTable('account_users')
-    .addColumn('id', 'text', (col) => col.primaryKey())
-    .addColumn('account_id', 'text', (col) =>
-      col.notNull().references('accounts.id').onDelete('cascade'))
-    .addColumn('user_id', 'text', (col) => col.notNull())
-    .addColumn('role', 'text', (col) => col.notNull().defaultTo('admin'))
-    .addColumn('created_at', 'text', (col) => col.notNull())
-    .addUniqueConstraint('account_users_user_account_unique', ['user_id', 'account_id'])
-    .execute();
+	// Create account_users junction table
+	await db.schema
+		.createTable('account_users')
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('account_id', 'text', (col) =>
+			col.notNull().references('accounts.id').onDelete('cascade')
+		)
+		.addColumn('user_id', 'text', (col) => col.notNull())
+		.addColumn('role', 'text', (col) => col.notNull().defaultTo('admin'))
+		.addColumn('created_at', 'text', (col) => col.notNull())
+		.addUniqueConstraint('account_users_user_account_unique', ['user_id', 'account_id'])
+		.execute();
 
-  // Add account_id to all data tables
-  const tables = [
-    'students',
-    'preceptors',
-    'health_systems',
-    'sites',
-    'clerkships',
-    'clerkship_configurations',
-    'clerkship_requirements',
-    'clerkship_electives',
-    'clerkship_capacity_rules',
-    'clerkship_fallback_strategies',
-    'clerkship_global_defaults',
-    'clerkship_teams',
-    'schedule_assignments',
-    'blackout_dates',
-    'preceptor_availability',
-    'preceptor_site_clerkships',
-    'student_health_system_onboarding',
-    'site_electives',
-    'scheduling_periods'
-  ];
+	// Add account_id to all data tables
+	const tables = [
+		'students',
+		'preceptors',
+		'health_systems',
+		'sites',
+		'clerkships',
+		'clerkship_configurations',
+		'clerkship_requirements',
+		'clerkship_electives',
+		'clerkship_capacity_rules',
+		'clerkship_fallback_strategies',
+		'clerkship_global_defaults',
+		'clerkship_teams',
+		'schedule_assignments',
+		'blackout_dates',
+		'preceptor_availability',
+		'preceptor_site_clerkships',
+		'student_health_system_onboarding',
+		'site_electives',
+		'scheduling_periods'
+	];
 
-  for (const table of tables) {
-    await db.schema
-      .alterTable(table)
-      .addColumn('account_id', 'text', (col) =>
-        col.notNull().references('accounts.id').onDelete('cascade'))
-      .execute();
+	for (const table of tables) {
+		await db.schema
+			.alterTable(table)
+			.addColumn('account_id', 'text', (col) =>
+				col.notNull().references('accounts.id').onDelete('cascade')
+			)
+			.execute();
 
-    // Add index for performance
-    await db.schema
-      .createIndex(`${table}_account_id_idx`)
-      .on(table)
-      .column('account_id')
-      .execute();
-  }
+		// Add index for performance
+		await db.schema.createIndex(`${table}_account_id_idx`).on(table).column('account_id').execute();
+	}
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  // Remove account_id from all tables
-  const tables = [
-    'students',
-    'preceptors',
-    'health_systems',
-    'sites',
-    'clerkships',
-    'clerkship_configurations',
-    'clerkship_requirements',
-    'clerkship_electives',
-    'clerkship_capacity_rules',
-    'clerkship_fallback_strategies',
-    'clerkship_global_defaults',
-    'clerkship_teams',
-    'schedule_assignments',
-    'blackout_dates',
-    'preceptor_availability',
-    'preceptor_site_clerkships',
-    'student_health_system_onboarding',
-    'site_electives',
-    'scheduling_periods'
-  ];
+	// Remove account_id from all tables
+	const tables = [
+		'students',
+		'preceptors',
+		'health_systems',
+		'sites',
+		'clerkships',
+		'clerkship_configurations',
+		'clerkship_requirements',
+		'clerkship_electives',
+		'clerkship_capacity_rules',
+		'clerkship_fallback_strategies',
+		'clerkship_global_defaults',
+		'clerkship_teams',
+		'schedule_assignments',
+		'blackout_dates',
+		'preceptor_availability',
+		'preceptor_site_clerkships',
+		'student_health_system_onboarding',
+		'site_electives',
+		'scheduling_periods'
+	];
 
-  for (const table of tables) {
-    await db.schema
-      .alterTable(table)
-      .dropColumn('account_id')
-      .execute();
-  }
+	for (const table of tables) {
+		await db.schema.alterTable(table).dropColumn('account_id').execute();
+	}
 
-  await db.schema.dropTable('account_users').execute();
-  await db.schema.dropTable('accounts').execute();
+	await db.schema.dropTable('account_users').execute();
+	await db.schema.dropTable('accounts').execute();
 }
 ```
 
@@ -196,29 +194,29 @@ import { getSession } from './better-auth-session'; // Adjust to actual better-a
 import { db } from '$lib/db';
 
 export interface AuthContext {
-  userId: string;
-  accountId: string;
-  role: 'admin' | 'coordinator';
+	userId: string;
+	accountId: string;
+	role: 'admin' | 'coordinator';
 }
 
 export async function getAuthContext(request: Request): Promise<AuthContext | null> {
-  const session = await getSession(request);
-  if (!session?.userId) return null;
+	const session = await getSession(request);
+	if (!session?.userId) return null;
 
-  // Fetch user's account
-  const accountUser = await db
-    .selectFrom('account_users')
-    .selectAll()
-    .where('user_id', '=', session.userId)
-    .executeTakeFirst();
+	// Fetch user's account
+	const accountUser = await db
+		.selectFrom('account_users')
+		.selectAll()
+		.where('user_id', '=', session.userId)
+		.executeTakeFirst();
 
-  if (!accountUser) return null;
+	if (!accountUser) return null;
 
-  return {
-    userId: session.userId,
-    accountId: accountUser.account_id,
-    role: accountUser.role as 'admin' | 'coordinator'
-  };
+	return {
+		userId: session.userId,
+		accountId: accountUser.account_id,
+		role: accountUser.role as 'admin' | 'coordinator'
+	};
 }
 ```
 
@@ -229,6 +227,7 @@ export async function getAuthContext(request: Request): Promise<AuthContext | nu
 ### Middleware: Account Context Injection
 
 All API endpoints must be updated to:
+
 1. Retrieve `account_id` from auth context
 2. Filter queries by `account_id`
 3. Set `account_id` when creating new records
@@ -242,37 +241,37 @@ import { getAuthContext } from '$lib/server/auth-context';
 import { errorResponse } from '$lib/api/responses';
 
 export const GET: RequestHandler = async ({ request }) => {
-  const auth = await getAuthContext(request);
-  if (!auth) {
-    return errorResponse('Unauthorized', 401);
-  }
+	const auth = await getAuthContext(request);
+	if (!auth) {
+		return errorResponse('Unauthorized', 401);
+	}
 
-  // All queries automatically filtered by account_id
-  const students = await db
-    .selectFrom('students')
-    .selectAll()
-    .where('account_id', '=', auth.accountId)
-    .execute();
+	// All queries automatically filtered by account_id
+	const students = await db
+		.selectFrom('students')
+		.selectAll()
+		.where('account_id', '=', auth.accountId)
+		.execute();
 
-  return successResponse(students);
+	return successResponse(students);
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-  const auth = await getAuthContext(request);
-  if (!auth) {
-    return errorResponse('Unauthorized', 401);
-  }
+	const auth = await getAuthContext(request);
+	if (!auth) {
+		return errorResponse('Unauthorized', 401);
+	}
 
-  const body = await request.json();
-  const validatedData = createStudentSchema.parse(body);
+	const body = await request.json();
+	const validatedData = createStudentSchema.parse(body);
 
-  // Automatically inject account_id
-  const student = await createStudent(db, {
-    ...validatedData,
-    account_id: auth.accountId
-  });
+	// Automatically inject account_id
+	const student = await createStudent(db, {
+		...validatedData,
+		account_id: auth.accountId
+	});
 
-  return successResponse(student, 201);
+	return successResponse(student, 201);
 };
 ```
 
@@ -281,23 +280,18 @@ export const POST: RequestHandler = async ({ request }) => {
 Update all service functions to accept and use `account_id`:
 
 **Before:**
+
 ```typescript
 export async function getStudents(db: Kysely<DB>): Promise<Student[]> {
-  return await db.selectFrom('students').selectAll().execute();
+	return await db.selectFrom('students').selectAll().execute();
 }
 ```
 
 **After:**
+
 ```typescript
-export async function getStudents(
-  db: Kysely<DB>,
-  accountId: string
-): Promise<Student[]> {
-  return await db
-    .selectFrom('students')
-    .selectAll()
-    .where('account_id', '=', accountId)
-    .execute();
+export async function getStudents(db: Kysely<DB>, accountId: string): Promise<Student[]> {
+	return await db.selectFrom('students').selectAll().where('account_id', '=', accountId).execute();
 }
 ```
 
@@ -306,29 +300,34 @@ export async function getStudents(
 ## Implementation Checklist
 
 ### Phase 1: Database Schema
+
 - [ ] Create migration `013_add_multi_tenancy.ts`
 - [ ] Update `src/lib/db/types.ts` to include new tables
 - [ ] Run migration on development database
 - [ ] Verify schema with `npm run db:types`
 
 ### Phase 2: Authentication Context
+
 - [ ] Create `src/lib/server/auth-context.ts` with `getAuthContext()`
 - [ ] Update better-auth registration to create Account + AccountUser
 - [ ] Test registration flow creates account correctly
 
 ### Phase 3: Service Layer Updates
+
 - [ ] Update all service functions to accept `accountId` parameter
 - [ ] Add `account_id` filters to all SELECT queries
 - [ ] Add `account_id` to all INSERT operations
 - [ ] Update unit tests to pass `accountId`
 
 ### Phase 4: API Endpoint Updates
+
 - [ ] Update all `/api/*` endpoints to use `getAuthContext()`
 - [ ] Add authorization checks (return 401 if no auth)
 - [ ] Inject `accountId` into service calls
 - [ ] Update E2E tests to authenticate properly
 
 ### Phase 5: Testing
+
 - [ ] Create test accounts
 - [ ] Verify data isolation between accounts
 - [ ] Test all CRUD operations respect account boundaries
@@ -381,6 +380,7 @@ export async function getStudents(
 ## Migration Strategy
 
 Since existing data will be deleted:
+
 1. Run migration `013_add_multi_tenancy.ts`
 2. Update all services and APIs
 3. Test with fresh data

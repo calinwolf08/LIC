@@ -169,10 +169,10 @@ export class ClerkshipSettingsService {
 
 		const settings: ClerkshipSettings = {
 			overrideMode: 'override' as const,
-			assignmentStrategy: elective.override_assignment_strategy || globalDefaults.assignmentStrategy,
+			assignmentStrategy:
+				elective.override_assignment_strategy || globalDefaults.assignmentStrategy,
 			healthSystemRule: elective.override_health_system_rule || globalDefaults.healthSystemRule,
-			maxStudentsPerDay:
-				elective.override_max_students_per_day ?? globalDefaults.maxStudentsPerDay,
+			maxStudentsPerDay: elective.override_max_students_per_day ?? globalDefaults.maxStudentsPerDay,
 			maxStudentsPerYear:
 				elective.override_max_students_per_year ?? globalDefaults.maxStudentsPerYear,
 			allowTeams:
@@ -377,8 +377,12 @@ export class ClerkshipSettingsService {
 			blockSizeDays: defaults.block_size_days ?? undefined,
 			maxStudentsPerBlock: defaults.default_max_students_per_block ?? undefined,
 			maxBlocksPerYear: defaults.default_max_blocks_per_year ?? undefined,
-			allowPartialBlocks: defaults.allow_partial_blocks !== null ? Boolean(defaults.allow_partial_blocks) : undefined,
-			preferContinuousBlocks: defaults.prefer_continuous_blocks !== null ? Boolean(defaults.prefer_continuous_blocks) : undefined,
+			allowPartialBlocks:
+				defaults.allow_partial_blocks !== null ? Boolean(defaults.allow_partial_blocks) : undefined,
+			preferContinuousBlocks:
+				defaults.prefer_continuous_blocks !== null
+					? Boolean(defaults.prefer_continuous_blocks)
+					: undefined,
 			allowTeams: Boolean(defaults.allow_teams),
 			teamSizeMin: defaults.team_size_min ?? undefined,
 			teamSizeMax: defaults.team_size_max ?? undefined,

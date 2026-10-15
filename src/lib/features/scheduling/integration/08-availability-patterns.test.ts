@@ -19,7 +19,7 @@ import {
 	createPreceptorAvailability,
 	clearAllTestData,
 	generateDateRange,
-	setOutpatientAssignmentStrategy,
+	setOutpatientAssignmentStrategy
 } from '$lib/testing/integration-helpers';
 import { ConfigurableSchedulingEngine } from '../engine/configurable-scheduling-engine';
 import type { Kysely } from 'kysely';
@@ -44,14 +44,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -70,7 +72,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate,
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Verify success
@@ -90,14 +92,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -110,7 +114,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				'2025-12-03', // Wed
 				'2025-12-05', // Fri
 				'2025-12-08', // Mon
-				'2025-12-10', // Wed
+				'2025-12-10' // Wed
 			];
 
 			// createPreceptorAvailability expects an array of dates
@@ -121,7 +125,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// NEW EXPECTED BEHAVIOR: continuous_single should find N dates where
@@ -145,14 +149,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -164,7 +170,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 				'2025-12-03', // Wed
 				'2025-12-05', // Fri
 				'2025-12-08', // Mon
-				'2025-12-10', // Wed
+				'2025-12-10' // Wed
 			];
 
 			// createPreceptorAvailability expects an array of dates
@@ -175,7 +181,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// NEW EXPECTED BEHAVIOR: daily_rotation should skip days where no preceptor
@@ -199,14 +205,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 4-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', { requiredDays: 4 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'outpatient', {
+				requiredDays: 4
+			});
 
 			// Create 2 preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -222,7 +230,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			expect(result.success).toBe(true);
@@ -243,14 +251,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create 2 preceptors
 			const preceptorIds = await createTestPreceptors(db, 2, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -269,7 +279,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// NEW BEHAVIOR: Both preceptors have at least 5 available dates
@@ -290,14 +300,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create preceptor (but NO availability records)
 			await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -308,7 +320,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Should fail - no preceptor available
@@ -324,14 +336,16 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const siteId = siteIds[0];
 
 			// Create clerkship with 5-day requirement
-			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', { requiredDays: 5 });
+			const clerkshipId = await createTestClerkship(db, 'Family Medicine', 'Family Medicine', {
+				requiredDays: 5
+			});
 
 			// Create preceptor
 			const preceptorIds = await createTestPreceptors(db, 1, {
 				healthSystemId,
 				siteId,
 				maxStudents: 2,
-				clerkshipId,
+				clerkshipId
 			});
 
 			// Create student
@@ -349,7 +363,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 						date,
 						is_available: 0, // NOT available
 						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
 					})
 					.execute();
 			}
@@ -359,7 +373,7 @@ describe('Integration Suite 8: Availability Pattern to Schedule Workflow', () =>
 			const result = await engine.schedule(studentIds, [clerkshipId], {
 				startDate: '2025-12-01',
 				endDate: '2025-12-31',
-				dryRun: false,
+				dryRun: false
 			});
 
 			// Should fail - preceptor has records but is NOT available

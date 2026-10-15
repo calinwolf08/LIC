@@ -9,6 +9,8 @@
 import { describeDbConfig, resolveDbConfig } from '../config';
 import { createDB } from '../connection';
 import { migrateToLatest } from './index';
+import { ensureAuthTables } from '../scripts/ensure-auth-tables';
+import { backfillAccounts } from '../scripts/backfill-accounts';
 
 async function main() {
 	// Resolve the engine + target from the environment (DATABASE_DIALECT /
@@ -20,7 +22,17 @@ async function main() {
 	const db = createDB(config);
 
 	try {
+		// Auth tables first (core + organization plugin): idempotent, and the
+		// migrations and the backfill below both rely on them.
+		await ensureAuthTables(db, config.dialect);
 		await migrateToLatest(db);
+
+		const created = await backfillAccounts(db, config.dialect);
+		if (created.organizations + created.subscriptions > 0) {
+			console.log(
+				`🏢 Backfilled ${created.organizations} organization(s), ${created.subscriptions} subscription(s)`
+			);
+		}
 	} finally {
 		await db.destroy();
 	}

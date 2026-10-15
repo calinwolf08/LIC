@@ -28,7 +28,7 @@ export function createMockRequest(method: string, url: string, body?: unknown): 
  * Parses JSON from a Response object
  */
 export async function parseJsonResponse<T>(response: Response): Promise<T> {
-	return await response.json() as T;
+	return (await response.json()) as T;
 }
 
 /**

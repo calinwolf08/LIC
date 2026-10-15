@@ -408,4 +408,3 @@ function toSkippedDetails(
 		blockedByAssignmentId: s.blockedBy
 	}));
 }
-

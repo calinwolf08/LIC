@@ -95,9 +95,7 @@
 	}
 
 	const canAdd = $derived(
-		!!studentId &&
-			formDates().length > 0 &&
-			(kind !== 'clinical' || (!!preceptorId && !!siteId))
+		!!studentId && formDates().length > 0 && (kind !== 'clinical' || (!!preceptorId && !!siteId))
 	);
 
 	async function refresh() {
@@ -239,8 +237,9 @@
 	{:else}
 		{#if commitResult}
 			<div class="mb-4 rounded-md border bg-muted/40 p-3 text-sm" data-testid="plan-commit-result">
-				Committed {commitResult.committed} assignment{commitResult.committed === 1 ? '' : 's'}.{commitResult.skipped >
-				0
+				Committed {commitResult.committed} assignment{commitResult.committed === 1
+					? ''
+					: 's'}.{commitResult.skipped > 0
 					? ` ${commitResult.skipped} pin${commitResult.skipped === 1 ? '' : 's'} still need attention below.`
 					: ' The plan is clear.'}
 			</div>
@@ -346,13 +345,17 @@
 					<div class="flex gap-2 text-sm">
 						<button
 							type="button"
-							class="rounded-md border px-3 py-1 {dateMode === 'single' ? 'bg-primary text-primary-foreground' : ''}"
+							class="rounded-md border px-3 py-1 {dateMode === 'single'
+								? 'bg-primary text-primary-foreground'
+								: ''}"
 							onclick={() => (dateMode = 'single')}
 							data-testid="plan-mode-single">Single</button
 						>
 						<button
 							type="button"
-							class="rounded-md border px-3 py-1 {dateMode === 'range' ? 'bg-primary text-primary-foreground' : ''}"
+							class="rounded-md border px-3 py-1 {dateMode === 'range'
+								? 'bg-primary text-primary-foreground'
+								: ''}"
 							onclick={() => (dateMode = 'range')}
 							data-testid="plan-mode-range">Range</button
 						>
@@ -388,7 +391,9 @@
 						{#each WEEKDAYS as w (w.v)}
 							<button
 								type="button"
-								class="rounded-md border px-2 py-1 text-xs {weekdays.includes(w.v) ? 'bg-primary text-primary-foreground' : ''}"
+								class="rounded-md border px-2 py-1 text-xs {weekdays.includes(w.v)
+									? 'bg-primary text-primary-foreground'
+									: ''}"
 								onclick={() => toggleWeekday(w.v)}
 								data-testid="plan-weekday-{w.v}">{w.l}</button
 							>
@@ -403,7 +408,12 @@
 					<p class="text-sm text-destructive" data-testid="plan-error">{error}</p>
 				{/if}
 
-				<Button class="w-full" disabled={!canAdd || loading} onclick={addToPlan} data-testid="plan-add">
+				<Button
+					class="w-full"
+					disabled={!canAdd || loading}
+					onclick={addToPlan}
+					data-testid="plan-add"
+				>
 					Add to plan
 				</Button>
 			</Card>
@@ -414,7 +424,10 @@
 				<Card class="p-4" data-testid="plan-conflicts">
 					<div class="mb-2 flex items-center justify-between">
 						<h2 class="font-medium">Conflicts</h2>
-						<Badge variant={violationCount > 0 ? 'destructive' : 'secondary'} data-testid="plan-conflict-count">
+						<Badge
+							variant={violationCount > 0 ? 'destructive' : 'secondary'}
+							data-testid="plan-conflict-count"
+						>
 							{violationCount}
 						</Badge>
 					</div>
@@ -449,11 +462,16 @@
 										<div class="min-w-0">
 											<div class="truncate font-medium">
 												{nameOf(data.students, pin.student_id)} · {pin.date}
-												{#if pin.session !== 'full'}<span class="text-muted-foreground"> ({pin.session.toUpperCase()})</span>{/if}
+												{#if pin.session !== 'full'}<span class="text-muted-foreground">
+														({pin.session.toUpperCase()})</span
+													>{/if}
 											</div>
 											<div class="truncate text-xs text-muted-foreground">
 												{#if pin.kind === 'clinical'}
-													{nameOf(data.clerkships, pin.clerkship_id)} · {nameOf(data.preceptors, pin.preceptor_id)} · {nameOf(data.sites, pin.site_id)}
+													{nameOf(data.clerkships, pin.clerkship_id)} · {nameOf(
+														data.preceptors,
+														pin.preceptor_id
+													)} · {nameOf(data.sites, pin.site_id)}
 												{:else}
 													{pin.kind === 'free_day' ? 'Free day' : 'Exam'}
 												{/if}
@@ -463,7 +481,9 @@
 											{#if !st || st.committable}
 												<Badge variant="secondary" data-testid="plan-pin-status-{pin.id}">OK</Badge>
 											{:else if st.hard.length > 0}
-												<Badge variant="destructive" data-testid="plan-pin-status-{pin.id}">Blocked</Badge>
+												<Badge variant="destructive" data-testid="plan-pin-status-{pin.id}"
+													>Blocked</Badge
+												>
 											{:else}
 												<Badge variant="outline" data-testid="plan-pin-status-{pin.id}">
 													{st.unresolved.length} to resolve
@@ -479,9 +499,14 @@
 									</div>
 
 									{#if st && (st.unresolved.length > 0 || accepted.length > 0 || st.hard.length > 0)}
-										<div class="mt-1 flex flex-wrap items-center gap-1" data-testid="plan-pin-overrides-{pin.id}">
+										<div
+											class="mt-1 flex flex-wrap items-center gap-1"
+											data-testid="plan-pin-overrides-{pin.id}"
+										>
 											{#each st.hard as v (v.code)}
-												<Badge variant="destructive" class="text-xs">Can’t override: {codeLabel(v.code)}</Badge>
+												<Badge variant="destructive" class="text-xs"
+													>Can’t override: {codeLabel(v.code)}</Badge
+												>
 											{/each}
 											{#each st.unresolved as code (code)}
 												<button
@@ -494,7 +519,9 @@
 												</button>
 											{/each}
 											{#each accepted as code (code)}
-												<Badge variant="secondary" class="text-xs">Accepted: {codeLabel(code)}</Badge>
+												<Badge variant="secondary" class="text-xs"
+													>Accepted: {codeLabel(code)}</Badge
+												>
 											{/each}
 											{#if accepted.length > 0}
 												<button

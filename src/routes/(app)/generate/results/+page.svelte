@@ -64,7 +64,11 @@
 			<Button class="mt-4" onclick={() => goto('/calendar')}>Go to Calendar</Button>
 		</div>
 	{:else}
-		<div class="space-y-6" data-testid="results" data-complete={data.summary.isComplete ? 'true' : 'false'}>
+		<div
+			class="space-y-6"
+			data-testid="results"
+			data-complete={data.summary.isComplete ? 'true' : 'false'}
+		>
 			<!-- Stats Overview -->
 			<div data-testid="results-stats">
 				<ScheduleStatsCard stats={data.summary.stats} isComplete={data.summary.isComplete} />

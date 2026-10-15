@@ -70,7 +70,7 @@ describe('getMonthsInRange', () => {
 		expect(months).toEqual([
 			{ year: 2025, month: 0 }, // January
 			{ year: 2025, month: 1 }, // February
-			{ year: 2025, month: 2 }  // March
+			{ year: 2025, month: 2 } // March
 		]);
 	});
 
@@ -89,8 +89,8 @@ describe('getMonthsInRange', () => {
 
 		expect(months).toEqual([
 			{ year: 2024, month: 11 }, // December
-			{ year: 2025, month: 0 },  // January
-			{ year: 2025, month: 1 }   // February
+			{ year: 2025, month: 0 }, // January
+			{ year: 2025, month: 1 } // February
 		]);
 	});
 });
@@ -133,11 +133,7 @@ describe('generateWeeklyDates', () => {
 	});
 
 	it('should return empty array when no days selected', () => {
-		const dates = generateWeeklyDates(
-			'2025-01-01',
-			'2025-01-31',
-			{ days_of_week: [] }
-		);
+		const dates = generateWeeklyDates('2025-01-01', '2025-01-31', { days_of_week: [] });
 
 		expect(dates).toEqual([]);
 	});
@@ -149,14 +145,10 @@ describe('generateWeeklyDates', () => {
 
 describe('generateMonthlyDates - first 7 days', () => {
 	it('should generate first 7 days of each month', () => {
-		const dates = generateMonthlyDates(
-			'2025-01-01',
-			'2025-02-28',
-			{
-				monthly_type: 'first_week',
-				week_definition: 'seven_days'
-			}
-		);
+		const dates = generateMonthlyDates('2025-01-01', '2025-02-28', {
+			monthly_type: 'first_week',
+			week_definition: 'seven_days'
+		});
 
 		// January first 7 days
 		expect(dates).toContain('2025-01-01');
@@ -172,14 +164,10 @@ describe('generateMonthlyDates - first 7 days', () => {
 
 describe('generateMonthlyDates - last 7 days', () => {
 	it('should generate last 7 days of each month', () => {
-		const dates = generateMonthlyDates(
-			'2025-01-01',
-			'2025-02-28',
-			{
-				monthly_type: 'last_week',
-				week_definition: 'seven_days'
-			}
-		);
+		const dates = generateMonthlyDates('2025-01-01', '2025-02-28', {
+			monthly_type: 'last_week',
+			week_definition: 'seven_days'
+		});
 
 		// January last 7 days (25-31)
 		expect(dates).toContain('2025-01-25');
@@ -215,14 +203,10 @@ describe('generateMonthlyDates - first business week', () => {
 
 describe('generateMonthlyDates - specific days', () => {
 	it('should generate specific days of each month', () => {
-		const dates = generateMonthlyDates(
-			'2025-01-01',
-			'2025-03-31',
-			{
-				monthly_type: 'specific_days',
-				specific_days: [1, 15]
-			}
-		);
+		const dates = generateMonthlyDates('2025-01-01', '2025-03-31', {
+			monthly_type: 'specific_days',
+			specific_days: [1, 15]
+		});
 
 		// Check 1st and 15th of each month
 		expect(dates).toContain('2025-01-01');
@@ -235,14 +219,10 @@ describe('generateMonthlyDates - specific days', () => {
 	});
 
 	it('should skip days that dont exist in month', () => {
-		const dates = generateMonthlyDates(
-			'2025-01-01',
-			'2025-02-28',
-			{
-				monthly_type: 'specific_days',
-				specific_days: [31] // February doesn't have 31 days
-			}
-		);
+		const dates = generateMonthlyDates('2025-01-01', '2025-02-28', {
+			monthly_type: 'specific_days',
+			specific_days: [31] // February doesn't have 31 days
+		});
 
 		expect(dates).toContain('2025-01-31'); // January has 31
 		expect(dates).not.toContain('2025-02-31'); // February doesn't
@@ -256,11 +236,7 @@ describe('generateMonthlyDates - specific days', () => {
 
 describe('generateBlockDates', () => {
 	it('should generate all dates in range', () => {
-		const dates = generateBlockDates(
-			'2025-01-01',
-			'2025-01-10',
-			{ exclude_weekends: false }
-		);
+		const dates = generateBlockDates('2025-01-01', '2025-01-10', { exclude_weekends: false });
 
 		expect(dates).toHaveLength(10);
 		expect(dates).toContain('2025-01-01');
@@ -285,11 +261,7 @@ describe('generateBlockDates', () => {
 	});
 
 	it('should handle single day range', () => {
-		const dates = generateBlockDates(
-			'2025-01-15',
-			'2025-01-15',
-			{ exclude_weekends: false }
-		);
+		const dates = generateBlockDates('2025-01-15', '2025-01-15', { exclude_weekends: false });
 
 		expect(dates).toEqual(['2025-01-15']);
 	});
@@ -341,15 +313,15 @@ describe('applyPatternsBySpecificity', () => {
 		const result = applyPatternsBySpecificity(patterns);
 
 		// Jan 3 (Fri) should be available from weekly pattern
-		const jan3 = result.find(d => d.date === '2025-01-03');
+		const jan3 = result.find((d) => d.date === '2025-01-03');
 		expect(jan3?.is_available).toBe(true);
 
 		// Jan 6 (Mon) should be unavailable from block pattern (overrides weekly)
-		const jan6 = result.find(d => d.date === '2025-01-06');
+		const jan6 = result.find((d) => d.date === '2025-01-06');
 		expect(jan6?.is_available).toBe(false);
 
 		// Jan 8 (Wed) should be unavailable from block pattern (overrides weekly)
-		const jan8 = result.find(d => d.date === '2025-01-08');
+		const jan8 = result.find((d) => d.date === '2025-01-08');
 		expect(jan8?.is_available).toBe(false);
 	});
 
@@ -457,7 +429,7 @@ describe('applyPatternsBySpecificity', () => {
 		const result = applyPatternsBySpecificity(patterns);
 
 		// Jan 8 should be available from individual override (overrides block)
-		const jan8 = result.find(d => d.date === '2025-01-08');
+		const jan8 = result.find((d) => d.date === '2025-01-08');
 		expect(jan8?.is_available).toBe(true);
 		expect(jan8?.source_pattern_type).toBe('individual');
 	});
@@ -679,20 +651,20 @@ describe('edge cases', () => {
 		const result = applyPatternsBySpecificity(patterns);
 
 		// June 30 (Mon) - should be available
-		const jun30 = result.find(d => d.date === '2025-06-30');
+		const jun30 = result.find((d) => d.date === '2025-06-30');
 		expect(jun30?.is_available).toBe(true);
 
 		// July 1 (Tue) - should be unavailable (vacation block)
-		const jul1 = result.find(d => d.date === '2025-07-01');
+		const jul1 = result.find((d) => d.date === '2025-07-01');
 		expect(jul1?.is_available).toBe(false);
 
 		// July 4 (Fri) - should be available (individual override)
-		const jul4 = result.find(d => d.date === '2025-07-04');
+		const jul4 = result.find((d) => d.date === '2025-07-04');
 		expect(jul4?.is_available).toBe(true);
 		expect(jul4?.source_pattern_type).toBe('individual');
 
 		// July 15 (Tue) - should be available (after vacation)
-		const jul15 = result.find(d => d.date === '2025-07-15');
+		const jul15 = result.find((d) => d.date === '2025-07-15');
 		expect(jul15?.is_available).toBe(true);
 	});
 });

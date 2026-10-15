@@ -18,12 +18,14 @@ Implement the business logic for team formation, team validation, and fallback p
 ### Team Formation Modes
 
 **Pre-configured Teams**
+
 - Admin has manually created teams in advance
 - Team stored in preceptor_teams table with members
 - Scheduling engine uses pre-configured team as-is
 - Validate team still meets rules before using
 
 **Dynamic Team Formation**
+
 - No pre-configured team exists
 - Engine dynamically finds 2-3 compatible preceptors
 - Build team on-the-fly based on formation rules
@@ -32,12 +34,14 @@ Implement the business logic for team formation, team validation, and fallback p
 ### Team Formation Algorithm
 
 **Input**
+
 - Clerkship configuration with team rules
 - Required dates for assignment
 - Available preceptors (filtered by specialty)
 - Health system constraints
 
 **Steps**
+
 1. Filter preceptors by specialty match
 2. Filter by availability for required dates
 3. If require_same_health_system, group by health system
@@ -48,6 +52,7 @@ Implement the business logic for team formation, team validation, and fallback p
 8. Return team or null if no valid team found
 
 **Quality Scoring**
+
 - Higher score for fewer preceptors (prefer 2 over 3)
 - Higher score for balanced availability across members
 - Higher score for fewer transitions
@@ -58,12 +63,14 @@ Implement the business logic for team formation, team validation, and fallback p
 ### Team Member Assignment Distribution
 
 **Goals**
+
 - Balance days across team members
 - Minimize transitions between members
 - Respect individual member availability
 - Consider individual member capacity
 
 **Algorithm**
+
 1. Calculate ideal days per member (total / team_size)
 2. Sort members by availability overlap
 3. Assign continuous blocks to each member where possible
@@ -72,6 +79,7 @@ Implement the business logic for team formation, team validation, and fallback p
 6. Optimize to minimize switching
 
 **Example** (60 days, 3 members)
+
 - Member A: Days 1-20
 - Member B: Days 21-40
 - Member C: Days 41-60
@@ -82,41 +90,49 @@ Implement the business logic for team formation, team validation, and fallback p
 ### Validation Rules to Check
 
 **Team Size Validation**
+
 - Team must have minimum number of members (typically 2)
 - Team must not exceed maximum number of members (typically 3)
 - All team members must exist as valid preceptors
 
 **Health System Consistency**
+
 - If require_same_health_system flag set, validate all members share health system
 - If prefer_same_health_system, log warning but allow
 - Track violations for reporting
 
 **Site Consistency**
+
 - If require_same_site flag set, validate all members at same site
 - Handle null sites appropriately
 
 **Specialty Consistency**
+
 - If require_same_specialty flag set, validate all members have matching specialty
 - Specialty must match clerkship specialty requirement
 
 **Capacity Validation**
+
 - Verify each team member has capacity for their assigned days
 - Check daily capacity per member
 - Check yearly capacity per member
 - Check block capacity if applicable
 
 **Availability Validation**
+
 - Verify team collectively covers all required dates
 - No date should be uncovered
 - Handle gaps in availability
 
 **Approval Requirements**
+
 - If requires_admin_approval flag set, mark team for manual review
 - Do not auto-assign if approval pending
 
 ### Validation Response
 
 Return validation result with:
+
 - Boolean success flag
 - Array of validation errors
 - Array of warnings (soft failures)
@@ -127,12 +143,14 @@ Return validation result with:
 ### Fallback Resolution Algorithm
 
 **Input**
+
 - Primary preceptor (unavailable)
 - Clerkship
 - Required dates
 - Fallback chain configuration
 
 **Steps**
+
 1. Fetch fallback chain for primary preceptor + clerkship
 2. Sort fallbacks by priority (ascending)
 3. For each fallback in order:
@@ -145,6 +163,7 @@ Return validation result with:
 4. If no fallback found, return null (manual assignment needed)
 
 **Circular Reference Prevention**
+
 - Validate fallback chains during creation (Step 03)
 - Maintain seen set during resolution to detect cycles at runtime
 - Fail fast if cycle detected
@@ -152,23 +171,27 @@ Return validation result with:
 ### Fallback Scenarios
 
 **Scenario 1: Complete Unavailability**
+
 - Primary preceptor unavailable for ALL required dates
 - Use fallback for entire assignment
 - Notify admin if requires_approval
 
 **Scenario 2: Partial Unavailability**
+
 - Primary available for some dates, unavailable for others
 - Use primary for available dates
 - Use fallback only for unavailable dates
 - May result in multiple preceptors for one clerkship
 
 **Scenario 3: Cascading Fallback**
+
 - Primary unavailable
 - First fallback also unavailable
 - Continue down chain to second, third fallback, etc.
 - Track fallback depth for reporting
 
 **Scenario 4: No Valid Fallback**
+
 - All fallbacks unavailable or violate rules
 - Leave dates unscheduled
 - Flag for manual admin assignment
@@ -177,11 +200,13 @@ Return validation result with:
 ### Health System Override Logic
 
 **When Override Allowed**
+
 - Configuration allows different health system for fallback
 - Prioritize finding ANY qualified preceptor over maintaining system consistency
 - Log override for reporting
 
 **When Override Not Allowed**
+
 - Fallback must be in same health system as primary
 - Filter fallback candidates by health system
 - Fail gracefully if no same-system fallback available
@@ -189,10 +214,12 @@ Return validation result with:
 ### Approval Workflow
 
 **Automatic Assignment**
+
 - If requires_approval is false, assign fallback immediately
 - Scheduling engine proceeds without interruption
 
 **Manual Approval Required**
+
 - If requires_approval is true, create pending assignment
 - Mark assignment status as 'pending_approval'
 - Notify admin of pending approval
@@ -218,21 +245,25 @@ Return validation result with:
 ### Capacity Check Algorithm
 
 **Per-Day Capacity**
+
 - Count current assignments for preceptor on given date
 - Compare to max_students_per_day
 - Return true if under limit, false if at/over limit
 
 **Per-Year Capacity**
+
 - Count total assignments for preceptor in academic year
 - Compare to max_students_per_year
 - Return true if under limit
 
 **Per-Block Capacity** (for block-based clerkships only)
+
 - Count how many blocks preceptor is assigned to in academic year
 - Compare to max_students_per_block and max_blocks_per_year
 - Return true if both under limits
 
 **Combined Check**
+
 - Assignment must pass all applicable checks
 - Return false if any check fails
 - Return details about which check failed
@@ -315,6 +346,7 @@ Return validation result with:
 ## Files to Create
 
 ### Logic Files
+
 ```
 src/lib/features/scheduling/team-formation/index.ts
 src/lib/features/scheduling/team-formation/team-formation-engine.ts
@@ -332,6 +364,7 @@ src/lib/features/scheduling/capacity/capacity-rule-resolver.ts
 ```
 
 ### Test Files
+
 ```
 src/lib/features/scheduling/team-formation/team-formation-engine.test.ts
 src/lib/features/scheduling/team-formation/team-validator.test.ts

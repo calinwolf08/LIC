@@ -52,13 +52,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	// Drop old table and rename new one
 	await db.schema.dropTable('preceptor_availability_patterns').execute();
-	await sql`ALTER TABLE preceptor_availability_patterns_new RENAME TO preceptor_availability_patterns`.execute(db);
+	await sql`ALTER TABLE preceptor_availability_patterns_new RENAME TO preceptor_availability_patterns`.execute(
+		db
+	);
 
 	// 3. Add site_id to schedule_assignments
-	await db.schema
-		.alterTable('schedule_assignments')
-		.addColumn('site_id', 'text')
-		.execute();
+	await db.schema.alterTable('schedule_assignments').addColumn('site_id', 'text').execute();
 
 	// 4. Remove site_id from preceptors
 	// SQLite doesn't support DROP COLUMN directly, so we recreate the table
@@ -76,19 +75,33 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	// Copy data (excluding site_id)
 	await sql`INSERT INTO preceptors_new (id, name, email, phone, health_system_id, max_students, created_at, updated_at)
-		SELECT id, name, email, phone, health_system_id, max_students, created_at, updated_at FROM preceptors`.execute(db);
+		SELECT id, name, email, phone, health_system_id, max_students, created_at, updated_at FROM preceptors`.execute(
+		db
+	);
 
 	// Drop old table and rename new one
 	await db.schema.dropTable('preceptors').execute();
 	await sql`ALTER TABLE preceptors_new RENAME TO preceptors`.execute(db);
 
 	// Create indexes for performance
-	await sql`CREATE INDEX idx_preceptor_availability_preceptor ON preceptor_availability(preceptor_id)`.execute(db);
-	await sql`CREATE INDEX idx_preceptor_availability_site ON preceptor_availability(site_id)`.execute(db);
-	await sql`CREATE INDEX idx_preceptor_availability_date ON preceptor_availability(date)`.execute(db);
-	await sql`CREATE INDEX idx_preceptor_availability_patterns_preceptor ON preceptor_availability_patterns(preceptor_id)`.execute(db);
-	await sql`CREATE INDEX idx_preceptor_availability_patterns_site ON preceptor_availability_patterns(site_id)`.execute(db);
-	await sql`CREATE INDEX idx_schedule_assignments_site ON schedule_assignments(site_id)`.execute(db);
+	await sql`CREATE INDEX idx_preceptor_availability_preceptor ON preceptor_availability(preceptor_id)`.execute(
+		db
+	);
+	await sql`CREATE INDEX idx_preceptor_availability_site ON preceptor_availability(site_id)`.execute(
+		db
+	);
+	await sql`CREATE INDEX idx_preceptor_availability_date ON preceptor_availability(date)`.execute(
+		db
+	);
+	await sql`CREATE INDEX idx_preceptor_availability_patterns_preceptor ON preceptor_availability_patterns(preceptor_id)`.execute(
+		db
+	);
+	await sql`CREATE INDEX idx_preceptor_availability_patterns_site ON preceptor_availability_patterns(site_id)`.execute(
+		db
+	);
+	await sql`CREATE INDEX idx_schedule_assignments_site ON schedule_assignments(site_id)`.execute(
+		db
+	);
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
@@ -109,7 +122,9 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.execute();
 
 	await sql`INSERT INTO preceptors_new (id, name, email, phone, health_system_id, max_students, created_at, updated_at)
-		SELECT id, name, email, phone, health_system_id, max_students, created_at, updated_at FROM preceptors`.execute(db);
+		SELECT id, name, email, phone, health_system_id, max_students, created_at, updated_at FROM preceptors`.execute(
+		db
+	);
 
 	await db.schema.dropTable('preceptors').execute();
 	await sql`ALTER TABLE preceptors_new RENAME TO preceptors`.execute(db);
@@ -146,7 +161,9 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.execute();
 
 	await db.schema.dropTable('preceptor_availability_patterns').execute();
-	await sql`ALTER TABLE preceptor_availability_patterns_new RENAME TO preceptor_availability_patterns`.execute(db);
+	await sql`ALTER TABLE preceptor_availability_patterns_new RENAME TO preceptor_availability_patterns`.execute(
+		db
+	);
 
 	// 4. Remove site_id from schedule_assignments (recreate table)
 	await db.schema
@@ -162,7 +179,9 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.execute();
 
 	await sql`INSERT INTO schedule_assignments_new (id, student_id, preceptor_id, clerkship_id, date, status, created_at, updated_at)
-		SELECT id, student_id, preceptor_id, clerkship_id, date, status, created_at, updated_at FROM schedule_assignments`.execute(db);
+		SELECT id, student_id, preceptor_id, clerkship_id, date, status, created_at, updated_at FROM schedule_assignments`.execute(
+		db
+	);
 
 	await db.schema.dropTable('schedule_assignments').execute();
 	await sql`ALTER TABLE schedule_assignments_new RENAME TO schedule_assignments`.execute(db);

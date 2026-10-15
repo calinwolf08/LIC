@@ -23,12 +23,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('clerkship_id', 'text', (col) =>
 			col.notNull().references('clerkships.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('clerkship_sites_pk', ['clerkship_id', 'site_id'])
 		.execute();
 
@@ -51,15 +47,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('preceptor_id', 'text', (col) =>
 			col.notNull().references('preceptors.id').onDelete('cascade')
 		)
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
 		.addColumn('clerkship_id', 'text', (col) =>
 			col.notNull().references('clerkships.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('preceptor_site_clerkships_pk', [
 			'preceptor_id',
 			'site_id',
@@ -88,15 +80,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 	// Create site_electives table (electives are tied to sites, not preceptors)
 	await db.schema
 		.createTable('site_electives')
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
 		.addColumn('elective_requirement_id', 'text', (col) =>
 			col.notNull().references('clerkship_requirements.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('site_electives_pk', ['site_id', 'elective_requirement_id'])
 		.execute();
 
@@ -116,17 +104,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('site_availability')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
 		.addColumn('date', 'text', (col) => col.notNull())
 		.addColumn('is_available', 'integer', (col) => col.notNull().defaultTo(1))
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	await db.schema
@@ -151,9 +133,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('site_availability_patterns')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
 		.addColumn('pattern_type', 'text', (col) =>
 			col
 				.notNull()
@@ -168,12 +148,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('enabled', 'integer', (col) => col.notNull().defaultTo(1))
 		.addColumn('specificity', 'integer', (col) => col.notNull().defaultTo(50))
 		.addColumn('reason', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	await db.schema
@@ -192,12 +168,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('site_capacity_rules')
 		.addColumn('id', 'text', (col) => col.primaryKey())
-		.addColumn('site_id', 'text', (col) =>
-			col.notNull().references('sites.id').onDelete('cascade')
-		)
-		.addColumn('clerkship_id', 'text', (col) =>
-			col.references('clerkships.id').onDelete('cascade')
-		)
+		.addColumn('site_id', 'text', (col) => col.notNull().references('sites.id').onDelete('cascade'))
+		.addColumn('clerkship_id', 'text', (col) => col.references('clerkships.id').onDelete('cascade'))
 		.addColumn('requirement_type', 'text', (col) =>
 			col.check(sql`requirement_type IN ('inpatient', 'outpatient', 'elective')`)
 		)
@@ -205,12 +177,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('max_students_per_year', 'integer', (col) => col.notNull())
 		.addColumn('max_students_per_block', 'integer')
 		.addColumn('max_blocks_per_year', 'integer')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	await db.schema
@@ -250,9 +218,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('clerkship_id', 'text', (col) =>
 			col.notNull().references('clerkships.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addPrimaryKeyConstraint('preceptor_clerkships_pk', ['preceptor_id', 'clerkship_id'])
 		.execute();
 
@@ -264,12 +230,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('elective_requirement_id', 'text', (col) =>
 			col.notNull().references('clerkship_requirements.id').onDelete('cascade')
 		)
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addPrimaryKeyConstraint('preceptor_electives_pk', [
-			'preceptor_id',
-			'elective_requirement_id'
-		])
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addPrimaryKeyConstraint('preceptor_electives_pk', ['preceptor_id', 'elective_requirement_id'])
 		.execute();
 }

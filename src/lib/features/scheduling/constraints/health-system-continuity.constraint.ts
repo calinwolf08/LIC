@@ -73,9 +73,7 @@ export class HealthSystemContinuityConstraint implements Constraint {
 			let firstHealthSystemName = firstPreceptor.health_system_id;
 
 			if (context.healthSystems) {
-				const currentHS = context.healthSystems.find(
-					(hs) => hs.id === preceptor.health_system_id
-				);
+				const currentHS = context.healthSystems.find((hs) => hs.id === preceptor.health_system_id);
 				const firstHS = context.healthSystems.find(
 					(hs) => hs.id === firstPreceptor.health_system_id
 				);
@@ -120,9 +118,7 @@ export class HealthSystemContinuityConstraint implements Constraint {
 			let firstHealthSystemName = firstPreceptor?.health_system_id || 'Unknown';
 
 			if (context.healthSystems) {
-				const currentHS = context.healthSystems.find(
-					(hs) => hs.id === preceptor?.health_system_id
-				);
+				const currentHS = context.healthSystems.find((hs) => hs.id === preceptor?.health_system_id);
 				const firstHS = context.healthSystems.find(
 					(hs) => hs.id === firstPreceptor?.health_system_id
 				);

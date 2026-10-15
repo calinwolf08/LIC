@@ -60,7 +60,10 @@ export function getLastDayOfMonth(year: number, month: number): Date {
  * Get all months between two dates (inclusive)
  * Returns array of {year, month} objects
  */
-export function getMonthsInRange(startDate: Date, endDate: Date): Array<{ year: number; month: number }> {
+export function getMonthsInRange(
+	startDate: Date,
+	endDate: Date
+): Array<{ year: number; month: number }> {
 	const months: Array<{ year: number; month: number }> = [];
 	const current = new Date(startDate);
 	current.setUTCDate(1);
@@ -341,7 +344,7 @@ export function generateMonthlyDates(
 	}
 
 	// Filter to only include dates within the specified range
-	return allDates.filter(date => date >= startDate && date <= endDate).sort();
+	return allDates.filter((date) => date >= startDate && date <= endDate).sort();
 }
 
 // ========================================
@@ -485,25 +488,13 @@ export function generateDatesFromPattern(pattern: CreatePattern): string[] {
 
 	switch (pattern.pattern_type) {
 		case 'weekly':
-			return generateWeeklyDates(
-				pattern.date_range_start,
-				pattern.date_range_end,
-				pattern.config
-			);
+			return generateWeeklyDates(pattern.date_range_start, pattern.date_range_end, pattern.config);
 
 		case 'monthly':
-			return generateMonthlyDates(
-				pattern.date_range_start,
-				pattern.date_range_end,
-				pattern.config
-			);
+			return generateMonthlyDates(pattern.date_range_start, pattern.date_range_end, pattern.config);
 
 		case 'block':
-			return generateBlockDates(
-				pattern.date_range_start,
-				pattern.date_range_end,
-				pattern.config
-			);
+			return generateBlockDates(pattern.date_range_start, pattern.date_range_end, pattern.config);
 
 		case 'individual':
 			return generateIndividualDate(pattern.date_range_start);

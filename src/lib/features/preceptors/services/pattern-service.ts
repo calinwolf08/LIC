@@ -212,10 +212,7 @@ export async function deletePattern(db: Kysely<DB>, id: string): Promise<void> {
 		throw new NotFoundError('Pattern');
 	}
 
-	await db
-		.deleteFrom('preceptor_availability_patterns')
-		.where('id', '=', id)
-		.execute();
+	await db.deleteFrom('preceptor_availability_patterns').where('id', '=', id).execute();
 }
 
 /**
@@ -297,8 +294,8 @@ export async function generateDatesFromPatterns(
 	const generatedDates = applyPatternsBySpecificity(patterns);
 
 	// Calculate statistics
-	const availableDates = generatedDates.filter(d => d.is_available).length;
-	const unavailableDates = generatedDates.filter(d => !d.is_available).length;
+	const availableDates = generatedDates.filter((d) => d.is_available).length;
+	const unavailableDates = generatedDates.filter((d) => !d.is_available).length;
 
 	log.info('Dates generated from patterns', {
 		preceptorId,
@@ -333,10 +330,7 @@ export function generateDatesPreview(pattern: CreatePattern): string[] {
  * @param data - Save configuration
  * @returns Number of dates saved
  */
-export async function saveGeneratedDates(
-	db: Kysely<DB>,
-	data: SavePatternDates
-): Promise<number> {
+export async function saveGeneratedDates(db: Kysely<DB>, data: SavePatternDates): Promise<number> {
 	log.debug('Saving generated dates', {
 		preceptorId: data.preceptor_id,
 		clearExisting: data.clear_existing
@@ -412,7 +406,7 @@ export async function getPatternStats(
 
 	const stats = {
 		total: patterns.length,
-		enabled: patterns.filter(p => p.enabled === 1).length,
+		enabled: patterns.filter((p) => p.enabled === 1).length,
 		by_type: {} as Record<string, number>
 	};
 

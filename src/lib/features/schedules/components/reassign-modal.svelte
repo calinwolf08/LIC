@@ -100,12 +100,12 @@
 	<div class="fixed inset-0 z-50 bg-black/50" onclick={onCancel} role="presentation"></div>
 
 	<!-- Modal -->
-	<div class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
+	<div class="fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2">
 		<Card class="p-6">
-			<h2 class="text-xl font-semibold mb-4">Reassign to Different Preceptor</h2>
+			<h2 class="mb-4 text-xl font-semibold">Reassign to Different Preceptor</h2>
 
 			<!-- Assignment Info -->
-			<div class="space-y-2 p-4 bg-muted rounded mb-4">
+			<div class="mb-4 space-y-2 rounded bg-muted p-4">
 				<p><strong>Student:</strong> {assignment.student_name}</p>
 				<p><strong>Current Preceptor:</strong> {assignment.preceptor_name}</p>
 				<p><strong>Clerkship:</strong> {assignment.clerkship_name}</p>
@@ -113,8 +113,10 @@
 			</div>
 
 			<!-- Select New Preceptor -->
-			<div class="space-y-2 mb-4">
-				<Label for="preceptor">New Preceptor (matching specialty: {assignment.clerkship_specialty})</Label>
+			<div class="mb-4 space-y-2">
+				<Label for="preceptor"
+					>New Preceptor (matching specialty: {assignment.clerkship_specialty})</Label
+				>
 				<select
 					id="preceptor"
 					bind:value={selectedPreceptorId}
@@ -133,9 +135,7 @@
 
 			<!-- Validation Result -->
 			{#if isValidating}
-				<div class="mb-4 p-3 bg-muted rounded text-sm">
-					Validating reassignment...
-				</div>
+				<div class="mb-4 rounded bg-muted p-3 text-sm">Validating reassignment...</div>
 			{:else if validationResult}
 				{#if validationResult.valid}
 					<div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-800">
@@ -145,7 +145,7 @@
 				{:else}
 					<div class="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
 						<p class="font-semibold">Validation Errors:</p>
-						<ul class="list-disc list-inside mt-1">
+						<ul class="mt-1 list-inside list-disc">
 							{#each validationResult.errors as error}
 								<li>{error}</li>
 							{/each}
@@ -156,12 +156,12 @@
 
 			<!-- Actions -->
 			<div class="flex justify-end gap-2">
-				<Button variant="outline" onclick={onCancel} disabled={isSaving}>
-					Cancel
-				</Button>
+				<Button variant="outline" onclick={onCancel} disabled={isSaving}>Cancel</Button>
 				<Button
 					onclick={handleSave}
-					disabled={isSaving || !selectedPreceptorId || (validationResult && !validationResult.valid)}
+					disabled={isSaving ||
+						!selectedPreceptorId ||
+						(validationResult && !validationResult.valid)}
 				>
 					{isSaving ? 'Reassigning...' : 'Reassign'}
 				</Button>

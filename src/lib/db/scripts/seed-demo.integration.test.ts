@@ -13,10 +13,7 @@ import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '../test-u
 import { seedAdminAssignments, CAPACITY_DEMO_EMAIL, type AdminSeedRefs } from './seed-demo';
 import { TEST_SCHEDULE } from './seed-schedule';
 import { validateSchedule } from '$lib/features/scheduling/services/schedule-validation';
-import {
-	listOverrides,
-	groupOverrides
-} from '$lib/features/schedules/services/assignment-service';
+import { listOverrides, groupOverrides } from '$lib/features/schedules/services/assignment-service';
 
 const ts = '2026-01-01T00:00:00.000Z';
 
@@ -75,7 +72,13 @@ async function buildFixture(db: Kysely<DB>): Promise<AdminSeedRefs> {
 		const siteId = nanoid();
 		await db
 			.insertInto('sites')
-			.values({ id: siteId, name: `Site ${i}`, health_system_id: hsId, created_at: ts, updated_at: ts })
+			.values({
+				id: siteId,
+				name: `Site ${i}`,
+				health_system_id: hsId,
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 		const preceptorId = nanoid();
 		preceptorIds.push(preceptorId);
@@ -108,7 +111,13 @@ async function buildFixture(db: Kysely<DB>): Promise<AdminSeedRefs> {
 		studentIds.push(id);
 		await db
 			.insertInto('students')
-			.values({ id, name: `Student ${i}`, email: `s${i}@medschool.edu`, created_at: ts, updated_at: ts })
+			.values({
+				id,
+				name: `Student ${i}`,
+				email: `s${i}@medschool.edu`,
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 		await db
 			.insertInto('schedule_students')
@@ -116,7 +125,14 @@ async function buildFixture(db: Kysely<DB>): Promise<AdminSeedRefs> {
 			.execute();
 	}
 
-	return { scheduleId, studentIds, preceptorIds, clerkshipIds, healthSystemIds: [hsId], timestamp: ts };
+	return {
+		scheduleId,
+		studentIds,
+		preceptorIds,
+		clerkshipIds,
+		healthSystemIds: [hsId],
+		timestamp: ts
+	};
 }
 
 describe('seedAdminAssignments — data integrity', () => {
@@ -154,10 +170,7 @@ describe('seedAdminAssignments — data integrity', () => {
 	});
 
 	it('every assignment student is a member of the owning schedule', async () => {
-		const assignments = await db
-			.selectFrom('schedule_assignments')
-			.select('student_id')
-			.execute();
+		const assignments = await db.selectFrom('schedule_assignments').select('student_id').execute();
 		for (const a of assignments) {
 			const member = await db
 				.selectFrom('schedule_students')

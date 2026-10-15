@@ -1,9 +1,11 @@
 # Step 09: Preceptors - API Routes
 
 ## Overview
+
 Implement RESTful API routes for preceptor CRUD operations and availability management. These routes handle HTTP requests, validate input, call service functions, and return properly formatted responses.
 
 ## Dependencies
+
 - ✅ Step 03: Shared Utilities & Test Helpers
 - ✅ Step 07: Preceptors - Service Layer
 - ✅ Step 08: Preceptor Availability - Service Layer
@@ -11,6 +13,7 @@ Implement RESTful API routes for preceptor CRUD operations and availability mana
 ## Requirements
 
 ### API Endpoints
+
 - `GET /api/preceptors` - List all preceptors
 - `GET /api/preceptors/[id]` - Get single preceptor
 - `POST /api/preceptors` - Create new preceptor
@@ -20,12 +23,14 @@ Implement RESTful API routes for preceptor CRUD operations and availability mana
 - `POST /api/preceptors/[id]/availability` - Set/bulk update availability
 
 ### Response Format
+
 - Use standardized response helpers
 - Return appropriate HTTP status codes
 - Include error details for debugging
 - Type-safe response bodies
 
 ### Error Handling
+
 - Catch and format service layer errors
 - Return user-friendly error messages
 - Handle validation errors from Zod
@@ -34,6 +39,7 @@ Implement RESTful API routes for preceptor CRUD operations and availability mana
 ## Implementation Details
 
 ### File Structure
+
 ```
 /src/routes/api/preceptors/
 ├── +server.ts                           # GET (list), POST (create) (NEW)
@@ -55,11 +61,12 @@ Implement RESTful API routes for preceptor CRUD operations and availability mana
 Handles collection-level operations (list all, create).
 
 **Exports:**
+
 ```typescript
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler;   // List all preceptors
-export const POST: RequestHandler;  // Create preceptor
+export const GET: RequestHandler; // List all preceptors
+export const POST: RequestHandler; // Create preceptor
 ```
 
 ---
@@ -67,35 +74,40 @@ export const POST: RequestHandler;  // Create preceptor
 #### GET Handler - List All Preceptors
 
 **Logic:**
+
 1. Optionally filter by specialty (query param)
 2. Call appropriate service function
 3. Return success response with preceptors array
 
 **Query Parameters:**
+
 - `specialty` (optional): Filter by medical specialty
 
 **Response:**
+
 - Status: 200
 - Body: `{ success: true, data: PreceptorsTable[] }`
 
 **Errors:**
+
 - Status: 500 for unexpected errors
 
 **Example Response:**
+
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": "123-456-789",
-      "name": "Dr. Smith",
-      "email": "smith@example.com",
-      "specialty": "Internal Medicine",
-      "max_students": 1,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  ]
+	"success": true,
+	"data": [
+		{
+			"id": "123-456-789",
+			"name": "Dr. Smith",
+			"email": "smith@example.com",
+			"specialty": "Internal Medicine",
+			"max_students": 1,
+			"created_at": "2024-01-01T00:00:00Z",
+			"updated_at": "2024-01-01T00:00:00Z"
+		}
+	]
 }
 ```
 
@@ -104,6 +116,7 @@ export const POST: RequestHandler;  // Create preceptor
 #### POST Handler - Create Preceptor
 
 **Logic:**
+
 1. Parse JSON body from request
 2. Validate input using `createPreceptorSchema`
 3. If validation fails, return validation error response
@@ -112,20 +125,23 @@ export const POST: RequestHandler;  // Create preceptor
 6. Return success response with created preceptor
 
 **Request Body:**
+
 ```json
 {
-  "name": "Dr. Smith",
-  "email": "smith@example.com",
-  "specialty": "Internal Medicine",
-  "max_students": 1
+	"name": "Dr. Smith",
+	"email": "smith@example.com",
+	"specialty": "Internal Medicine",
+	"max_students": 1
 }
 ```
 
 **Response:**
+
 - Status: 201
 - Body: `{ success: true, data: PreceptorsTable }`
 
 **Errors:**
+
 - 400: Validation error (invalid input)
 - 409: Conflict (email already exists)
 - 500: Unexpected errors
@@ -137,12 +153,13 @@ export const POST: RequestHandler;  // Create preceptor
 Handles individual preceptor operations (get, update, delete).
 
 **Exports:**
+
 ```typescript
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler;     // Get single preceptor
-export const PATCH: RequestHandler;   // Update preceptor
-export const DELETE: RequestHandler;  // Delete preceptor
+export const GET: RequestHandler; // Get single preceptor
+export const PATCH: RequestHandler; // Update preceptor
+export const DELETE: RequestHandler; // Delete preceptor
 ```
 
 ---
@@ -150,6 +167,7 @@ export const DELETE: RequestHandler;  // Delete preceptor
 #### GET Handler - Get Single Preceptor
 
 **Logic:**
+
 1. Extract preceptor ID from URL params
 2. Validate ID is valid UUID
 3. Call `getPreceptorById(db, id)` service function
@@ -157,10 +175,12 @@ export const DELETE: RequestHandler;  // Delete preceptor
 5. Return success response with preceptor
 
 **Response:**
+
 - Status: 200
 - Body: `{ success: true, data: PreceptorsTable }`
 
 **Errors:**
+
 - 400: Invalid UUID format
 - 404: Preceptor not found
 - 500: Unexpected errors
@@ -170,6 +190,7 @@ export const DELETE: RequestHandler;  // Delete preceptor
 #### PATCH Handler - Update Preceptor
 
 **Logic:**
+
 1. Extract preceptor ID from URL params
 2. Validate ID is valid UUID
 3. Parse JSON body from request
@@ -181,18 +202,21 @@ export const DELETE: RequestHandler;  // Delete preceptor
 9. Return success response with updated preceptor
 
 **Request Body:**
+
 ```json
 {
-  "name": "Dr. Jane Smith",
-  "specialty": "Cardiology"
+	"name": "Dr. Jane Smith",
+	"specialty": "Cardiology"
 }
 ```
 
 **Response:**
+
 - Status: 200
 - Body: `{ success: true, data: PreceptorsTable }`
 
 **Errors:**
+
 - 400: Validation error or invalid UUID
 - 404: Preceptor not found
 - 409: Conflict (email already exists)
@@ -203,6 +227,7 @@ export const DELETE: RequestHandler;  // Delete preceptor
 #### DELETE Handler - Delete Preceptor
 
 **Logic:**
+
 1. Extract preceptor ID from URL params
 2. Validate ID is valid UUID
 3. Call `deletePreceptor(db, id)` service function
@@ -211,10 +236,12 @@ export const DELETE: RequestHandler;  // Delete preceptor
 6. Return success response (no data)
 
 **Response:**
+
 - Status: 200
 - Body: `{ success: true, data: null }`
 
 **Errors:**
+
 - 400: Invalid UUID
 - 404: Preceptor not found
 - 409: Preceptor has schedule assignments
@@ -227,11 +254,12 @@ export const DELETE: RequestHandler;  // Delete preceptor
 Handles preceptor availability operations.
 
 **Exports:**
+
 ```typescript
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler;   // Get availability
-export const POST: RequestHandler;  // Bulk update availability
+export const GET: RequestHandler; // Get availability
+export const POST: RequestHandler; // Bulk update availability
 ```
 
 ---
@@ -239,6 +267,7 @@ export const POST: RequestHandler;  // Bulk update availability
 #### GET Handler - Get Availability
 
 **Logic:**
+
 1. Extract preceptor ID from URL params
 2. Validate ID is valid UUID
 3. Optionally filter by date range (query params)
@@ -246,31 +275,35 @@ export const POST: RequestHandler;  // Bulk update availability
 5. Return success response with availability periods
 
 **Query Parameters:**
+
 - `start_date` (optional): Filter start date (YYYY-MM-DD)
 - `end_date` (optional): Filter end date (YYYY-MM-DD)
 
 **Response:**
+
 - Status: 200
 - Body: `{ success: true, data: PreceptorAvailabilityTable[] }`
 
 **Errors:**
+
 - 400: Invalid UUID or date format
 - 500: Unexpected errors
 
 **Example Response:**
+
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": "avail-123",
-      "preceptor_id": "preceptor-123",
-      "start_date": "2024-01-01",
-      "end_date": "2024-01-31",
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  ]
+	"success": true,
+	"data": [
+		{
+			"id": "avail-123",
+			"preceptor_id": "preceptor-123",
+			"start_date": "2024-01-01",
+			"end_date": "2024-01-31",
+			"created_at": "2024-01-01T00:00:00Z",
+			"updated_at": "2024-01-01T00:00:00Z"
+		}
+	]
 }
 ```
 
@@ -279,6 +312,7 @@ export const POST: RequestHandler;  // Bulk update availability
 #### POST Handler - Bulk Update Availability
 
 **Logic:**
+
 1. Extract preceptor ID from URL params
 2. Validate ID is valid UUID
 3. Parse JSON body from request
@@ -289,20 +323,23 @@ export const POST: RequestHandler;  // Bulk update availability
 8. Return success response with created availability periods
 
 **Request Body:**
+
 ```json
 {
-  "periods": [
-    { "start_date": "2024-01-01", "end_date": "2024-01-31" },
-    { "start_date": "2024-03-01", "end_date": "2024-03-31" }
-  ]
+	"periods": [
+		{ "start_date": "2024-01-01", "end_date": "2024-01-31" },
+		{ "start_date": "2024-03-01", "end_date": "2024-03-31" }
+	]
 }
 ```
 
 **Response:**
+
 - Status: 200
 - Body: `{ success: true, data: PreceptorAvailabilityTable[] }`
 
 **Errors:**
+
 - 400: Validation error
 - 404: Preceptor not found
 - 500: Unexpected errors
@@ -314,40 +351,44 @@ export const POST: RequestHandler;  // Bulk update availability
 ```typescript
 import { db } from '$lib/db';
 import { successResponse, errorResponse, validationErrorResponse, handleApiError } from '$lib/api';
-import { getPreceptors, createPreceptor, getPreceptorsBySpecialty } from '$lib/features/preceptors/services/preceptor-service';
+import {
+	getPreceptors,
+	createPreceptor,
+	getPreceptorsBySpecialty
+} from '$lib/features/preceptors/services/preceptor-service';
 import { createPreceptorSchema } from '$lib/features/preceptors/schemas';
 import { ConflictError, NotFoundError } from '$lib/api/errors';
 import { z } from 'zod';
 
 export const GET: RequestHandler = async ({ url }) => {
-  try {
-    const specialty = url.searchParams.get('specialty');
+	try {
+		const specialty = url.searchParams.get('specialty');
 
-    const preceptors = specialty
-      ? await getPreceptorsBySpecialty(db, specialty)
-      : await getPreceptors(db);
+		const preceptors = specialty
+			? await getPreceptorsBySpecialty(db, specialty)
+			: await getPreceptors(db);
 
-    return successResponse(preceptors);
-  } catch (error) {
-    return handleApiError(error);
-  }
+		return successResponse(preceptors);
+	} catch (error) {
+		return handleApiError(error);
+	}
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-  try {
-    const body = await request.json();
-    const validatedData = createPreceptorSchema.parse(body);
-    const preceptor = await createPreceptor(db, validatedData);
-    return successResponse(preceptor, 201);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return validationErrorResponse(error);
-    }
-    if (error instanceof ConflictError) {
-      return errorResponse(error.message, 409);
-    }
-    return handleApiError(error);
-  }
+	try {
+		const body = await request.json();
+		const validatedData = createPreceptorSchema.parse(body);
+		const preceptor = await createPreceptor(db, validatedData);
+		return successResponse(preceptor, 201);
+	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return validationErrorResponse(error);
+		}
+		if (error instanceof ConflictError) {
+			return errorResponse(error.message, 409);
+		}
+		return handleApiError(error);
+	}
 };
 ```
 
@@ -360,6 +401,7 @@ export const POST: RequestHandler = async ({ request }) => {
 #### `/src/routes/api/preceptors/+server.test.ts`
 
 **GET /api/preceptors:**
+
 - ✅ Returns 200 with empty array when no preceptors
 - ✅ Returns 200 with array of preceptors
 - ✅ Preceptors are ordered by name
@@ -368,6 +410,7 @@ export const POST: RequestHandler = async ({ request }) => {
 - ✅ Response has correct structure
 
 **POST /api/preceptors:**
+
 - ✅ Creates preceptor with valid data (201)
 - ✅ Returns created preceptor with ID
 - ✅ Returns 400 for missing name
@@ -384,12 +427,14 @@ export const POST: RequestHandler = async ({ request }) => {
 #### `/src/routes/api/preceptors/[id]/+server.test.ts`
 
 **GET /api/preceptors/[id]:**
+
 - ✅ Returns 200 with preceptor data
 - ✅ Returns 404 for non-existent preceptor
 - ✅ Returns 400 for invalid UUID format
 - ✅ Response has correct structure
 
 **PATCH /api/preceptors/[id]:**
+
 - ✅ Updates preceptor name (200)
 - ✅ Updates preceptor email (200)
 - ✅ Updates preceptor specialty (200)
@@ -404,6 +449,7 @@ export const POST: RequestHandler = async ({ request }) => {
 - ✅ Allows keeping same email
 
 **DELETE /api/preceptors/[id]:**
+
 - ✅ Deletes preceptor successfully (200)
 - ✅ Preceptor no longer appears in GET list
 - ✅ Returns 404 for non-existent preceptor
@@ -416,6 +462,7 @@ export const POST: RequestHandler = async ({ request }) => {
 #### `/src/routes/api/preceptors/[id]/availability/+server.test.ts`
 
 **GET /api/preceptors/[id]/availability:**
+
 - ✅ Returns 200 with empty array when no availability
 - ✅ Returns 200 with array of availability periods
 - ✅ Periods are ordered by start_date
@@ -424,6 +471,7 @@ export const POST: RequestHandler = async ({ request }) => {
 - ✅ Returns 400 for invalid UUID
 
 **POST /api/preceptors/[id]/availability:**
+
 - ✅ Bulk updates availability (200)
 - ✅ Replaces all existing periods
 - ✅ Returns created periods
@@ -491,13 +539,13 @@ const { data: internists } = await response.json();
 
 // Create preceptor
 const response = await fetch('/api/preceptors', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'Dr. Smith',
-    email: 'smith@example.com',
-    specialty: 'Internal Medicine'
-  })
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		name: 'Dr. Smith',
+		email: 'smith@example.com',
+		specialty: 'Internal Medicine'
+	})
 });
 
 // Get preceptor's availability
@@ -506,14 +554,14 @@ const { data: availability } = await response.json();
 
 // Bulk update availability
 const response = await fetch('/api/preceptors/123/availability', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    periods: [
-      { start_date: '2024-01-01', end_date: '2024-01-31' },
-      { start_date: '2024-03-01', end_date: '2024-03-31' }
-    ]
-  })
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		periods: [
+			{ start_date: '2024-01-01', end_date: '2024-01-31' },
+			{ start_date: '2024-03-01', end_date: '2024-03-31' }
+		]
+	})
 });
 ```
 

@@ -84,7 +84,9 @@ test.describe('AG-3 completion mode', { tag: ['@stage2', '@long'] }, () => {
 		const free = rows.filter((r) => r.kind === 'free_day');
 
 		// The locked clinical day survived, and the free day survived.
-		expect(rows.some((r) => r.date === lockedDay && r.kind === 'clinical' && r.locked === 1)).toBe(true);
+		expect(rows.some((r) => r.date === lockedDay && r.kind === 'clinical' && r.locked === 1)).toBe(
+			true
+		);
 		expect(free.map((r) => r.date)).toEqual([freeDay]);
 
 		// Completion filled the requirement to exactly 2 clinical days, adding one.

@@ -26,52 +26,55 @@ export const weeklyConfigSchema = z.object({
 /**
  * Schema for monthly pattern configuration
  */
-export const monthlyConfigSchema = z.object({
-	monthly_type: z.enum([
-		'first_week',
-		'last_week',
-		'first_business_week',
-		'last_business_week',
-		'specific_days'
-	]),
-	week_definition: z.enum(['seven_days', 'calendar', 'business']).optional(),
-	specific_days: z
-		.array(z.number().int().min(1).max(31))
-		.optional()
-		.refine(
-			(days) => {
-				if (!days) return true;
-				return new Set(days).size === days.length;
-			},
-			{
-				message: 'Duplicate specific days are not allowed'
+export const monthlyConfigSchema = z
+	.object({
+		monthly_type: z.enum([
+			'first_week',
+			'last_week',
+			'first_business_week',
+			'last_business_week',
+			'specific_days'
+		]),
+		week_definition: z.enum(['seven_days', 'calendar', 'business']).optional(),
+		specific_days: z
+			.array(z.number().int().min(1).max(31))
+			.optional()
+			.refine(
+				(days) => {
+					if (!days) return true;
+					return new Set(days).size === days.length;
+				},
+				{
+					message: 'Duplicate specific days are not allowed'
+				}
+			)
+	})
+	.refine(
+		(data) => {
+			// If monthly_type is specific_days, specific_days must be provided
+			if (data.monthly_type === 'specific_days') {
+				return data.specific_days && data.specific_days.length > 0;
 			}
-		)
-}).refine(
-	(data) => {
-		// If monthly_type is specific_days, specific_days must be provided
-		if (data.monthly_type === 'specific_days') {
-			return data.specific_days && data.specific_days.length > 0;
+			return true;
+		},
+		{
+			message: 'specific_days is required when monthly_type is "specific_days"',
+			path: ['specific_days']
 		}
-		return true;
-	},
-	{
-		message: 'specific_days is required when monthly_type is "specific_days"',
-		path: ['specific_days']
-	}
-).refine(
-	(data) => {
-		// If monthly_type is a week type, week_definition must be provided
-		if (['first_week', 'last_week'].includes(data.monthly_type)) {
-			return data.week_definition !== undefined;
+	)
+	.refine(
+		(data) => {
+			// If monthly_type is a week type, week_definition must be provided
+			if (['first_week', 'last_week'].includes(data.monthly_type)) {
+				return data.week_definition !== undefined;
+			}
+			return true;
+		},
+		{
+			message: 'week_definition is required for week-based monthly patterns',
+			path: ['week_definition']
 		}
-		return true;
-	},
-	{
-		message: 'week_definition is required for week-based monthly patterns',
-		path: ['week_definition']
-	}
-);
+	);
 
 /**
  * Schema for block pattern configuration
@@ -187,29 +190,31 @@ export const createPatternSchema = z
 /**
  * Schema for updating a pattern (all fields optional except what cannot be changed)
  */
-export const updatePatternSchema = z.object({
-	is_available: z.boolean().optional(),
-	date_range_start: dateStringSchema.optional(),
-	date_range_end: dateStringSchema.optional(),
-	config: patternConfigSchema.optional(),
-	reason: z.string().max(500).optional(),
-	preference: z.enum(['preferred', 'in_a_pinch']).optional(),
-	session: z.enum(['full', 'am', 'pm']).optional(),
-	credit_value: z.number().positive().max(10).optional(),
-	enabled: z.boolean().optional()
-}).refine(
-	(data) => {
-		// If both dates are provided, validate the range
-		if (data.date_range_start && data.date_range_end) {
-			return data.date_range_start <= data.date_range_end;
+export const updatePatternSchema = z
+	.object({
+		is_available: z.boolean().optional(),
+		date_range_start: dateStringSchema.optional(),
+		date_range_end: dateStringSchema.optional(),
+		config: patternConfigSchema.optional(),
+		reason: z.string().max(500).optional(),
+		preference: z.enum(['preferred', 'in_a_pinch']).optional(),
+		session: z.enum(['full', 'am', 'pm']).optional(),
+		credit_value: z.number().positive().max(10).optional(),
+		enabled: z.boolean().optional()
+	})
+	.refine(
+		(data) => {
+			// If both dates are provided, validate the range
+			if (data.date_range_start && data.date_range_end) {
+				return data.date_range_start <= data.date_range_end;
+			}
+			return true;
+		},
+		{
+			message: 'date_range_start must be before or equal to date_range_end',
+			path: ['date_range_end']
 		}
-		return true;
-	},
-	{
-		message: 'date_range_start must be before or equal to date_range_end',
-		path: ['date_range_end']
-	}
-);
+	);
 
 /**
  * Schema for pattern with ID (database record)
@@ -269,40 +274,41 @@ export const savePatternDatesSchema = z.object({
 /**
  * Schema for creating a scheduling period
  */
-export const createSchedulingPeriodSchema = z.object({
-	name: z.string().min(1).max(200),
-	start_date: dateStringSchema,
-	end_date: dateStringSchema,
-	is_active: z.boolean().default(false)
-}).refine(
-	(data) => data.start_date <= data.end_date,
-	{
+export const createSchedulingPeriodSchema = z
+	.object({
+		name: z.string().min(1).max(200),
+		start_date: dateStringSchema,
+		end_date: dateStringSchema,
+		is_active: z.boolean().default(false)
+	})
+	.refine((data) => data.start_date <= data.end_date, {
 		message: 'start_date must be before or equal to end_date',
 		path: ['end_date']
-	}
-);
+	});
 
 /**
  * Schema for updating a scheduling period
  */
-export const updateSchedulingPeriodSchema = z.object({
-	name: z.string().min(1).max(200).optional(),
-	start_date: dateStringSchema.optional(),
-	end_date: dateStringSchema.optional(),
-	is_active: z.boolean().optional()
-}).refine(
-	(data) => {
-		// If both dates are provided, validate the range
-		if (data.start_date && data.end_date) {
-			return data.start_date <= data.end_date;
+export const updateSchedulingPeriodSchema = z
+	.object({
+		name: z.string().min(1).max(200).optional(),
+		start_date: dateStringSchema.optional(),
+		end_date: dateStringSchema.optional(),
+		is_active: z.boolean().optional()
+	})
+	.refine(
+		(data) => {
+			// If both dates are provided, validate the range
+			if (data.start_date && data.end_date) {
+				return data.start_date <= data.end_date;
+			}
+			return true;
+		},
+		{
+			message: 'start_date must be before or equal to end_date',
+			path: ['end_date']
 		}
-		return true;
-	},
-	{
-		message: 'start_date must be before or equal to end_date',
-		path: ['end_date']
-	}
-);
+	);
 
 /**
  * Schema for scheduling period with ID (database record)
@@ -376,22 +382,21 @@ export const duplicationOptionsSchema = z.object({
 /**
  * Schema for duplicating a schedule
  */
-export const duplicateScheduleSchema = z.object({
-	name: z.string().min(1).max(200),
-	startDate: dateStringSchema,
-	endDate: dateStringSchema,
-	// A schedule is defined by its date range; `year` is a legacy nullable field
-	// the wizard does not collect, so it is optional here. Required-year rejected
-	// every duplicate the wizard submitted (e2e finding P1-a).
-	year: z.number().int().min(2000).max(2100).nullish(),
-	options: duplicationOptionsSchema.default({})
-}).refine(
-	(data) => data.startDate <= data.endDate,
-	{
+export const duplicateScheduleSchema = z
+	.object({
+		name: z.string().min(1).max(200),
+		startDate: dateStringSchema,
+		endDate: dateStringSchema,
+		// A schedule is defined by its date range; `year` is a legacy nullable field
+		// the wizard does not collect, so it is optional here. Required-year rejected
+		// every duplicate the wizard submitted (e2e finding P1-a).
+		year: z.number().int().min(2000).max(2100).nullish(),
+		options: duplicationOptionsSchema.default({})
+	})
+	.refine((data) => data.startDate <= data.endDate, {
 		message: 'startDate must be before or equal to endDate',
 		path: ['endDate']
-	}
-);
+	});
 
 /**
  * Schema for adding/removing entities from a schedule

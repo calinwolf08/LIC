@@ -16,8 +16,5 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 export async function down(db: Kysely<any>): Promise<void> {
 	// Remove available_preceptor_ids column
-	await db.schema
-		.alterTable('clerkship_electives')
-		.dropColumn('available_preceptor_ids')
-		.execute();
+	await db.schema.alterTable('clerkship_electives').dropColumn('available_preceptor_ids').execute();
 }

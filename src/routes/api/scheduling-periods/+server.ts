@@ -7,16 +7,9 @@
 
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { auth } from '$lib/auth';
-import {
-	successResponse,
-	validationErrorResponse,
-	errorResponse
-} from '$lib/api/responses';
+import { successResponse, validationErrorResponse, errorResponse } from '$lib/api/responses';
 import { NotFoundError, ConflictError, handleApiError } from '$lib/api/errors';
-import {
-	createSchedulingPeriod
-} from '$lib/features/scheduling/services/scheduling-period-service';
+import { createSchedulingPeriod } from '$lib/features/scheduling/services/scheduling-period-service';
 import { createSchedulingPeriodSchema } from '$lib/features/preceptors/pattern-schemas';
 import { createServerLogger } from '$lib/utils/logger.server';
 import { ZodError } from 'zod';
@@ -27,12 +20,12 @@ const log = createServerLogger('api:scheduling-periods');
  * GET /api/scheduling-periods
  * Returns scheduling periods for the authenticated user only
  */
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	log.debug('Fetching scheduling periods');
 
 	try {
 		// Require authentication
-		const session = await auth.api.getSession({ headers: request.headers });
+		const session = locals.session;
 
 		if (!session?.user?.id) {
 			log.warn('Unauthorized access to scheduling periods');
@@ -59,12 +52,12 @@ export const GET: RequestHandler = async ({ request }) => {
  * POST /api/scheduling-periods
  * Create a new scheduling period for the authenticated user
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	log.debug('Creating scheduling period');
 
 	try {
 		// Require authentication
-		const session = await auth.api.getSession({ headers: request.headers });
+		const session = locals.session;
 
 		if (!session?.user?.id) {
 			log.warn('Unauthorized attempt to create scheduling period');
@@ -95,7 +88,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			log.warn('Scheduling period validation failed', {
-				errors: error.errors.map(e => ({ path: e.path.join('.'), message: e.message }))
+				errors: error.errors.map((e) => ({ path: e.path.join('.'), message: e.message }))
 			});
 			return validationErrorResponse(error);
 		}

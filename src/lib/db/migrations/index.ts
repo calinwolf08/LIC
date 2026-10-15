@@ -41,7 +41,7 @@ const __dirname = path.dirname(__filename);
  */
 const dialectFolders: Record<string, string> = {
 	sqlite: 'sqlite',
-	postgres: 'postgres',
+	postgres: 'postgres'
 };
 
 /**
@@ -88,7 +88,7 @@ class CompositeMigrationProvider implements MigrationProvider {
 			const migrations = await new FileMigrationProvider({
 				fs,
 				path,
-				migrationFolder: folder,
+				migrationFolder: folder
 			}).getMigrations();
 
 			for (const [name, migration] of Object.entries(migrations)) {
@@ -105,9 +105,7 @@ class CompositeMigrationProvider implements MigrationProvider {
 
 		// Kysely sorts by name itself, but returning a sorted object keeps
 		// `getMigrations()` debuggable and makes the order obvious in tests.
-		return Object.fromEntries(
-			Object.entries(merged).sort(([a], [b]) => a.localeCompare(b))
-		);
+		return Object.fromEntries(Object.entries(merged).sort(([a], [b]) => a.localeCompare(b)));
 	}
 }
 
@@ -132,7 +130,7 @@ export function getMigrationProvider(
 
 	return new CompositeMigrationProvider([
 		path.join(__dirname, folder),
-		path.join(__dirname, SHARED_FOLDER),
+		path.join(__dirname, SHARED_FOLDER)
 	]);
 }
 
@@ -156,12 +154,15 @@ export interface MigrateOptions {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- migrations are
 // schema-agnostic; `Kysely<unknown>` would reject every concrete instance.
-export async function migrateToLatest(db: Kysely<any>, options: MigrateOptions = {}): Promise<void> {
+export async function migrateToLatest(
+	db: Kysely<any>,
+	options: MigrateOptions = {}
+): Promise<void> {
 	const dialect = options.dialect ?? detectDialect(db) ?? resolveDbConfig(process.env).dialect;
 
 	const migrator = new Migrator({
 		db,
-		provider: getMigrationProvider(dialect),
+		provider: getMigrationProvider(dialect)
 	});
 
 	const { error, results } = await migrator.migrateToLatest();

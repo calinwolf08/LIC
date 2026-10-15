@@ -6,14 +6,18 @@
  * `elective_id`, `schedule_id`). A UI that shows the right thing over wrong data
  * is a bug this layer exists to catch.
  *
- * Writes are limited to test-harness concerns that have no UI by design:
- * granting/revoking the `autogen` entitlement. Everything else goes through the
- * app.
+ * Writes are limited to test-harness concerns that have no UI yet: granting /
+ * revoking the `autogen` entitlement, which now means moving the user's
+ * organization between the Pro and Standard plans. Everything else goes through
+ * the app.
  */
 
 import type { Kysely } from 'kysely';
+import { ENTITLEMENT_AUTOGEN } from '../../src/lib/billing/plans';
 import { createDB } from '../../src/lib/db/connection';
 import type { DB } from '../../src/lib/db/types';
+import { entitlementsForSubscription } from '../../src/lib/server/billing/entitlements';
+import { isSubscriptionStatus } from '../../src/lib/server/billing/types';
 
 export const TEST_DB_PATH = process.env.DATABASE_PATH ?? './test-sqlite.db';
 
@@ -41,32 +45,55 @@ export async function userByEmail(db: Kysely<DB>, email: string) {
 	return db.selectFrom('user').selectAll().where('email', '=', email).executeTakeFirst();
 }
 
-export async function entitlementsOf(db: Kysely<DB>, email: string): Promise<string[]> {
+/** The live subscription of the user's (oldest) organization. */
+async function liveSubscriptionOf(db: Kysely<DB>, email: string) {
 	const u = await userByEmail(db, email);
 	if (!u) throw new Error(`No user ${email}`);
-	try {
-		const parsed = JSON.parse(u.entitlements ?? '[]');
-		return Array.isArray(parsed) ? parsed : [];
-	} catch {
-		return [];
-	}
+	const membership = await db
+		.selectFrom('member')
+		.select('organizationId')
+		.where('userId', '=', u.id)
+		.orderBy('createdAt', 'asc')
+		.executeTakeFirst();
+	if (!membership) throw new Error(`${email} belongs to no organization`);
+	const subscription = await db
+		.selectFrom('subscriptions')
+		.selectAll()
+		.where('organization_id', '=', membership.organizationId)
+		.where('status', '<>', 'canceled')
+		.executeTakeFirst();
+	if (!subscription) throw new Error(`${email}'s organization has no subscription`);
+	return subscription;
 }
 
-/** Replace a user's entitlement list. Takes effect on their next request. */
+/** What the user's organization's plan grants right now (as the app computes it). */
+export async function entitlementsOf(db: Kysely<DB>, email: string): Promise<string[]> {
+	const sub = await liveSubscriptionOf(db, email);
+	if (!isSubscriptionStatus(sub.status)) throw new Error(`Unknown status '${sub.status}'`);
+	return entitlementsForSubscription(
+		{ status: sub.status, graceEndsAt: sub.grace_ends_at, planId: sub.plan_id },
+		new Date()
+	);
+}
+
+/**
+ * Give the user's organization exactly `list`: Pro when it includes `autogen`,
+ * Standard otherwise (the only two plans). Takes effect on their next request.
+ */
 export async function setEntitlements(db: Kysely<DB>, email: string, list: string[]) {
-	const u = await userByEmail(db, email);
-	if (!u) throw new Error(`No user ${email}`);
+	const sub = await liveSubscriptionOf(db, email);
+	const planId = list.includes(ENTITLEMENT_AUTOGEN) ? 'pro' : 'standard';
 	await withRetry(() =>
 		db
-			.updateTable('user')
-			.set({ entitlements: JSON.stringify(list) })
-			.where('id', '=', u.id)
+			.updateTable('subscriptions')
+			.set({ plan_id: planId, updated_at: new Date().toISOString() })
+			.where('id', '=', sub.id)
 			.execute()
 	);
 }
 
 export const grantAutogen = (db: Kysely<DB>, email: string) =>
-	setEntitlements(db, email, ['autogen']);
+	setEntitlements(db, email, [ENTITLEMENT_AUTOGEN]);
 export const revokeAutogen = (db: Kysely<DB>, email: string) => setEntitlements(db, email, []);
 
 export async function assignmentRow(db: Kysely<DB>, id: string) {

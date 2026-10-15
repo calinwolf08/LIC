@@ -39,9 +39,7 @@ export async function generateScheduleExcel(
 		ExcelJS = await import('exceljs');
 	} catch (error) {
 		log.error('ExcelJS not installed', { error });
-		throw new Error(
-			'ExcelJS is not installed. Please run: npm install exceljs @types/exceljs'
-		);
+		throw new Error('ExcelJS is not installed. Please run: npm install exceljs @types/exceljs');
 	}
 
 	// Fetch enriched assignments

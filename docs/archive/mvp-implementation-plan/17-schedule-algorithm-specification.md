@@ -1,9 +1,11 @@
 # Step 17: Schedule Algorithm Specification
 
 ## Overview
+
 This document specifies the greedy scheduling algorithm for assigning students to preceptors for their required clerkship rotations. **This step is DOCUMENTATION ONLY**. The user will implement the actual algorithm later. This document provides detailed pseudocode, business rules, constraints, and test cases.
 
 ## Dependencies
+
 - ✅ Step 04: Students - Service Layer
 - ✅ Step 07: Preceptors - Service Layer
 - ✅ Step 08: Preceptor Availability - Service Layer
@@ -13,9 +15,11 @@ This document specifies the greedy scheduling algorithm for assigning students t
 ## Requirements
 
 ### Algorithm Objective
+
 Assign each student to preceptors for all required clerkship rotations, respecting all business constraints and optimizing for successful placement.
 
 ### Input Requirements
+
 - Start date (YYYY-MM-DD)
 - End date (YYYY-MM-DD)
 - List of all students
@@ -24,6 +28,7 @@ Assign each student to preceptors for all required clerkship rotations, respecti
 - List of all blackout dates
 
 ### Output Requirements
+
 - List of schedule assignments (student, preceptor, clerkship, start_date, end_date)
 - Each assignment respects all constraints
 - Maximum possible students have all required rotations assigned
@@ -31,6 +36,7 @@ Assign each student to preceptors for all required clerkship rotations, respecti
 ### Business Constraints
 
 #### Hard Constraints (Must Not Be Violated)
+
 1. **Specialty Matching**: Preceptor specialty must match clerkship specialty
 2. **Availability**: Preceptor must be available for entire assignment period
 3. **Capacity**: Preceptor can only supervise max_students at a time (MVP: always 1)
@@ -40,6 +46,7 @@ Assign each student to preceptors for all required clerkship rotations, respecti
 7. **Date Boundaries**: Assignments must fall within start_date and end_date
 
 #### Soft Constraints (Optimize When Possible)
+
 1. **Fair Distribution**: Distribute students evenly across preceptors when possible
 2. **Minimize Gaps**: Minimize gaps between a student's assignments
 3. **Completion**: Prioritize completing all rotations for a student before moving to next
@@ -51,6 +58,7 @@ Assign each student to preceptors for all required clerkship rotations, respecti
 ### High-Level Approach
 
 **Greedy Algorithm with Backtracking:**
+
 1. For each student (in order)
 2. For each required clerkship (in order)
 3. Find available preceptor that matches specialty
@@ -235,30 +243,36 @@ END FUNCTION
 ## Business Rules
 
 ### Rule 1: Specialty Matching
+
 - Preceptor's specialty field must exactly match clerkship's specialty field
 - Case-sensitive comparison
 - Example: "Internal Medicine" preceptor can only teach "Internal Medicine" clerkship
 
 ### Rule 2: Date Range Overlap Detection
+
 - Two date ranges overlap if: `start1 <= end2 AND end1 >= start2`
 - Used for checking conflicts and availability
 
 ### Rule 3: Assignment Duration Calculation
+
 - Duration in days = end_date - start_date + 1
 - Must be >= clerkship.required_days
 - Example: Jan 1 to Jan 28 = 28 days
 
 ### Rule 4: Sequential Assignment Priority
+
 - Process students in order (by ID or name)
 - Process clerkships in order for each student
 - Each student gets all their rotations before moving to next student
 
 ### Rule 5: Blackout Date Handling
+
 - If assignment overlaps any blackout date, skip that slot
 - Try next available slot
 - Blackout dates can overlap with each other
 
 ### Rule 6: Preceptor Capacity
+
 - In MVP, max_students = 1 (one student at a time)
 - Future: support max_students > 1
 
@@ -267,31 +281,37 @@ END FUNCTION
 ## Edge Cases
 
 ### Edge Case 1: Insufficient Preceptors
+
 **Scenario:** More students need a specialty than preceptors available
 **Handling:** Some students won't get assigned to that clerkship
 **Result:** Partial schedule, warnings logged
 
 ### Edge Case 2: Insufficient Time Window
+
 **Scenario:** Total required days > available days in window
 **Handling:** Not all rotations will fit
 **Result:** Partial schedule, warnings logged
 
 ### Edge Case 3: Blackout Dates Fragment Schedule
+
 **Scenario:** Many blackout dates create small time fragments
 **Handling:** Algorithm skips fragments too small for assignments
 **Result:** Some rotations may not be assigned
 
 ### Edge Case 4: No Matching Specialty
+
 **Scenario:** Clerkship requires specialty with no matching preceptors
 **Handling:** Skip that clerkship for all students
 **Result:** Clerkship unassigned, warning logged
 
 ### Edge Case 5: Preceptor Never Available
+
 **Scenario:** Preceptor has no availability in scheduling window
 **Handling:** Skip that preceptor
 **Result:** Use other preceptors if available
 
 ### Edge Case 6: All Preceptors Fully Booked
+
 **Scenario:** All matching preceptors have conflicts for available slots
 **Handling:** Student doesn't get assigned to that clerkship
 **Result:** Incomplete schedule for student
@@ -301,13 +321,16 @@ END FUNCTION
 ## Test Cases
 
 ### Test Case 1: Simple Assignment
+
 **Setup:**
+
 - 1 student
 - 1 clerkship (28 days)
 - 1 preceptor (matching specialty, available entire period)
 - No blackout dates
 
 **Expected Result:**
+
 - 1 assignment created
 - Assignment spans 28 days
 - No conflicts
@@ -315,7 +338,9 @@ END FUNCTION
 ---
 
 ### Test Case 2: Multiple Sequential Assignments
+
 **Setup:**
+
 - 1 student
 - 3 clerkships (28, 14, 28 days)
 - 3 preceptors (one for each specialty, all available)
@@ -323,6 +348,7 @@ END FUNCTION
 - No blackout dates
 
 **Expected Result:**
+
 - 3 assignments created
 - Assignments are sequential (no overlap, minimal gaps)
 - Total duration = 70 days
@@ -331,13 +357,16 @@ END FUNCTION
 ---
 
 ### Test Case 3: Preceptor Capacity Constraint
+
 **Setup:**
+
 - 2 students
 - 1 clerkship (28 days)
 - 1 preceptor (matching specialty, available entire period, max_students=1)
 - No blackout dates
 
 **Expected Result:**
+
 - 2 assignments created
 - Assignments do NOT overlap (sequential)
 - Student 1: Days 1-28
@@ -346,13 +375,16 @@ END FUNCTION
 ---
 
 ### Test Case 4: Blackout Date Avoidance
+
 **Setup:**
+
 - 1 student
 - 1 clerkship (10 days)
 - 1 preceptor (available days 1-30)
 - Blackout: days 5-15
 
 **Expected Result:**
+
 - 1 assignment created
 - Assignment either:
   - Days 1-10 (before blackout), OR
@@ -362,25 +394,31 @@ END FUNCTION
 ---
 
 ### Test Case 5: No Matching Specialty
+
 **Setup:**
+
 - 1 student
 - 1 clerkship (specialty: "Cardiology")
 - 1 preceptor (specialty: "Internal Medicine")
 
 **Expected Result:**
+
 - 0 assignments created
 - Warning logged
 
 ---
 
 ### Test Case 6: Insufficient Time Window
+
 **Setup:**
+
 - 1 student
 - 2 clerkships (28, 28 days)
 - 2 preceptors (matching, available)
 - 30-day window
 
 **Expected Result:**
+
 - 1 assignment created (first clerkship)
 - Second clerkship unassigned (insufficient time)
 - Warning logged
@@ -388,7 +426,9 @@ END FUNCTION
 ---
 
 ### Test Case 7: Complex Multi-Student Schedule
+
 **Setup:**
+
 - 3 students
 - 2 clerkships each (28, 14 days)
 - 2 preceptors per specialty (all available)
@@ -396,6 +436,7 @@ END FUNCTION
 - Some blackout dates
 
 **Expected Result:**
+
 - Assignments distributed across preceptors
 - No conflicts (student or preceptor)
 - All students complete both rotations
@@ -406,6 +447,7 @@ END FUNCTION
 ## Algorithm Complexity
 
 ### Time Complexity
+
 - O(S × C × P × A) where:
   - S = number of students
   - C = number of clerkships
@@ -413,11 +455,13 @@ END FUNCTION
   - A = average availability periods per preceptor
 
 ### Space Complexity
+
 - O(S × C) for storing assignments
 - O(B) for blackout dates
 - O(P × A) for availability periods
 
 ### Performance Considerations
+
 - For MVP: S ≤ 50, C ≤ 10, P ≤ 30, A ≤ 5
 - Expected runtime: < 1 second
 - Future optimization: indexing, caching, parallel processing
@@ -429,6 +473,7 @@ END FUNCTION
 **⚠️ This is documentation only. The user will implement the algorithm.**
 
 When implementing:
+
 1. Use TypeScript for type safety
 2. Implement helper functions separately
 3. Write comprehensive unit tests for each function
@@ -485,5 +530,5 @@ When implementing:
 
 - [Greedy Algorithms](https://en.wikipedia.org/wiki/Greedy_algorithm)
 - [Constraint Satisfaction Problem](https://en.wikipedia.org/wiki/Constraint_satisfaction_problem)
-- [Scheduling Algorithms](https://en.wikipedia.org/wiki/Scheduling_(computing))
+- [Scheduling Algorithms](<https://en.wikipedia.org/wiki/Scheduling_(computing)>)
 - [Date Range Overlap Detection](https://stackoverflow.com/questions/325933/determine-whether-two-date-ranges-overlap)

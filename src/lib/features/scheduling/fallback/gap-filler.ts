@@ -111,7 +111,7 @@ export class FallbackGapFiller {
 			assignments: [],
 			fulfilledRequirements: [],
 			partialFulfillments: [],
-			stillUnmet: [],
+			stillUnmet: []
 		};
 
 		if (unmetRequirements.length === 0) {
@@ -141,12 +141,7 @@ export class FallbackGapFiller {
 			}
 
 			// Try to fill this student's gap
-			const fillResult = await this.fillStudentGap(
-				requirement,
-				config,
-				allAssignments,
-				options
-			);
+			const fillResult = await this.fillStudentGap(requirement, config, allAssignments, options);
 
 			if (fillResult.assignments.length > 0) {
 				// Track assignments
@@ -156,7 +151,7 @@ export class FallbackGapFiller {
 						studentId: assignment.studentId,
 						preceptorId: assignment.preceptorId,
 						clerkshipId: assignment.clerkshipId,
-						date: assignment.date,
+						date: assignment.date
 					};
 					pendingFallbackAssignments.push(pending);
 					allAssignments.push(pending);
@@ -167,9 +162,7 @@ export class FallbackGapFiller {
 
 				if (totalAssigned >= requirement.requiredDays) {
 					// Fully fulfilled
-					result.fulfilledRequirements.push(
-						`${requirement.studentId}-${requirement.clerkshipId}`
-					);
+					result.fulfilledRequirements.push(`${requirement.studentId}-${requirement.clerkshipId}`);
 				} else {
 					// Partially fulfilled
 					result.partialFulfillments.push({
@@ -177,7 +170,7 @@ export class FallbackGapFiller {
 						clerkshipId: requirement.clerkshipId,
 						requiredDays: requirement.requiredDays,
 						assignedDays: totalAssigned,
-						addedDays,
+						addedDays
 					});
 				}
 			} else {
@@ -252,7 +245,7 @@ export class FallbackGapFiller {
 						teamId: '',
 						teamName: null,
 						priority: index,
-						tier: 3 as const,
+						tier: 3 as const
 					}));
 			}
 		}
@@ -289,7 +282,7 @@ export class FallbackGapFiller {
 					date,
 					tier: preceptor.tier,
 					fallbackTeamId: preceptor.teamId,
-					originalTeamId: primaryTeamId,
+					originalTeamId: primaryTeamId
 				});
 
 				studentExistingDates.add(date);
@@ -346,7 +339,7 @@ export class FallbackGapFiller {
 			// Get capacity rule
 			const capacityResult = await this.capacityChecker.checkCapacity(preceptorId, date, {
 				clerkshipId,
-				requirementType,
+				requirementType
 			});
 
 			if (!capacityResult.hasCapacity) continue;

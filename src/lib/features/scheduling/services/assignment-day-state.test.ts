@@ -264,12 +264,7 @@ describe('getDayStates', () => {
 		expect(on(before, '2030-03-11').preceptorAtCapacity).toBe(true);
 
 		// Excluding that very assignment clears all three (edit mode).
-		const after = await getDayStates(
-			db,
-			SCHEDULE,
-			{ ...query, excludeId: 'edit-me' },
-			TODAY
-		);
+		const after = await getDayStates(db, SCHEDULE, { ...query, excludeId: 'edit-me' }, TODAY);
 		expect(on(after, '2030-03-11').studentBusy).toBe(false);
 		expect(on(after, '2030-03-11').preceptorBookings).toHaveLength(0);
 		expect(on(after, '2030-03-11').preceptorAtCapacity).toBe(false);
@@ -284,12 +279,7 @@ describe('getDayStates', () => {
 		await assign(db, 'edit-me', STUDENT, '2030-03-11');
 		await assign(db, 'other', 'stu-3', '2030-03-11');
 
-		const after = await getDayStates(
-			db,
-			SCHEDULE,
-			{ ...query, excludeId: 'edit-me' },
-			TODAY
-		);
+		const after = await getDayStates(db, SCHEDULE, { ...query, excludeId: 'edit-me' }, TODAY);
 		// The other student's booking remains, so the slot is still occupied.
 		expect(on(after, '2030-03-11').preceptorBookings).toHaveLength(1);
 		expect(on(after, '2030-03-11').preceptorBookings[0].studentId).toBe('stu-3');

@@ -23,7 +23,11 @@ export const createHealthSystemSchema = z.object({
  */
 export const updateHealthSystemSchema = z
 	.object({
-		name: z.string().min(2, 'Name must be at least 2 characters').max(200, 'Name is too long').optional(),
+		name: z
+			.string()
+			.min(2, 'Name must be at least 2 characters')
+			.max(200, 'Name is too long')
+			.optional(),
 		location: z
 			.string()
 			.max(200, 'Location is too long')

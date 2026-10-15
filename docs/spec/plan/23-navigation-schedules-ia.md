@@ -1,15 +1,19 @@
 # Step 23 — Navigation: Fold "Schedules" into the Schedule Switcher
 
 ## Objective
-Remove the Calendar/Schedules ambiguity. The sidebar should have one place you *work* (Calendar) and one place you *switch or manage* the scheduling period (the switcher dropdown).
+
+Remove the Calendar/Schedules ambiguity. The sidebar should have one place you _work_ (Calendar) and one place you _switch or manage_ the scheduling period (the switcher dropdown).
 
 ## Context (verified in code)
+
 `src/routes/(app)/+layout.svelte:42-49` lists both `/calendar` ("Calendar") and `/schedules` ("Schedules") as top-level nav items. The names are near-synonyms for two very different things: the working grid of assignments vs. the CRUD list of scheduling periods. The switcher (`schedule-selector.svelte`) already sits above the nav and already links to `/schedules/new`, so it is the natural home for "manage".
 
 ## Prerequisites
+
 Step 15 (the switcher must refresh correctly before it becomes the only entry point).
 
 ## Scope
+
 **In:** sidebar nav items, switcher dropdown contents, redirects, docs.
 **Out:** the `/schedules` page's own functionality (unchanged).
 
@@ -23,6 +27,7 @@ Step 15 (the switcher must refresh correctly before it becomes the only entry po
 6. Update `docs/spec/PRODUCT_SPEC.md` §navigation and `04-navigation-ia.md` so the IA docs match the shipped nav.
 
 ## Testing
+
 - **E2E:**
   1. The sidebar has **no "Schedules" item**; Dashboard, Calendar, Students, Preceptors, Clerkships, Locations are present.
   2. Opening the schedule switcher reveals "Manage schedules"; clicking it lands on `/schedules`.
@@ -30,6 +35,7 @@ Step 15 (the switcher must refresh correctly before it becomes the only entry po
   4. The existing schedule-lifecycle journey (create/edit/set-active/delete) still passes when driven through the new entry point.
 
 ## Acceptance criteria
+
 - [ ] Exactly one calendar-ish item in the sidebar; schedule management lives in the switcher.
 - [ ] `/schedules` remains reachable and functional.
 - [ ] IA docs updated to match.

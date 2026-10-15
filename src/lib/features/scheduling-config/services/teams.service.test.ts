@@ -22,14 +22,20 @@ import {
 /**
  * Helper to create test clerkship
  */
-async function createTestClerkship(db: Kysely<DB>, name: string = 'Test Clerkship'): Promise<string> {
+async function createTestClerkship(
+	db: Kysely<DB>,
+	name: string = 'Test Clerkship'
+): Promise<string> {
 	const id = nanoid();
-	await db.insertInto('clerkships').values({
-		id,
-		name,
-		clerkship_type: 'outpatient',
-		required_days: 28,
-	}).execute();
+	await db
+		.insertInto('clerkships')
+		.values({
+			id,
+			name,
+			clerkship_type: 'outpatient',
+			required_days: 28
+		})
+		.execute();
 	return id;
 }
 
@@ -38,11 +44,14 @@ async function createTestClerkship(db: Kysely<DB>, name: string = 'Test Clerkshi
  */
 async function createTestPreceptor(db: Kysely<DB>, name: string = 'Dr. Test'): Promise<string> {
 	const id = nanoid();
-	await db.insertInto('preceptors').values({
-		id,
-		name,
-		email: `${id}@test.edu`,
-	}).execute();
+	await db
+		.insertInto('preceptors')
+		.values({
+			id,
+			name,
+			email: `${id}@test.edu`
+		})
+		.execute();
 	return id;
 }
 
@@ -66,9 +75,7 @@ describe('TeamService', () => {
 
 			const result = await service.createTeam(clerkshipId, {
 				name: 'Test Team',
-				members: [
-					{ preceptorId, priority: 1, isFallbackOnly: false },
-				],
+				members: [{ preceptorId, priority: 1, isFallbackOnly: false }]
 			});
 
 			expect(result.success).toBe(true);
@@ -86,16 +93,16 @@ describe('TeamService', () => {
 				name: 'Test Team',
 				members: [
 					{ preceptorId: primaryId, priority: 1, isFallbackOnly: false },
-					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			expect(result.success).toBe(true);
 			if (!result.success) throw new Error('Expected success');
 			expect(result.data.members).toHaveLength(2);
 
-			const primary = result.data.members.find(m => m.preceptorId === primaryId);
-			const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
+			const primary = result.data.members.find((m) => m.preceptorId === primaryId);
+			const fallback = result.data.members.find((m) => m.preceptorId === fallbackId);
 
 			expect(primary!.isFallbackOnly).toBe(false);
 			expect(fallback!.isFallbackOnly).toBe(true);
@@ -108,8 +115,8 @@ describe('TeamService', () => {
 			const result = await service.createTeam(clerkshipId, {
 				name: 'Test Team',
 				members: [
-					{ preceptorId, priority: 1 }, // No isFallbackOnly specified
-				],
+					{ preceptorId, priority: 1 } // No isFallbackOnly specified
+				]
 			});
 
 			expect(result.success).toBe(true);
@@ -126,8 +133,8 @@ describe('TeamService', () => {
 				name: 'Invalid Team',
 				members: [
 					{ preceptorId: preceptor1, priority: 1, isFallbackOnly: true },
-					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			expect(result.success).toBe(false);
@@ -162,7 +169,7 @@ describe('TeamService', () => {
 				const result = await service.createTeam(clerkshipId, {
 					name: 'Solo Team',
 					requireSameHealthSystem: true,
-					members: [{ preceptorId, priority: 1, isFallbackOnly: false }],
+					members: [{ preceptorId, priority: 1, isFallbackOnly: false }]
 				});
 
 				expect(result.success).toBe(true);
@@ -180,8 +187,8 @@ describe('TeamService', () => {
 					requireSameHealthSystem: true,
 					members: [
 						{ preceptorId: p1, priority: 1, isFallbackOnly: false },
-						{ preceptorId: p2, priority: 2, isFallbackOnly: false },
-					],
+						{ preceptorId: p2, priority: 2, isFallbackOnly: false }
+					]
 				});
 
 				expect(result.success).toBe(true);
@@ -199,8 +206,8 @@ describe('TeamService', () => {
 				name: 'Test Team',
 				members: [
 					{ preceptorId: primaryId, priority: 1, isFallbackOnly: false },
-					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			expect(createResult.success).toBe(true);
@@ -213,8 +220,8 @@ describe('TeamService', () => {
 			if (getResult.success && getResult.data) {
 				expect(getResult.data.members).toHaveLength(2);
 
-				const primary = getResult.data.members.find(m => m.preceptorId === primaryId);
-				const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
+				const primary = getResult.data.members.find((m) => m.preceptorId === primaryId);
+				const fallback = getResult.data.members.find((m) => m.preceptorId === fallbackId);
 
 				expect(primary!.isFallbackOnly).toBe(false);
 				expect(fallback!.isFallbackOnly).toBe(true);
@@ -232,8 +239,8 @@ describe('TeamService', () => {
 				name: 'Test Team',
 				members: [
 					{ preceptorId: preceptor1, priority: 1, isFallbackOnly: false },
-					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: false },
-				],
+					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: false }
+				]
 			});
 
 			expect(createResult.success).toBe(true);
@@ -244,14 +251,14 @@ describe('TeamService', () => {
 			const updateResult = await service.updateTeam(teamId, {
 				members: [
 					{ preceptorId: preceptor1, priority: 1, isFallbackOnly: false },
-					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			expect(updateResult.success).toBe(true);
 			if (!updateResult.success) throw new Error('Expected success');
 
-			const member2 = updateResult.data.members.find(m => m.preceptorId === preceptor2);
+			const member2 = updateResult.data.members.find((m) => m.preceptorId === preceptor2);
 			expect(member2!.isFallbackOnly).toBe(true);
 		});
 
@@ -264,8 +271,8 @@ describe('TeamService', () => {
 				name: 'Test Team',
 				members: [
 					{ preceptorId: preceptor1, priority: 1, isFallbackOnly: false },
-					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			expect(createResult.success).toBe(true);
@@ -276,8 +283,8 @@ describe('TeamService', () => {
 			const updateResult = await service.updateTeam(teamId, {
 				members: [
 					{ preceptorId: preceptor1, priority: 1, isFallbackOnly: true },
-					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: preceptor2, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			expect(updateResult.success).toBe(false);
@@ -292,9 +299,7 @@ describe('TeamService', () => {
 
 			const createResult = await service.createTeam(clerkshipId, {
 				name: 'Test Team',
-				members: [
-					{ preceptorId: primaryId, priority: 1, isFallbackOnly: false },
-				],
+				members: [{ preceptorId: primaryId, priority: 1, isFallbackOnly: false }]
 			});
 
 			expect(createResult.success).toBe(true);
@@ -305,7 +310,7 @@ describe('TeamService', () => {
 			const addResult = await service.addTeamMember(teamId, {
 				preceptorId: fallbackId,
 				priority: 2,
-				isFallbackOnly: true,
+				isFallbackOnly: true
 			});
 
 			expect(addResult.success).toBe(true);
@@ -318,7 +323,7 @@ describe('TeamService', () => {
 			if (getResult.success && getResult.data) {
 				expect(getResult.data.members).toHaveLength(2);
 
-				const fallback = getResult.data.members.find(m => m.preceptorId === fallbackId);
+				const fallback = getResult.data.members.find((m) => m.preceptorId === fallbackId);
 				expect(fallback!.isFallbackOnly).toBe(true);
 			}
 		});
@@ -334,8 +339,8 @@ describe('TeamService', () => {
 				name: 'Team A',
 				members: [
 					{ preceptorId: primaryId, priority: 1, isFallbackOnly: false },
-					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			const result = await service.getTeamsByClerkship(clerkshipId);
@@ -345,8 +350,8 @@ describe('TeamService', () => {
 			expect(result.data).toHaveLength(1);
 
 			const team = result.data[0];
-			const primary = team.members.find(m => m.preceptorId === primaryId);
-			const fallback = team.members.find(m => m.preceptorId === fallbackId);
+			const primary = team.members.find((m) => m.preceptorId === primaryId);
+			const fallback = team.members.find((m) => m.preceptorId === fallbackId);
 
 			expect(primary!.isFallbackOnly).toBe(false);
 			expect(fallback!.isFallbackOnly).toBe(true);
@@ -363,8 +368,8 @@ describe('TeamService', () => {
 				name: 'Team A',
 				members: [
 					{ preceptorId: primaryId, priority: 1, isFallbackOnly: false },
-					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true },
-				],
+					{ preceptorId: fallbackId, priority: 2, isFallbackOnly: true }
+				]
 			});
 
 			const result = await service.getAllTeams();
@@ -373,11 +378,11 @@ describe('TeamService', () => {
 			if (!result.success) throw new Error('Expected success');
 			expect(result.data.length).toBeGreaterThanOrEqual(1);
 
-			const team = result.data.find(t => t.name === 'Team A');
+			const team = result.data.find((t) => t.name === 'Team A');
 			expect(team).toBeDefined();
 
-			const primary = team!.members.find(m => m.preceptorId === primaryId);
-			const fallback = team!.members.find(m => m.preceptorId === fallbackId);
+			const primary = team!.members.find((m) => m.preceptorId === primaryId);
+			const fallback = team!.members.find((m) => m.preceptorId === fallbackId);
 
 			expect(primary!.isFallbackOnly).toBe(false);
 			expect(fallback!.isFallbackOnly).toBe(true);
@@ -393,22 +398,28 @@ describe('TeamService', () => {
 			const teamId = nanoid();
 			const timestamp = new Date().toISOString();
 
-			await db.insertInto('preceptor_teams').values({
-				id: teamId,
-				clerkship_id: clerkshipId,
-				name: 'Direct Insert Team',
-				created_at: timestamp,
-				updated_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_teams')
+				.values({
+					id: teamId,
+					clerkship_id: clerkshipId,
+					name: 'Direct Insert Team',
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 
-			await db.insertInto('preceptor_team_members').values({
-				id: nanoid(),
-				team_id: teamId,
-				preceptor_id: preceptorId,
-				priority: 1,
-				is_fallback_only: 0, // Explicitly 0
-				created_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_team_members')
+				.values({
+					id: nanoid(),
+					team_id: teamId,
+					preceptor_id: preceptorId,
+					priority: 1,
+					is_fallback_only: 0, // Explicitly 0
+					created_at: timestamp
+				})
+				.execute();
 
 			const result = await service.getTeam(teamId);
 
@@ -427,37 +438,46 @@ describe('TeamService', () => {
 			const teamId = nanoid();
 			const timestamp = new Date().toISOString();
 
-			await db.insertInto('preceptor_teams').values({
-				id: teamId,
-				clerkship_id: clerkshipId,
-				name: 'Direct Insert Team',
-				created_at: timestamp,
-				updated_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_teams')
+				.values({
+					id: teamId,
+					clerkship_id: clerkshipId,
+					name: 'Direct Insert Team',
+					created_at: timestamp,
+					updated_at: timestamp
+				})
+				.execute();
 
-			await db.insertInto('preceptor_team_members').values({
-				id: nanoid(),
-				team_id: teamId,
-				preceptor_id: primaryId,
-				priority: 1,
-				is_fallback_only: 0,
-				created_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_team_members')
+				.values({
+					id: nanoid(),
+					team_id: teamId,
+					preceptor_id: primaryId,
+					priority: 1,
+					is_fallback_only: 0,
+					created_at: timestamp
+				})
+				.execute();
 
-			await db.insertInto('preceptor_team_members').values({
-				id: nanoid(),
-				team_id: teamId,
-				preceptor_id: fallbackId,
-				priority: 2,
-				is_fallback_only: 1, // Explicitly 1
-				created_at: timestamp,
-			}).execute();
+			await db
+				.insertInto('preceptor_team_members')
+				.values({
+					id: nanoid(),
+					team_id: teamId,
+					preceptor_id: fallbackId,
+					priority: 2,
+					is_fallback_only: 1, // Explicitly 1
+					created_at: timestamp
+				})
+				.execute();
 
 			const result = await service.getTeam(teamId);
 
 			expect(result.success).toBe(true);
 			if (result.success && result.data) {
-				const fallback = result.data.members.find(m => m.preceptorId === fallbackId);
+				const fallback = result.data.members.find((m) => m.preceptorId === fallbackId);
 				expect(fallback!.isFallbackOnly).toBe(true);
 			}
 		});
@@ -488,8 +508,16 @@ describe('TeamService - Multi-tenancy', () => {
 			const userAId = await createTestUser(db, { name: 'User A' });
 			const userBId = await createTestUser(db, { name: 'User B' });
 
-			const scheduleAId = await createTestSchedule(db, { userId: userAId, name: 'Schedule A', setAsActive: true });
-			const scheduleBId = await createTestSchedule(db, { userId: userBId, name: 'Schedule B', setAsActive: true });
+			const scheduleAId = await createTestSchedule(db, {
+				userId: userAId,
+				name: 'Schedule A',
+				setAsActive: true
+			});
+			const scheduleBId = await createTestSchedule(db, {
+				userId: userBId,
+				name: 'Schedule B',
+				setAsActive: true
+			});
 
 			// Create clerkship and preceptors for teams
 			const clerkshipId = await createTestClerkship(db);
@@ -500,15 +528,15 @@ describe('TeamService - Multi-tenancy', () => {
 			// Create teams
 			const teamA1Result = await service.createTeam(clerkshipId, {
 				name: 'Team A1',
-				members: [{ preceptorId: preceptor1, priority: 1, isFallbackOnly: false }],
+				members: [{ preceptorId: preceptor1, priority: 1, isFallbackOnly: false }]
 			});
 			const teamA2Result = await service.createTeam(clerkshipId, {
 				name: 'Team A2',
-				members: [{ preceptorId: preceptor2, priority: 1, isFallbackOnly: false }],
+				members: [{ preceptorId: preceptor2, priority: 1, isFallbackOnly: false }]
 			});
 			const teamB1Result = await service.createTeam(clerkshipId, {
 				name: 'Team B1',
-				members: [{ preceptorId: preceptor3, priority: 1, isFallbackOnly: false }],
+				members: [{ preceptorId: preceptor3, priority: 1, isFallbackOnly: false }]
 			});
 
 			expect(teamA1Result.success).toBe(true);
@@ -527,9 +555,9 @@ describe('TeamService - Multi-tenancy', () => {
 			expect(teamsA.success).toBe(true);
 			if (teamsA.success) {
 				expect(teamsA.data).toHaveLength(2);
-				expect(teamsA.data.map(t => t.id)).toContain(teamA1Result.data.id);
-				expect(teamsA.data.map(t => t.id)).toContain(teamA2Result.data.id);
-				expect(teamsA.data.map(t => t.id)).not.toContain(teamB1Result.data.id);
+				expect(teamsA.data.map((t) => t.id)).toContain(teamA1Result.data.id);
+				expect(teamsA.data.map((t) => t.id)).toContain(teamA2Result.data.id);
+				expect(teamsA.data.map((t) => t.id)).not.toContain(teamB1Result.data.id);
 			}
 
 			// Get teams for Schedule B
@@ -537,20 +565,24 @@ describe('TeamService - Multi-tenancy', () => {
 			expect(teamsB.success).toBe(true);
 			if (teamsB.success) {
 				expect(teamsB.data).toHaveLength(1);
-				expect(teamsB.data.map(t => t.id)).toContain(teamB1Result.data.id);
+				expect(teamsB.data.map((t) => t.id)).toContain(teamB1Result.data.id);
 			}
 		});
 
 		it('returns empty array when schedule has no associated teams', async () => {
 			const userId = await createTestUser(db, { name: 'User' });
-			const scheduleId = await createTestSchedule(db, { userId, name: 'Empty Schedule', setAsActive: true });
+			const scheduleId = await createTestSchedule(db, {
+				userId,
+				name: 'Empty Schedule',
+				setAsActive: true
+			});
 
 			// Create team but don't associate with the schedule
 			const clerkshipId = await createTestClerkship(db);
 			const preceptorId = await createTestPreceptor(db);
 			await service.createTeam(clerkshipId, {
 				name: 'Some Team',
-				members: [{ preceptorId, priority: 1, isFallbackOnly: false }],
+				members: [{ preceptorId, priority: 1, isFallbackOnly: false }]
 			});
 
 			const teams = await service.getAllTeamsBySchedule(scheduleId);

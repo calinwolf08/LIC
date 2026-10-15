@@ -34,8 +34,7 @@
 	$effect(() =>
 		registerUnsavedGuard(
 			() =>
-				!saved &&
-				(formData.name !== initial.name || formData.description !== initial.description)
+				!saved && (formData.name !== initial.name || formData.description !== initial.description)
 		)
 	);
 
@@ -50,9 +49,7 @@
 			const validatedData = createHealthSystemSchema.parse(formData);
 
 			// Determine endpoint and method
-			const url = healthSystem
-				? `/api/health-systems/${healthSystem.id}`
-				: '/api/health-systems';
+			const url = healthSystem ? `/api/health-systems/${healthSystem.id}` : '/api/health-systems';
 			const method = healthSystem ? 'PATCH' : 'POST';
 
 			// Submit to API
@@ -138,7 +135,9 @@
 					placeholder="Description of the health system..."
 					rows="3"
 					disabled={isSubmitting}
-					class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {errors.description ? 'border-destructive' : ''}"
+					class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 {errors.description
+						? 'border-destructive'
+						: ''}"
 				></textarea>
 				{#if errors.description}
 					<p class="text-sm text-destructive">{errors.description}</p>

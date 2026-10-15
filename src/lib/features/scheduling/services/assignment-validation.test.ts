@@ -149,7 +149,11 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 
 	it('flags a second morning as a session clash (AM + AM)', async () => {
 		await createManualAssignment(db, SCHEDULE, { ...base, date: MON, session: 'am' });
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON, session: 'am' });
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			date: MON,
+			session: 'am'
+		});
 		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(true);
 	});
 
@@ -158,7 +162,14 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 		const PREC2 = 'prec-2';
 		await db
 			.insertInto('preceptors')
-			.values({ id: PREC2, name: 'Dr P2', email: 'p2@x.com', max_students: 1, created_at: ts, updated_at: ts })
+			.values({
+				id: PREC2,
+				name: 'Dr P2',
+				email: 'p2@x.com',
+				max_students: 1,
+				created_at: ts,
+				updated_at: ts
+			})
 			.execute();
 		const [a, b] = PRECEPTOR <= PREC2 ? [PRECEPTOR, PREC2] : [PREC2, PRECEPTOR];
 		await db
@@ -168,8 +179,17 @@ describe('validateAssignmentCandidate (DB-backed)', () => {
 
 		// Existing morning with PREC2; candidate is PRECEPTOR in the afternoon — no
 		// session clash (AM + PM), but the two preceptors are mutually exclusive.
-		await createManualAssignment(db, SCHEDULE, { ...base, preceptor_id: PREC2, date: MON, session: 'am' });
-		const r = await validateAssignmentCandidate(db, SCHEDULE, { ...base, date: MON, session: 'pm' });
+		await createManualAssignment(db, SCHEDULE, {
+			...base,
+			preceptor_id: PREC2,
+			date: MON,
+			session: 'am'
+		});
+		const r = await validateAssignmentCandidate(db, SCHEDULE, {
+			...base,
+			date: MON,
+			session: 'pm'
+		});
 		expect(r.soft.some((v) => v.code === 'mutual_exclusion')).toBe(true);
 		expect(r.soft.some((v) => v.code === 'session_clash')).toBe(false);
 	});

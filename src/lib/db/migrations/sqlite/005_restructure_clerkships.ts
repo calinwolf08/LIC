@@ -22,16 +22,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('clerkship_type', 'text', (col) =>
 			col.notNull().check(sql`clerkship_type IN ('inpatient', 'outpatient')`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	// Step 2: Drop old table (data will be lost, as per user instruction)
@@ -67,16 +61,10 @@ export async function down(db: Kysely<any>): Promise<void> {
 		.addColumn('outpatient_days', 'integer', (col) =>
 			col.check(sql`outpatient_days >= 0 OR outpatient_days IS NULL`)
 		)
-		.addColumn('required_days', 'integer', (col) =>
-			col.notNull().check(sql`required_days > 0`)
-		)
+		.addColumn('required_days', 'integer', (col) => col.notNull().check(sql`required_days > 0`))
 		.addColumn('description', 'text')
-		.addColumn('created_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
-		.addColumn('updated_at', 'text', (col) =>
-			col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-		)
+		.addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.execute();
 
 	await db.schema.dropTable('clerkships').execute();
