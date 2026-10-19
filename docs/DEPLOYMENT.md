@@ -30,7 +30,12 @@ CI runs on Node 22 (from `.nvmrc`). Merge the PR into `master` once the CI
 checks pass. The Deploy workflow only exists on GitHub after it's on
 `master`; `workflow_run` workflows run from the default branch.
 
-### 2. Coolify: enable the API and create a token
+### 2. Coolify: enable the API and create a token (optional)
+
+Only needed for **automatic** deploys. Without it, GitHub still builds and
+publishes the image on every merge, and you click **Deploy** in Coolify to roll
+it out. That's how the HSP app is set up. Skip this step and step 5 if that
+suits you.
 
 1. **Settings → Configuration → Advanced** (or **Settings → Advanced** in
    some versions): turn on **API Access**.
@@ -130,6 +135,52 @@ Nobody gains or loses access.
   `latest` afterwards.
 - **Logs:** Coolify → app → Logs. A failed `db:setup` stops the container
   before the server starts, so its error is the last thing logged.
+
+## Optional settings
+
+| Variable              | Effect                                                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ENABLE_TIER_TESTING` | `true` shows a temporary Basic/Advanced choice on sign-up and a tier switch in the sidebar, for testing both plans without payments. Remove it and restart to hide them. |
+| `PAYMENT_PROVIDER`    | `manual` (default): plans activate free and immediately.                                                                                                                 |
+
+For a ready-made account with test schedules, see
+[`DEMO-ACCOUNT.md`](DEMO-ACCOUNT.md). It's seeded from the app container's
+terminal.
+
+## Troubleshooting: "column … does not exist"
+
+Errors like `column "min_required_days" of relation "clerkships" does not exist`
+or `column preceptors.phone_type does not exist` (often a 500 on `/plan`) mean
+the database was created by an **older** version of the Postgres baseline
+migration. That file was later edited, and migrations that have already run
+never run again. Editing it is now blocked by a test (`frozen-history.test.ts`),
+so this won't recur. A database that's already affected needs rebuilding.
+
+**If the data is disposable** (testing, demos), reset the schema:
+
+1. In Coolify, **stop** the LIC app.
+2. Open the **Postgres** resource → **Terminal**, pick the database container,
+   and run:
+
+   ```bash
+   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+   ```
+
+   This deletes **every table and row** in that database: users,
+   organizations, schedules, everything.
+
+3. **Start** (or redeploy) the LIC app. On start, `npm run db:setup` creates
+   the auth tables and runs every migration against the empty schema. Check the
+   app's logs for `✅ Database setup complete`.
+4. Everyone signs up again. To get test data back quickly, run
+   `npm run demo:seed -- --password='…'` from the app's terminal (see
+   [`DEMO-ACCOUNT.md`](DEMO-ACCOUNT.md)).
+
+Alternatively, delete the Postgres resource, create a new one, and point the
+app's `DATABASE_URL` at it. The effect is the same.
+
+**If the data must be kept**, don't reset. Ask for an in-place catch-up step
+that adds the missing tables and columns without touching existing rows.
 
 ## Building the image locally
 
