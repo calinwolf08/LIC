@@ -6,10 +6,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import { signOut } from '$lib/identity-client';
 	import { Loader2 } from 'lucide-svelte';
+	import TierTestPicker from '$lib/features/billing/components/tier-test-picker.svelte';
+	import type { PlanId } from '$lib/billing/plans';
 
 	let { data, form } = $props();
 
 	let submitting = $state(false);
+	let plan = $state<PlanId>(data.plan);
 
 	// Same explicit hydration signal as the auth forms, for e2e.
 	let hydrated = $state(false);
@@ -57,6 +60,10 @@
 						aria-invalid={(form?.errors?.length ?? 0) > 0}
 					/>
 				</FormField>
+
+				{#if data.tierTesting}
+					<TierTestPicker bind:value={plan} disabled={submitting} />
+				{/if}
 
 				<Button type="submit" class="w-full" disabled={submitting}>
 					{#if submitting}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { signOut } from '$lib/identity-client';
+	import TierTestSwitch from '$lib/features/billing/components/tier-test-switch.svelte';
 	import ScheduleSelector from '$lib/features/schedules/components/schedule-selector.svelte';
 	import { Toaster } from '$lib/components/toast';
 	import FormShell from '$lib/components/form-shell.svelte';
@@ -177,6 +178,12 @@
 					</a>
 				{/each}
 			</nav>
+
+			{#if $page.data.tierTesting}
+				<div class="border-t border-gray-800 p-4">
+					<TierTestSwitch entitlements={$page.data.entitlements ?? []} />
+				</div>
+			{/if}
 
 			<!-- User Actions -->
 			<div class="border-t border-gray-800 p-4">

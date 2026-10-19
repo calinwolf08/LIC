@@ -8,13 +8,19 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import PasswordInput from '$lib/features/auth/components/password-input.svelte';
 	import { AlertCircle, Loader2 } from 'lucide-svelte';
+	import TierTestPicker from '$lib/features/billing/components/tier-test-picker.svelte';
+	import type { PlanId } from '$lib/billing/plans';
 
 	interface Props {
 		serverErrors?: Record<string, string[]>;
 		initialEmail?: string;
+		/** TEMPORARY: offer a Standard/Pro choice (ENABLE_TIER_TESTING). */
+		tierTesting?: boolean;
 	}
 
-	let { serverErrors, initialEmail = '' }: Props = $props();
+	let { serverErrors, initialEmail = '', tierTesting = false }: Props = $props();
+
+	let plan = $state<PlanId>('standard');
 
 	let errorMessage = $state<string | null>(null);
 
@@ -44,7 +50,10 @@
 				password: values.password
 			});
 			if (result.ok) {
-				window.location.href = '/';
+				// Next: name the organization (which starts its plan).
+				window.location.href = tierTesting
+					? `/onboarding/organization?plan=${plan}`
+					: '/onboarding/organization';
 			} else {
 				errorMessage = result.message;
 			}
@@ -134,6 +143,10 @@
 				onblur={() => formManager.handleBlur('confirmPassword')}
 			/>
 		</FormField>
+
+		{#if tierTesting}
+			<TierTestPicker bind:value={plan} disabled={formManager.isSubmitting} />
+		{/if}
 
 		<Button type="submit" class="w-full" disabled={formManager.isSubmitting}>
 			{#if formManager.isSubmitting}

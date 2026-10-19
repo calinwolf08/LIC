@@ -8,7 +8,14 @@
  * path + query. Auth is always driven through the real forms.
  */
 
-import { test, expect, uniqueEmail, apiOf, completeOrganizationOnboarding } from '../../fixtures';
+import {
+	test,
+	expect,
+	uniqueEmail,
+	apiOf,
+	completeOrganizationOnboarding,
+	completeScheduleSetup
+} from '../../fixtures';
 
 test.describe('J1.1 account lifecycle', { tag: ['@stage1'] }, () => {
 	test('register: inline validation blocks bad input, a clean submit lands schedule-first', async ({
@@ -39,11 +46,15 @@ test.describe('J1.1 account lifecycle', { tag: ['@stage1'] }, () => {
 		await page.locator('#confirmPassword').fill('password123');
 		await page.getByRole('button', { name: /create account/i }).click();
 
-		// A new account names its organization (program) before entering the app.
+		// A new account names its organization (program), then sets up the
+		// schedule it started with — the same schedule, never a second one.
 		await completeOrganizationOnboarding(page, 'Journey One Program');
-		// The sign-up hook creates a first schedule, so the switcher is present.
-		await page.goto('/dashboard');
+		await expect(page.getByText('Set up your schedule', { exact: true }).first()).toBeVisible();
+		await completeScheduleSetup(page, { name: 'Journey One 2026–27' });
 		await expect(page.getByTestId('schedule-switcher')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('checklist-schedule-dates')).toHaveAttribute('data-done', 'true');
+		const schedules = await apiOf(page).get<{ name: string }[]>('/api/scheduling-periods');
+		expect((schedules.data ?? []).map((s) => s.name)).toEqual(['Journey One 2026–27']);
 	});
 
 	test('register: a duplicate email is refused in-context, not as a crash', async ({ page }) => {

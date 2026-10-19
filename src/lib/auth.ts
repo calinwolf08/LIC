@@ -5,6 +5,7 @@ import { activeDbConfig, db } from './db/connection';
 import type { DbDialectName } from './db/dialects/types';
 import { getAuthDialectProfile } from './db/scripts/ensure-auth-tables';
 import type { DB } from './db/types';
+import { DEFAULT_SCHEDULE_NAME } from './features/schedules/defaults';
 import { organizationAccessControl, organizationRoles } from './server/identity/better-auth/access';
 
 // Read from process.env (available in the SvelteKit server runtime and in
@@ -52,7 +53,7 @@ async function createDefaultScheduleForUser(
 			.insertInto('scheduling_periods')
 			.values({
 				id: scheduleId,
-				name: 'My Schedule',
+				name: DEFAULT_SCHEDULE_NAME,
 				start_date: startDate,
 				end_date: endDate,
 				user_id: userId,

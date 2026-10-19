@@ -8,6 +8,7 @@
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { clerkshipHasWorkablePreceptor } from '../eligibility/eligibility';
+import { isUntouchedDefaultSchedule } from '$lib/features/schedules/defaults';
 
 export interface ChecklistItem {
 	id: string;
@@ -24,7 +25,7 @@ export async function getSetupChecklist(
 ): Promise<ChecklistItem[]> {
 	const period = await db
 		.selectFrom('scheduling_periods')
-		.select(['name', 'start_date', 'end_date'])
+		.select(['name', 'start_date', 'end_date', 'created_at', 'updated_at'])
 		.where('id', '=', scheduleId)
 		.executeTakeFirst();
 
@@ -88,8 +89,16 @@ export async function getSetupChecklist(
 		{
 			id: 'schedule-dates',
 			label: 'Name your schedule and set its dates',
-			done: !!period && period.name !== 'My Schedule' && !!period.start_date && !!period.end_date,
-			href: '/schedules'
+			// Done once the schedule has been saved (any name — keeping "My Schedule"
+			// is fine) or was created deliberately; only the untouched sign-up
+			// default still needs it. Fixed on the current schedule, never a new one.
+			done:
+				!!period &&
+				!!period.name.trim() &&
+				!!period.start_date &&
+				!!period.end_date &&
+				!isUntouchedDefaultSchedule(period),
+			href: '/schedules/setup'
 		},
 		{
 			id: 'locations',
