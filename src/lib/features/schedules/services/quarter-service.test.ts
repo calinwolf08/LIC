@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
+import { NotFoundError, ValidationError } from '$lib/api/errors';
 import { getQuartersBySchedule, replaceQuarters, quarterForDate } from './quarter-service';
 
 const SCHEDULE = 'sched-q';
@@ -57,6 +58,25 @@ describe('quarter-service (M4)', () => {
 				{ name: 'Bad', start_date: '2026-06-30', end_date: '2026-04-01' }
 			])
 		).rejects.toThrow();
+	});
+
+	it('rejects quarters outside the schedule or overlapping, writing nothing', async () => {
+		await replaceQuarters(db, SCHEDULE, [
+			{ name: 'Q1', start_date: '2026-01-01', end_date: '2026-03-31' }
+		]);
+		const error = await replaceQuarters(db, SCHEDULE, [
+			{ name: 'Early', start_date: '2025-12-01', end_date: '2026-02-28' },
+			{ name: 'Q2', start_date: '2026-02-01', end_date: '2026-04-30' }
+		]).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(ValidationError);
+		expect((error as ValidationError).message).toMatch(/must fall within the schedule/);
+		expect((error as ValidationError).message).toMatch(/Q2 overlaps Early/);
+		// The previous set is untouched.
+		expect((await getQuartersBySchedule(db, SCHEDULE)).map((r) => r.name)).toEqual(['Q1']);
+	});
+
+	it('refuses an unknown schedule', async () => {
+		await expect(replaceQuarters(db, 'no-such-schedule', [])).rejects.toBeInstanceOf(NotFoundError);
 	});
 
 	it('an empty set clears all quarters', async () => {

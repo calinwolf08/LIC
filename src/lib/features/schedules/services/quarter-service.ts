@@ -9,6 +9,8 @@
 import type { Kysely, Selectable } from 'kysely';
 import type { DB, ScheduleQuarters } from '$lib/db/types';
 import { nanoid } from 'nanoid';
+import { NotFoundError, ValidationError } from '$lib/api/errors';
+import { validateQuarters } from '../utils/quarters';
 
 export interface QuarterInput {
 	name: string;
@@ -31,17 +33,26 @@ export async function getQuartersBySchedule(
 
 /**
  * Replace a schedule's quarters with the given set (delete-all + insert), in one
- * transaction. Each quarter's end date must not precede its start date.
+ * transaction. The set must be valid for the schedule (see `validateQuarters`):
+ * named, dated, inside the schedule's dates, and not overlapping.
+ *
+ * @throws ValidationError listing every problem, and writes nothing
  */
 export async function replaceQuarters(
 	db: Kysely<DB>,
 	scheduleId: string,
 	quarters: QuarterInput[]
 ): Promise<Selectable<ScheduleQuarters>[]> {
-	for (const q of quarters) {
-		if (q.end_date < q.start_date) {
-			throw new Error(`Quarter "${q.name}" ends before it starts`);
-		}
+	const schedule = await db
+		.selectFrom('scheduling_periods')
+		.select(['start_date', 'end_date'])
+		.where('id', '=', scheduleId)
+		.executeTakeFirst();
+	if (!schedule) throw new NotFoundError('Schedule');
+
+	const issues = validateQuarters(quarters, schedule);
+	if (issues.length > 0) {
+		throw new ValidationError(issues.map((i) => i.message).join('. '), { issues });
 	}
 	const run = async (trx: Kysely<DB>) => {
 		await trx.deleteFrom('schedule_quarters').where('schedule_id', '=', scheduleId).execute();
