@@ -147,6 +147,40 @@ For a ready-made account with test schedules, see
 [`DEMO-ACCOUNT.md`](DEMO-ACCOUNT.md). It's seeded from the app container's
 terminal.
 
+## Schema changes (migrations) on deploy
+
+You don't run migrations by hand. Every time the container starts, `db:setup`
+brings the database up to date before the server starts. It runs
+any migration that hasn't been applied yet and skips the ones that have.
+Deploying a release that contains a new migration applies it automatically.
+
+When you change the schema:
+
+1. **Add a new migration in `src/lib/db/migrations/shared/`.** Never edit
+   the files in `sqlite/` or `postgres/`: they have already run on real
+   databases, and a database never re-runs a migration it has recorded.
+   An edit there won't reach production, and production drifts from the
+   code. That is how the "column … does not exist" errors below happened. The
+   frozen-history test fails CI if one of those files changes.
+2. **Follow the rules in `shared/README.md`.** Import only from `kysely`,
+   make each step safe to run twice, store dates as text and booleans as
+   0/1. Then update `src/lib/db/types.ts` to match.
+3. **Run the tests.** The migration-equivalence test builds the schema on
+   SQLite and on Postgres and fails if they differ.
+4. **Prefer additive changes.** Adding a table or a nullable column is safe
+   to deploy at any time. To rename or drop something, do it over two
+   releases. First ship code that no longer uses the old column. Then ship
+   the migration that removes it.
+5. **Back up before deploying a migration.** Use Coolify → database →
+   Backups → Backup now. Rolling back the image does **not** undo a
+   migration: the old code runs against the new schema. Additive changes
+   make that harmless. For anything else, restore the backup.
+
+If a migration fails, the container stops before the server starts, and the
+error is the last thing in Coolify → app → Logs. Fix the migration and deploy
+again. On Postgres, a failed run is rolled back as a whole, so all of that
+release's pending migrations run again on the next start.
+
 ## Troubleshooting: "column … does not exist"
 
 Errors like `column "min_required_days" of relation "clerkships" does not exist`

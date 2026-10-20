@@ -206,7 +206,7 @@
 
 			<!-- Footer -->
 			<div class="border-t border-gray-800 p-4 text-xs text-gray-500">
-				<p>&copy; 2025 LICFlow</p>
+				<p>&copy; {new Date().getFullYear()} LICFlow</p>
 			</div>
 		</div>
 	</aside>
