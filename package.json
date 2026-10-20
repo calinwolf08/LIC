@@ -25,6 +25,8 @@
 		"db:reset": "tsx src/lib/db/scripts/reset-all.ts",
 		"db:types": "kysely-codegen --dialect=sqlite --out-file=src/lib/db/types.ts",
 		"seed:scenario": "tsx scripts/seed/index.ts",
+		"demo:seed": "tsx src/lib/db/scripts/demo-account/cli.ts seed",
+		"demo:clear": "tsx src/lib/db/scripts/demo-account/cli.ts clear-assignments",
 		"test:pg": "vitest run --project server src/lib/db/postgres-integration.test.ts src/lib/db/migrations/migrations.equivalence.test.ts src/lib/auth.signup.test.ts",
 		"test:e2e:smoke": "playwright test --project=journeys --grep @smoke",
 		"test:e2e:journeys": "playwright test --project=journeys",

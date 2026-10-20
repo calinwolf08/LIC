@@ -1,23 +1,92 @@
 <script lang="ts">
-	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
+	import CalendarDaysIcon from '@lucide/svelte/icons/calendar-days';
+	import CalendarXIcon from '@lucide/svelte/icons/calendar-x';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import ClockIcon from '@lucide/svelte/icons/clock';
+	import FileSpreadsheetIcon from '@lucide/svelte/icons/file-spreadsheet';
+	import LayersIcon from '@lucide/svelte/icons/layers';
+	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
+	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
+	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import SendIcon from '@lucide/svelte/icons/send';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import WandSparklesIcon from '@lucide/svelte/icons/wand-sparkles';
+
+	// Every claim here should match a shipped feature. Keep it that way: no
+	// testimonials, customer counts or performance numbers we can't back up.
+	const features = [
+		{
+			icon: ShieldCheckIcon,
+			title: 'Validation on every assignment',
+			body: 'Assign a student by hand and LICFlow checks it as you go: double-bookings, preceptor capacity, availability, blackout dates and site restrictions. Hard conflicts are blocked; softer issues are flagged so you can decide.'
+		},
+		{
+			icon: ListChecksIcon,
+			title: 'Requirement tracking',
+			body: 'Set the days each clerkship requires, then see every student’s status — met, partly met or not started — so gaps show up before the schedule is final.'
+		},
+		{
+			icon: ClockIcon,
+			title: 'Availability, down to the half day',
+			body: 'Record when each preceptor can take students, including AM/PM sessions and “only if needed” days, along with how many students they take at once.'
+		},
+		{
+			icon: LayersIcon,
+			title: 'Built around LIC structure',
+			body: 'Block and longitudinal (scattered) clerkships, required and optional electives, preceptor teams, core preceptors, health systems, sites and onboarding status.'
+		},
+		{
+			icon: CalendarXIcon,
+			title: 'Quarters and blackout dates',
+			body: 'Split a schedule into named quarters and mark holidays or closures so nothing gets booked on days off.'
+		},
+		{
+			icon: LayoutDashboardIcon,
+			title: 'Dashboard and calendar',
+			body: 'A setup checklist gets a new schedule ready, a health summary shows what still needs attention, and a calendar shows who is where on each day.'
+		},
+		{
+			icon: FileSpreadsheetIcon,
+			title: 'Excel export',
+			body: 'Download the schedule as a workbook with student, preceptor, master and summary sheets.'
+		},
+		{
+			icon: SendIcon,
+			title: 'Send each person their part',
+			body: 'Preview and send schedules to students and preceptors. Each recipient sees only the assignments that involve them.'
+		}
+	];
+
+	const proFeatures = [
+		{
+			icon: WandSparklesIcon,
+			title: 'Auto-generate a schedule',
+			body: 'Generate assignments from your students, preceptors, availability and requirements, then review and adjust them by hand.'
+		},
+		{
+			icon: RefreshCwIcon,
+			title: 'Regenerate without starting over',
+			body: 'When something changes, regenerate with minimal changes, fill in only what’s missing, or re-optimize everything. Past and locked assignments are kept.'
+		},
+		{
+			icon: LightbulbIcon,
+			title: 'Suggestions when requirements go unmet',
+			body: 'If not every requirement can be met, LICFlow explains why and suggests changes, ranked by how much they would help.'
+		}
+	];
+
+	const currentYear = new Date().getFullYear();
 </script>
 
-<!-- Landing Page -->
 <div class="min-h-screen bg-gradient-to-b from-teal-50 to-white">
-	<!-- Navigation -->
 	<nav class="container mx-auto px-6 py-4">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
 				<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-600">
-					<svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-						/>
-					</svg>
+					<CalendarDaysIcon class="h-6 w-6 text-white" />
 				</div>
 				<span class="text-2xl font-bold text-gray-900">LICFlow</span>
 			</div>
@@ -26,27 +95,21 @@
 					Log in
 				</Button>
 				<Button href="/register" class="bg-teal-600 text-white hover:bg-teal-700">
-					Get Started
+					Get started
 				</Button>
 			</div>
 		</div>
 	</nav>
 
-	<!-- Hero Section -->
 	<section class="container mx-auto px-6 py-16 md:py-24">
 		<div class="mx-auto max-w-4xl text-center">
-			<div
-				class="mb-6 inline-block rounded-full bg-teal-100 px-4 py-1 text-sm font-medium text-teal-800"
-			>
-				Trusted by Medical Education Programs
-			</div>
 			<h1 class="mb-6 text-4xl font-bold text-gray-900 md:text-6xl">
-				Schedule More Students with <span class="text-teal-600">Complete Confidence</span>
+				Scheduling for <span class="text-teal-600">longitudinal integrated clerkships</span>
 			</h1>
 			<p class="mx-auto mb-8 max-w-2xl text-xl text-gray-600">
-				LICFlow automatically generates conflict-free clerkship schedules, tracks every requirement,
-				and handles the complexity that spreadsheets simply can't. Scale your program without
-				scaling your stress.
+				Keep students, preceptors, sites and clerkship requirements in one place. Build the schedule
+				by hand with every assignment checked as you go, or let LICFlow generate it for you on the
+				Pro plan.
 			</p>
 			<div class="flex flex-col justify-center gap-4 sm:flex-row">
 				<Button
@@ -54,7 +117,7 @@
 					size="lg"
 					class="bg-teal-600 px-8 py-6 text-lg text-white hover:bg-teal-700"
 				>
-					Start Free Trial
+					Get started
 				</Button>
 				<Button
 					href="/login"
@@ -62,462 +125,133 @@
 					size="lg"
 					class="border-teal-600 px-8 py-6 text-lg text-teal-700 hover:bg-teal-50"
 				>
-					Sign In
+					Sign in
 				</Button>
 			</div>
-			<p class="mt-4 text-sm text-gray-500">No credit card required</p>
 		</div>
 	</section>
 
-	<!-- Pain Points Section -->
+	<section class="bg-gray-50 py-16">
+		<div class="container mx-auto px-6">
+			<div class="mx-auto mb-12 max-w-3xl text-center">
+				<h2 class="mb-4 text-3xl font-bold text-gray-900">What you can do with it</h2>
+				<p class="text-xl text-gray-600">Included on every plan.</p>
+			</div>
+			<div class="mx-auto grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-4">
+				{#each features as feature (feature.title)}
+					<Card class="border-0 bg-white p-6 shadow-md">
+						<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
+							<feature.icon class="h-6 w-6 text-teal-600" />
+						</div>
+						<h3 class="mb-2 text-lg font-semibold text-gray-900">{feature.title}</h3>
+						<p class="text-sm text-gray-600">{feature.body}</p>
+					</Card>
+				{/each}
+			</div>
+		</div>
+	</section>
+
 	<section class="bg-white py-16">
 		<div class="container mx-auto px-6">
 			<div class="mx-auto mb-12 max-w-3xl text-center">
-				<h2 class="mb-4 text-3xl font-bold text-gray-900">Sound Familiar?</h2>
+				<div
+					class="mb-4 inline-block rounded-full bg-teal-100 px-4 py-1 text-sm font-medium text-teal-800"
+				>
+					Pro plan
+				</div>
+				<h2 class="mb-4 text-3xl font-bold text-gray-900">Automatic schedule generation</h2>
+				<p class="text-xl text-gray-600">
+					Pro adds a scheduling engine on top of everything above.
+				</p>
 			</div>
 			<div class="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
-				<div class="rounded-lg border border-red-100 bg-red-50 p-6">
-					<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-						<svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
-					</div>
-					<p class="text-gray-700">
-						"I spend <strong>days rebuilding schedules</strong> in Excel when one preceptor's availability
-						changes."
-					</p>
-				</div>
-				<div class="rounded-lg border border-red-100 bg-red-50 p-6">
-					<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-						<svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
-					</div>
-					<p class="text-gray-700">
-						"I'm always worried we'll <strong>miss a requirement</strong> and a student won't be able
-						to graduate on time."
-					</p>
-				</div>
-				<div class="rounded-lg border border-red-100 bg-red-50 p-6">
-					<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-						<svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
-					</div>
-					<p class="text-gray-700">
-						"Our program is growing, but I <strong>can't handle more students</strong> with my current
-						process."
-					</p>
-				</div>
+				{#each proFeatures as feature (feature.title)}
+					<Card class="border-0 bg-teal-50 p-6 shadow-md">
+						<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+							<feature.icon class="h-6 w-6 text-teal-600" />
+						</div>
+						<h3 class="mb-2 text-lg font-semibold text-gray-900">{feature.title}</h3>
+						<p class="text-sm text-gray-600">{feature.body}</p>
+					</Card>
+				{/each}
 			</div>
 		</div>
 	</section>
 
-	<!-- Solution Section -->
 	<section class="bg-gray-50 py-16">
 		<div class="container mx-auto px-6">
-			<div class="mx-auto mb-12 max-w-3xl text-center">
-				<h2 class="mb-4 text-3xl font-bold text-gray-900">There's a Better Way</h2>
-				<p class="text-xl text-gray-600">
-					LICFlow handles the complexity so you can focus on education, not spreadsheets.
-				</p>
-			</div>
-			<div class="mx-auto grid max-w-6xl gap-8 md:grid-cols-2 lg:grid-cols-3">
-				<!-- Feature 1: Automated Scheduling -->
-				<Card class="border-0 bg-white p-6 shadow-md transition-shadow hover:shadow-lg">
-					<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
-						<svg
-							class="h-6 w-6 text-teal-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 10V3L4 14h7v7l9-11h-7z"
-							/>
-						</svg>
-					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900">Intelligent Auto-Scheduling</h3>
-					<p class="text-gray-600">
-						Generate complete, conflict-free schedules in seconds. Our algorithm juggles 14+
-						constraints simultaneously—preceptor availability, site capacity, requirements, and
-						more.
-					</p>
-				</Card>
-
-				<!-- Feature 2: Requirement Tracking -->
-				<Card class="border-0 bg-white p-6 shadow-md transition-shadow hover:shadow-lg">
-					<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
-						<svg
-							class="h-6 w-6 text-teal-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-							/>
-						</svg>
-					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900">100% Requirement Visibility</h3>
-					<p class="text-gray-600">
-						See exactly where every student stands. Track progress across all clerkships with
-						real-time dashboards that show gaps before they become problems.
-					</p>
-				</Card>
-
-				<!-- Feature 3: Quick Adjustments -->
-				<Card class="border-0 bg-white p-6 shadow-md transition-shadow hover:shadow-lg">
-					<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
-						<svg
-							class="h-6 w-6 text-teal-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900">Last-Minute Changes? No Problem.</h3>
-					<p class="text-gray-600">
-						Preceptor called in sick? Regenerate affected assignments instantly while preserving
-						what's working. Smart regeneration modes adapt to your situation.
-					</p>
-				</Card>
-
-				<!-- Feature 4: Scale Confidently -->
-				<Card class="border-0 bg-white p-6 shadow-md transition-shadow hover:shadow-lg">
-					<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
-						<svg
-							class="h-6 w-6 text-teal-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-							/>
-						</svg>
-					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900">Scale Without Adding Staff</h3>
-					<p class="text-gray-600">
-						Handle 50 students as easily as 20. LICFlow manages complexity that would be impossible
-						manually, letting you grow your program without growing your workload.
-					</p>
-				</Card>
-
-				<!-- Feature 5: Conflict Detection -->
-				<Card class="border-0 bg-white p-6 shadow-md transition-shadow hover:shadow-lg">
-					<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
-						<svg
-							class="h-6 w-6 text-teal-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-							/>
-						</svg>
-					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900">Zero Scheduling Conflicts</h3>
-					<p class="text-gray-600">
-						Double-bookings, capacity overflows, blackout violations—caught automatically before
-						they cause problems. Every constraint is validated in real-time.
-					</p>
-				</Card>
-
-				<!-- Feature 6: Actionable Insights -->
-				<Card class="border-0 bg-white p-6 shadow-md transition-shadow hover:shadow-lg">
-					<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-100">
-						<svg
-							class="h-6 w-6 text-teal-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-							/>
-						</svg>
-					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900">Smart Suggestions</h3>
-					<p class="text-gray-600">
-						When issues arise, get specific recommendations—not just error messages. LICFlow tells
-						you exactly what to adjust and why, prioritized by impact.
-					</p>
-				</Card>
-			</div>
-		</div>
-	</section>
-
-	<!-- How It Works -->
-	<section class="bg-white py-16">
-		<div class="container mx-auto px-6">
-			<h2 class="mb-12 text-center text-3xl font-bold text-gray-900">Up and Running in Minutes</h2>
+			<h2 class="mb-12 text-center text-3xl font-bold text-gray-900">How it works</h2>
 			<div class="mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
-				<div class="text-center">
-					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-600 text-2xl font-bold text-white"
-					>
-						1
-					</div>
-					<h3 class="mb-2 text-lg font-semibold text-gray-900">Add Your Data</h3>
-					<p class="text-gray-600">
-						Enter students, preceptors, sites, and clerkship requirements through our intuitive
-						forms.
-					</p>
-				</div>
-				<div class="text-center">
-					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-600 text-2xl font-bold text-white"
-					>
-						2
-					</div>
-					<h3 class="mb-2 text-lg font-semibold text-gray-900">Configure Constraints</h3>
-					<p class="text-gray-600">
-						Set availability patterns, blackout dates, capacity limits, and scheduling rules.
-					</p>
-				</div>
-				<div class="text-center">
-					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-600 text-2xl font-bold text-white"
-					>
-						3
-					</div>
-					<h3 class="mb-2 text-lg font-semibold text-gray-900">Generate & Export</h3>
-					<p class="text-gray-600">
-						Click generate, review your schedule, make any adjustments, and export to Excel.
-					</p>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- Stats/Benefits Section -->
-	<section class="bg-teal-600 py-16">
-		<div class="container mx-auto px-6">
-			<div class="mx-auto max-w-5xl">
-				<h2 class="mb-12 text-center text-3xl font-bold text-white">
-					What Changes When You Switch to LICFlow
-				</h2>
-				<div class="grid gap-8 text-center text-white md:grid-cols-4">
-					<div>
-						<div class="mb-2 text-4xl font-bold">Hours → Minutes</div>
-						<p class="text-teal-100">Schedule generation time</p>
-					</div>
-					<div>
-						<div class="mb-2 text-4xl font-bold">Zero</div>
-						<p class="text-teal-100">Scheduling conflicts</p>
-					</div>
-					<div>
-						<div class="mb-2 text-4xl font-bold">100%</div>
-						<p class="text-teal-100">Requirement visibility</p>
-					</div>
-					<div>
-						<div class="mb-2 text-4xl font-bold">2x+</div>
-						<p class="text-teal-100">Students you can manage</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- Confidence Section -->
-	<section class="bg-gray-50 py-16">
-		<div class="container mx-auto px-6">
-			<div class="mx-auto max-w-4xl">
-				<div class="rounded-2xl bg-white p-8 shadow-lg md:p-12">
-					<div class="grid items-center gap-8 md:grid-cols-2">
-						<div>
-							<h2 class="mb-4 text-3xl font-bold text-gray-900">
-								Sleep Better Knowing Nothing Falls Through the Cracks
-							</h2>
-							<p class="mb-6 text-gray-600">
-								Every requirement tracked. Every conflict caught. Every change validated instantly.
-								LICFlow gives you the confidence that comes from knowing your schedule is complete,
-								correct, and ready—even when things change at the last minute.
-							</p>
-							<ul class="space-y-3">
-								<li class="flex items-start gap-3">
-									<svg
-										class="mt-0.5 h-6 w-6 flex-shrink-0 text-teal-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/>
-									</svg>
-									<span class="text-gray-700">Real-time requirement gap analysis</span>
-								</li>
-								<li class="flex items-start gap-3">
-									<svg
-										class="mt-0.5 h-6 w-6 flex-shrink-0 text-teal-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/>
-									</svg>
-									<span class="text-gray-700">Automatic constraint validation on every edit</span>
-								</li>
-								<li class="flex items-start gap-3">
-									<svg
-										class="mt-0.5 h-6 w-6 flex-shrink-0 text-teal-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/>
-									</svg>
-									<span class="text-gray-700">Smart regeneration preserves working assignments</span
-									>
-								</li>
-								<li class="flex items-start gap-3">
-									<svg
-										class="mt-0.5 h-6 w-6 flex-shrink-0 text-teal-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/>
-									</svg>
-									<span class="text-gray-700">Excel export with student and preceptor views</span>
-								</li>
-							</ul>
+				{#each [{ title: 'Set up your schedule', body: 'Create an account, name your organization and set the schedule’s dates. A checklist walks you through the rest.' }, { title: 'Add your people and rules', body: 'Enter students, preceptors, sites and clerkships, then availability, requirements, quarters and blackout dates.' }, { title: 'Build, review, share', body: 'Assign by hand or generate on Pro, fix anything flagged, then export to Excel or send each person their schedule.' }] as step, index (step.title)}
+					<div class="text-center">
+						<div
+							class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-600 text-2xl font-bold text-white"
+						>
+							{index + 1}
 						</div>
-						<div class="rounded-xl bg-teal-50 p-6">
-							<div class="text-center">
-								<svg
-									class="mx-auto mb-4 h-16 w-16 text-teal-600"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-									/>
-								</svg>
-								<p class="mb-2 text-xl font-semibold text-gray-900">Built for Medical Education</p>
-								<p class="text-sm text-gray-600">
-									LICFlow understands the unique constraints of longitudinal integrated
-									clerkships—team continuity, site requirements, preceptor specialties, and more.
-								</p>
-							</div>
-						</div>
+						<h3 class="mb-2 text-lg font-semibold text-gray-900">{step.title}</h3>
+						<p class="text-gray-600">{step.body}</p>
 					</div>
-				</div>
+				{/each}
 			</div>
 		</div>
 	</section>
 
-	<!-- Final CTA -->
 	<section class="bg-white py-20">
 		<div class="container mx-auto px-6">
-			<div class="mx-auto max-w-2xl text-center">
-				<h2 class="mb-4 text-3xl font-bold text-gray-900">
-					Ready to Take Control of Your Scheduling?
-				</h2>
-				<p class="mb-8 text-gray-600">
-					Stop wrestling with spreadsheets. Start scheduling with confidence.
+			<div class="mx-auto max-w-3xl">
+				<h2 class="mb-8 text-center text-3xl font-bold text-gray-900">Plans</h2>
+				<div class="grid gap-6 md:grid-cols-2">
+					<div class="rounded-xl border border-gray-200 p-6">
+						<h3 class="mb-1 text-xl font-semibold text-gray-900">Standard</h3>
+						<p class="mb-4 text-sm text-gray-600">Build and manage schedules by hand.</p>
+						<ul class="space-y-2 text-sm text-gray-700">
+							{#each ['Everything under “What you can do with it”', 'Real-time validation on every assignment', 'Requirement tracking, Excel export and schedule sending'] as item (item)}
+								<li class="flex items-start gap-2">
+									<CheckIcon class="mt-0.5 h-4 w-4 flex-shrink-0 text-teal-600" />
+									<span>{item}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+					<div class="rounded-xl border-2 border-teal-600 p-6">
+						<h3 class="mb-1 text-xl font-semibold text-gray-900">Pro</h3>
+						<p class="mb-4 text-sm text-gray-600">Everything in Standard, plus generation.</p>
+						<ul class="space-y-2 text-sm text-gray-700">
+							{#each ['Automatic schedule generation', 'Regeneration that keeps past and locked assignments', 'Explanations and ranked suggestions for unmet requirements'] as item (item)}
+								<li class="flex items-start gap-2">
+									<CheckIcon class="mt-0.5 h-4 w-4 flex-shrink-0 text-teal-600" />
+									<span>{item}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+				<p class="mt-6 text-center text-sm text-gray-500">
+					Both plans are free to use for now. No payment details are needed to sign up.
 				</p>
-				<div class="flex flex-col justify-center gap-4 sm:flex-row">
+				<div class="mt-8 flex justify-center">
 					<Button
 						href="/register"
 						size="lg"
 						class="bg-teal-600 px-8 py-6 text-lg text-white hover:bg-teal-700"
 					>
-						Start Free Trial
-					</Button>
-					<Button
-						href="/login"
-						variant="outline"
-						size="lg"
-						class="border-gray-300 px-8 py-6 text-lg hover:bg-gray-50"
-					>
-						Sign In
+						Get started
 					</Button>
 				</div>
-				<p class="mt-4 text-sm text-gray-500">No credit card required. Set up in minutes.</p>
 			</div>
 		</div>
 	</section>
 
-	<!-- Footer -->
 	<footer class="bg-gray-900 py-8 text-gray-400">
 		<div class="container mx-auto px-6 text-center">
 			<div class="mb-4 flex items-center justify-center gap-2">
 				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600">
-					<svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-						/>
-					</svg>
+					<CalendarDaysIcon class="h-5 w-5 text-white" />
 				</div>
 				<span class="text-lg font-semibold text-white">LICFlow</span>
 			</div>
-			<p class="text-sm">&copy; 2025 LICFlow. Simplifying medical education scheduling.</p>
+			<p class="text-sm">&copy; {currentYear} LICFlow. Scheduling for medical education.</p>
 		</div>
 	</footer>
 </div>

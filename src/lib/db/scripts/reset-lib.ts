@@ -246,6 +246,20 @@ export async function resetUser(
 			noSchedules
 		);
 
+		// 2b. Schedule-scoped rows (blackouts, quarters, plan pins, distributions,
+		// generation history). Postgres cascades some of these from
+		// scheduling_periods, but SQLite runs without FK enforcement, so they are
+		// deleted explicitly on every engine.
+		for (const table of [
+			'blackout_dates',
+			'schedule_quarters',
+			'schedule_plan_pins',
+			'schedule_distributions',
+			'generation_runs'
+		] as const) {
+			await del(table, (qb) => qb.where('schedule_id', 'in', scheduleIds), noSchedules);
+		}
+
 		// 3. Elective dependents (reference orphan electives / preceptors / sites).
 		await del(
 			'elective_preceptors',
@@ -332,6 +346,29 @@ export async function resetUser(
 			noPreceptors && noTeams
 		);
 
+		await del(
+			'preceptor_mutual_exclusions',
+			(qb) =>
+				qb.where((eb: any) =>
+					eb.or([
+						eb('preceptor_a_id', 'in', orphanPreceptors.length ? orphanPreceptors : ['']),
+						eb('preceptor_b_id', 'in', orphanPreceptors.length ? orphanPreceptors : [''])
+					])
+				),
+			noPreceptors
+		);
+		await del(
+			'student_core_preceptors',
+			(qb) =>
+				qb.where((eb: any) =>
+					eb.or([
+						eb('student_id', 'in', orphanStudents.length ? orphanStudents : ['']),
+						eb('preceptor_id', 'in', orphanPreceptors.length ? orphanPreceptors : [''])
+					])
+				),
+			noStudents && noPreceptors
+		);
+
 		// 5. Site dependents.
 		await del('site_availability', (qb) => qb.where('site_id', 'in', orphanSites), noSites);
 		await del(
@@ -375,6 +412,12 @@ export async function resetUser(
 
 		// 6. Configuration + student dependents.
 		await del('clerkship_configurations', (qb) => qb.where('id', 'in', orphanConfigs), noConfigs);
+		// Per-clerkship configuration rows (the clerkship-create API makes one).
+		await del(
+			'clerkship_configurations',
+			(qb) => qb.where('clerkship_id', 'in', orphanClerkships),
+			noClerkships
+		);
 		await del(
 			'student_health_system_onboarding',
 			(qb) =>
@@ -425,6 +468,9 @@ export async function resetUser(
 			noSoleOwnedOrgs
 		);
 		await del('member', (qb) => qb.where('userId', '=', userId));
+		for (const table of ['subscriptions', 'billing_customers'] as const) {
+			await del(table, (qb) => qb.where('organization_id', 'in', soleOwnedOrgs), noSoleOwnedOrgs);
+		}
 		await del('organization', (qb) => qb.where('id', 'in', soleOwnedOrgs), noSoleOwnedOrgs);
 		await del('session', (qb) => qb.where('userId', '=', userId));
 		await del('account', (qb) => qb.where('userId', '=', userId));
@@ -446,6 +492,12 @@ export async function resetUser(
  */
 const ALL_TABLES_DELETE_ORDER: (keyof DB)[] = [
 	'schedule_assignments',
+	'schedule_plan_pins',
+	'schedule_distributions',
+	'schedule_quarters',
+	'generation_runs',
+	'preceptor_mutual_exclusions',
+	'student_core_preceptors',
 	'elective_preceptors',
 	'elective_sites',
 	'clerkship_electives',
@@ -483,6 +535,9 @@ const ALL_TABLES_DELETE_ORDER: (keyof DB)[] = [
 	'scheduling_periods',
 	'invitation',
 	'member',
+	'subscriptions',
+	'billing_customers',
+	'billing_events',
 	'organization',
 	'session',
 	'account',

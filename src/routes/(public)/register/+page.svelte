@@ -14,7 +14,7 @@
 			<Card.Description>Enter your information to get started</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<RegisterForm {initialEmail} />
+			<RegisterForm {initialEmail} tierTesting={$page.data.tierTesting ?? false} />
 		</Card.Content>
 	</Card.Root>
 </div>

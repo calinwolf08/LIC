@@ -8,6 +8,8 @@
 	import { PageHeader, ConfirmDialog, EmptyState, toast } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { selectSchedule, formatDateRange, refreshSchedules } from '$lib/stores/schedule-store';
+	import { nextQuarter, validateQuarters } from '$lib/features/schedules/utils/quarters';
+	import { Info } from '@lucide/svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -83,8 +85,21 @@
 		}
 	}
 
+	// The quarter "Add quarter" would create: Q<n>, starting the day after the
+	// latest quarter ends, three months long, within the schedule's dates.
+	let upcomingQuarter = $derived(
+		nextQuarter(quarters, { start_date: editStart, end_date: editEnd })
+	);
+	// Problems with the quarters as edited, checked against the dates in this
+	// dialog (the server re-checks against the saved schedule).
+	let quarterIssues = $derived(
+		validateQuarters(quarters, { start_date: editStart, end_date: editEnd })
+	);
+	const issuesFor = (index: number) =>
+		quarterIssues.filter((issue) => issue.index === index).map((issue) => issue.message);
+
 	function addQuarter() {
-		quarters = [...quarters, { name: '', start_date: editStart, end_date: editEnd }];
+		if (upcomingQuarter) quarters = [...quarters, upcomingQuarter];
 	}
 
 	function removeQuarter(index: number) {
@@ -95,9 +110,11 @@
 		if (!editId) return;
 		savingQuarters = true;
 		try {
-			const payload = quarters
-				.filter((q) => q.name && q.start_date && q.end_date)
-				.map((q) => ({ name: q.name, start_date: q.start_date, end_date: q.end_date }));
+			const payload = quarters.map((q) => ({
+				name: q.name.trim(),
+				start_date: q.start_date,
+				end_date: q.end_date
+			}));
 			const r = await fetch(`/api/scheduling-periods/${editId}/quarters`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
@@ -274,7 +291,7 @@
 
 <!-- Edit schedule dialog -->
 <Dialog.Root bind:open={showEdit}>
-	<Dialog.Content class="max-w-md">
+	<Dialog.Content class="max-w-lg">
 		<Dialog.Header>
 			<Dialog.Title>Edit schedule</Dialog.Title>
 		</Dialog.Header>
@@ -304,35 +321,82 @@
 			<!-- Quarters (M4) -->
 			<div class="space-y-2 border-t pt-4" data-testid="quarters-editor">
 				<div class="flex items-center justify-between">
-					<Label>Quarters <span class="text-muted-foreground">(optional)</span></Label>
-					<Button size="sm" variant="outline" onclick={addQuarter} data-testid="add-quarter"
-						>Add quarter</Button
+					<div class="flex items-center gap-1.5">
+						<Label>Quarters <span class="text-muted-foreground">(optional)</span></Label>
+						<span
+							class="text-muted-foreground"
+							title="Quarters split the schedule into named periods (for example Q1–Q4 of an academic year). They're a reference for planning and don't change how assignments are scheduled or validated."
+							data-testid="quarters-help"
+						>
+							<Info class="h-4 w-4" aria-hidden="true" />
+							<span class="sr-only">About quarters</span>
+						</span>
+					</div>
+					<Button
+						size="sm"
+						variant="outline"
+						onclick={addQuarter}
+						disabled={!upcomingQuarter}
+						data-testid="add-quarter">Add quarter</Button
 					>
 				</div>
 				<p class="text-xs text-muted-foreground">
-					Optional date ranges (e.g. Q1–Q4) that display alongside the schedule.
+					Split the schedule into named periods, such as Q1–Q4 of an academic year, to plan by term.
+					Quarters must fall within the schedule's dates and can't overlap. Each new quarter starts
+					the day after the previous one ends and runs three months; adjust as needed. They're for
+					reference — they don't change how assignments are scheduled.
 				</p>
 				{#each quarters as q, i (i)}
-					<div
-						class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2"
-						data-testid="quarter-row"
-					>
-						<Input placeholder="Q1" bind:value={q.name} data-testid="quarter-name" />
-						<Input type="date" bind:value={q.start_date} data-testid="quarter-start" />
-						<Input type="date" bind:value={q.end_date} data-testid="quarter-end" />
-						<Button
-							size="sm"
-							variant="ghost"
-							onclick={() => removeQuarter(i)}
-							data-testid="remove-quarter">✕</Button
-						>
+					{@const rowIssues = issuesFor(i)}
+					<div class="space-y-1" data-testid="quarter-row">
+						<div class="grid grid-cols-[5rem_1fr_1fr_auto] items-center gap-2">
+							<Input
+								bind:value={q.name}
+								aria-label="Quarter name"
+								aria-invalid={rowIssues.length > 0}
+								data-testid="quarter-name"
+							/>
+							<Input
+								type="date"
+								bind:value={q.start_date}
+								min={editStart}
+								max={editEnd}
+								aria-label="{q.name || 'Quarter'} start date"
+								aria-invalid={rowIssues.length > 0}
+								data-testid="quarter-start"
+							/>
+							<Input
+								type="date"
+								bind:value={q.end_date}
+								min={q.start_date || editStart}
+								max={editEnd}
+								aria-label="{q.name || 'Quarter'} end date"
+								aria-invalid={rowIssues.length > 0}
+								data-testid="quarter-end"
+							/>
+							<Button
+								size="sm"
+								variant="ghost"
+								onclick={() => removeQuarter(i)}
+								aria-label="Remove {q.name || 'quarter'}"
+								data-testid="remove-quarter">✕</Button
+							>
+						</div>
+						{#each rowIssues as message (message)}
+							<p class="text-xs text-destructive" data-testid="quarter-issue">{message}</p>
+						{/each}
 					</div>
 				{/each}
+				{#if quarters.length > 0 && !upcomingQuarter}
+					<p class="text-xs text-muted-foreground">
+						The last quarter reaches the end of the schedule, so there's no room for another.
+					</p>
+				{/if}
 				<Button
 					size="sm"
 					variant="secondary"
 					onclick={saveQuarters}
-					disabled={savingQuarters}
+					disabled={savingQuarters || quarterIssues.length > 0}
 					data-testid="save-quarters"
 				>
 					{savingQuarters ? 'Saving…' : 'Save quarters'}

@@ -1,7 +1,13 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createOrganizationSchema } from '$lib/features/organizations/schemas';
-import { DEFAULT_BILLING_INTERVAL, DEFAULT_PLAN_ID } from '$lib/billing/plans';
+import {
+	DEFAULT_BILLING_INTERVAL,
+	DEFAULT_PLAN_ID,
+	isPlanId,
+	type PlanId
+} from '$lib/billing/plans';
 import { billing } from '$lib/server/billing';
+import { isTierTestingEnabled } from '$lib/server/billing/tier-testing';
 import { identity, IdentityError } from '$lib/server/identity';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -14,10 +20,22 @@ import type { Actions, PageServerLoad } from './$types';
 
 const SELF = '/onboarding/organization';
 
-export const load: PageServerLoad = async ({ locals }) => {
+/**
+ * The plan a new organization starts on: the default, unless tier testing is
+ * on (ENABLE_TIER_TESTING) and a valid plan was chosen.
+ */
+function startingPlan(requested: unknown): PlanId {
+	return isTierTestingEnabled() && isPlanId(requested) ? requested : DEFAULT_PLAN_ID;
+}
+
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.session) throw redirect(302, `/login?redirectTo=${encodeURIComponent(SELF)}`);
 	if (locals.organization) throw redirect(302, '/');
-	return { email: locals.session.user.email };
+	return {
+		email: locals.session.user.email,
+		// Pre-selected from sign-up (?plan=…) when tier testing is on.
+		plan: startingPlan(url.searchParams.get('plan'))
+	};
 };
 
 export const actions: Actions = {
@@ -53,9 +71,14 @@ export const actions: Actions = {
 			organizationId,
 			organizationName: parsed.data.name,
 			billingEmail: locals.session.user.email,
-			planId: DEFAULT_PLAN_ID,
+			planId: startingPlan(form.get('plan')),
 			interval: DEFAULT_BILLING_INTERVAL
 		});
-		throw redirect(303, subscribed.kind === 'redirect' ? subscribed.url : '/');
+		// Next onboarding step: name the schedule the account started with and set
+		// its dates (a hosted checkout, when a processor needs one, comes first).
+		throw redirect(
+			303,
+			subscribed.kind === 'redirect' ? subscribed.url : '/schedules/setup?onboarding'
+		);
 	}
 };

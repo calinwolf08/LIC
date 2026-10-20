@@ -39,21 +39,39 @@ export async function loginViaForm(page: Page, user: Credentials): Promise<void>
 }
 
 /**
- * Name the organization on /onboarding/organization (where a new account lands)
- * and wait until the app takes over.
+ * Name the organization on /onboarding/organization (where a new account lands);
+ * onboarding then moves on to setting up the schedule.
  */
 export async function completeOrganizationOnboarding(page: Page, name: string): Promise<void> {
 	await expect(page).toHaveURL(/\/onboarding\/organization/, { timeout: 15000 });
 	await page.locator('form[data-hydrated="true"]').waitFor({ state: 'attached', timeout: 15000 });
 	await page.locator('#name').fill(name);
 	await page.getByRole('button', { name: /continue/i }).click();
-	await expect(page).not.toHaveURL(/\/onboarding\//, { timeout: 15000 });
+	await expect(page).toHaveURL(/\/schedules\/setup/, { timeout: 15000 });
 }
 
 /**
- * Register a brand-new account through the real register form, then name its
- * organization. The auth hook creates a first schedule and the app routes the
- * new user into the schedule-first flow.
+ * Onboarding's schedule step (/schedules/setup): optionally rename the schedule
+ * the account started with, save it, and land on the dashboard.
+ */
+export async function completeScheduleSetup(
+	page: Page,
+	opts: { name?: string } = {}
+): Promise<void> {
+	await expect(page).toHaveURL(/\/schedules\/setup/, { timeout: 15000 });
+	const form = page.getByTestId('schedule-setup-form');
+	await page
+		.locator('form[data-hydrated="true"][data-testid="schedule-setup-form"]')
+		.waitFor({ state: 'attached', timeout: 15000 });
+	if (opts.name) await form.locator('#name').fill(opts.name);
+	await page.getByTestId('schedule-setup-submit').click();
+	await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+}
+
+/**
+ * Register a brand-new account through the real register form, then complete
+ * onboarding: name the organization and confirm the schedule the account
+ * started with (the auth hook creates it), landing on the dashboard.
  */
 export async function registerViaForm(
 	page: Page,
@@ -73,6 +91,7 @@ export async function registerViaForm(
 	await page.getByRole('button', { name: /create account|sign up|register/i }).click();
 	await expect(page).not.toHaveURL(/\/register/, { timeout: 15000 });
 	await completeOrganizationOnboarding(page, organizationName);
+	await completeScheduleSetup(page);
 	return { email, password, name, organizationName };
 }
 

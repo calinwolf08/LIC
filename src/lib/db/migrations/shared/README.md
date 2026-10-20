@@ -5,7 +5,10 @@ Every migration written from now on goes **here**, not in `../sqlite/` or
 after that engine's own history — which is why they are numbered from `100`
 (the dialect histories are all below 100).
 
-`../sqlite/` and `../postgres/` are frozen history. Do not add to them, and do
+`../sqlite/` and `../postgres/` are frozen history — enforced by
+`../frozen-history.test.ts`, which fingerprints every file. Editing
+`postgres/001_baseline.ts` after it had run is exactly how production ended up
+missing columns: a migration that has already run never runs again. Do not add to them, and do
 not edit them: their file names are the primary key of the `kysely_migration`
 table in every database that has already run them.
 

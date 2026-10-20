@@ -3,7 +3,7 @@
  * names one (and becomes its owner).
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 
 const createOrganization = vi.fn();
@@ -30,9 +30,10 @@ function locals(overrides: Partial<App.Locals> = {}): App.Locals {
 	return { session, organization: null, entitlements: [], ...overrides };
 }
 
-function post(name: string | null) {
+function post(name: string | null, plan?: string) {
 	const body = new FormData();
 	if (name !== null) body.set('name', name);
+	if (plan) body.set('plan', plan);
 	return new Request('http://localhost/onboarding/organization', {
 		method: 'POST',
 		body,
@@ -51,12 +52,20 @@ async function redirectOf(fn: () => unknown) {
 	throw new Error('expected a redirect');
 }
 
+const pageUrl = (search = '') => new URL(`http://localhost/onboarding/organization${search}`);
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
 const submit = (request: Request, l: App.Locals) =>
 	actions.default({ request, locals: l } as never);
 
 describe('onboarding/organization load', () => {
 	it('sends a signed-out visitor to login, returning here afterwards', async () => {
-		expect(await redirectOf(() => load({ locals: locals({ session: null }) } as never))).toEqual({
+		expect(
+			await redirectOf(() => load({ locals: locals({ session: null }), url: pageUrl() } as never))
+		).toEqual({
 			status: 302,
 			location: '/login?redirectTo=%2Fonboarding%2Forganization'
 		});
@@ -64,12 +73,24 @@ describe('onboarding/organization load', () => {
 
 	it('sends a user who already has an organization into the app', async () => {
 		expect(
-			await redirectOf(() => load({ locals: locals({ organization: membership }) } as never))
+			await redirectOf(() =>
+				load({ locals: locals({ organization: membership }), url: pageUrl() } as never)
+			)
 		).toEqual({ status: 302, location: '/' });
 	});
 
 	it('renders for a signed-in user without an organization', async () => {
-		expect(await load({ locals: locals() } as never)).toEqual({ email: 'u1@example.com' });
+		expect(await load({ locals: locals(), url: pageUrl() } as never)).toEqual({
+			email: 'u1@example.com',
+			plan: 'standard'
+		});
+	});
+
+	it('pre-selects the plan chosen at sign-up only while tier testing is on', async () => {
+		const url = pageUrl('?plan=pro');
+		expect(await load({ locals: locals(), url } as never)).toMatchObject({ plan: 'standard' });
+		vi.stubEnv('ENABLE_TIER_TESTING', 'true');
+		expect(await load({ locals: locals(), url } as never)).toMatchObject({ plan: 'pro' });
 	});
 });
 
@@ -84,9 +105,10 @@ describe('onboarding/organization action', () => {
 		createOrganization.mockResolvedValue({ id: 'org-new' });
 		const request = post('  New Program  ');
 
+		// Next onboarding step: set up the schedule the account started with.
 		expect(await redirectOf(() => submit(request, locals()))).toEqual({
 			status: 303,
-			location: '/'
+			location: '/schedules/setup?onboarding'
 		});
 		expect(createOrganization).toHaveBeenCalledWith({
 			name: 'New Program',
@@ -101,6 +123,20 @@ describe('onboarding/organization action', () => {
 			planId: 'standard',
 			interval: 'year'
 		});
+	});
+
+	it('starts the chosen plan only while tier testing is on', async () => {
+		createOrganization.mockResolvedValue({ id: 'org-new' });
+		await redirectOf(() => submit(post('Program', 'pro'), locals()));
+		expect(subscribe).toHaveBeenLastCalledWith(expect.objectContaining({ planId: 'standard' }));
+
+		vi.stubEnv('ENABLE_TIER_TESTING', 'true');
+		await redirectOf(() => submit(post('Program', 'pro'), locals()));
+		expect(subscribe).toHaveBeenLastCalledWith(expect.objectContaining({ planId: 'pro' }));
+
+		// An unknown plan falls back to the default, flag or not.
+		await redirectOf(() => submit(post('Program', 'gold'), locals()));
+		expect(subscribe).toHaveBeenLastCalledWith(expect.objectContaining({ planId: 'standard' }));
 	});
 
 	it('sends the user to a hosted checkout when the provider asks for one', async () => {

@@ -45,6 +45,14 @@ The seed also creates a second account whose data is all named **"Tenant B …"*
 (owned by `basic@example.com`), so tenant-isolation can be checked by hand and
 by the `tenant-isolation` e2e journey. The seed is idempotent.
 
+### Demo account (works on any environment)
+
+`npm run demo:seed -- --password='…'` creates `demo@demo.lic.test` with four
+scenario schedules (happy path, electives & teams, tight capacity, onboarding /
+blackouts / quarters) and no assignments; `npm run demo:clear` removes its
+assignments again. Runs locally or from the deployed container's terminal — see
+[`docs/DEMO-ACCOUNT.md`](docs/DEMO-ACCOUNT.md).
+
 ### Seeded demo scenario
 
 So the calendar, schedule-health panel and override review have content on first
