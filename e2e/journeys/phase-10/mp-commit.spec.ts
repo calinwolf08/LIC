@@ -12,9 +12,11 @@
  *
  * Plan:
  *   1. Student 1 · Dr. B · dayB (full)  → clean.
- *   2. Student 1 · Dr. A · dayA (full)  → session_clash vs the committed row; accept it.
+ *   2. Student 1 · Dr. A · dayA (full)  → session_clash vs the committed row: hidden by
+ *      the pickers, staged with an override, which accepts it.
  *   3. Student 2 · Dr. B · dayB (full)  → clean.
- *   4. Student 2 · Dr. B · dayA (full)  → mutual_exclusion vs the committed Dr. A row; left unresolved.
+ *   4. Student 2 · Dr. B · dayA (full)  → also a clash (overridden), plus mutual_exclusion vs
+ *      the committed Dr. A row, a warning the pickers don't filter; left unresolved.
  *
  * Commit: #1–#3 persist (three new rows, #2 carrying the session_clash override); #4
  * is skipped and stays in the draft. The committed-schedule validator then shows the
@@ -77,13 +79,16 @@ test.describe('MP-4 plan and commit', { tag: ['@stage2', '@long'] }, () => {
 			site: clinic,
 			date: dayB
 		});
-		await plan.addPin({
-			student: 'Student 1',
-			clerkship: fm,
-			preceptor: 'Dr. A',
-			site: clinic,
-			date: dayA
-		});
+		await plan.addPin(
+			{
+				student: 'Student 1',
+				clerkship: fm,
+				preceptor: 'Dr. A',
+				site: clinic,
+				date: dayA
+			},
+			{ override: true }
+		); // Student 1 is already booked on dayA
 		await plan.addPin({
 			student: 'Student 2',
 			clerkship: fm,
@@ -91,13 +96,16 @@ test.describe('MP-4 plan and commit', { tag: ['@stage2', '@long'] }, () => {
 			site: clinic,
 			date: dayB
 		});
-		await plan.addPin({
-			student: 'Student 2',
-			clerkship: fm,
-			preceptor: 'Dr. B',
-			site: clinic,
-			date: dayA
-		});
+		await plan.addPin(
+			{
+				student: 'Student 2',
+				clerkship: fm,
+				preceptor: 'Dr. B',
+				site: clinic,
+				date: dayA
+			},
+			{ override: true }
+		); // Student 2 is already booked on dayA
 
 		const ids = await plan.pinIds();
 		expect(ids).toHaveLength(4);
@@ -106,10 +114,13 @@ test.describe('MP-4 plan and commit', { tag: ['@stage2', '@long'] }, () => {
 		await expect(plan.conflictRow('session_clash')).toBeVisible();
 		await expect(plan.conflictRow('mutual_exclusion')).toBeVisible();
 
-		// --- Resolve pin #2's session clash; leave pin #4's mutual exclusion ---
-		await expect(plan.status(ids[1])).toHaveText(/to resolve/i);
-		await plan.acceptCode(ids[1], 'session_clash');
+		// --- Pin #2's session clash was accepted by the override; pin #4's override
+		// covered its clash, but the mutual exclusion (a warning the pickers don't
+		// filter) is left unresolved ---
+		await expect(plan.overridden(ids[1])).toBeVisible();
+		await expect(plan.status(ids[1])).toHaveText('OK');
 		await expect(plan.status(ids[3])).toHaveText(/to resolve/i);
+		await expect(asAdmin.getByTestId(`plan-pin-accept-${ids[3]}-mutual_exclusion`)).toBeVisible();
 		await expect(plan.commitButton()).toHaveText(/Commit 3 assignments/);
 
 		// --- Commit: 3 persist, 1 skipped ---

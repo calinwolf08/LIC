@@ -12,8 +12,10 @@
  *   - preceptor_capacity   — two students on a capacity-1 preceptor-day.
  *   - block_week_conflict  — a scattered day inside an inpatient block week.
  *
- * Every conflict surfaces in the panel and marks its pin "to resolve". The
- * coordinator accepts the overrides (all committable), then resets one and removes
+ * The pickers hide the hard conflicts (unavailable, site, capacity, blackout), so
+ * those pins are staged with an override, which accepts them up front; the warnings
+ * the pickers don't filter mark their pin "to resolve". Every conflict surfaces in
+ * the panel. The coordinator accepts the rest (all committable), then resets one and removes
  * another before committing: the committable pins persist (overrides recorded), the
  * reset pin is skipped and kept in the draft, and the committed-schedule validator
  * shows exactly the conflicts that actually committed — no trace of the skipped or
@@ -73,20 +75,26 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 			site: clinic,
 			date: dayNotOnb
 		});
-		await plan.addPin({
-			student: 'Student 2',
-			clerkship: fm,
-			preceptor: 'Dr. Busy',
-			site: clinic,
-			date: dayUnavail
-		});
-		await plan.addPin({
-			student: 'Student 2',
-			clerkship: fm,
-			preceptor: 'Dr. Cap',
-			site: annex,
-			date: dayAnnex
-		});
+		await plan.addPin(
+			{
+				student: 'Student 2',
+				clerkship: fm,
+				preceptor: 'Dr. Busy',
+				site: clinic,
+				date: dayUnavail
+			},
+			{ override: true } // Dr. Busy is off that day
+		);
+		await plan.addPin(
+			{
+				student: 'Student 2',
+				clerkship: fm,
+				preceptor: 'Dr. Cap',
+				site: annex,
+				date: dayAnnex
+			},
+			{ override: true } // Family Medicine does not run at the Annex
+		);
 		await plan.addPin({
 			student: 'Student 1',
 			clerkship: fm,
@@ -94,13 +102,16 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 			site: clinic,
 			date: dayCap
 		});
-		await plan.addPin({
-			student: 'Student 2',
-			clerkship: fm,
-			preceptor: 'Dr. Cap',
-			site: clinic,
-			date: dayCap
-		});
+		await plan.addPin(
+			{
+				student: 'Student 2',
+				clerkship: fm,
+				preceptor: 'Dr. Cap',
+				site: clinic,
+				date: dayCap
+			},
+			{ override: true } // Dr. Cap already has Student 1 that day
+		);
 		await plan.addPin({
 			student: 'Student 1',
 			clerkship: inpatient,
@@ -132,31 +143,38 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 
 		// blackout_date: add a pin on the blackout day, confirm it surfaces, then drop it
 		// (keeps the commit math below on the seven matrix pins).
-		await plan.addPin({
-			student: 'Student 1',
-			clerkship: fm,
-			preceptor: 'Dr. Cap',
-			site: clinic,
-			date: dayBlackout
-		});
+		await plan.addPin(
+			{
+				student: 'Student 1',
+				clerkship: fm,
+				preceptor: 'Dr. Cap',
+				site: clinic,
+				date: dayBlackout
+			},
+			{ override: true } // a blackout date
+		);
 		const blackoutId = (await plan.pinIds())[7];
 		await expect(plan.conflictRow('blackout_date')).toBeVisible();
-		await expect(plan.status(blackoutId)).toHaveText(/to resolve/i);
+		await expect(plan.overridden(blackoutId)).toBeVisible();
 		await plan.removePin(blackoutId);
 		await expect(plan.conflictRow('blackout_date')).toHaveCount(0);
 
-		// The clean inpatient block pin (#6) is OK; the rest are "to resolve".
+		// The clean inpatient block pin (#6) is OK. The pins staged with an override
+		// (#2 unavailable, #3 site, #5 capacity) start out accepted and marked; the
+		// warnings the pickers don't filter (#1 onboarding, #7 block week), and #4's
+		// share of the over-capacity day, are "to resolve".
 		await expect(plan.status(ids[5])).toHaveText('OK');
-		for (const i of [0, 1, 2, 3, 4, 6]) {
+		for (const i of [1, 2, 4]) {
+			await expect(plan.overridden(ids[i]), `pin ${i} overridden`).toBeVisible();
+			await expect(plan.status(ids[i]), `pin ${i} accepted`).toHaveText('OK');
+		}
+		for (const i of [0, 3, 6]) {
 			await expect(plan.status(ids[i]), `pin ${i} to resolve`).toHaveText(/to resolve/i);
 		}
 
-		// --- Accept each override; every pin becomes committable ---
+		// --- Accept the remaining warnings; every pin becomes committable ---
 		await plan.acceptCode(ids[0], 'not_onboarded');
-		await plan.acceptCode(ids[1], 'preceptor_unavailable');
-		await plan.acceptCode(ids[2], 'site_not_allowed');
 		await plan.acceptCode(ids[3], 'preceptor_capacity');
-		await plan.acceptCode(ids[4], 'preceptor_capacity');
 		await plan.acceptCode(ids[6], 'block_week_conflict');
 		await expect(plan.commitButton()).toHaveText(/Commit 7 assignments/);
 

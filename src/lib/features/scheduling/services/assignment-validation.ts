@@ -12,6 +12,11 @@ import type { DB } from '$lib/db/types';
 import { CapacityChecker } from '../capacity/capacity-checker';
 import { normalizeSession, sessionsOverlap, type SessionSlot } from './session-slots';
 import { normalizeSchedulingKind, weekKey } from './scheduling-kind';
+import {
+	loadPreceptorFitData,
+	preceptorFitViolations,
+	type PreceptorFitData
+} from './preceptor-fit';
 
 export type ViolationCode =
 	/**
@@ -44,6 +49,10 @@ export type ViolationCode =
 	 */
 	| 'block_week_conflict'
 	| 'preceptor_unavailable'
+	/** The preceptor is available that day only at another site, or doesn't work at this one. */
+	| 'preceptor_wrong_site'
+	/** The preceptor isn't on a team for the clerkship (or in the elective's pool). */
+	| 'preceptor_not_teaching'
 	| 'blackout_date'
 	| 'preceptor_capacity'
 	| 'site_not_allowed'
@@ -119,6 +128,8 @@ export const OVERRIDABLE_CODES = [
 	'mutual_exclusion',
 	'block_week_conflict',
 	'preceptor_unavailable',
+	'preceptor_wrong_site',
+	'preceptor_not_teaching',
 	'preceptor_capacity',
 	'blackout_date',
 	'not_onboarded',
@@ -144,6 +155,8 @@ export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
 	mutual_exclusion: 'Preceptors marked not to share a student-day',
 	block_week_conflict: 'Week already used by an inpatient block',
 	preceptor_unavailable: 'Preceptor not available',
+	preceptor_wrong_site: 'Preceptor not at this site',
+	preceptor_not_teaching: 'Preceptor doesn’t teach this clerkship',
 	preceptor_capacity: 'Preceptor over capacity',
 	blackout_date: 'Blackout date',
 	not_onboarded: 'Student not onboarded',
@@ -198,6 +211,12 @@ export interface ValidationContext {
 	preceptorPreferredDates?: Map<string, string[]>;
 	/** "preceptorId:date" -> number of assignments already on that preceptor-day, for open-slot checks. */
 	preceptorDateOccupancy?: Map<string, number>;
+	/**
+	 * Availability (by date, session and site), preceptor sites, and clerkship teams.
+	 * When present, availability, site and "teaches this clerkship" are checked with
+	 * the shared preceptor-fit rules; when absent only explicit unavailable days are.
+	 */
+	preceptorFit?: PreceptorFitData;
 }
 
 /**
@@ -245,8 +264,19 @@ export function validateCandidateWithContext(
 		soft.push({ code: 'blackout_date', message: `${candidate.date} is a blackout date` });
 	}
 
-	// Preceptor unavailable (soft)
-	if (ctx.preceptorUnavailable.get(candidate.preceptor_id)?.has(candidate.date)) {
+	// Preceptor availability, site and clerkship fit (soft)
+	if (ctx.preceptorFit) {
+		soft.push(
+			...preceptorFitViolations(ctx.preceptorFit, {
+				preceptorId: candidate.preceptor_id,
+				clerkshipId: candidate.clerkship_id,
+				electiveId: candidate.elective_id,
+				siteId: candidate.site_id,
+				date: candidate.date,
+				session: candidate.session
+			})
+		);
+	} else if (ctx.preceptorUnavailable.get(candidate.preceptor_id)?.has(candidate.date)) {
 		soft.push({
 			code: 'preceptor_unavailable',
 			message: `Preceptor is not available on ${candidate.date}`,
@@ -525,20 +555,28 @@ export async function validateAssignmentCandidate(
 	if (blackout)
 		soft.push({ code: 'blackout_date', message: `${candidate.date} is a blackout date` });
 
-	// Preceptor availability (soft)
+	// Preceptor availability, site and clerkship fit (soft)
 	const avail = await db
 		.selectFrom('preceptor_availability')
 		.select(['is_available', 'preference'])
 		.where('preceptor_id', '=', candidate.preceptor_id)
 		.where('date', '=', candidate.date)
 		.executeTakeFirst();
-	if (avail && avail.is_available === 0) {
-		soft.push({
-			code: 'preceptor_unavailable',
-			message: `Preceptor is not available on ${candidate.date}`,
-			entity_refs: { preceptor_id: candidate.preceptor_id }
-		});
-	}
+	const fit = await loadPreceptorFitData(db, {
+		preceptorIds: [candidate.preceptor_id],
+		clerkshipIds: candidate.clerkship_id ? [candidate.clerkship_id] : [],
+		electiveIds: candidate.elective_id ? [candidate.elective_id] : []
+	});
+	soft.push(
+		...preceptorFitViolations(fit, {
+			preceptorId: candidate.preceptor_id,
+			clerkshipId: candidate.clerkship_id,
+			electiveId: candidate.elective_id,
+			siteId: candidate.site_id,
+			date: candidate.date,
+			session: candidate.session
+		})
+	);
 
 	// Preceptor capacity (soft). Use the single capacity resolver so the Stage 1
 	// warning matches the effective per-day cap the engine enforces — an explicit

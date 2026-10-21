@@ -2,14 +2,16 @@
 /**
  * CF-PLAN-UI — the manual planner workspace (L4 #3) renders and the add-pin round
  * trip works end to end through the real UI: a clean pin shows OK with zero
- * conflicts, and a second clashing pin makes the live conflict panel light up
- * without anything being written to the real schedule.
+ * conflicts; the same student-date again is filtered out, and staging it with an
+ * override makes the live conflict panel light up, without anything being written
+ * to the real schedule.
  *
  * The deeper combinatorial planning flow (override, carry-forward, commit) is the
  * MP-4 mega-journey; this is the wiring smoke for the new surface.
  */
 
 import { test, expect } from '../../fixtures';
+import { PlanPage } from '../../pages';
 import { buildWorld } from '../../worlds/world-builder';
 import { manualWorld } from '../../worlds/catalog';
 import type { Kysely } from 'kysely';
@@ -27,40 +29,36 @@ test.describe('CF-PLAN-UI manual planner workspace', { tag: ['@stage2', '@long']
 		const fm = world.labels.clerkship['Family Medicine'];
 		const clinic = world.labels.site['Clinic'];
 
-		const rows = () => asAdmin.locator('li[data-testid^="plan-pin-"]');
-		const addPin = async (date: string) => {
-			await asAdmin.getByTestId('plan-student').selectOption({ label: 'Student 1' });
-			await asAdmin.getByTestId('plan-clerkship').selectOption({ label: fm });
-			await asAdmin.getByTestId('plan-preceptor').selectOption({ label: 'Dr. FM' });
-			await asAdmin.getByTestId('plan-site').selectOption({ label: clinic });
-			await asAdmin.getByTestId('plan-date').fill(date);
-			await asAdmin.getByTestId('plan-add').click();
-		};
+		const plan = new PlanPage(asAdmin);
+		const pin = { student: 'Student 1', clerkship: fm, preceptor: 'Dr. FM', site: clinic };
 
-		await asAdmin.goto('/plan');
-		await expect(asAdmin.getByTestId('plan-workspace')).toBeVisible();
+		await plan.goto();
 		await expect(asAdmin.getByTestId('plan-empty')).toBeVisible();
 
 		// --- A clean pin: one row, no conflicts, status OK ---
-		await addPin(world.anchor);
-		await expect(rows()).toHaveCount(1);
-		await expect(asAdmin.getByTestId('plan-conflict-count')).toHaveText('0');
+		await plan.addPin({ ...pin, date: world.anchor });
+		await expect(plan.rows()).toHaveCount(1);
+		await expect(plan.conflictCount()).toHaveText('0');
 
-		// --- A second full-day pin on the same student-date: session clash ---
-		await addPin(world.anchor);
-		await expect(rows()).toHaveCount(2);
-		await expect(asAdmin.getByTestId('plan-conflict-count')).not.toHaveText('0');
-		await expect(asAdmin.getByTestId('plan-conflict-session_clash')).toBeVisible();
+		// --- The same student-date again is filtered out: the student is booked ---
+		await plan.pick('plan-student', 'Student 1');
+		await asAdmin.getByTestId('plan-date').fill(world.anchor);
+		await expect(asAdmin.getByTestId('plan-days-summary')).toContainText(/already booked/);
+		await expect(plan.addButton()).toBeDisabled();
 
-		// --- Override acceptance: both clashing pins go from "to resolve" to OK ---
-		const pinIds = await rows().evaluateAll((els) =>
-			els.map((e) => e.getAttribute('data-testid')!.replace('plan-pin-', ''))
-		);
-		for (const id of pinIds) {
-			await expect(asAdmin.getByTestId(`plan-pin-status-${id}`)).toHaveText(/to resolve/i);
-			await asAdmin.getByTestId(`plan-pin-accept-${id}-session_clash`).click();
-			await expect(asAdmin.getByTestId(`plan-pin-status-${id}`)).toHaveText('OK');
-		}
+		// --- Staged anyway with an override: the clash lights up the conflict panel ---
+		await plan.addPin({ ...pin, date: world.anchor }, { override: true });
+		await expect(plan.rows()).toHaveCount(2);
+		await expect(plan.conflictCount()).not.toHaveText('0');
+		await expect(plan.conflictRow('session_clash')).toBeVisible();
+
+		// The overridden pin carries its accepted clash; the first pin still has to
+		// accept it before both are committable.
+		const [first, second] = await plan.pinIds();
+		await expect(plan.overridden(second)).toBeVisible();
+		await expect(plan.status(second)).toHaveText('OK');
+		await expect(plan.status(first)).toHaveText(/to resolve/i);
+		await plan.acceptCode(first, 'session_clash');
 
 		// Nothing was written to the real schedule — the planner is a draft layer.
 		const committed = await (db as Kysely<DB>)

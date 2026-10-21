@@ -22,6 +22,7 @@ import {
 import { normalizeSession, sessionsOverlap } from './session-slots';
 import { mutualExclusionKey } from './mutual-exclusion';
 import { normalizeSchedulingKind, weekKey } from './scheduling-kind';
+import { loadPreceptorFitData } from './preceptor-fit';
 
 export interface ScheduleViolation extends Violation {
 	assignment_id: string;
@@ -111,6 +112,7 @@ export interface ExtraEntities {
 	preceptorIds?: string[];
 	clerkshipIds?: string[];
 	studentIds?: string[];
+	electiveIds?: string[];
 }
 
 /**
@@ -285,7 +287,17 @@ export async function loadValidationInputs(
 		}
 	}
 
+	const preceptorFit = await loadPreceptorFitData(db, {
+		preceptorIds,
+		clerkshipIds,
+		electiveIds: [
+			...assignments.map((a) => a.elective_id).filter((e): e is string => e !== null),
+			...(extra.electiveIds ?? [])
+		]
+	});
+
 	const ctx: ValidationContext = {
+		preceptorFit,
 		scheduleStart: rangeStart,
 		scheduleEnd: rangeEnd,
 		preceptorMaxStudents,
@@ -363,7 +375,9 @@ export function evaluateAssignments(inputs: ValidationInputs): ScheduleValidatio
 				preceptor_id: a.preceptor_id ?? '',
 				clerkship_id: a.clerkship_id,
 				site_id: a.site_id,
+				elective_id: a.elective_id,
 				date: a.date,
+				session: normalizeSession(a.session),
 				excludeId: a.id! // exclude self from double-booking
 			},
 			ctx,
