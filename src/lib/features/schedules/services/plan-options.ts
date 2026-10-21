@@ -27,6 +27,7 @@ import {
 	sessionsOverlap,
 	type SessionSlot
 } from '$lib/features/scheduling/services/session-slots';
+import type { DayBooking, DayState } from '$lib/features/scheduling/services/assignment-day-state';
 import { listPins, type PlanKind } from './plan-service';
 
 /** The conflicts that hide an option unless the coordinator chooses to override. */
@@ -110,6 +111,14 @@ export interface PlanOptions {
 	dates: PlanDateCheck[];
 	/** Every day in the schedule (from today) that works for the current selection. */
 	openDates: string[];
+	/**
+	 * Every day of the schedule, coloured for the date picker the way the assignment
+	 * dialog's day states are: the picked preceptor's availability (session and site
+	 * aware), who they already have (committed and draft), and whether the picked
+	 * student is already booked. With no preceptor picked, a day is "available"
+	 * when someone could take the selection.
+	 */
+	days: DayState[];
 }
 
 export interface PlanOptionsInputs {
@@ -130,6 +139,8 @@ export interface PlanOptionsInputs {
 	studentSessions: Map<string, SessionSlot[]>;
 	/** "preceptorId:date" -> students already booked (committed + draft). */
 	preceptorLoad: Map<string, number>;
+	/** "preceptorId:date" -> who they are (draft pins carry a `pin:` id). */
+	preceptorBookings: Map<string, Omit<DayBooking, 'studentName'>[]>;
 }
 
 function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
@@ -219,7 +230,7 @@ export async function loadPlanOptionsInputs(
 		preceptorIds.length
 			? db
 					.selectFrom('schedule_assignments')
-					.select(['preceptor_id', 'date'])
+					.select(['id', 'preceptor_id', 'student_id', 'date'])
 					.where('preceptor_id', 'in', preceptorIds)
 					.where('date', '>=', period.start_date)
 					.where('date', '<=', period.end_date)
@@ -249,14 +260,21 @@ export async function loadPlanOptionsInputs(
 
 	const studentSessions = new Map<string, SessionSlot[]>();
 	const preceptorLoad = new Map<string, number>();
-	const bump = (key: string) => preceptorLoad.set(key, (preceptorLoad.get(key) ?? 0) + 1);
+	const preceptorBookings = new Map<string, Omit<DayBooking, 'studentName'>[]>();
+	const book = (preceptorId: string, date: string, assignmentId: string, studentId: string) => {
+		const key = `${preceptorId}:${date}`;
+		preceptorLoad.set(key, (preceptorLoad.get(key) ?? 0) + 1);
+		push(preceptorBookings, key, { assignmentId, studentId });
+	};
 	for (const r of studentRows) {
 		push(studentSessions, `${r.student_id}:${r.date}`, normalizeSession(r.session));
 	}
-	for (const r of preceptorRows) if (r.preceptor_id) bump(`${r.preceptor_id}:${r.date}`);
+	for (const r of preceptorRows) {
+		if (r.preceptor_id) book(r.preceptor_id, r.date, r.id ?? '', r.student_id);
+	}
 	for (const pin of pins) {
 		push(studentSessions, `${pin.student_id}:${pin.date}`, normalizeSession(pin.session));
-		if (pin.preceptor_id) bump(`${pin.preceptor_id}:${pin.date}`);
+		if (pin.preceptor_id) book(pin.preceptor_id, pin.date, `pin:${pin.id}`, pin.student_id);
 	}
 
 	return {
@@ -272,7 +290,8 @@ export async function loadPlanOptionsInputs(
 		fit,
 		capacity,
 		studentSessions,
-		preceptorLoad
+		preceptorLoad,
+		preceptorBookings
 	};
 }
 
@@ -441,5 +460,65 @@ export function computePlanOptions(
 				)
 			: [];
 
-	return { students, clerkships, preceptors, sites, dates: dateChecks, openDates };
+	const open = new Set(openDates);
+	const days = eachDay(inputs.start, inputs.end).map((date) =>
+		dayState(inputs, { ...base, date }, open.has(date))
+	);
+
+	return { students, clerkships, preceptors, sites, dates: dateChecks, openDates, days };
+}
+
+/** One day of the date picker for the current selection (see PlanOptions.days). */
+function dayState(inputs: PlanOptionsInputs, t: Tuple & { date: string }, open: boolean): DayState {
+	const { date } = t;
+	const names = new Map(inputs.students.map((s) => [s.id, s.name]));
+	const studentSessions = t.studentId
+		? (inputs.studentSessions.get(`${t.studentId}:${date}`) ?? [])
+		: [];
+	const bookings = t.preceptorId
+		? (inputs.preceptorBookings.get(`${t.preceptorId}:${date}`) ?? []).map((b) => ({
+				...b,
+				studentName: names.get(b.studentId) ?? 'Another student'
+			}))
+		: [];
+	const slots = t.preceptorId ? (inputs.fit.available.get(t.preceptorId)?.get(date) ?? []) : [];
+	const sessions = slots.map((s) => s.session);
+
+	let state: DayState['state'];
+	if (inputs.blackouts.has(date)) {
+		state = 'blackout';
+	} else if (!t.clinical) {
+		state = 'unset';
+	} else if (!t.preceptorId) {
+		state = open ? 'available' : 'unset';
+	} else {
+		const fit = preceptorFitViolations(inputs.fit, {
+			preceptorId: t.preceptorId,
+			siteId: t.siteId,
+			date,
+			session: t.session
+		}).map((v) => v.code);
+		const off = fit.includes('preceptor_unavailable') || fit.includes('preceptor_wrong_site');
+		state = off
+			? 'unavailable'
+			: inputs.fit.withAvailability.has(t.preceptorId) || slots.length > 0
+				? 'available'
+				: 'unset';
+	}
+
+	return {
+		date,
+		inRange: true,
+		state,
+		preceptorBookings: bookings,
+		preceptorAtCapacity:
+			!!t.preceptorId && bookings.length >= capacityFor(inputs, t.preceptorId, t.clerkshipId),
+		studentBusy: studentSessions.some((s) => sessionsOverlap(s, t.session)),
+		studentBookedCredit: 0,
+		studentSessions,
+		availableSession: sessions[0] ?? null,
+		availableSessions: sessions,
+		availableCredit: null,
+		isPast: date < inputs.today
+	};
 }

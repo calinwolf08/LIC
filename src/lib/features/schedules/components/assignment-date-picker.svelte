@@ -26,6 +26,8 @@
 		/** Month currently shown, as YYYY-MM. */
 		month: string;
 		onMonthChange: (month: string) => void;
+		/** Days before this (YYYY-MM-DD) can't be picked (the planner's past-date floor). */
+		minDate?: string;
 	}
 
 	let {
@@ -37,7 +39,8 @@
 		singleOnly = false,
 		disabled = false,
 		month,
-		onMonthChange
+		onMonthChange,
+		minDate
 	}: Props = $props();
 
 	const WEEKDAYS = [
@@ -89,7 +92,7 @@
 	let canGoForward = $derived(shiftMonth(month, 1) <= rangeEnd.slice(0, 7));
 
 	function inRange(date: string): boolean {
-		return date >= rangeStart && date <= rangeEnd;
+		return date >= rangeStart && date <= rangeEnd && (!minDate || date >= minDate);
 	}
 
 	/**
@@ -179,6 +182,7 @@
 
 	function titleFor(date: string): string {
 		const day = dayStates.get(date);
+		if (minDate && date < minDate && date >= rangeStart) return `${date} — already passed`;
 		if (!inRange(date)) return `${date} — outside the schedule range`;
 		const bits: string[] = [date];
 		if (day) {
@@ -253,6 +257,7 @@
 					size="sm"
 					variant={mode === opt.v ? 'default' : 'outline'}
 					{disabled}
+					data-testid="picker-mode-{opt.v}"
 					onclick={() => setMode(opt.v as SelectMode)}
 				>
 					{opt.l}
@@ -274,6 +279,8 @@
 							type="button"
 							{disabled}
 							onclick={() => toggleWeekday(w.v)}
+							data-testid="picker-weekday-{w.v}"
+							aria-pressed={weekdayFilter.includes(w.v)}
 							class="rounded-md border px-2 py-1 text-xs {weekdayFilter.includes(w.v)
 								? 'border-primary bg-primary text-primary-foreground'
 								: 'border-input'}"
@@ -296,16 +303,20 @@
 			variant="outline"
 			disabled={disabled || !canGoBack}
 			onclick={() => onMonthChange(shiftMonth(month, -1))}
+			data-testid="picker-prev"
 		>
 			Previous month
 		</Button>
-		<span class="text-sm font-medium" data-testid="picker-month">{monthLabel(month)}</span>
+		<span class="text-sm font-medium" data-testid="picker-month" data-month={month}
+			>{monthLabel(month)}</span
+		>
 		<Button
 			type="button"
 			size="sm"
 			variant="outline"
 			disabled={disabled || !canGoForward}
 			onclick={() => onMonthChange(shiftMonth(month, 1))}
+			data-testid="picker-next"
 		>
 			Next month
 		</Button>

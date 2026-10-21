@@ -79,6 +79,34 @@ function filteringWorld(): WorldSpec {
 	};
 }
 
+/** One preceptor free every weekday for three weeks; a 5-day requirement. */
+function requirementWorld(): WorldSpec {
+	return {
+		name: 'Planner requirements',
+		healthSystems: ['Metro'],
+		sites: [{ name: 'Clinic', healthSystem: 'Metro' }],
+		clerkships: [
+			{ name: 'Family Medicine', type: 'outpatient', requiredDays: 5, sites: ['Clinic'] }
+		],
+		preceptors: [
+			{
+				name: 'Dr. A',
+				sites: ['Clinic'],
+				teaches: ['Family Medicine'],
+				availability: [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18].map((day) => ({
+					day,
+					site: 'Clinic',
+					session: 'full' as const
+				}))
+			}
+		],
+		students: [
+			{ name: 'Student 1', onboardedAt: ['Metro'] },
+			{ name: 'Student 2', onboardedAt: ['Metro'] }
+		]
+	};
+}
+
 test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () => {
 	test('pickers offer only valid choices, overrides are confirmed, the calendar shows the plan', async ({
 		asAdmin,
@@ -124,12 +152,16 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		// --- A day the preceptor doesn't work isn't offered ---
 		await plan.pick('plan-student', 'Student 1');
 		await plan.pick('plan-clerkship', fm);
-		await page.getByTestId('plan-date').fill(tue);
+		// The date picker shows it: Monday is open, Tuesday is not.
+		expect(await (await plan.day(mon)).getAttribute('data-state')).toBe('available');
+		expect(await (await plan.day(tue)).getAttribute('data-state')).toBe('unavailable');
+		await plan.pickDays([tue]);
 		await expect(page.getByTestId('plan-days-summary')).toContainText('not available');
 		await expect(plan.addButton()).toBeDisabled();
 		// …and the next open days are offered instead, starting with Monday.
+		await plan.clearDays();
 		await page.getByTestId(`plan-open-date-${mon}`).click();
-		await expect(page.getByTestId('plan-date')).toHaveValue(mon);
+		expect(await plan.isPicked(mon)).toBe(true);
 		await expect(page.getByTestId('plan-days-ok')).toBeVisible();
 		// The calendar tints the open days for this selection.
 		await expect(page.getByTestId(`plan-cal-day-${mon}`)).toHaveAttribute('data-open', 'true');
@@ -144,6 +176,13 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		expect(staged).toBe(6);
 		await expect(plan.conflictCount()).toHaveText('0');
 
+		// --- After adding, the form starts over for the next assignment ---
+		await expect(page.getByTestId('plan-student')).toHaveValue('');
+		await expect(page.getByTestId('plan-clerkship')).toHaveValue('');
+		await expect(page.getByTestId('plan-preceptor')).toHaveValue('');
+		await expect(page.getByTestId('plan-dates-count')).toHaveText(/^0 day/);
+		expect(await plan.offered('plan-student')).toEqual(['Student 1', 'Student 2']);
+
 		// --- Draft pins filter too: Dr. FM (one student a day) is full on Monday,
 		// and Student 1 is booked ---
 		await plan.addPin({
@@ -154,10 +193,9 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 			session: 'pm',
 			date: tue
 		});
-		await page.getByTestId('plan-preceptor').selectOption('');
-		await page.getByTestId('plan-student').selectOption('');
 		await page.getByTestId('plan-session').selectOption('am');
-		await page.getByTestId('plan-date').fill(mon);
+		await plan.pick('plan-clerkship', fm);
+		await plan.pickDays([mon]);
 		await expect
 			.poll(() => page.getByTestId('plan-student').textContent())
 			.not.toContain('Student 1');
@@ -208,8 +246,9 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		await expect(plan.rows().and(page.locator('[data-selected="true"]'))).toHaveCount(1);
 		await expect(page.getByTestId(`plan-pin-${ids[0]}`)).toHaveAttribute('data-selected', 'true');
 		// Clicking a day picks it as the date.
+		await plan.clearDays();
 		await page.getByTestId(`plan-cal-pick-${mon}`).click();
-		await expect(page.getByTestId('plan-date')).toHaveValue(mon);
+		expect(await plan.isPicked(mon)).toBe(true);
 		// Filtering to Student 2 hides Student 1's drafts.
 		await plan.pick('plan-cal-student', 'Student 2');
 		await expect(plan.calendarPin(ids[0])).toHaveCount(0);
@@ -260,5 +299,60 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		);
 		await expect(page.getByTestId('plan-student')).toHaveValue(world.ids.student['Student 1']);
 		await expect(page.getByTestId('plan-site')).toHaveValue(world.ids.site['Clinic']);
+	});
+
+	test('requirement progress: days needed, fill to the requirement, over-assignment, summary table', async ({
+		asAdmin,
+		sandbox,
+		db
+	}) => {
+		test.setTimeout(150000);
+		const world = await buildWorld(asAdmin, db as Kysely<DB>, requirementWorld());
+		sandbox.register(world.sandbox);
+		const s2 = world.ids.student['Student 2'];
+		const fmId = world.ids.clerkship['Family Medicine'];
+		const plan = new PlanPage(asAdmin);
+		const page = asAdmin;
+		const requirement = page.getByTestId('plan-requirement-status');
+		const row = page.getByTestId(`plan-progress-${s2}-${fmId}`);
+
+		await plan.goto();
+
+		// The summary lists every student × clerkship that still needs days.
+		await expect(row).toContainText('5 needed');
+
+		// Clicking a row picks that student and clerkship for the next assignment.
+		await row.click();
+		await expect(page.getByTestId('plan-student')).toHaveValue(s2);
+		await expect(page.getByTestId('plan-clerkship')).toHaveValue(fmId);
+		await expect(requirement).toHaveText(/5 more day\(s\) needed/);
+
+		// With a preceptor picked, "Pick the next N open days" fills the requirement
+		// from their open days.
+		await plan.pick('plan-preceptor', 'Dr. A');
+		const fill = page.getByTestId('plan-fill-requirement');
+		await expect(fill).toHaveText(/next 5 open days/);
+		await fill.click();
+		await expect(page.getByTestId('plan-dates-count')).toHaveText(/^5 day/);
+		await expect(requirement).toHaveText(/Requirement met with this selection/);
+		await expect(plan.addButton()).toHaveText(/Add 5 days/);
+		await plan.addButton().click();
+		await expect(plan.rows()).toHaveCount(5, { timeout: 15000 });
+
+		// The form resets, and the table counts the planned days.
+		await expect(page.getByTestId('plan-student')).toHaveValue('');
+		await expect(row).toHaveCount(0); // met → hidden while "still need days" is on
+		await page.getByTestId('plan-progress-open-only').uncheck();
+		await expect(row).toContainText('Met');
+
+		// One more day for the same student and clerkship reads as over the requirement.
+		await row.click();
+		await expect(requirement).toHaveText(/^\s*Requirement met\.\s*$/);
+		await plan.pick('plan-preceptor', 'Dr. A');
+		// The fill took the first five weekdays; the next Monday is free.
+		const open = addDays(world.anchor, 7);
+		await plan.pickDays([open]);
+		await expect(requirement).toHaveText(/1 day\(s\) over the requirement with this selection/);
+		await expect(page.getByTestId('plan-requirement')).toHaveClass(/amber/);
 	});
 });

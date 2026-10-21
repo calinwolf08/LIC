@@ -42,7 +42,7 @@ test.describe('CF-PLAN-UI manual planner workspace', { tag: ['@stage2', '@long']
 
 		// --- The same student-date again is filtered out: the student is booked ---
 		await plan.pick('plan-student', 'Student 1');
-		await asAdmin.getByTestId('plan-date').fill(world.anchor);
+		await plan.pickDays([world.anchor]);
 		await expect(asAdmin.getByTestId('plan-days-summary')).toContainText(/already booked/);
 		await expect(plan.addButton()).toBeDisabled();
 
