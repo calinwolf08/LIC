@@ -3,10 +3,12 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { OVERRIDE_LABELS } from '$lib/features/scheduling/services/assignment-validation';
+	import AssignmentDatePicker from '$lib/features/schedules/components/assignment-date-picker.svelte';
+	import { defaultCreditForSession } from '$lib/features/scheduling/services/session-slots';
+	import type { PlanProgressRow } from '$lib/features/schedules/services/plan-progress';
 	import PlanCalendar, {
 		type PlanCalendarItem
 	} from '$lib/features/schedules/components/plan-calendar.svelte';
@@ -60,11 +62,15 @@
 	let siteId = $state('');
 	let kind = $state<'clinical' | 'free_day' | 'exam'>('clinical');
 	let session = $state<'full' | 'am' | 'pm'>('full');
-	let dateMode = $state<'single' | 'range'>('single');
-	let singleDate = $state('');
-	let rangeStart = $state('');
-	let rangeEnd = $state('');
-	let weekdays = $state<number[]>([1, 2, 3, 4, 5]);
+	/** Days picked in the availability-aware date picker. */
+	let pickedDates = $state<string[]>([]);
+	let pickerMode = $state<'single' | 'range' | 'individual'>('range');
+	let pickerMonth = $state('');
+	// The pickers whose options change with the selection (student, clerkship,
+	// preceptor, site) use value + onchange, not bind:value. Svelte 5's select
+	// binding skips recording a change made while the select has focus, then
+	// re-selects that stale value when the option list changes, which visibly
+	// cleared a clerkship picked by click once a preceptor was chosen.
 	/** Off: pickers offer only choices that work. On: everything, with the reasons. */
 	let showAll = $state(false);
 
@@ -75,6 +81,9 @@
 	let violations = $state<Finding[]>([]);
 	let committed = $state<Saved[]>([]);
 	let blackoutDates = $state<string[]>([]);
+	let progress = $state<PlanProgressRow[]>([]);
+	/** Requirements table: only rows that still need days. */
+	let progressOpenOnly = $state(true);
 	let planVersion = $state(0);
 	let loading = $state(false);
 	let error = $state('');
@@ -100,16 +109,6 @@
 			: todayISO
 	);
 
-	const WEEKDAYS = [
-		{ v: 1, l: 'Mon' },
-		{ v: 2, l: 'Tue' },
-		{ v: 3, l: 'Wed' },
-		{ v: 4, l: 'Thu' },
-		{ v: 5, l: 'Fri' },
-		{ v: 6, l: 'Sat' },
-		{ v: 0, l: 'Sun' }
-	];
-
 	const nameOf = (list: Entity[], id: string | null): string =>
 		(id && list.find((e) => e.id === id)?.name) || '—';
 
@@ -118,17 +117,11 @@
 	}
 
 	/** The dates the current form would stage. */
-	const dates = $derived.by(() => {
-		if (dateMode === 'single') return singleDate ? [singleDate] : [];
-		if (!rangeStart || !rangeEnd || rangeEnd < rangeStart) return [];
-		const out: string[] = [];
-		const d = new Date(`${rangeStart}T00:00:00Z`);
-		const end = new Date(`${rangeEnd}T00:00:00Z`);
-		while (d <= end) {
-			if (weekdays.includes(d.getUTCDay())) out.push(d.toISOString().slice(0, 10));
-			d.setUTCDate(d.getUTCDate() + 1);
-		}
-		return out;
+	const dates = $derived([...new Set(pickedDates)].filter((d) => d >= minDate).sort());
+
+	// The picker opens on the first month a day can still be planned in.
+	$effect(() => {
+		if (!pickerMonth && data.activeSchedule) pickerMonth = minDate.slice(0, 7);
 	});
 
 	const clinical = $derived(kind === 'clinical');
@@ -214,6 +207,40 @@
 			: new Set<string>()
 	);
 	const nextOpen = $derived((options?.openDates ?? []).filter((d) => d >= minDate).slice(0, 5));
+	const dayStates = $derived(new Map((options?.days ?? []).map((d) => [d.date, d])));
+
+	// ---- requirement progress ---------------------------------------------
+	const creditPerDay = $derived(clinical ? defaultCreditForSession(session) : 0);
+	/** Saved + planned vs required for the picked student and clerkship. */
+	const pickProgress = $derived(
+		progress.find((r) => r.studentId === studentId && r.clerkshipId === clerkshipId) ?? null
+	);
+	const selectionCredit = $derived(Math.round(daysToAdd.length * creditPerDay * 100) / 100);
+	const afterSelection = $derived(
+		pickProgress
+			? Math.round((pickProgress.assigned + pickProgress.planned + selectionCredit) * 100) / 100
+			: 0
+	);
+	/** The next open days, enough to meet the requirement (what's still needed). */
+	const fillDays = $derived.by(() => {
+		if (!pickProgress || pickProgress.remaining <= 0 || creditPerDay <= 0) return [];
+		const need = Math.ceil(pickProgress.remaining / creditPerDay);
+		return (options?.openDates ?? []).filter((d) => d >= minDate).slice(0, need);
+	});
+
+	const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+	/** Requirements table rows, most days still needed first. */
+	const progressRows = $derived(
+		[...progress]
+			.filter((r) => !progressOpenOnly || r.remaining > 0 || r.over > 0)
+			.sort(
+				(a, b) =>
+					b.remaining - a.remaining ||
+					a.studentName.localeCompare(b.studentName) ||
+					a.clerkshipName.localeCompare(b.clerkshipName)
+			)
+	);
 
 	async function refresh() {
 		const res = await fetch('/api/schedules/plan/validate');
@@ -225,6 +252,7 @@
 		violations = d.violations ?? [];
 		committed = d.committed ?? [];
 		blackoutDates = d.blackoutDates ?? [];
+		progress = d.progress ?? [];
 		planVersion++;
 	}
 
@@ -235,7 +263,7 @@
 	}
 
 	/** Stage the days: working days as-is, overridden days grouped by what they override. */
-	async function addDays(days: string[]) {
+	async function addDays(days: string[]): Promise<boolean> {
 		const groups = new Map<string, string[]>();
 		for (const day of days) {
 			const key = issueCodes(checks.get(day)).join(',');
@@ -254,6 +282,7 @@
 					site_id: clinical ? siteId : null,
 					dates: group,
 					session: clinical ? session : 'full',
+					credit_value: clinical ? defaultCreditForSession(session) : 1,
 					override_codes: codes,
 					override_note: codes.length
 						? `${OVERRIDE_NOTE_PREFIX}${codes.map(codeLabel).join(', ')}`
@@ -263,9 +292,32 @@
 			if (!res.ok) {
 				const b = await res.json().catch(() => ({}));
 				error = b?.error?.message ?? 'Could not add to plan';
-				return;
+				return false;
 			}
 		}
+		return true;
+	}
+
+	/** Start the next assignment from scratch: it may be anyone, anywhere, any day. */
+	function resetForm() {
+		studentId = '';
+		clerkshipId = '';
+		preceptorId = '';
+		siteId = '';
+		kind = 'clinical';
+		session = 'full';
+		pickedDates = [];
+		showAll = false;
+	}
+
+	/** Pick a student/clerkship from the requirements table to plan their remaining days. */
+	function planFor(row: PlanProgressRow) {
+		resetForm();
+		studentId = row.studentId;
+		clerkshipId = row.clerkshipId;
+		document
+			.querySelector('[data-testid="plan-form"]')
+			?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 	}
 
 	async function addToPlan() {
@@ -278,7 +330,7 @@
 		loading = true;
 		error = '';
 		try {
-			await addDays(daysToAdd);
+			if (await addDays(daysToAdd)) resetForm();
 			await refresh();
 		} finally {
 			loading = false;
@@ -348,14 +400,17 @@
 		}
 	}
 
-	function toggleWeekday(v: number) {
-		weekdays = weekdays.includes(v) ? weekdays.filter((w) => w !== v) : [...weekdays, v];
-	}
-
 	function useDate(date: string) {
 		if (date < minDate || (data.activeSchedule && date > data.activeSchedule.endDate)) return;
-		dateMode = 'single';
-		singleDate = date;
+		pickedDates = pickerMode === 'single' ? [date] : [...new Set([...pickedDates, date])];
+		pickerMonth = date.slice(0, 7);
+	}
+
+	function useDays(days: string[]) {
+		if (days.length === 0) return;
+		pickerMode = 'individual';
+		pickedDates = days;
+		pickerMonth = days[0].slice(0, 7);
 	}
 
 	async function selectPin(id: string) {
@@ -498,7 +553,8 @@
 					<select
 						id="plan-student"
 						class="w-full rounded-md border bg-background p-2 text-sm"
-						bind:value={studentId}
+						value={studentId}
+						onchange={(e) => (studentId = e.currentTarget.value)}
 						data-testid="plan-student"
 					>
 						<option value="">Select a student…</option>
@@ -529,7 +585,8 @@
 						<select
 							id="plan-clerkship"
 							class="w-full rounded-md border bg-background p-2 text-sm"
-							bind:value={clerkshipId}
+							value={clerkshipId}
+							onchange={(e) => (clerkshipId = e.currentTarget.value)}
 							data-testid="plan-clerkship"
 						>
 							<option value="">Select a clerkship…</option>
@@ -545,7 +602,8 @@
 						<select
 							id="plan-preceptor"
 							class="w-full rounded-md border bg-background p-2 text-sm"
-							bind:value={preceptorId}
+							value={preceptorId}
+							onchange={(e) => (preceptorId = e.currentTarget.value)}
 							data-testid="plan-preceptor"
 						>
 							<option value="">Select a preceptor…</option>
@@ -561,7 +619,8 @@
 						<select
 							id="plan-site"
 							class="w-full rounded-md border bg-background p-2 text-sm"
-							bind:value={siteId}
+							value={siteId}
+							onchange={(e) => (siteId = e.currentTarget.value)}
 							data-testid="plan-site"
 						>
 							<option value="">Select a site…</option>
@@ -588,68 +647,72 @@
 				{/if}
 
 				<!-- dates -->
-				<div class="space-y-1">
+				<div class="space-y-1" data-testid="plan-dates">
 					<Label>Dates</Label>
-					<div class="flex gap-2 text-sm">
-						<button
-							type="button"
-							class="rounded-md border px-3 py-1 {dateMode === 'single'
-								? 'bg-primary text-primary-foreground'
-								: ''}"
-							onclick={() => (dateMode = 'single')}
-							data-testid="plan-mode-single">Single</button
-						>
-						<button
-							type="button"
-							class="rounded-md border px-3 py-1 {dateMode === 'range'
-								? 'bg-primary text-primary-foreground'
-								: ''}"
-							onclick={() => (dateMode = 'range')}
-							data-testid="plan-mode-range">Range</button
-						>
+					{#if data.activeSchedule && pickerMonth}
+						<AssignmentDatePicker
+							rangeStart={data.activeSchedule.startDate}
+							rangeEnd={data.activeSchedule.endDate}
+							{minDate}
+							{dayStates}
+							bind:selected={pickedDates}
+							bind:mode={pickerMode}
+							month={pickerMonth}
+							onMonthChange={(m) => (pickerMonth = m)}
+						/>
+					{/if}
+					<div class="flex items-center justify-between text-xs text-muted-foreground">
+						<span data-testid="plan-dates-count">{dates.length} day(s) selected</span>
+						{#if pickedDates.length > 0}
+							<button
+								type="button"
+								class="underline"
+								onclick={() => (pickedDates = [])}
+								data-testid="plan-dates-clear">Clear days</button
+							>
+						{/if}
 					</div>
 				</div>
 
-				{#if dateMode === 'single'}
-					<Input
-						type="date"
-						min={minDate}
-						max={data.activeSchedule?.endDate}
-						bind:value={singleDate}
-						data-testid="plan-date"
-					/>
-				{:else}
-					<div class="flex gap-2">
-						<Input
-							type="date"
-							min={minDate}
-							max={data.activeSchedule?.endDate}
-							bind:value={rangeStart}
-							data-testid="plan-range-start"
-						/>
-						<Input
-							type="date"
-							min={minDate}
-							max={data.activeSchedule?.endDate}
-							bind:value={rangeEnd}
-							data-testid="plan-range-end"
-						/>
-					</div>
-					<div class="flex flex-wrap gap-1">
-						{#each WEEKDAYS as w (w.v)}
+				{#if clinical && pickProgress}
+					<div
+						class="space-y-1 rounded-md border p-2 text-xs {pickProgress.over > 0 ||
+						afterSelection > pickProgress.required
+							? 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+							: 'bg-muted/40'}"
+						data-testid="plan-requirement"
+					>
+						<p>
+							<span class="font-medium">{nameOf(data.students, studentId)}</span> ·
+							{pickProgress.clerkshipName}: {fmt(pickProgress.required)} days required ·
+							{fmt(pickProgress.assigned)} saved · {fmt(pickProgress.planned)} planned{#if selectionCredit > 0}
+								· {fmt(selectionCredit)} in this selection{/if}
+						</p>
+						<p class="font-medium" data-testid="plan-requirement-status">
+							{#if afterSelection > pickProgress.required}
+								{fmt(afterSelection - pickProgress.required)} day(s) over the requirement{selectionCredit >
+								0
+									? ' with this selection'
+									: ''}.
+							{:else if afterSelection === pickProgress.required}
+								Requirement met{selectionCredit > 0 ? ' with this selection' : ''}.
+							{:else}
+								{fmt(pickProgress.required - afterSelection)} more day(s) needed{selectionCredit > 0
+									? ' after this selection'
+									: ''}.
+							{/if}
+						</p>
+						{#if fillDays.length > 0 && selectionCredit === 0 && preceptorId}
 							<button
 								type="button"
-								class="rounded-md border px-2 py-1 text-xs {weekdays.includes(w.v)
-									? 'bg-primary text-primary-foreground'
-									: ''}"
-								onclick={() => toggleWeekday(w.v)}
-								data-testid="plan-weekday-{w.v}">{w.l}</button
+								class="rounded border bg-background px-2 py-0.5 hover:bg-muted"
+								onclick={() => useDays(fillDays)}
+								data-testid="plan-fill-requirement"
 							>
-						{/each}
+								Pick the next {fillDays.length} open day{fillDays.length === 1 ? '' : 's'}
+							</button>
+						{/if}
 					</div>
-					<p class="text-xs text-muted-foreground" data-testid="plan-dates-count">
-						{dates.length} day(s) selected
-					</p>
 				{/if}
 
 				{#if optionsReady && dates.length > 0}
@@ -859,6 +922,80 @@
 				</Card>
 			</div>
 		</div>
+
+		<!-- ---- Requirements ------------------------------------------------ -->
+		<Card class="mt-6 p-4" data-testid="plan-progress">
+			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+				<div>
+					<h2 class="font-medium">Requirements</h2>
+					<p class="text-xs text-muted-foreground">
+						Days required for each clerkship against what's saved and what's in this plan. Click a
+						row to plan that student's remaining days.
+					</p>
+				</div>
+				<label class="flex cursor-pointer items-center gap-2 text-xs">
+					<input
+						type="checkbox"
+						bind:checked={progressOpenOnly}
+						data-testid="plan-progress-open-only"
+					/>
+					Only students who still need days
+				</label>
+			</div>
+			{#if progressRows.length === 0}
+				<p class="text-sm text-muted-foreground" data-testid="plan-progress-empty">
+					{progress.length === 0
+						? 'No students or clerkships in this schedule yet.'
+						: 'Every student has the days they need.'}
+				</p>
+			{:else}
+				<div class="max-h-[24rem] overflow-auto">
+					<table class="w-full text-sm">
+						<thead class="sticky top-0 bg-background text-left text-xs text-muted-foreground">
+							<tr>
+								<th class="py-1 pr-2 font-medium">Student</th>
+								<th class="py-1 pr-2 font-medium">Clerkship</th>
+								<th class="py-1 pr-2 text-right font-medium">Required</th>
+								<th class="py-1 pr-2 text-right font-medium">Saved</th>
+								<th class="py-1 pr-2 text-right font-medium">Planned</th>
+								<th class="py-1 text-right font-medium">Status</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y">
+							{#each progressRows as row (`${row.studentId}|${row.clerkshipId}`)}
+								<tr
+									class="cursor-pointer hover:bg-muted/50 {row.studentId === studentId &&
+									row.clerkshipId === clerkshipId
+										? 'bg-primary/5'
+										: ''}"
+									onclick={() => planFor(row)}
+									data-testid="plan-progress-{row.studentId}-{row.clerkshipId}"
+								>
+									<td class="py-1 pr-2">{row.studentName}</td>
+									<td class="py-1 pr-2">{row.clerkshipName}</td>
+									<td class="py-1 pr-2 text-right">{fmt(row.required)}</td>
+									<td class="py-1 pr-2 text-right">{fmt(row.assigned)}</td>
+									<td class="py-1 pr-2 text-right">{fmt(row.planned)}</td>
+									<td class="py-1 text-right" data-testid="plan-progress-status">
+										{#if row.over > 0}
+											<Badge variant="outline" class="border-amber-500 text-amber-700"
+												>{fmt(row.over)} over</Badge
+											>
+										{:else if row.remaining > 0}
+											<Badge variant="secondary">{fmt(row.remaining)} needed</Badge>
+										{:else}
+											<Badge variant="outline" class="border-emerald-500 text-emerald-700"
+												>Met</Badge
+											>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</Card>
 
 		<!-- ---- Calendar ---------------------------------------------------- -->
 		{#if data.activeSchedule}

@@ -19,6 +19,7 @@ vi.mock('$lib/db', () => ({
 import { cleanupTestDatabase, createTestDatabaseWithMigrations } from '$lib/db/test-utils';
 import { addPins, clearPins, evaluatePlan } from '$lib/features/schedules/services/plan-service';
 import type { PlanOption, PlanOptions } from '$lib/features/schedules/services/plan-options';
+import { getPlanProgress } from '$lib/features/schedules/services/plan-progress';
 import { POST } from './+server';
 
 const TS = '2026-01-01T00:00:00.000Z';
@@ -346,5 +347,74 @@ describe('POST /api/schedules/plan/options', () => {
 			new Set(['preceptor_unavailable', 'preceptor_wrong_site', 'preceptor_not_teaching'])
 		);
 		expect(status.committable).toBe(false);
+	});
+
+	it('colours the date picker for the picked preceptor and student, counting draft pins', async () => {
+		await addPins(holder.db!, SCHED, USER, {
+			student_id: S1,
+			preceptor_id: DR_FM,
+			clerkship_id: FM,
+			site_id: CLINIC,
+			dates: [D1]
+		});
+		const day = (o: PlanOptions, date: string) => o.days.find((d) => d.date === date)!;
+
+		const fmDays = await options({ preceptorId: DR_FM, studentId: S1 });
+		// Dr. FM works D1, D2 and D4; D3 has no availability.
+		expect(day(fmDays, D2).state).toBe('available');
+		expect(day(fmDays, D3).state).toBe('unavailable');
+		// The draft pin books S1 with Dr. FM on D1: the student is busy, Dr. FM is full.
+		expect(day(fmDays, D1)).toMatchObject({ studentBusy: true, preceptorAtCapacity: true });
+		expect(day(fmDays, D1).preceptorBookings).toEqual([
+			expect.objectContaining({ studentId: S1, studentName: S1 })
+		]);
+
+		// Session-aware: Dr. IM has only the morning of D1.
+		const imMorning = await options({ preceptorId: DR_IM, session: 'am' });
+		expect(day(imMorning, D1).state).toBe('available');
+		const imFull = await options({ preceptorId: DR_IM, session: 'full' });
+		expect(day(imFull, D1).state).toBe('unavailable');
+
+		// Without a preceptor, a day is "available" when someone could take it.
+		const anyone = await options({ clerkshipId: FM });
+		expect(day(anyone, D2).state).toBe('available');
+		expect(day(anyone, D3).state).toBe('unset');
+	});
+
+	it('reports requirement progress: saved + planned (in credit) vs required', async () => {
+		await addPins(holder.db!, SCHED, USER, {
+			student_id: S2,
+			preceptor_id: DR_FM,
+			clerkship_id: FM,
+			site_id: CLINIC,
+			dates: [D1, D2]
+		});
+		await addPins(holder.db!, SCHED, USER, {
+			student_id: S2,
+			preceptor_id: DR_IM,
+			clerkship_id: IM,
+			site_id: HOSPITAL,
+			dates: [D1],
+			session: 'am',
+			credit_value: 0.5
+		});
+		const rows = await getPlanProgress(holder.db!, SCHED, USER);
+		const row = (student: string, clerkship: string) =>
+			rows.find((r) => r.studentId === student && r.clerkshipId === clerkship)!;
+
+		expect(rows).toHaveLength(4); // 2 students × 2 clerkships
+		expect(row(S2, FM)).toMatchObject({
+			required: 20,
+			assigned: 0,
+			planned: 2,
+			remaining: 18,
+			over: 0
+		});
+		expect(row(S2, IM)).toMatchObject({ planned: 0.5, remaining: 19.5 });
+		expect(row(S1, FM)).toMatchObject({ planned: 0, remaining: 20 });
+
+		// The draft holds all three pins the progress counted.
+		const plan = await evaluatePlan(holder.db!, SCHED, USER);
+		expect(plan.pins).toHaveLength(3);
 	});
 });

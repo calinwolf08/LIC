@@ -57,6 +57,21 @@ export class PlanPage {
 		await select.selectOption(value);
 	}
 
+	/**
+	 * Pick the way a person does: focus the select and move to the option with
+	 * the keyboard, so the select keeps focus (selectOption doesn't focus it).
+	 */
+	async pickByKeyboard(testId: string, name: string) {
+		const select = this.page.getByTestId(testId);
+		await select.focus();
+		const current = () =>
+			select.evaluate((el) => (el as HTMLSelectElement).selectedOptions[0]?.text.trim() ?? '');
+		for (let i = 0; i < 20 && !(await current()).startsWith(name); i++) {
+			await this.page.keyboard.press('ArrowDown');
+		}
+		expect(await current(), `${testId} reached ${name}`).toMatch(new RegExp(`^${name}`));
+	}
+
 	/** The names a picker currently offers (option text up to any note). */
 	async offered(testId: string): Promise<string[]> {
 		return this.page
@@ -79,8 +94,7 @@ export class PlanPage {
 	 * date from the previous pin could hide the next pin's student or clerkship.
 	 */
 	private async resetForm() {
-		await this.page.getByTestId('plan-mode-single').click();
-		await this.page.getByTestId('plan-date').fill('');
+		await this.clearDays();
 		for (const id of ['plan-student', 'plan-clerkship', 'plan-preceptor', 'plan-site']) {
 			const select = this.page.getByTestId(id);
 			if ((await select.count()) > 0) await select.selectOption('');
@@ -132,8 +146,7 @@ export class PlanPage {
 		await this.resetForm();
 		await this.showAll(override);
 		await this.fillPickers(form);
-		await this.page.getByTestId('plan-mode-single').click();
-		await this.page.getByTestId('plan-date').fill(form.date);
+		await this.pickDays([form.date]);
 		const before = await this.rows().count();
 		await this.submit(override);
 		await expect(this.rows()).toHaveCount(before + 1, { timeout: 10000 });
@@ -157,10 +170,7 @@ export class PlanPage {
 		await this.resetForm();
 		await this.showAll(false);
 		await this.fillPickers({ ...form, kind: 'clinical' });
-		await this.page.getByTestId('plan-mode-range').click();
-		await this.page.getByTestId('plan-range-start').fill(from);
-		await this.page.getByTestId('plan-range-end').fill(to);
-		for (const v of weekdaysOff) await this.page.getByTestId(`plan-weekday-${v}`).click();
+		await this.pickRange(from, to, weekdaysOff);
 		const before = await this.rows().count();
 		await expect(this.addButton()).toBeEnabled({ timeout: 10000 });
 		const label = (await this.addButton().textContent()) ?? '';
@@ -176,8 +186,61 @@ export class PlanPage {
 		return parseInt(text, 10) || 0;
 	}
 
-	dateInput(): Locator {
-		return this.page.getByTestId('plan-date');
+	// ---- the availability-aware date picker -------------------------------
+
+	private picker(): Locator {
+		return this.page.getByTestId('plan-dates');
+	}
+
+	/** Show the month holding `date` in the picker. */
+	async showMonth(date: string) {
+		const target = date.slice(0, 7);
+		const label = this.picker().getByTestId('picker-month');
+		for (let i = 0; i < 24; i++) {
+			const shown = (await label.getAttribute('data-month')) ?? '';
+			if (shown === target) return;
+			await this.picker()
+				.getByTestId(shown < target ? 'picker-next' : 'picker-prev')
+				.click();
+		}
+		throw new Error(`picker never reached ${target}`);
+	}
+
+	/** A day cell in the picker (switches to its month). */
+	async day(date: string): Promise<Locator> {
+		await this.showMonth(date);
+		return this.picker().getByTestId(`day-${date}`);
+	}
+
+	async clearDays() {
+		const clear = this.page.getByTestId('plan-dates-clear');
+		if (await clear.isVisible().catch(() => false)) await clear.click();
+		await expect(this.page.getByTestId('plan-dates-count')).toHaveText(/^0 day/);
+	}
+
+	/** Pick exactly these days (Individual days mode). */
+	async pickDays(dates: string[]) {
+		await this.clearDays();
+		await this.picker().getByTestId('picker-mode-individual').click();
+		for (const date of dates) await (await this.day(date)).click();
+	}
+
+	/** Pick a range (Range mode), Mon–Fri unless `weekdaysOff` (0=Sun … 6=Sat) drops some. */
+	async pickRange(from: string, to: string, weekdaysOff: number[] = []) {
+		await this.clearDays();
+		await this.picker().getByTestId('picker-mode-range').click();
+		for (const v of [0, 1, 2, 3, 4, 5, 6]) {
+			const chip = this.picker().getByTestId(`picker-weekday-${v}`);
+			const want = v >= 1 && v <= 5 && !weekdaysOff.includes(v);
+			if ((await chip.getAttribute('aria-pressed')) !== String(want)) await chip.click();
+		}
+		await (await this.day(from)).click();
+		await (await this.day(to)).click();
+	}
+
+	/** Whether a day is currently picked. */
+	async isPicked(date: string): Promise<boolean> {
+		return (await (await this.day(date)).getAttribute('data-selected')) === 'true';
 	}
 
 	addButton(): Locator {

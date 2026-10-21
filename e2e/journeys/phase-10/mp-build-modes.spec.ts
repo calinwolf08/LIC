@@ -42,14 +42,14 @@ test.describe('MP-5 planner build modes', { tag: ['@stage2', '@long'] }, () => {
 		// --- Gating: Add is disabled with an empty form ---
 		await expect(plan.addButton()).toBeDisabled();
 
-		// --- Past-date floor: the date field cannot go before today ---
+		// --- Past-date floor: no day before today can be picked ---
 		const today = new Date().toISOString().slice(0, 10);
-		await asAdmin.getByTestId('plan-mode-single').click();
-		const min = await plan.dateInput().getAttribute('min');
-		expect(min).toBeTruthy();
-		expect(new Date(`${min}T00:00:00Z`).getTime()).toBeGreaterThanOrEqual(
-			new Date(`${today}T00:00:00Z`).getTime()
-		);
+		const pickable = await asAdmin
+			.getByTestId('assignment-day-grid')
+			.locator('button:not([disabled])')
+			.evaluateAll((els) => els.map((e) => e.getAttribute('data-date') ?? ''));
+		expect(pickable.length).toBeGreaterThan(0);
+		expect(pickable.every((d) => d >= today)).toBe(true);
 
 		// --- Range mode: Mon–Fri of week 1 with Tue + Thu toggled off → Mon/Wed/Fri ---
 		const made = await plan.addRange(clinical, world.anchor, addDays(world.anchor, 4), [2, 4]);
