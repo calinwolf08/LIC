@@ -68,7 +68,7 @@ test.describe('MP-5 planner build modes', { tag: ['@stage2', '@long'] }, () => {
 		expect(await plan.rows().count()).toBe(6);
 
 		// --- Non-clinical: a free day hides the clinical pickers and renders distinctly ---
-		await asAdmin.getByTestId('plan-student').selectOption({ label: 'Student 1' });
+		await plan.pick('plan-student', 'Student 1');
 		await asAdmin.getByTestId('plan-kind').selectOption('free_day');
 		await expect(asAdmin.getByTestId('plan-clerkship')).toHaveCount(0);
 		await expect(asAdmin.getByTestId('plan-preceptor')).toHaveCount(0);

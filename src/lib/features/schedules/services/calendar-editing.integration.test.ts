@@ -272,6 +272,38 @@ async function initializeSchema(db: Kysely<DB>) {
 		.addColumn('updated_at', 'text', (col) => col.notNull())
 		.addColumn('session', 'text', (col) => col.notNull().defaultTo('full'))
 		.addColumn('credit_value', 'real', (col) => col.notNull().defaultTo(1))
+		.addColumn('site_id', 'text')
+		.execute();
+
+	await db.schema
+		.createTable('preceptor_teams')
+		.ifNotExists()
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('clerkship_id', 'text', (col) => col.notNull())
+		.addColumn('name', 'text')
+		.execute();
+
+	await db.schema
+		.createTable('preceptor_team_members')
+		.ifNotExists()
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('team_id', 'text', (col) => col.notNull())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('preceptor_sites')
+		.ifNotExists()
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
+		.addColumn('site_id', 'text', (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable('elective_preceptors')
+		.ifNotExists()
+		.addColumn('id', 'text', (col) => col.primaryKey())
+		.addColumn('elective_id', 'text', (col) => col.notNull())
+		.addColumn('preceptor_id', 'text', (col) => col.notNull())
 		.execute();
 }
 

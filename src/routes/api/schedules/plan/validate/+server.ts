@@ -28,7 +28,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 			byPreceptor: {},
 			counts: {},
 			pins: [],
-			pinStatus: {}
+			pinStatus: {},
+			committed: [],
+			blackoutDates: []
 		});
 	}
 

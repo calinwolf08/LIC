@@ -39,6 +39,8 @@ export interface DayState {
 	studentSessions: SessionSlot[];
 	/** The preceptor's available session that day (for prefilling the dialog), or null. */
 	availableSession: SessionSlot | null;
+	/** Every session the preceptor is available for that day (empty when none). */
+	availableSessions?: SessionSlot[];
 	/** The preceptor's default credit that day (for prefilling the dialog), or null. */
 	availableCredit: number | null;
 	/** Strictly before today — today itself is not past. */
@@ -101,6 +103,7 @@ export async function getDayStates(
 		credit_value: number;
 	}[] = [];
 	let maxStudents = 0;
+	let hasAvailableDays = false;
 	let bookingRows: { id: string | null; date: string; student_id: string; student_name: string }[] =
 		[];
 
@@ -113,6 +116,14 @@ export async function getDayStates(
 			.where('date', '<=', query.to);
 		if (query.siteId) availQuery = availQuery.where('site_id', '=', query.siteId);
 		availabilityRows = await availQuery.execute();
+		// Once a preceptor has any available day set up, a day without one is a day
+		// they're not available (the validator's rule, see preceptor-fit.ts).
+		hasAvailableDays = !!(await db
+			.selectFrom('preceptor_availability')
+			.select('id')
+			.where('preceptor_id', '=', query.preceptorId)
+			.where('is_available', '=', 1)
+			.executeTakeFirst());
 
 		const preceptor = await db
 			.selectFrom('preceptors')
@@ -175,10 +186,15 @@ export async function getDayStates(
 	const anyRowOn = new Set<string>();
 	const availSessionByDate = new Map<string, SessionSlot>();
 	const availCreditByDate = new Map<string, number>();
+	const availSessionsByDate = new Map<string, SessionSlot[]>();
 	for (const row of availabilityRows) {
 		anyRowOn.add(row.date);
 		if (row.is_available === 1) {
 			availableOn.add(row.date);
+			availSessionsByDate.set(row.date, [
+				...(availSessionsByDate.get(row.date) ?? []),
+				normalizeSession(row.session)
+			]);
 			if (!availSessionByDate.has(row.date)) {
 				availSessionByDate.set(row.date, normalizeSession(row.session));
 				availCreditByDate.set(
@@ -202,7 +218,7 @@ export async function getDayStates(
 		if (blackouts.has(date)) {
 			// Blackout wins over an explicit "available".
 			state = 'blackout';
-		} else if (!query.preceptorId || !anyRowOn.has(date)) {
+		} else if (!query.preceptorId || (!anyRowOn.has(date) && !hasAvailableDays)) {
 			state = 'unset';
 		} else {
 			state = availableOn.has(date) ? 'available' : 'unavailable';
@@ -220,6 +236,7 @@ export async function getDayStates(
 			studentBookedCredit: studentCreditByDate.get(date) ?? 0,
 			studentSessions: studentSessionsByDate.get(date) ?? [],
 			availableSession: availSessionByDate.get(date) ?? null,
+			availableSessions: availSessionsByDate.get(date) ?? [],
 			availableCredit: availCreditByDate.get(date) ?? null,
 			isPast: date < today
 		};

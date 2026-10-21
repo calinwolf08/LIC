@@ -37,6 +37,42 @@ const selection = {
 };
 
 describe('analyseSelection', () => {
+	it('asks "not available" when the day is available only for another session', () => {
+		const morningOnly = day('2030-03-05', { availableSessions: ['am'] });
+		expect(analyseSelection(['2030-03-05'], [morningOnly], {}, 'am').categories).toEqual([]);
+		for (const session of ['pm', 'full'] as const) {
+			expect(
+				analyseSelection(['2030-03-05'], [morningOnly], {}, session).categories.map(
+					(c) => c.category
+				)
+			).toEqual(['preceptor_unavailable']);
+		}
+		const bothHalves = day('2030-03-05', { availableSessions: ['am', 'pm'] });
+		expect(analyseSelection(['2030-03-05'], [bothHalves], {}, 'full').categories).toEqual([]);
+	});
+
+	it('asks about a preceptor who does not teach the clerkship', () => {
+		const r = analyseSelection(['2030-03-05'], [day('2030-03-05')], { notTeaching: true });
+		expect(r.categories.map((c) => c.category)).toEqual(['preceptor_not_teaching']);
+	});
+
+	it('asks "not available" once when the preceptor is at another site that day', () => {
+		const wrongSiteOnly = analyseSelection(['2030-03-05'], [day('2030-03-05')], {
+			wrongSite: true
+		});
+		expect(wrongSiteOnly.categories).toEqual([
+			{ category: 'preceptor_unavailable', dates: ['2030-03-05'], occupants: [] }
+		]);
+		const both = analyseSelection(
+			['2030-03-05', '2030-03-06'],
+			[day('2030-03-05'), day('2030-03-06', { state: 'unavailable' })],
+			{ wrongSite: true }
+		);
+		expect(both.categories).toEqual([
+			{ category: 'preceptor_unavailable', dates: ['2030-03-06'], occupants: [] }
+		]);
+	});
+
 	it('submits every day when nothing is flagged', () => {
 		const r = analyseSelection(
 			['2030-03-05', '2030-03-06'],
@@ -165,7 +201,7 @@ describe('buildSubmitPayload', () => {
 
 	it('carries the accepted codes', () => {
 		const payload = buildSubmitPayload(selection, analysis, ['preceptor_unavailable']);
-		expect(payload.override_codes).toEqual(['preceptor_unavailable']);
+		expect(payload.override_codes).toEqual(['preceptor_unavailable', 'preceptor_wrong_site']);
 	});
 
 	it('drops accepted codes that were never flagged', () => {
@@ -173,7 +209,7 @@ describe('buildSubmitPayload', () => {
 			'preceptor_unavailable',
 			'blackout_date'
 		]);
-		expect(payload.override_codes).toEqual(['preceptor_unavailable']);
+		expect(payload.override_codes).toEqual(['preceptor_unavailable', 'preceptor_wrong_site']);
 	});
 
 	it('de-duplicates accepted codes', () => {
@@ -181,7 +217,7 @@ describe('buildSubmitPayload', () => {
 			'preceptor_unavailable',
 			'preceptor_unavailable'
 		]);
-		expect(payload.override_codes).toEqual(['preceptor_unavailable']);
+		expect(payload.override_codes).toEqual(['preceptor_unavailable', 'preceptor_wrong_site']);
 	});
 
 	it('includes the note only when something was actually overridden', () => {

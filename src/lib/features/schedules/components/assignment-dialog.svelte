@@ -459,7 +459,9 @@
 		outsideCorePreceptor: serverSoftCodes.includes('outside_core_preceptor'),
 		preferredDayAvailable: serverSoftCodes.includes('preferred_day_available'),
 		mutualExclusion: serverSoftCodes.includes('mutual_exclusion'),
-		blockWeekConflict: serverSoftCodes.includes('block_week_conflict')
+		blockWeekConflict: serverSoftCodes.includes('block_week_conflict'),
+		notTeaching: serverSoftCodes.includes('preceptor_not_teaching'),
+		wrongSite: serverSoftCodes.includes('preceptor_wrong_site')
 	});
 
 	let liveAnalysis = $derived(

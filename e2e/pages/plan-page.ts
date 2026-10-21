@@ -3,6 +3,8 @@
  *
  * The planner stages draft "pins", shows the conflicts they would produce, lets the
  * coordinator accept soft overrides, and commits the committable ones in one action.
+ * Its pickers only offer choices that work; a conflicting pin is staged with
+ * `{ override: true }` ("Show all options" + the override confirmation).
  * This wraps those interactions for the MP-4 mega-journey.
  */
 
@@ -26,6 +28,65 @@ export class PlanPage {
 		await expect(this.page.getByTestId('plan-workspace')).toBeVisible({ timeout: 15000 });
 	}
 
+	/**
+	 * Pick an option by entity name. Options can carry a note after the name
+	 * ("Dr. FM (3 of 5 days)", "Dr. FM — Not available"), so match the name prefix.
+	 */
+	async pick(testId: string, name: string) {
+		const select = this.page.getByTestId(testId);
+		await expect
+			.poll(
+				() =>
+					select.evaluate(
+						(el, n) =>
+							[...(el as HTMLSelectElement).options].find(
+								(o) => o.text.trim() === n || o.text.trim().startsWith(`${n} `)
+							)?.value ?? null,
+						name
+					),
+				{ message: `${testId} offers ${name}`, timeout: 10000 }
+			)
+			.not.toBeNull();
+		const value = await select.evaluate(
+			(el, n) =>
+				[...(el as HTMLSelectElement).options].find(
+					(o) => o.text.trim() === n || o.text.trim().startsWith(`${n} `)
+				)!.value,
+			name
+		);
+		await select.selectOption(value);
+	}
+
+	/** The names a picker currently offers (option text up to any note). */
+	async offered(testId: string): Promise<string[]> {
+		return this.page
+			.getByTestId(testId)
+			.evaluate((el) =>
+				[...(el as HTMLSelectElement).options]
+					.filter((o) => o.value)
+					.map((o) => o.text.trim().split(/ — | \(/)[0])
+			);
+	}
+
+	/** Turn "Show all options" on or off. */
+	async showAll(on: boolean) {
+		const box = this.page.getByTestId('plan-show-all');
+		if ((await box.isChecked()) !== on) await box.setChecked(on);
+	}
+
+	/**
+	 * Start from a blank form: picks filter each other, so a leftover preceptor or
+	 * date from the previous pin could hide the next pin's student or clerkship.
+	 */
+	private async resetForm() {
+		await this.page.getByTestId('plan-mode-single').click();
+		await this.page.getByTestId('plan-date').fill('');
+		for (const id of ['plan-student', 'plan-clerkship', 'plan-preceptor', 'plan-site']) {
+			const select = this.page.getByTestId(id);
+			if ((await select.count()) > 0) await select.selectOption('');
+		}
+	}
+
 	/** Fill the student/type/clinical pickers shared by single and range adds. */
 	private async fillPickers(form: {
 		student: string;
@@ -36,29 +97,51 @@ export class PlanPage {
 		session?: 'full' | 'am' | 'pm';
 	}) {
 		const kind = form.kind ?? 'clinical';
-		await this.page.getByTestId('plan-student').selectOption({ label: form.student });
 		await this.page.getByTestId('plan-kind').selectOption(kind);
+		await this.pick('plan-student', form.student);
 		if (kind === 'clinical') {
-			if (form.clerkship)
-				await this.page.getByTestId('plan-clerkship').selectOption({ label: form.clerkship });
-			await this.page.getByTestId('plan-preceptor').selectOption({ label: form.preceptor! });
-			await this.page.getByTestId('plan-site').selectOption({ label: form.site! });
+			if (form.clerkship) await this.pick('plan-clerkship', form.clerkship);
+			await this.pick('plan-preceptor', form.preceptor!);
+			await this.pick('plan-site', form.site!);
 			await this.page.getByTestId('plan-session').selectOption(form.session ?? 'full');
 		}
 	}
 
+	/**
+	 * Click Add. With `override`, the choice conflicts: "Show all options" must be on,
+	 * and the confirmation is accepted. Without it, the day must be valid as picked.
+	 */
+	private async submit(override: boolean) {
+		const add = this.addButton();
+		await expect(add).toBeEnabled({ timeout: 10000 });
+		if (override) {
+			await expect(add).toHaveText(/override/i);
+			await add.click();
+			await expect(this.page.getByTestId('plan-override-confirm')).toBeVisible();
+			await this.page.getByTestId('plan-override-accept').click();
+			await expect(this.page.getByTestId('plan-override-confirm')).toBeHidden();
+		} else {
+			await expect(add).not.toHaveText(/override/i);
+			await add.click();
+		}
+	}
+
 	/** Stage one pin via the add form (single-date mode). */
-	async addPin(form: PinForm) {
+	async addPin(form: PinForm, opts: { override?: boolean } = {}) {
+		const override = opts.override ?? false;
+		await this.resetForm();
+		await this.showAll(override);
 		await this.fillPickers(form);
 		await this.page.getByTestId('plan-mode-single').click();
 		await this.page.getByTestId('plan-date').fill(form.date);
 		const before = await this.rows().count();
-		await this.page.getByTestId('plan-add').click();
+		await this.submit(override);
 		await expect(this.rows()).toHaveCount(before + 1, { timeout: 10000 });
+		await this.showAll(false);
 	}
 
 	/** Stage a range of pins (range mode). `weekdaysOff` toggles weekday chips off
-	 * (0=Sun … 6=Sat). Returns how many pins were created. */
+	 * (0=Sun … 6=Sat). Only the days that work are staged; returns how many were. */
 	async addRange(
 		form: {
 			student: string;
@@ -71,14 +154,18 @@ export class PlanPage {
 		to: string,
 		weekdaysOff: number[] = []
 	): Promise<number> {
+		await this.resetForm();
+		await this.showAll(false);
 		await this.fillPickers({ ...form, kind: 'clinical' });
 		await this.page.getByTestId('plan-mode-range').click();
 		await this.page.getByTestId('plan-range-start').fill(from);
 		await this.page.getByTestId('plan-range-end').fill(to);
 		for (const v of weekdaysOff) await this.page.getByTestId(`plan-weekday-${v}`).click();
-		const want = await this.daysSelected();
 		const before = await this.rows().count();
-		await this.page.getByTestId('plan-add').click();
+		await expect(this.addButton()).toBeEnabled({ timeout: 10000 });
+		const label = (await this.addButton().textContent()) ?? '';
+		const want = parseInt(label.match(/Add (\d+) days/)?.[1] ?? '1', 10);
+		await this.submit(false);
 		await expect(this.rows()).toHaveCount(before + want, { timeout: 10000 });
 		return want;
 	}
@@ -124,6 +211,19 @@ export class PlanPage {
 
 	async resetOverrides(pinId: string) {
 		await this.page.getByTestId(`plan-pin-reset-${pinId}`).click();
+	}
+
+	/** The "Overridden" badge on a pin added despite a conflict. */
+	overridden(pinId: string): Locator {
+		return this.page.getByTestId(`plan-pin-overridden-${pinId}`);
+	}
+
+	calendar(): Locator {
+		return this.page.getByTestId('plan-calendar');
+	}
+
+	calendarPin(pinId: string): Locator {
+		return this.page.getByTestId(`plan-cal-pin-${pinId}`);
 	}
 
 	async removePin(pinId: string) {

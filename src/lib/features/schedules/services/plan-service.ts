@@ -355,6 +355,9 @@ export interface PinStatus {
 export interface PlanEvaluation extends ScheduleValidationResult {
 	/** The pins the evaluation ran over, in draft order. */
 	pins: PlanPin[];
+	/** Saved assignments inside the schedule's dates, for the planner calendar. */
+	committed: ValidationAssignment[];
+	blackoutDates: string[];
 	/** Conflict summary per pin id. */
 	pinStatus: Record<string, PinStatus>;
 }
@@ -374,7 +377,8 @@ export async function evaluatePlan(
 	const inputs = await loadValidationInputs(db, scheduleId, {
 		preceptorIds: pins.map((p) => p.preceptor_id).filter((p): p is string => p !== null),
 		clerkshipIds: pins.map((p) => p.clerkship_id).filter((c): c is string => c !== null),
-		studentIds: pins.map((p) => p.student_id)
+		studentIds: pins.map((p) => p.student_id),
+		electiveIds: pins.map((p) => p.elective_id).filter((e): e is string => e !== null)
 	});
 
 	const pinAssignments = pins.map(pinToValidationAssignment);
@@ -404,7 +408,17 @@ export async function evaluatePlan(
 		};
 	}
 
-	return { ...result, pins, pinStatus };
+	const { scheduleStart, scheduleEnd } = inputs.ctx;
+	const committed = inputs.assignments.filter(
+		(a) => a.date >= scheduleStart && a.date <= scheduleEnd
+	);
+	return {
+		...result,
+		pins,
+		pinStatus,
+		committed,
+		blackoutDates: [...inputs.ctx.blackoutDates].sort()
+	};
 }
 
 /** Outcome of committing one pin. */

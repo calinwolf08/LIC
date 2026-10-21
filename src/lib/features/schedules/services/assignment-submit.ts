@@ -8,7 +8,11 @@
 
 import type { OverrideSideEffect } from './assignment-service';
 import type { DayState } from '$lib/features/scheduling/services/assignment-day-state';
-import { sessionClashes, type SessionSlot } from '$lib/features/scheduling/services/session-slots';
+import {
+	sessionClashes,
+	sessionCovered,
+	type SessionSlot
+} from '$lib/features/scheduling/services/session-slots';
 
 /** Soft categories the dialog can raise a conversation about. */
 export type OverrideCategory =
@@ -16,6 +20,7 @@ export type OverrideCategory =
 	| 'mutual_exclusion'
 	| 'block_week_conflict'
 	| 'preceptor_unavailable'
+	| 'preceptor_not_teaching'
 	| 'preceptor_capacity'
 	| 'blackout_date'
 	| 'not_onboarded'
@@ -53,6 +58,10 @@ export interface SelectionWideFlags {
 	mutualExclusion?: boolean;
 	/** The selection lands in a week consumed by an inpatient block (L3). */
 	blockWeekConflict?: boolean;
+	/** The preceptor isn't on a team for the clerkship (or in the elective's pool). */
+	notTeaching?: boolean;
+	/** The preceptor is available on the probed day, but only at another site. */
+	wrongSite?: boolean;
 }
 
 export interface FlagAnalysis {
@@ -69,6 +78,7 @@ const CATEGORY_ORDER: OverrideCategory[] = [
 	'mutual_exclusion',
 	'block_week_conflict',
 	'preceptor_unavailable',
+	'preceptor_not_teaching',
 	'preceptor_capacity',
 	'blackout_date',
 	'not_onboarded',
@@ -121,7 +131,15 @@ export function analyseSelection(
 			bucket('session_clash').dates.push(date);
 		}
 
-		if (day.state === 'unavailable') bucket('preceptor_unavailable').dates.push(date);
+		// Available that day, but not for this session (e.g. a morning-only day and
+		// an afternoon assignment) is still "not available" — the validator agrees.
+		const sessionUncovered =
+			day.state === 'available' &&
+			!!day.availableSessions?.length &&
+			!sessionCovered(day.availableSessions, session);
+		if (day.state === 'unavailable' || sessionUncovered) {
+			bucket('preceptor_unavailable').dates.push(date);
+		}
 		if (day.state === 'blackout') bucket('blackout_date').dates.push(date);
 		if (day.isPast) bucket('past_date').dates.push(date);
 		if (day.preceptorAtCapacity) {
@@ -139,6 +157,12 @@ export function analyseSelection(
 	if (submittableDates.length > 0) {
 		if (selectionWide.mutualExclusion) bucket('mutual_exclusion');
 		if (selectionWide.blockWeekConflict) bucket('block_week_conflict');
+		if (selectionWide.notTeaching) bucket('preceptor_not_teaching');
+		// "Not at this site that day" is the same question as "not available": the
+		// preceptor isn't there. Ask it once, for the probed day if no day is flagged.
+		if (selectionWide.wrongSite && !buckets.has('preceptor_unavailable')) {
+			bucket('preceptor_unavailable').dates.push(submittableDates[0]);
+		}
 		if (selectionWide.notOnboarded) bucket('not_onboarded');
 		if (selectionWide.outsideCorePreceptor) bucket('outside_core_preceptor');
 		if (selectionWide.preferredDayAvailable) bucket('preferred_day_available');
@@ -176,7 +200,7 @@ export interface SubmitPayload {
 	elective_id?: string | null;
 	dates: string[];
 	locked: boolean;
-	override_codes: OverrideCategory[];
+	override_codes: string[];
 	override_note?: string;
 	side_effects?: OverrideSideEffect[];
 	/** Days of requirement credit each created day is worth; omitted when 1.0 (M1/F4). */
@@ -198,7 +222,9 @@ export function buildSubmitPayload(
 	sideEffects: OverrideSideEffect[] = []
 ): SubmitPayload {
 	const flagged = new Set(analysis.categories.map((c) => c.category));
-	const codes = [...new Set(accepted)].filter((c) => flagged.has(c));
+	const codes: string[] = [...new Set(accepted)].filter((c) => flagged.has(c));
+	// Accepting "not available" covers "not at this site that day" too (one question).
+	if (codes.includes('preceptor_unavailable')) codes.push('preceptor_wrong_site');
 	const kind = selection.kind ?? 'clinical';
 	const isClinical = kind === 'clinical';
 
@@ -243,7 +269,11 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',
-		describe: 'The preceptor is marked unavailable on these days.'
+		describe: 'The preceptor is not available (or not at this site) on these days.'
+	},
+	preceptor_not_teaching: {
+		title: 'Preceptor doesn’t teach this clerkship',
+		describe: 'This preceptor is not on a team for the clerkship (or in the elective’s pool).'
 	},
 	preceptor_capacity: {
 		title: 'Preceptor already has a student',

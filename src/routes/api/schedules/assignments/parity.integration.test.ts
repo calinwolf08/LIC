@@ -20,7 +20,7 @@
  * or validator drift breaks the test.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { createTestDatabaseWithMigrations, cleanupTestDatabase } from '$lib/db/test-utils';
@@ -102,6 +102,10 @@ describe('one-validator parity across every mutation path', () => {
 	let db: Kysely<DB>;
 
 	beforeEach(async () => {
+		// The fixture's dates are fixed in 2026; pin "today" before them so the
+		// create-time past_date code never depends on when the suite runs.
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date('2026-02-01T12:00:00Z'));
 		db = await createTestDatabaseWithMigrations();
 
 		await db
@@ -228,6 +232,7 @@ describe('one-validator parity across every mutation path', () => {
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		await cleanupTestDatabase(db);
 	});
 
