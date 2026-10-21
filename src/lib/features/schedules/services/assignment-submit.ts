@@ -8,7 +8,11 @@
 
 import type { OverrideSideEffect } from './assignment-service';
 import type { DayState } from '$lib/features/scheduling/services/assignment-day-state';
-import { sessionClashes, type SessionSlot } from '$lib/features/scheduling/services/session-slots';
+import {
+	sessionClashes,
+	sessionCovered,
+	type SessionSlot
+} from '$lib/features/scheduling/services/session-slots';
 
 /** Soft categories the dialog can raise a conversation about. */
 export type OverrideCategory =
@@ -127,7 +131,15 @@ export function analyseSelection(
 			bucket('session_clash').dates.push(date);
 		}
 
-		if (day.state === 'unavailable') bucket('preceptor_unavailable').dates.push(date);
+		// Available that day, but not for this session (e.g. a morning-only day and
+		// an afternoon assignment) is still "not available" — the validator agrees.
+		const sessionUncovered =
+			day.state === 'available' &&
+			!!day.availableSessions?.length &&
+			!sessionCovered(day.availableSessions, session);
+		if (day.state === 'unavailable' || sessionUncovered) {
+			bucket('preceptor_unavailable').dates.push(date);
+		}
 		if (day.state === 'blackout') bucket('blackout_date').dates.push(date);
 		if (day.isPast) bucket('past_date').dates.push(date);
 		if (day.preceptorAtCapacity) {

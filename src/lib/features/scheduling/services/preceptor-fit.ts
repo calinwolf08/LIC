@@ -20,7 +20,12 @@
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import type { Violation } from './assignment-validation';
-import { normalizeSession, sessionsOverlap, type SessionSlot } from './session-slots';
+import {
+	normalizeSession,
+	sessionCovered,
+	sessionsOverlap,
+	type SessionSlot
+} from './session-slots';
 
 export interface AvailabilitySlot {
 	session: SessionSlot;
@@ -135,15 +140,6 @@ export async function loadPreceptorFitData(
 	return data;
 }
 
-/** Do the available slots cover the requested session? A full day needs AM and PM. */
-function covers(slots: AvailabilitySlot[], session: SessionSlot): boolean {
-	if (slots.some((s) => s.session === 'full')) return true;
-	if (session === 'full') {
-		return slots.some((s) => s.session === 'am') && slots.some((s) => s.session === 'pm');
-	}
-	return slots.some((s) => s.session === session);
-}
-
 /** The violations a preceptor/day/site/clerkship combination produces. */
 export function preceptorFitViolations(
 	data: PreceptorFitData,
@@ -157,7 +153,14 @@ export function preceptorFitViolations(
 	const slots = date ? (data.available.get(preceptorId)?.get(date) ?? []) : [];
 	const explicitlyOff = date ? (data.unavailable.get(preceptorId)?.has(date) ?? false) : false;
 	const restricted = data.withAvailability.has(preceptorId);
-	const availableHere = !date || (!explicitlyOff && (!restricted || covers(slots, session)));
+	const availableHere =
+		!date ||
+		(!explicitlyOff &&
+			(!restricted ||
+				sessionCovered(
+					slots.map((s) => s.session),
+					session
+				)));
 
 	if (!availableHere) {
 		const message =

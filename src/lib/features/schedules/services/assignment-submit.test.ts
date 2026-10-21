@@ -37,6 +37,20 @@ const selection = {
 };
 
 describe('analyseSelection', () => {
+	it('asks "not available" when the day is available only for another session', () => {
+		const morningOnly = day('2030-03-05', { availableSessions: ['am'] });
+		expect(analyseSelection(['2030-03-05'], [morningOnly], {}, 'am').categories).toEqual([]);
+		for (const session of ['pm', 'full'] as const) {
+			expect(
+				analyseSelection(['2030-03-05'], [morningOnly], {}, session).categories.map(
+					(c) => c.category
+				)
+			).toEqual(['preceptor_unavailable']);
+		}
+		const bothHalves = day('2030-03-05', { availableSessions: ['am', 'pm'] });
+		expect(analyseSelection(['2030-03-05'], [bothHalves], {}, 'full').categories).toEqual([]);
+	});
+
 	it('asks about a preceptor who does not teach the clerkship', () => {
 		const r = analyseSelection(['2030-03-05'], [day('2030-03-05')], { notTeaching: true });
 		expect(r.categories.map((c) => c.category)).toEqual(['preceptor_not_teaching']);

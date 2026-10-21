@@ -45,3 +45,13 @@ export function sessionsOverlap(a: SessionSlot, b: SessionSlot): boolean {
 export function sessionClashes(existing: SessionSlot[], candidate: SessionSlot): boolean {
 	return existing.some((s) => sessionsOverlap(s, candidate));
 }
+
+/**
+ * Do these availability slots cover the session? A full-day slot covers anything;
+ * a full day needs a full slot or both an AM and a PM slot.
+ */
+export function sessionCovered(slots: SessionSlot[], session: SessionSlot): boolean {
+	if (slots.includes('full')) return true;
+	if (session === 'full') return slots.includes('am') && slots.includes('pm');
+	return slots.includes(session);
+}
