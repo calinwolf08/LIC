@@ -232,4 +232,33 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 			.execute();
 		expect(saved).toHaveLength(7);
 	});
+
+	// Regression: a clerkship picked by click (the select keeps focus) was cleared
+	// when choosing a preceptor narrowed the clerkship list (Svelte select binding).
+	test('a pick made with focus survives the other pickers narrowing its list', async ({
+		asAdmin,
+		sandbox,
+		db
+	}) => {
+		test.setTimeout(120000);
+		const world = await buildWorld(asAdmin, db as Kysely<DB>, filteringWorld());
+		sandbox.register(world.sandbox);
+		const fm = world.labels.clerkship['Family Medicine'];
+		const plan = new PlanPage(asAdmin);
+		const page = asAdmin;
+
+		await plan.goto();
+		await plan.pickByKeyboard('plan-student', 'Student 1');
+		await plan.pickByKeyboard('plan-clerkship', fm);
+		await expect.poll(() => plan.offered('plan-preceptor')).toEqual(['Dr. FM', 'Dr. Half']);
+		// Choosing the preceptor drops Internal Medicine from the clerkship list…
+		await plan.pickByKeyboard('plan-preceptor', 'Dr. FM');
+		await expect.poll(() => plan.offered('plan-clerkship')).toEqual([fm]);
+		// …and Family Medicine stays picked, in the page and in the select.
+		await expect(page.getByTestId('plan-clerkship')).toHaveValue(
+			world.ids.clerkship['Family Medicine']
+		);
+		await expect(page.getByTestId('plan-student')).toHaveValue(world.ids.student['Student 1']);
+		await expect(page.getByTestId('plan-site')).toHaveValue(world.ids.site['Clinic']);
+	});
 });

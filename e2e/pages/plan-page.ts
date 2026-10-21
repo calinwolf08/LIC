@@ -57,6 +57,21 @@ export class PlanPage {
 		await select.selectOption(value);
 	}
 
+	/**
+	 * Pick the way a person does: focus the select and move to the option with
+	 * the keyboard, so the select keeps focus (selectOption doesn't focus it).
+	 */
+	async pickByKeyboard(testId: string, name: string) {
+		const select = this.page.getByTestId(testId);
+		await select.focus();
+		const current = () =>
+			select.evaluate((el) => (el as HTMLSelectElement).selectedOptions[0]?.text.trim() ?? '');
+		for (let i = 0; i < 20 && !(await current()).startsWith(name); i++) {
+			await this.page.keyboard.press('ArrowDown');
+		}
+		expect(await current(), `${testId} reached ${name}`).toMatch(new RegExp(`^${name}`));
+	}
+
 	/** The names a picker currently offers (option text up to any note). */
 	async offered(testId: string): Promise<string[]> {
 		return this.page

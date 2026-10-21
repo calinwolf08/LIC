@@ -65,6 +65,11 @@
 	let rangeStart = $state('');
 	let rangeEnd = $state('');
 	let weekdays = $state<number[]>([1, 2, 3, 4, 5]);
+	// The pickers whose options change with the selection (student, clerkship,
+	// preceptor, site) use value + onchange, not bind:value. Svelte 5's select
+	// binding skips recording a change made while the select has focus, then
+	// re-selects that stale value when the option list changes, which visibly
+	// cleared a clerkship picked by click once a preceptor was chosen.
 	/** Off: pickers offer only choices that work. On: everything, with the reasons. */
 	let showAll = $state(false);
 
@@ -498,7 +503,8 @@
 					<select
 						id="plan-student"
 						class="w-full rounded-md border bg-background p-2 text-sm"
-						bind:value={studentId}
+						value={studentId}
+						onchange={(e) => (studentId = e.currentTarget.value)}
 						data-testid="plan-student"
 					>
 						<option value="">Select a student…</option>
@@ -529,7 +535,8 @@
 						<select
 							id="plan-clerkship"
 							class="w-full rounded-md border bg-background p-2 text-sm"
-							bind:value={clerkshipId}
+							value={clerkshipId}
+							onchange={(e) => (clerkshipId = e.currentTarget.value)}
 							data-testid="plan-clerkship"
 						>
 							<option value="">Select a clerkship…</option>
@@ -545,7 +552,8 @@
 						<select
 							id="plan-preceptor"
 							class="w-full rounded-md border bg-background p-2 text-sm"
-							bind:value={preceptorId}
+							value={preceptorId}
+							onchange={(e) => (preceptorId = e.currentTarget.value)}
 							data-testid="plan-preceptor"
 						>
 							<option value="">Select a preceptor…</option>
@@ -561,7 +569,8 @@
 						<select
 							id="plan-site"
 							class="w-full rounded-md border bg-background p-2 text-sm"
-							bind:value={siteId}
+							value={siteId}
+							onchange={(e) => (siteId = e.currentTarget.value)}
 							data-testid="plan-site"
 						>
 							<option value="">Select a site…</option>
