@@ -31,6 +31,8 @@ const SAFETY = [
 	'mutual_exclusion',
 	'preceptor_capacity',
 	'preceptor_unavailable',
+	'preceptor_wrong_site',
+	'preceptor_not_teaching',
 	'not_onboarded',
 	'outside_core_preceptor',
 	'preferred_day_available',

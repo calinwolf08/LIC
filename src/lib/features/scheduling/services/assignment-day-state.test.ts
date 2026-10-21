@@ -167,6 +167,14 @@ describe('getDayStates', () => {
 		const days = await getDayStates(db, SCHEDULE, query, TODAY);
 		expect(on(days, '2030-03-06').state).toBe('available');
 		expect(on(days, '2030-03-07').state).toBe('unavailable');
+		// With available days set up, a day without one is a day they're not available.
+		expect(on(days, '2030-03-08').state).toBe('unavailable');
+	});
+
+	it('leaves days unset for a preceptor with no available days set up', async () => {
+		await setAvailability(db, '2030-03-07', 0);
+		const days = await getDayStates(db, SCHEDULE, query, TODAY);
+		expect(on(days, '2030-03-07').state).toBe('unavailable');
 		expect(on(days, '2030-03-08').state).toBe('unset');
 	});
 
