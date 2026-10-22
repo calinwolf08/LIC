@@ -37,7 +37,7 @@ test.describe('CF-PLAN-UI manual planner workspace', { tag: ['@stage2', '@long']
 
 		// --- A clean pin: one row, no conflicts, status OK ---
 		await plan.addPin({ ...pin, date: world.anchor });
-		await expect(plan.rows()).toHaveCount(1);
+		await expect(plan.planned()).toHaveText('Planned (1)');
 		await expect(plan.conflictCount()).toHaveText('0');
 
 		// --- The same student-date again is filtered out: the student is booked ---
@@ -48,7 +48,7 @@ test.describe('CF-PLAN-UI manual planner workspace', { tag: ['@stage2', '@long']
 
 		// --- Staged anyway with an override: the clash lights up the conflict panel ---
 		await plan.addPin({ ...pin, date: world.anchor }, { override: true });
-		await expect(plan.rows()).toHaveCount(2);
+		await expect(plan.planned()).toHaveText('Planned (2)');
 		await expect(plan.conflictCount()).not.toHaveText('0');
 		await expect(plan.conflictRow('session_clash')).toBeVisible();
 

@@ -152,7 +152,7 @@ test.describe('MP-4 plan and commit', { tag: ['@stage2', '@long'] }, () => {
 		);
 
 		// The skipped pin remains in the draft.
-		await expect(plan.rows()).toHaveCount(1);
+		await expect(plan.planned()).toHaveText('Planned (1)');
 
 		// --- The committed schedule reflects exactly what committed ---
 		const v = await readValidation(asAdmin);

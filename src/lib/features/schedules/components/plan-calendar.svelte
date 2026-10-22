@@ -6,10 +6,12 @@
 		preceptorId: string | null;
 		date: string;
 		session: string;
-		/** e.g. "Ana Ruiz · Family Medicine". */
-		label: string;
-		/** Secondary line, e.g. preceptor name or "Free day". */
-		detail: string;
+		student: string;
+		/** The clerkship, or "Free day" / "Exam" for a non-clinical day. */
+		clerkship: string;
+		/** Empty for a non-clinical day. */
+		preceptor: string;
+		site: string;
 		/** Unresolved problems; non-empty draws the item in red. */
 		conflicts: string[];
 		/** A draft added despite its conflicts (accepted overrides). */
@@ -22,42 +24,39 @@
 	 * The planner's calendar (planner feedback): one month at a time, showing saved
 	 * assignments and draft pins together so the coordinator can see the plan
 	 * taking shape. Drafts are dashed; anything with a conflict is red, with the
-	 * reasons on hover. Days that work for the current picker selection are tinted
-	 * green. Clicking a draft selects it in the planner list; clicking a day picks it
-	 * as the date.
+	 * reasons on hover. Each item shows its student, clerkship and preceptor; a
+	 * draft has an × to drop it from the plan. Days that work for the current picker
+	 * selection are tinted green. Clicking an item selects it; clicking a day number
+	 * picks that day as the date. Filtering is the caller's (it passes `items`).
 	 */
 
 	interface Props {
 		start: string;
 		end: string;
 		items: PlanCalendarItem[];
-		students: { id: string; name: string }[];
-		preceptors: { id: string; name: string }[];
 		openDates?: Set<string>;
 		blackoutDates?: Set<string>;
 		selectedId?: string | null;
 		onItemClick?: (item: PlanCalendarItem) => void;
 		onDayClick?: (date: string) => void;
+		/** Drop a draft from the plan (the × on a draft item). */
+		onRemove?: (item: PlanCalendarItem) => void;
 	}
 
 	let {
 		start,
 		end,
 		items,
-		students,
-		preceptors,
 		openDates = new Set(),
 		blackoutDates = new Set(),
 		selectedId = null,
 		onItemClick,
-		onDayClick
+		onDayClick,
+		onRemove
 	}: Props = $props();
 
 	const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-	const FIT = 3;
-
-	let studentFilter = $state('');
-	let preceptorFilter = $state('');
+	const FIT = 4;
 
 	const monthKey = (date: string) => date.slice(0, 7);
 
@@ -100,13 +99,7 @@
 			: ''
 	);
 
-	const visible = $derived(
-		items.filter(
-			(i) =>
-				(!studentFilter || i.studentId === studentFilter) &&
-				(!preceptorFilter || i.preceptorId === preceptorFilter)
-		)
-	);
+	const visible = $derived(items);
 
 	const byDate = $derived.by(() => {
 		const map = new Map<string, PlanCalendarItem[]>();
@@ -155,7 +148,7 @@
 	}
 
 	function itemClasses(item: PlanCalendarItem): string {
-		const out = ['block w-full truncate rounded px-1 py-0.5 text-left text-xs'];
+		const out = ['relative rounded px-1 py-0.5 text-left text-xs leading-tight'];
 		if (item.kind === 'draft') out.push('border border-dashed');
 		else out.push('border border-transparent bg-muted');
 		if (item.conflicts.length > 0) {
@@ -170,7 +163,8 @@
 	}
 
 	function itemTitle(item: PlanCalendarItem): string {
-		const head = `${item.kind === 'draft' ? 'Draft' : 'Saved'}: ${item.label} — ${item.detail}`;
+		const who = [item.student, item.clerkship, item.preceptor, item.site].filter(Boolean);
+		const head = `${item.kind === 'draft' ? 'Draft' : 'Saved'}: ${who.join(' · ')}`;
 		const session = item.session !== 'full' ? ` (${item.session.toUpperCase()})` : '';
 		const problems = item.conflicts.length ? `\n${item.conflicts.join('\n')}` : '';
 		const overridden = item.overridden ? '\nAdded with an override' : '';
@@ -200,30 +194,6 @@
 				data-testid="plan-cal-next"
 				aria-label="Next month">›</button
 			>
-		</div>
-		<div class="flex flex-wrap gap-2">
-			<select
-				class="rounded-md border bg-background p-1 text-sm"
-				bind:value={studentFilter}
-				aria-label="Filter by student"
-				data-testid="plan-cal-student"
-			>
-				<option value="">All students</option>
-				{#each students as s (s.id)}
-					<option value={s.id}>{s.name}</option>
-				{/each}
-			</select>
-			<select
-				class="rounded-md border bg-background p-1 text-sm"
-				bind:value={preceptorFilter}
-				aria-label="Filter by preceptor"
-				data-testid="plan-cal-preceptor"
-			>
-				<option value="">All preceptors</option>
-				{#each preceptors as p (p.id)}
-					<option value={p.id}>{p.name}</option>
-				{/each}
-			</select>
 		</div>
 	</div>
 
@@ -280,23 +250,50 @@
 									>
 									<div class="space-y-0.5">
 										{#each dayItems.slice(0, FIT) as item (item.id)}
-											<button
-												type="button"
+											<div
 												class={itemClasses(item)}
 												title={itemTitle(item)}
-												onclick={() => onItemClick?.(item)}
 												data-testid="plan-cal-{item.kind === 'draft' ? 'pin' : 'saved'}-{item.id}"
 												data-conflict={item.conflicts.length > 0 ? 'true' : undefined}
+												data-selected={item.id === selectedId ? 'true' : undefined}
 											>
-												{item.label}
-											</button>
+												<button
+													type="button"
+													class="block w-full pr-3 text-left"
+													onclick={() => onItemClick?.(item)}
+													data-testid="plan-cal-open-{item.id}"
+												>
+													<span class="block truncate font-medium" data-testid="plan-cal-student"
+														>{item.student}{item.session !== 'full'
+															? ` (${item.session.toUpperCase()})`
+															: ''}</span
+													>
+													<span class="block truncate" data-testid="plan-cal-clerkship"
+														>{item.clerkship}</span
+													>
+													{#if item.preceptor}
+														<span class="block truncate opacity-80" data-testid="plan-cal-preceptor"
+															>{item.preceptor}</span
+														>
+													{/if}
+												</button>
+												{#if item.kind === 'draft' && onRemove}
+													<button
+														type="button"
+														class="absolute top-0 right-0.5 rounded px-0.5 text-sm leading-none opacity-70 hover:bg-background hover:opacity-100"
+														aria-label="Remove {item.student} · {item.clerkship} on {item.date} from the plan"
+														onclick={() => onRemove(item)}
+														data-testid="plan-cal-remove-{item.id}">×</button
+													>
+												{/if}
+											</div>
 										{/each}
 										{#if dayItems.length > FIT}
 											<span
 												class="block text-xs text-muted-foreground"
 												title={dayItems
 													.slice(FIT)
-													.map((i) => i.label)
+													.map((i) => `${i.student} · ${i.clerkship}`)
 													.join('\n')}
 												data-testid="plan-cal-more-{date}">+{dayItems.length - FIT} more</span
 											>

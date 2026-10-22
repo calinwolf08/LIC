@@ -221,8 +221,8 @@ test.describe('Phase 6 calendar workspace', { tag: ['@stage1'] }, () => {
 		await expect(asAdmin.getByRole('button', { name: 'Range', exact: true })).toHaveClass(
 			/bg-primary/
 		);
-		const selected = await dialog.selectedDates();
-		expect(selected).toContain(lo);
-		expect(selected).toContain(hi);
+		// The span may cross a month boundary: check each end in its own month.
+		expect(await dialog.isSelected(lo), `${lo} selected`).toBe(true);
+		expect(await dialog.isSelected(hi), `${hi} selected`).toBe(true);
 	});
 });

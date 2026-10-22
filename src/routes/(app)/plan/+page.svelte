@@ -82,8 +82,13 @@
 	let committed = $state<Saved[]>([]);
 	let blackoutDates = $state<string[]>([]);
 	let progress = $state<PlanProgressRow[]>([]);
-	/** Requirements table: only rows that still need days. */
-	let progressOpenOnly = $state(true);
+	/** Requirements table: only students who still need (or are over on) days. */
+	let progressOpenOnly = $state(false);
+	/** The plan panel: calendar or list, with shared filters. */
+	let planView = $state<'calendar' | 'list'>('calendar');
+	let filterStudent = $state('');
+	let filterPreceptor = $state('');
+	let showSaved = $state(true);
 	let planVersion = $state(0);
 	let loading = $state(false);
 	let error = $state('');
@@ -230,17 +235,57 @@
 
 	const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-	/** Requirements table rows, most days still needed first. */
-	const progressRows = $derived(
-		[...progress]
-			.filter((r) => !progressOpenOnly || r.remaining > 0 || r.over > 0)
-			.sort(
-				(a, b) =>
-					b.remaining - a.remaining ||
-					a.studentName.localeCompare(b.studentName) ||
-					a.clerkshipName.localeCompare(b.clerkshipName)
-			)
+	// ---- requirements matrix: a row per student, a column per clerkship ----
+	type CellStatus = 'under' | 'met' | 'met-saved' | 'over' | 'none';
+	const cellStatus = (r: PlanProgressRow): CellStatus => {
+		if (r.required <= 0) return r.assigned + r.planned > 0 ? 'over' : 'none';
+		if (r.over > 0) return 'over';
+		if (r.remaining > 0) return 'under';
+		return r.planned === 0 ? 'met-saved' : 'met';
+	};
+	const CELL_CLASS: Record<CellStatus, string> = {
+		under: 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+		met: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200',
+		'met-saved': 'bg-emerald-200 text-emerald-950 dark:bg-emerald-800 dark:text-emerald-50',
+		over: 'bg-red-100 text-red-900 dark:bg-red-950/50 dark:text-red-200',
+		none: 'text-muted-foreground'
+	};
+	const CELL_TITLE: Record<CellStatus, string> = {
+		under: 'still needs days',
+		met: 'meets the requirement with this plan',
+		'met-saved': 'already met by saved days',
+		over: 'over the requirement',
+		none: 'not required'
+	};
+	const matrixClerkships = $derived(
+		[...new Map(progress.map((r) => [r.clerkshipId, r.clerkshipName]))]
+			.map(([id, name]) => ({ id, name }))
+			.sort((a, b) => a.name.localeCompare(b.name))
 	);
+	const matrixRows = $derived.by(() => {
+		const byStudent = new Map<
+			string,
+			{ id: string; name: string; cells: Map<string, PlanProgressRow> }
+		>();
+		for (const r of progress) {
+			const row = byStudent.get(r.studentId) ?? {
+				id: r.studentId,
+				name: r.studentName,
+				cells: new Map()
+			};
+			row.cells.set(r.clerkshipId, r);
+			byStudent.set(r.studentId, row);
+		}
+		return [...byStudent.values()]
+			.filter(
+				(row) =>
+					!progressOpenOnly ||
+					[...row.cells.values()].some((c) => cellStatus(c) === 'under' || cellStatus(c) === 'over')
+			)
+			.sort((a, b) => a.name.localeCompare(b.name));
+	});
+	const cellText = (r: PlanProgressRow) =>
+		`${fmt(r.assigned)}${r.planned > 0 ? ` (+${fmt(r.planned)})` : ''} / ${fmt(r.required)}`;
 
 	async function refresh() {
 		const res = await fetch('/api/schedules/plan/validate');
@@ -435,16 +480,17 @@
 			clerkship_id: string | null;
 			preceptor_id: string | null;
 			site_id: string | null;
-		}) =>
-			row.kind === 'clinical'
-				? {
-						label: `${nameOf(data.students, row.student_id)} · ${nameOf(data.clerkships, row.clerkship_id)}`,
-						detail: `${nameOf(data.preceptors, row.preceptor_id)} · ${nameOf(data.sites, row.site_id)}`
-					}
-				: {
-						label: nameOf(data.students, row.student_id),
-						detail: row.kind === 'free_day' ? 'Free day' : 'Exam'
-					};
+		}) => ({
+			student: nameOf(data.students, row.student_id),
+			clerkship:
+				row.kind === 'clinical'
+					? nameOf(data.clerkships, row.clerkship_id)
+					: row.kind === 'free_day'
+						? 'Free day'
+						: 'Exam',
+			preceptor: row.kind === 'clinical' ? nameOf(data.preceptors, row.preceptor_id) : '',
+			site: row.kind === 'clinical' ? nameOf(data.sites, row.site_id) : ''
+		});
 
 		const saved: PlanCalendarItem[] = committed.map((a) => ({
 			id: a.id,
@@ -479,6 +525,24 @@
 		});
 		return [...saved, ...drafts];
 	});
+
+	/** What the plan panel shows: the filters apply to the calendar and the list alike. */
+	const matchesFilters = (studentOf: string, preceptorOf: string | null) =>
+		(!filterStudent || studentOf === filterStudent) &&
+		(!filterPreceptor || preceptorOf === filterPreceptor);
+	const shownItems = $derived(
+		calendarItems.filter(
+			(i) => (showSaved || i.kind === 'draft') && matchesFilters(i.studentId, i.preceptorId)
+		)
+	);
+	const shownPins = $derived(pins.filter((p) => matchesFilters(p.student_id, p.preceptor_id)));
+	const shownSaved = $derived(
+		showSaved
+			? committed
+					.filter((a) => matchesFilters(a.student_id, a.preceptor_id))
+					.sort((a, b) => a.date.localeCompare(b.date))
+			: []
+	);
 
 	// One approved site left for this preceptor/clerkship: pick it (as the assignment
 	// dialog does) so the coordinator isn't asked a question with one answer.
@@ -810,211 +874,293 @@
 					{/if}
 				</Card>
 
-				<!-- pin list -->
-				<Card class="p-4" data-testid="plan-pins">
-					<h2 class="mb-2 font-medium">Planned ({pins.length})</h2>
-					{#if pins.length === 0}
-						<p class="text-sm text-muted-foreground" data-testid="plan-empty">
-							Nothing planned yet. Add assignments on the left.
+				<!-- requirements: a row per student, a column per clerkship -->
+				<Card class="p-4" data-testid="plan-progress">
+					<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+						<div>
+							<h2 class="font-medium">Requirements</h2>
+							<p class="text-xs text-muted-foreground">
+								Saved (+ planned) / required days. Click a cell to plan that student's clerkship.
+							</p>
+						</div>
+						<label class="flex cursor-pointer items-center gap-2 text-xs">
+							<input
+								type="checkbox"
+								bind:checked={progressOpenOnly}
+								data-testid="plan-progress-open-only"
+							/>
+							Only students who still need days
+						</label>
+					</div>
+					<div class="mb-2 flex flex-wrap gap-2 text-xs" data-testid="plan-progress-legend">
+						<span class="rounded px-1.5 py-0.5 {CELL_CLASS.under}">Under</span>
+						<span class="rounded px-1.5 py-0.5 {CELL_CLASS.met}">Met with plan</span>
+						<span class="rounded px-1.5 py-0.5 {CELL_CLASS['met-saved']}">Already met</span>
+						<span class="rounded px-1.5 py-0.5 {CELL_CLASS.over}">Over</span>
+					</div>
+					{#if matrixRows.length === 0}
+						<p class="text-sm text-muted-foreground" data-testid="plan-progress-empty">
+							{progress.length === 0
+								? 'No students or clerkships in this schedule yet.'
+								: 'Every student has the days they need.'}
 						</p>
 					{:else}
-						<ul class="max-h-[28rem] divide-y overflow-y-auto">
-							{#each pins as pin (pin.id)}
-								{@const st = pinStatus[pin.id]}
-								{@const accepted = acceptedOf(pin)}
-								<li
-									class="py-2 text-sm {selectedPinId === pin.id
-										? 'rounded-md bg-primary/5 ring-2 ring-primary'
-										: ''}"
-									data-testid="plan-pin-{pin.id}"
-									data-selected={selectedPinId === pin.id ? 'true' : undefined}
-								>
-									<div class="flex items-center justify-between gap-2 px-1">
-										<button
-											type="button"
-											class="min-w-0 text-left"
-											onclick={() => (selectedPinId = pin.id)}
+						<div class="max-h-[22rem] overflow-auto">
+							<table class="w-full border-separate border-spacing-0.5 text-sm">
+								<thead class="sticky top-0 z-10 bg-background text-xs text-muted-foreground">
+									<tr>
+										<th class="sticky left-0 bg-background py-1 pr-2 text-left font-medium"
+											>Student</th
 										>
-											<div class="truncate font-medium">
-												{nameOf(data.students, pin.student_id)} · {pin.date}
-												{#if pin.session !== 'full'}<span class="text-muted-foreground">
-														({pin.session.toUpperCase()})</span
-													>{/if}
-											</div>
-											<div class="truncate text-xs text-muted-foreground">
-												{#if pin.kind === 'clinical'}
-													{nameOf(data.clerkships, pin.clerkship_id)} · {nameOf(
-														data.preceptors,
-														pin.preceptor_id
-													)} · {nameOf(data.sites, pin.site_id)}
-												{:else}
-													{pin.kind === 'free_day' ? 'Free day' : 'Exam'}
-												{/if}
-											</div>
-										</button>
-										<div class="flex shrink-0 items-center gap-2">
-											{#if isOverridden(pin)}
-												<Badge
-													variant="outline"
-													class="border-amber-500 text-amber-700 dark:text-amber-300"
-													data-testid="plan-pin-overridden-{pin.id}">Overridden</Badge
-												>
-											{/if}
-											{#if !st || st.committable}
-												<Badge variant="secondary" data-testid="plan-pin-status-{pin.id}">OK</Badge>
-											{:else if st.hard.length > 0}
-												<Badge variant="destructive" data-testid="plan-pin-status-{pin.id}"
-													>Blocked</Badge
-												>
-											{:else}
-												<Badge variant="outline" data-testid="plan-pin-status-{pin.id}">
-													{st.unresolved.length} to resolve
-												</Badge>
-											{/if}
-											<Button
-												variant="ghost"
-												size="sm"
-												onclick={() => removePin(pin.id)}
-												data-testid="plan-pin-remove-{pin.id}">Remove</Button
+										{#each matrixClerkships as c (c.id)}
+											<th class="px-1 py-1 text-center font-medium" data-testid="plan-progress-col"
+												>{c.name}</th
 											>
-										</div>
-									</div>
-
-									{#if st && (st.unresolved.length > 0 || accepted.length > 0 || st.hard.length > 0)}
-										<div
-											class="mt-1 flex flex-wrap items-center gap-1 px-1"
-											data-testid="plan-pin-overrides-{pin.id}"
-										>
-											{#each st.hard as v (v.code)}
-												<Badge variant="destructive" class="text-xs"
-													>Can’t override: {codeLabel(v.code)}</Badge
-												>
+										{/each}
+									</tr>
+								</thead>
+								<tbody>
+									{#each matrixRows as row (row.id)}
+										<tr data-testid="plan-progress-row-{row.id}">
+											<td class="sticky left-0 bg-background py-1 pr-2 whitespace-nowrap"
+												>{row.name}</td
+											>
+											{#each matrixClerkships as c (c.id)}
+												{@const cell = row.cells.get(c.id)}
+												{#if cell}
+													{@const status = cellStatus(cell)}
+													<td class="p-0">
+														<button
+															type="button"
+															class="w-full rounded px-1.5 py-1 text-center whitespace-nowrap tabular-nums {CELL_CLASS[
+																status
+															]} {studentId === row.id && clerkshipId === c.id
+																? 'ring-2 ring-primary'
+																: ''}"
+															title="{row.name} · {c.name}: {CELL_TITLE[status]}"
+															onclick={() => planFor(cell)}
+															data-testid="plan-progress-{row.id}-{c.id}"
+															data-status={status}>{cellText(cell)}</button
+														>
+													</td>
+												{:else}
+													<td class="text-center text-muted-foreground">—</td>
+												{/if}
 											{/each}
-											{#each st.unresolved as code (code)}
-												<button
-													type="button"
-													class="rounded-md border border-amber-400 px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300"
-													onclick={() => acceptCode(pin, code)}
-													data-testid="plan-pin-accept-{pin.id}-{code}"
-												>
-													Accept: {codeLabel(code)}
-												</button>
-											{/each}
-											{#each accepted as code (code)}
-												<Badge variant="secondary" class="text-xs"
-													>Accepted: {codeLabel(code)}</Badge
-												>
-											{/each}
-											{#if accepted.length > 0}
-												<button
-													type="button"
-													class="text-xs text-muted-foreground underline"
-													onclick={() => resetOverrides(pin)}
-													data-testid="plan-pin-reset-{pin.id}">Reset</button
-												>
-											{/if}
-										</div>
-									{/if}
-								</li>
-							{/each}
-						</ul>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
 					{/if}
 				</Card>
 			</div>
 		</div>
 
-		<!-- ---- Requirements ------------------------------------------------ -->
-		<Card class="mt-6 p-4" data-testid="plan-progress">
-			<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-				<div>
-					<h2 class="font-medium">Requirements</h2>
-					<p class="text-xs text-muted-foreground">
-						Days required for each clerkship against what's saved and what's in this plan. Click a
-						row to plan that student's remaining days.
-					</p>
-				</div>
-				<label class="flex cursor-pointer items-center gap-2 text-xs">
-					<input
-						type="checkbox"
-						bind:checked={progressOpenOnly}
-						data-testid="plan-progress-open-only"
-					/>
-					Only students who still need days
-				</label>
-			</div>
-			{#if progressRows.length === 0}
-				<p class="text-sm text-muted-foreground" data-testid="plan-progress-empty">
-					{progress.length === 0
-						? 'No students or clerkships in this schedule yet.'
-						: 'Every student has the days they need.'}
-				</p>
-			{:else}
-				<div class="max-h-[24rem] overflow-auto">
-					<table class="w-full text-sm">
-						<thead class="sticky top-0 bg-background text-left text-xs text-muted-foreground">
-							<tr>
-								<th class="py-1 pr-2 font-medium">Student</th>
-								<th class="py-1 pr-2 font-medium">Clerkship</th>
-								<th class="py-1 pr-2 text-right font-medium">Required</th>
-								<th class="py-1 pr-2 text-right font-medium">Saved</th>
-								<th class="py-1 pr-2 text-right font-medium">Planned</th>
-								<th class="py-1 text-right font-medium">Status</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y">
-							{#each progressRows as row (`${row.studentId}|${row.clerkshipId}`)}
-								<tr
-									class="cursor-pointer hover:bg-muted/50 {row.studentId === studentId &&
-									row.clerkshipId === clerkshipId
-										? 'bg-primary/5'
-										: ''}"
-									onclick={() => planFor(row)}
-									data-testid="plan-progress-{row.studentId}-{row.clerkshipId}"
-								>
-									<td class="py-1 pr-2">{row.studentName}</td>
-									<td class="py-1 pr-2">{row.clerkshipName}</td>
-									<td class="py-1 pr-2 text-right">{fmt(row.required)}</td>
-									<td class="py-1 pr-2 text-right">{fmt(row.assigned)}</td>
-									<td class="py-1 pr-2 text-right">{fmt(row.planned)}</td>
-									<td class="py-1 text-right" data-testid="plan-progress-status">
-										{#if row.over > 0}
-											<Badge variant="outline" class="border-amber-500 text-amber-700"
-												>{fmt(row.over)} over</Badge
-											>
-										{:else if row.remaining > 0}
-											<Badge variant="secondary">{fmt(row.remaining)} needed</Badge>
-										{:else}
-											<Badge variant="outline" class="border-emerald-500 text-emerald-700"
-												>Met</Badge
-											>
-										{/if}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{/if}
-		</Card>
-
-		<!-- ---- Calendar ---------------------------------------------------- -->
+		<!-- ---- The plan: calendar or list ---------------------------------- -->
 		{#if data.activeSchedule}
-			<Card class="mt-6 p-4">
-				<h2 class="mb-3 font-medium">Calendar</h2>
-				<PlanCalendar
-					start={data.activeSchedule.startDate}
-					end={data.activeSchedule.endDate}
-					items={calendarItems}
-					students={data.students}
-					preceptors={data.preceptors}
-					{openDates}
-					blackoutDates={new Set(blackoutDates)}
-					selectedId={selectedPinId}
-					onItemClick={(item) => {
-						if (item.kind === 'draft') selectPin(item.id);
-					}}
-					onDayClick={useDate}
-				/>
+			<Card class="mt-6 p-4" data-testid="plan-pins">
+				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+					<div class="flex items-center gap-3">
+						<h2 class="font-medium" data-testid="plan-count">Planned ({pins.length})</h2>
+						<div class="flex rounded-md border p-0.5 text-sm" role="group" aria-label="View">
+							{#each [{ v: 'calendar', l: 'Calendar' }, { v: 'list', l: 'List' }] as opt (opt.v)}
+								<button
+									type="button"
+									class="rounded px-3 py-1 {planView === opt.v
+										? 'bg-primary text-primary-foreground'
+										: 'hover:bg-muted'}"
+									aria-pressed={planView === opt.v}
+									onclick={() => (planView = opt.v as 'calendar' | 'list')}
+									data-testid="plan-view-{opt.v}">{opt.l}</button
+								>
+							{/each}
+						</div>
+					</div>
+					<div class="flex flex-wrap items-center gap-2 text-sm">
+						<select
+							class="rounded-md border bg-background p-1"
+							value={filterStudent}
+							onchange={(e) => (filterStudent = e.currentTarget.value)}
+							aria-label="Filter by student"
+							data-testid="plan-filter-student"
+						>
+							<option value="">All students</option>
+							{#each data.students as s (s.id)}
+								<option value={s.id}>{s.name}</option>
+							{/each}
+						</select>
+						<select
+							class="rounded-md border bg-background p-1"
+							value={filterPreceptor}
+							onchange={(e) => (filterPreceptor = e.currentTarget.value)}
+							aria-label="Filter by preceptor"
+							data-testid="plan-filter-preceptor"
+						>
+							<option value="">All preceptors</option>
+							{#each data.preceptors as p (p.id)}
+								<option value={p.id}>{p.name}</option>
+							{/each}
+						</select>
+						<label class="flex cursor-pointer items-center gap-1 text-xs">
+							<input type="checkbox" bind:checked={showSaved} data-testid="plan-show-saved" />
+							Show saved
+						</label>
+					</div>
+				</div>
+
+				{#if pins.length === 0}
+					<p class="mb-3 text-sm text-muted-foreground" data-testid="plan-empty">
+						Nothing planned yet. Add assignments above.
+					</p>
+				{/if}
+
+				{#if planView === 'calendar'}
+					<PlanCalendar
+						start={data.activeSchedule.startDate}
+						end={data.activeSchedule.endDate}
+						items={shownItems}
+						{openDates}
+						blackoutDates={new Set(blackoutDates)}
+						selectedId={selectedPinId}
+						onItemClick={(item) => {
+							if (item.kind === 'draft') selectPin(item.id);
+						}}
+						onDayClick={useDate}
+						onRemove={(item) => removePin(item.id)}
+					/>
+				{:else}
+					<div data-testid="plan-list">
+						{#if shownPins.length > 0}
+							<ul class="divide-y">
+								{#each shownPins as pin (pin.id)}
+									{@const st = pinStatus[pin.id]}
+									{@const accepted = acceptedOf(pin)}
+									<li
+										class="py-2 text-sm {selectedPinId === pin.id
+											? 'rounded-md bg-primary/5 ring-2 ring-primary'
+											: ''}"
+										data-testid="plan-pin-{pin.id}"
+										data-selected={selectedPinId === pin.id ? 'true' : undefined}
+									>
+										<div class="flex items-center justify-between gap-2 px-1">
+											<button
+												type="button"
+												class="min-w-0 text-left"
+												onclick={() => (selectedPinId = pin.id)}
+											>
+												<div class="truncate font-medium">
+													{nameOf(data.students, pin.student_id)} · {pin.date}
+													{#if pin.session !== 'full'}<span class="text-muted-foreground">
+															({pin.session.toUpperCase()})</span
+														>{/if}
+												</div>
+												<div class="truncate text-xs text-muted-foreground">
+													{#if pin.kind === 'clinical'}
+														{nameOf(data.clerkships, pin.clerkship_id)} · {nameOf(
+															data.preceptors,
+															pin.preceptor_id
+														)} · {nameOf(data.sites, pin.site_id)}
+													{:else}
+														{pin.kind === 'free_day' ? 'Free day' : 'Exam'}
+													{/if}
+												</div>
+											</button>
+											<div class="flex shrink-0 items-center gap-2">
+												{#if isOverridden(pin)}
+													<Badge
+														variant="outline"
+														class="border-amber-500 text-amber-700 dark:text-amber-300"
+														data-testid="plan-pin-overridden-{pin.id}">Overridden</Badge
+													>
+												{/if}
+												{#if !st || st.committable}
+													<Badge variant="secondary" data-testid="plan-pin-status-{pin.id}"
+														>OK</Badge
+													>
+												{:else if st.hard.length > 0}
+													<Badge variant="destructive" data-testid="plan-pin-status-{pin.id}"
+														>Blocked</Badge
+													>
+												{:else}
+													<Badge variant="outline" data-testid="plan-pin-status-{pin.id}">
+														{st.unresolved.length} to resolve
+													</Badge>
+												{/if}
+												<Button
+													variant="ghost"
+													size="sm"
+													onclick={() => removePin(pin.id)}
+													data-testid="plan-pin-remove-{pin.id}">Remove</Button
+												>
+											</div>
+										</div>
+
+										{#if st && (st.unresolved.length > 0 || accepted.length > 0 || st.hard.length > 0)}
+											<div
+												class="mt-1 flex flex-wrap items-center gap-1 px-1"
+												data-testid="plan-pin-overrides-{pin.id}"
+											>
+												{#each st.hard as v (v.code)}
+													<Badge variant="destructive" class="text-xs"
+														>Can’t override: {codeLabel(v.code)}</Badge
+													>
+												{/each}
+												{#each st.unresolved as code (code)}
+													<button
+														type="button"
+														class="rounded-md border border-amber-400 px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300"
+														onclick={() => acceptCode(pin, code)}
+														data-testid="plan-pin-accept-{pin.id}-{code}"
+													>
+														Accept: {codeLabel(code)}
+													</button>
+												{/each}
+												{#each accepted as code (code)}
+													<Badge variant="secondary" class="text-xs"
+														>Accepted: {codeLabel(code)}</Badge
+													>
+												{/each}
+												{#if accepted.length > 0}
+													<button
+														type="button"
+														class="text-xs text-muted-foreground underline"
+														onclick={() => resetOverrides(pin)}
+														data-testid="plan-pin-reset-{pin.id}">Reset</button
+													>
+												{/if}
+											</div>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{:else if pins.length > 0}
+							<p class="text-sm text-muted-foreground" data-testid="plan-list-filtered-empty">
+								No planned assignments match these filters.
+							</p>
+						{/if}
+						{#if shownSaved.length > 0}
+							<h3 class="mt-4 mb-1 text-xs font-medium text-muted-foreground uppercase">
+								Saved ({shownSaved.length})
+							</h3>
+							<ul class="divide-y text-sm text-muted-foreground">
+								{#each shownSaved as a (a.id)}
+									<li class="px-1 py-1.5" data-testid="plan-saved-{a.id}">
+										<span class="font-medium">{nameOf(data.students, a.student_id)} · {a.date}</span
+										>
+										<span class="text-xs">
+											· {a.kind === 'clinical'
+												? `${nameOf(data.clerkships, a.clerkship_id)} · ${nameOf(data.preceptors, a.preceptor_id)} · ${nameOf(data.sites, a.site_id)}`
+												: a.kind === 'free_day'
+													? 'Free day'
+													: 'Exam'}
+										</span>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
 			</Card>
 		{/if}
 	{/if}

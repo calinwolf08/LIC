@@ -238,28 +238,40 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		await expect(plan.status(overriddenId)).toHaveText(/to resolve/i);
 		await expect(plan.overridden(overriddenId)).toHaveCount(0);
 
-		// --- The calendar opens on the first draft's month; clicking a draft selects
-		// it in the list ---
-		await expect(plan.calendarPin(ids[0])).toBeVisible();
-		await expect(plan.calendarPin(ids[0])).not.toHaveAttribute('data-conflict');
-		await plan.calendarPin(ids[0]).click();
+		// --- The calendar view: opens on the first draft's month; each chip names the
+		// student, clerkship and preceptor; clicking one selects it ---
+		await plan.showCalendar();
+		const first = plan.calendarPin(ids[0]);
+		await expect(first).toBeVisible();
+		await expect(first).not.toHaveAttribute('data-conflict');
+		await expect(first.getByTestId('plan-cal-student')).toHaveText('Student 1');
+		await expect(first.getByTestId('plan-cal-clerkship')).toHaveText(fm);
+		await expect(first.getByTestId('plan-cal-preceptor')).toHaveText('Dr. FM');
+		await page.getByTestId(`plan-cal-open-${ids[0]}`).click();
+		await expect(first).toHaveAttribute('data-selected', 'true');
+		// …and it's the selected row in the List view too.
+		await plan.showList();
 		await expect(plan.rows().and(page.locator('[data-selected="true"]'))).toHaveCount(1);
 		await expect(page.getByTestId(`plan-pin-${ids[0]}`)).toHaveAttribute('data-selected', 'true');
-		// Clicking a day picks it as the date.
+		await plan.showCalendar();
+		// Clicking a day number picks it as the date.
 		await plan.clearDays();
 		await page.getByTestId(`plan-cal-pick-${mon}`).click();
 		expect(await plan.isPicked(mon)).toBe(true);
 		// Filtering to Student 2 hides Student 1's drafts.
-		await plan.pick('plan-cal-student', 'Student 2');
+		await plan.filterStudent('Student 2');
 		await expect(plan.calendarPin(ids[0])).toHaveCount(0);
-		await page.getByTestId('plan-cal-student').selectOption('');
+		await plan.filterStudent('');
 		await expect(plan.calendarPin(ids[0])).toBeVisible();
 		// Selecting the unresolved draft in the list jumps the calendar to it, in red.
+		await plan.showList();
 		await page.getByTestId(`plan-pin-${overriddenId}`).locator('button').first().click();
+		await plan.showCalendar();
 		await expect(plan.calendarPin(overriddenId)).toHaveAttribute('data-conflict', 'true');
 
-		// --- Commit the clean pins; they show as saved on the calendar ---
-		await plan.removePin(overriddenId);
+		// --- Drop the unresolved draft with the × on its calendar chip, then commit the
+		// clean ones; they show as saved on the calendar ---
+		await plan.removeFromCalendar(overriddenId);
 		await expect(plan.commitButton()).toHaveText(/Commit 7 assignments/);
 		await plan.commit();
 		await expect(plan.commitResult()).toContainText(/Committed 7 assignments/);
@@ -318,10 +330,11 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 
 		await plan.goto();
 
-		// The summary lists every student × clerkship that still needs days.
-		await expect(row).toContainText('5 needed');
+		// The matrix shows saved (+ planned) / required, coloured by status.
+		await expect(row).toHaveText('0 / 5');
+		await expect(row).toHaveAttribute('data-status', 'under');
 
-		// Clicking a row picks that student and clerkship for the next assignment.
+		// Clicking a cell picks that student and clerkship for the next assignment.
 		await row.click();
 		await expect(page.getByTestId('plan-student')).toHaveValue(s2);
 		await expect(page.getByTestId('plan-clerkship')).toHaveValue(fmId);
@@ -337,13 +350,16 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		await expect(requirement).toHaveText(/Requirement met with this selection/);
 		await expect(plan.addButton()).toHaveText(/Add 5 days/);
 		await plan.addButton().click();
-		await expect(plan.rows()).toHaveCount(5, { timeout: 15000 });
+		await expect(plan.planned()).toHaveText('Planned (5)', { timeout: 15000 });
 
-		// The form resets, and the table counts the planned days.
+		// The form resets, and the matrix counts the planned days: met with the plan.
 		await expect(page.getByTestId('plan-student')).toHaveValue('');
-		await expect(row).toHaveCount(0); // met → hidden while "still need days" is on
+		await expect(row).toHaveText('0 (+5) / 5');
+		await expect(row).toHaveAttribute('data-status', 'met');
+		// "Only students who still need days" hides a student with nothing left to do.
+		await page.getByTestId('plan-progress-open-only').check();
+		await expect(row).toHaveCount(0);
 		await page.getByTestId('plan-progress-open-only').uncheck();
-		await expect(row).toContainText('Met');
 
 		// One more day for the same student and clerkship reads as over the requirement.
 		await row.click();
@@ -354,5 +370,8 @@ test.describe('MP-7 planner filtering and calendar', { tag: ['@stage2'] }, () =>
 		await plan.pickDays([open]);
 		await expect(requirement).toHaveText(/1 day\(s\) over the requirement with this selection/);
 		await expect(page.getByTestId('plan-requirement')).toHaveClass(/amber/);
+		await plan.addButton().click();
+		await expect(row).toHaveText('0 (+6) / 5');
+		await expect(row).toHaveAttribute('data-status', 'over');
 	});
 });
