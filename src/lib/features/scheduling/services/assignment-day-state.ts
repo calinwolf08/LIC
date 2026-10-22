@@ -29,6 +29,11 @@ export interface DayState {
 	preceptorAtCapacity: boolean;
 	/** The student already has an assignment (of any kind) on this day. */
 	studentBusy: boolean;
+	/**
+	 * The day can't go in its week because of an inpatient block (L3): why, when it
+	 * can't. Only the planner fills this in.
+	 */
+	blockWeek?: string;
 	/** Sum of the student's existing credit on this day (excluding `excludeId`). */
 	studentBookedCredit: number;
 	/**

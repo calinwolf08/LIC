@@ -184,6 +184,9 @@
 		if (o.totalDays && o.validDays !== undefined && o.validDays < o.totalDays) {
 			return `${o.name} (${o.validDays} of ${o.totalDays} days)`;
 		}
+		if (o.openDays !== undefined) {
+			return `${o.name} (${o.openDays} open day${o.openDays === 1 ? '' : 's'})`;
+		}
 		return o.name;
 	}
 
@@ -213,6 +216,19 @@
 	);
 	const nextOpen = $derived((options?.openDates ?? []).filter((d) => d >= minDate).slice(0, 5));
 	const dayStates = $derived(new Map((options?.days ?? []).map((d) => [d.date, d])));
+
+	// ---- preceptor capacity ------------------------------------------------
+	// How much room the preceptors have left (open days, student places) against the
+	// days the students still need, so the coordinator sees the schedule reaching its cap.
+	const capacity = $derived(
+		[...(options?.capacity ?? [])].sort(
+			(a, b) => a.openSlots - b.openSlots || a.name.localeCompare(b.name)
+		)
+	);
+	const placesLeft = $derived(capacity.reduce((n, c) => n + c.openSlots, 0));
+	const daysNeeded = $derived(
+		Math.ceil(progress.reduce((n, r) => n + Math.max(0, r.remaining), 0))
+	);
 
 	// ---- requirement progress ---------------------------------------------
 	const creditPerDay = $derived(clinical ? defaultCreditForSession(session) : 0);
@@ -303,7 +319,7 @@
 
 	function issueCodes(check: PlanDateCheck | undefined): string[] {
 		return [...new Set((check?.issues ?? []).map((i) => i.code))]
-			.filter((c) => c !== 'no_preceptor')
+			.filter((c) => c !== 'no_preceptor' && c !== 'no_open_days')
 			.sort();
 	}
 
@@ -952,6 +968,51 @@
 								</tbody>
 							</table>
 						</div>
+					{/if}
+				</Card>
+
+				<!-- preceptor capacity: room left vs days still needed -->
+				<Card class="p-4" data-testid="plan-capacity">
+					<div class="mb-2">
+						<h2 class="font-medium">Preceptor capacity</h2>
+						<p class="text-xs text-muted-foreground">
+							Open days and student places each preceptor has left, counting the plan.
+						</p>
+					</div>
+					<p
+						class="mb-2 rounded px-2 py-1 text-sm {placesLeft < daysNeeded
+							? 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100'
+							: 'bg-muted'}"
+						data-testid="plan-capacity-summary"
+						data-short={placesLeft < daysNeeded ? 'true' : undefined}
+					>
+						{placesLeft} place{placesLeft === 1 ? '' : 's'} left · {daysNeeded} day{daysNeeded === 1
+							? ''
+							: 's'} still needed{placesLeft < daysNeeded
+							? ` — not enough room for ${daysNeeded - placesLeft} more`
+							: ''}
+					</p>
+					{#if capacity.length === 0}
+						<p class="text-sm text-muted-foreground">No preceptors in this schedule yet.</p>
+					{:else}
+						<ul class="max-h-48 space-y-0.5 overflow-auto text-sm">
+							{#each capacity as c (c.preceptorId)}
+								<li
+									class="flex justify-between gap-2 {c.openDays === 0
+										? 'text-red-700 dark:text-red-300'
+										: ''}"
+									data-testid="plan-capacity-{c.preceptorId}"
+									data-open-days={c.openDays}
+								>
+									<span class="truncate">{c.name}</span>
+									<span class="whitespace-nowrap text-muted-foreground tabular-nums"
+										>{c.openDays === 0
+											? 'Full'
+											: `${c.openDays} day${c.openDays === 1 ? '' : 's'} · ${c.openSlots} place${c.openSlots === 1 ? '' : 's'}`}</span
+									>
+								</li>
+							{/each}
+						</ul>
 					{/if}
 				</Card>
 			</div>

@@ -104,6 +104,7 @@
 		const day = dayStates.get(date);
 		if (!day) return 'unset';
 		if (day.studentBusy) return 'busy';
+		if (day.blockWeek) return 'block-week';
 		if (day.preceptorAtCapacity) return 'full';
 		if (day.preceptorBookings.length > 0) return 'taken';
 		if (day.state === 'blackout') return 'blackout';
@@ -115,7 +116,7 @@
 		if (!inRange(date)) return 'cursor-not-allowed bg-muted/40 text-muted-foreground/50';
 		const day = dayStates.get(date);
 		// Hard conflict for the student takes precedence over preceptor state.
-		if (day?.studentBusy) return 'bg-red-100 text-red-800 border-red-300';
+		if (day?.studentBusy || day?.blockWeek) return 'bg-red-100 text-red-800 border-red-300';
 		if (day?.preceptorAtCapacity) return 'bg-orange-200 text-orange-900 border-orange-400';
 		if (day && day.preceptorBookings.length > 0)
 			return 'bg-amber-100 text-amber-900 border-amber-300';
@@ -152,6 +153,7 @@
 		const day = dayStates.get(date);
 		if (!day) return '';
 		if (day.studentBusy) return '⛔ busy';
+		if (day.blockWeek) return '⛔ block wk';
 		if (day.preceptorAtCapacity) return '● full';
 		if (day.preceptorBookings.length > 0) {
 			const first = day.preceptorBookings[0].studentName.split(' ')[0];
@@ -166,6 +168,7 @@
 
 	const CONFLICT_REASON: Record<string, string> = {
 		busy: 'student already assigned',
+		'block-week': 'student on an inpatient block that week',
 		full: 'preceptor at capacity',
 		taken: 'preceptor already booked',
 		unavailable: 'preceptor unavailable',
@@ -194,6 +197,7 @@
 			}
 			if (day.preceptorAtCapacity) bits.push('at capacity');
 			if (day.studentBusy) bits.push('student already has an assignment');
+			if (day.blockWeek) bits.push(day.blockWeek);
 			if (day.isPast) bits.push('already passed');
 		}
 		return bits.join(' · ');

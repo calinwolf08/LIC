@@ -28,6 +28,11 @@ import {
 	type SessionSlot
 } from '$lib/features/scheduling/services/session-slots';
 import type { DayBooking, DayState } from '$lib/features/scheduling/services/assignment-day-state';
+import {
+	normalizeSchedulingKind,
+	weekKey,
+	type SchedulingKind
+} from '$lib/features/scheduling/services/scheduling-kind';
 import { listPins, type PlanKind } from './plan-service';
 
 /** The conflicts that hide an option unless the coordinator chooses to override. */
@@ -40,13 +45,18 @@ export const PLAN_FILTER_CODES = [
 	'blackout_date',
 	'site_not_allowed',
 	'outside_schedule',
-	'past_date'
+	'past_date',
+	'block_week_conflict'
 ] as const;
 
 export type PlanFilterCode = (typeof PLAN_FILTER_CODES)[number];
 
-/** `no_preceptor`: nobody could take the student with these choices (not overridable). */
-export type PlanIssueCode = PlanFilterCode | 'no_preceptor';
+/**
+ * Not overridable, they only explain a hidden option: `no_preceptor` — nobody could
+ * take the student with these choices; `no_open_days` — the preceptor has no day
+ * left in the schedule that works with these choices (full, unavailable, …).
+ */
+export type PlanIssueCode = PlanFilterCode | 'no_preceptor' | 'no_open_days';
 
 /** Short reasons for option labels ("Dr. Lee — Not available"). */
 export const PLAN_REASON: Record<PlanIssueCode, string> = {
@@ -59,7 +69,9 @@ export const PLAN_REASON: Record<PlanIssueCode, string> = {
 	site_not_allowed: 'Not approved for this clerkship',
 	outside_schedule: 'Outside the schedule',
 	past_date: 'In the past',
-	no_preceptor: 'No preceptor available'
+	block_week_conflict: 'Clashes with an inpatient block week',
+	no_preceptor: 'No preceptor available',
+	no_open_days: 'No open days left'
 };
 
 interface Named {
@@ -94,6 +106,18 @@ export interface PlanOption {
 	/** With dates selected: on how many of them the option works. */
 	validDays?: number;
 	totalDays?: number;
+	/** Preceptors, no dates selected: days left in the schedule that work with the picks. */
+	openDays?: number;
+}
+
+/** How much room a preceptor has left (independent of the current picks). */
+export interface PreceptorCapacity {
+	preceptorId: string;
+	name: string;
+	/** Days from today they're available, under their daily limit, and not blacked out. */
+	openDays: number;
+	/** Student places left across those days (limit minus who's booked, per day). */
+	openSlots: number;
 }
 
 export interface PlanDateCheck {
@@ -119,6 +143,8 @@ export interface PlanOptions {
 	 * when someone could take the selection.
 	 */
 	days: DayState[];
+	/** Each preceptor's open days and places left, for the capacity panel. */
+	capacity: PreceptorCapacity[];
 }
 
 export interface PlanOptionsInputs {
@@ -141,6 +167,13 @@ export interface PlanOptionsInputs {
 	preceptorLoad: Map<string, number>;
 	/** "preceptorId:date" -> who they are (draft pins carry a `pin:` id). */
 	preceptorBookings: Map<string, Omit<DayBooking, 'studentName'>[]>;
+	/** clerkshipId -> block (inpatient, whole weeks) | scattered (outpatient days). */
+	clerkshipKind: Map<string, SchedulingKind>;
+	/**
+	 * "studentId:weekMonday" -> what the student already has that week (committed +
+	 * draft): the inpatient block clerkships, and whether any outpatient day.
+	 */
+	studentWeeks: Map<string, { blocks: Set<string>; outpatient: boolean }>;
 }
 
 function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
@@ -176,7 +209,11 @@ export async function loadPlanOptionsInputs(
 		db
 			.selectFrom('clerkships')
 			.innerJoin('schedule_clerkships', 'schedule_clerkships.clerkship_id', 'clerkships.id')
-			.select(['clerkships.id as id', 'clerkships.name as name'])
+			.select([
+				'clerkships.id as id',
+				'clerkships.name as name',
+				'clerkships.scheduling_kind as scheduling_kind'
+			])
 			.where('schedule_clerkships.schedule_id', '=', scheduleId)
 			.execute(),
 		db
@@ -221,7 +258,7 @@ export async function loadPlanOptionsInputs(
 		studentIds.length
 			? db
 					.selectFrom('schedule_assignments')
-					.select(['student_id', 'date', 'session'])
+					.select(['student_id', 'date', 'session', 'kind', 'clerkship_id'])
 					.where('student_id', 'in', studentIds)
 					.where('date', '>=', period.start_date)
 					.where('date', '<=', period.end_date)
@@ -266,14 +303,32 @@ export async function loadPlanOptionsInputs(
 		preceptorLoad.set(key, (preceptorLoad.get(key) ?? 0) + 1);
 		push(preceptorBookings, key, { assignmentId, studentId });
 	};
+	// Block weeks (L3): an inpatient block takes the student's whole week, so an
+	// outpatient day can't share it (and a block can't land on a week with one).
+	const clerkshipKind = new Map(
+		clerkships
+			.filter((c) => c.id)
+			.map((c) => [c.id as string, normalizeSchedulingKind(c.scheduling_kind)])
+	);
+	const studentWeeks = new Map<string, { blocks: Set<string>; outpatient: boolean }>();
+	const noteWeek = (studentId: string, date: string, kind: string, clerkshipId: string | null) => {
+		if (kind !== 'clinical') return; // free days and exams don't use a week
+		const key = `${studentId}:${weekKey(date)}`;
+		const week = studentWeeks.get(key) ?? { blocks: new Set<string>(), outpatient: false };
+		if (clerkshipId && clerkshipKind.get(clerkshipId) === 'block') week.blocks.add(clerkshipId);
+		else week.outpatient = true;
+		studentWeeks.set(key, week);
+	};
 	for (const r of studentRows) {
 		push(studentSessions, `${r.student_id}:${r.date}`, normalizeSession(r.session));
+		noteWeek(r.student_id, r.date, r.kind, r.clerkship_id);
 	}
 	for (const r of preceptorRows) {
 		if (r.preceptor_id) book(r.preceptor_id, r.date, r.id ?? '', r.student_id);
 	}
 	for (const pin of pins) {
 		push(studentSessions, `${pin.student_id}:${pin.date}`, normalizeSession(pin.session));
+		noteWeek(pin.student_id, pin.date, pin.kind, pin.clerkship_id);
 		if (pin.preceptor_id) book(pin.preceptor_id, pin.date, `pin:${pin.id}`, pin.student_id);
 	}
 
@@ -291,7 +346,9 @@ export async function loadPlanOptionsInputs(
 		capacity,
 		studentSessions,
 		preceptorLoad,
-		preceptorBookings
+		preceptorBookings,
+		clerkshipKind,
+		studentWeeks
 	};
 }
 
@@ -328,6 +385,8 @@ export function tupleIssues(inputs: PlanOptionsInputs, t: Tuple): PlanIssue[] {
 				add('session_clash', `Student is already booked on ${t.date}`);
 			}
 		}
+		const blockWeek = blockWeekClash(inputs, { ...t, date: t.date });
+		if (blockWeek) add('block_week_conflict', blockWeek);
 	}
 	if (!t.clinical) return issues;
 
@@ -440,8 +499,28 @@ export function computePlanOptions(
 	const clerkships = clinical
 		? inputs.clerkships.map((c) => judge(inputs, { ...base, clerkshipId: c.id }, dates, c))
 		: [];
+	const from = inputs.today > inputs.start ? inputs.today : inputs.start;
+	const remaining = from <= inputs.end ? eachDay(from, inputs.end) : [];
+
+	// A preceptor with no day left that works with the picks (full, unavailable,
+	// blacked out…) isn't offered; the others show how many days they have left.
 	const preceptors = clinical
-		? inputs.preceptors.map((p) => judge(inputs, { ...base, preceptorId: p.id }, dates, p))
+		? inputs.preceptors.map((p) => {
+				const option = judge(inputs, { ...base, preceptorId: p.id }, dates, p);
+				if (dates.length > 0 || !option.eligible) return option;
+				const openDays = remaining.filter(
+					(date) => dayIssues(inputs, { ...base, preceptorId: p.id, date }).length === 0
+				).length;
+				return openDays > 0
+					? { ...option, openDays }
+					: {
+							...option,
+							eligible: false,
+							openDays,
+							codes: ['no_open_days' as const],
+							reasons: [PLAN_REASON.no_open_days]
+						};
+			})
 		: [];
 	const sites = clinical
 		? inputs.sites.map((s) => judge(inputs, { ...base, siteId: s.id }, dates, s))
@@ -452,20 +531,66 @@ export function computePlanOptions(
 		return { date, valid: issues.length === 0, issues };
 	});
 
-	const from = inputs.today > inputs.start ? inputs.today : inputs.start;
-	const openDates =
-		from <= inputs.end
-			? eachDay(from, inputs.end).filter(
-					(date) => dayIssues(inputs, { ...base, date }).length === 0
-				)
-			: [];
+	const openDates = remaining.filter((date) => dayIssues(inputs, { ...base, date }).length === 0);
 
 	const open = new Set(openDates);
 	const days = eachDay(inputs.start, inputs.end).map((date) =>
 		dayState(inputs, { ...base, date }, open.has(date))
 	);
 
-	return { students, clerkships, preceptors, sites, dates: dateChecks, openDates, days };
+	return {
+		students,
+		clerkships,
+		preceptors,
+		sites,
+		dates: dateChecks,
+		openDates,
+		days,
+		capacity: preceptorCapacity(inputs, remaining)
+	};
+}
+
+/** Each preceptor's room left from today, whatever is picked (the capacity panel). */
+function preceptorCapacity(inputs: PlanOptionsInputs, remaining: string[]): PreceptorCapacity[] {
+	return inputs.preceptors.map((p) => {
+		let openDays = 0;
+		let openSlots = 0;
+		for (const date of remaining) {
+			if (inputs.blackouts.has(date)) continue;
+			// Any session counts: a half day is still room for a student.
+			if (inputs.fit.unavailable.get(p.id)?.has(date)) continue;
+			const anySlot = (inputs.fit.available.get(p.id)?.get(date)?.length ?? 0) > 0;
+			if (inputs.fit.withAvailability.has(p.id) && !anySlot) continue;
+			const free = capacityFor(inputs, p.id) - (inputs.preceptorLoad.get(`${p.id}:${date}`) ?? 0);
+			if (free <= 0) continue;
+			openDays++;
+			openSlots += free;
+		}
+		return { preceptorId: p.id, name: p.name, openDays, openSlots };
+	});
+}
+
+/**
+ * Why this day can't go in its week (L3), or null: an inpatient block takes the
+ * student's whole week, so an outpatient day can't share a week with one, and a
+ * block can't go into a week that already has outpatient days.
+ */
+function blockWeekClash(inputs: PlanOptionsInputs, t: Tuple & { date: string }): string | null {
+	if (!t.studentId || !t.clinical || !t.clerkshipId) return null;
+	const monday = weekKey(t.date);
+	const week = inputs.studentWeeks.get(`${t.studentId}:${monday}`);
+	if (!week) return null;
+	const kind = inputs.clerkshipKind.get(t.clerkshipId) ?? 'scattered';
+	const student = inputs.students.find((s) => s.id === t.studentId)?.name ?? 'The student';
+	const otherBlock = [...week.blocks].find((c) => c !== t.clerkshipId);
+	if (kind === 'scattered' && otherBlock) {
+		const block = inputs.clerkships.find((c) => c.id === otherBlock)?.name ?? 'a block';
+		return `${student} is on ${block} (an inpatient block) the week of ${monday}. Inpatient blocks take the whole week, so outpatient days can't go that week.`;
+	}
+	if (kind === 'block' && week.outpatient) {
+		return `${student} already has outpatient days the week of ${monday}. An inpatient block takes the whole week, so it can't go that week.`;
+	}
+	return null;
 }
 
 /** One day of the date picker for the current selection (see PlanOptions.days). */
@@ -514,6 +639,7 @@ function dayState(inputs: PlanOptionsInputs, t: Tuple & { date: string }, open: 
 		preceptorAtCapacity:
 			!!t.preceptorId && bookings.length >= capacityFor(inputs, t.preceptorId, t.clerkshipId),
 		studentBusy: studentSessions.some((s) => sessionsOverlap(s, t.session)),
+		blockWeek: blockWeekClash(inputs, t) ?? undefined,
 		studentBookedCredit: 0,
 		studentSessions,
 		availableSession: sessions[0] ?? null,

@@ -153,7 +153,7 @@ export function isOverrideCode(code: string): code is OverrideCode {
 export const OVERRIDE_LABELS: Record<OverrideCode, string> = {
 	session_clash: 'Another assignment in the same session',
 	mutual_exclusion: 'Preceptors marked not to share a student-day',
-	block_week_conflict: 'Week already used by an inpatient block',
+	block_week_conflict: 'Clashes with an inpatient block week (blocks take the whole week)',
 	preceptor_unavailable: 'Preceptor not available',
 	preceptor_wrong_site: 'Preceptor not at this site',
 	preceptor_not_teaching: 'Preceptor doesn’t teach this clerkship',
@@ -525,13 +525,13 @@ export async function validateAssignmentCandidate(
 		if (candidateKind === 'scattered' && hasBlock) {
 			soft.push({
 				code: 'block_week_conflict',
-				message: `The week of ${candidate.date} is already used by an inpatient block, which occupies the whole week`,
+				message: `The student is on an inpatient block the week of ${weekStart}. Inpatient blocks take the whole week, so outpatient days can't go that week — pick a day in another week.`,
 				entity_refs: { student_id: candidate.student_id }
 			});
 		} else if (candidateKind === 'block' && hasScattered) {
 			soft.push({
 				code: 'block_week_conflict',
-				message: `This inpatient block occupies the whole week of ${candidate.date}, which already has outpatient days`,
+				message: `The student already has outpatient days the week of ${weekStart}. An inpatient block takes the whole week, so it can't go that week unless those outpatient days move.`,
 				entity_refs: { student_id: candidate.student_id }
 			});
 		}

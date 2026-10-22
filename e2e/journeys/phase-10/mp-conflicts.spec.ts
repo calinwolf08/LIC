@@ -12,7 +12,7 @@
  *   - preceptor_capacity   — two students on a capacity-1 preceptor-day.
  *   - block_week_conflict  — a scattered day inside an inpatient block week.
  *
- * The pickers hide the hard conflicts (unavailable, site, capacity, blackout), so
+ * The pickers hide the hard conflicts (unavailable, site, capacity, blackout, block week), so
  * those pins are staged with an override, which accepts them up front; the warnings
  * the pickers don't filter mark their pin "to resolve". Every conflict surfaces in
  * the panel. The coordinator accepts the rest (all committable), then resets one and removes
@@ -119,13 +119,16 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 			site: clinic,
 			date: dayBlockMon
 		});
-		await plan.addPin({
-			student: 'Student 1',
-			clerkship: fm,
-			preceptor: 'Dr. Cap',
-			site: clinic,
-			date: dayBlockWed
-		});
+		await plan.addPin(
+			{
+				student: 'Student 1',
+				clerkship: fm,
+				preceptor: 'Dr. Cap',
+				site: clinic,
+				date: dayBlockWed
+			},
+			{ override: true } // Student 1 is on the inpatient block that week
+		);
 
 		const ids = await plan.pinIds();
 		expect(ids).toHaveLength(7);
@@ -160,22 +163,21 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 		await expect(plan.conflictRow('blackout_date')).toHaveCount(0);
 
 		// The clean inpatient block pin (#6) is OK. The pins staged with an override
-		// (#2 unavailable, #3 site, #5 capacity) start out accepted and marked; the
-		// warnings the pickers don't filter (#1 onboarding, #7 block week), and #4's
-		// share of the over-capacity day, are "to resolve".
+		// (#2 unavailable, #3 site, #5 capacity, #7 block week) start out accepted and
+		// marked; the warning the pickers don't filter (#1 onboarding), and #4's share of
+		// the over-capacity day, are "to resolve".
 		await expect(plan.status(ids[5])).toHaveText('OK');
-		for (const i of [1, 2, 4]) {
+		for (const i of [1, 2, 4, 6]) {
 			await expect(plan.overridden(ids[i]), `pin ${i} overridden`).toBeVisible();
 			await expect(plan.status(ids[i]), `pin ${i} accepted`).toHaveText('OK');
 		}
-		for (const i of [0, 3, 6]) {
+		for (const i of [0, 3]) {
 			await expect(plan.status(ids[i]), `pin ${i} to resolve`).toHaveText(/to resolve/i);
 		}
 
 		// --- Accept the remaining warnings; every pin becomes committable ---
 		await plan.acceptCode(ids[0], 'not_onboarded');
 		await plan.acceptCode(ids[3], 'preceptor_capacity');
-		await plan.acceptCode(ids[6], 'block_week_conflict');
 		await expect(plan.commitButton()).toHaveText(/Commit 7 assignments/);
 
 		// --- Change of mind: reset one (back to blocking) and remove another ---
