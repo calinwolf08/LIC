@@ -20,6 +20,7 @@ import { cleanupTestDatabase, createTestDatabaseWithMigrations } from '$lib/db/t
 import { addPins, clearPins, evaluatePlan } from '$lib/features/schedules/services/plan-service';
 import type { PlanOption, PlanOptions } from '$lib/features/schedules/services/plan-options';
 import { getPlanProgress } from '$lib/features/schedules/services/plan-progress';
+import { weekKey } from '$lib/features/scheduling/services/scheduling-kind';
 import { POST } from './+server';
 
 const TS = '2026-01-01T00:00:00.000Z';
@@ -416,5 +417,105 @@ describe('POST /api/schedules/plan/options', () => {
 		// The draft holds all three pins the progress counted.
 		const plan = await evaluatePlan(holder.db!, SCHED, USER);
 		expect(plan.pins).toHaveLength(3);
+	});
+	it("hides a preceptor with no open days left, and reports each one's capacity", async () => {
+		const before = await options({ clerkshipId: FM });
+		// Dr. FM works D1, D2 and D4 and takes one student a day.
+		expect(find(before.preceptors, DR_FM)).toMatchObject({ eligible: true, openDays: 3 });
+		expect(before.capacity.find((c) => c.preceptorId === DR_FM)).toMatchObject({
+			name: 'Dr. FM',
+			openDays: 3,
+			openSlots: 3
+		});
+
+		// Fill all three days with S1.
+		await addPins(holder.db!, SCHED, USER, {
+			student_id: S1,
+			preceptor_id: DR_FM,
+			clerkship_id: FM,
+			site_id: CLINIC,
+			dates: [D1, D2, D4]
+		});
+		const after = await options({ clerkshipId: FM, studentId: S2 });
+		expect(find(after.preceptors, DR_FM)).toMatchObject({
+			eligible: false,
+			openDays: 0,
+			codes: ['no_open_days'],
+			reasons: ['No open days left']
+		});
+		expect(after.capacity.find((c) => c.preceptorId === DR_FM)).toMatchObject({
+			openDays: 0,
+			openSlots: 0
+		});
+		// Dr. IM is untouched: D1 (morning), D2 and D3.
+		expect(after.capacity.find((c) => c.preceptorId === DR_IM)).toMatchObject({
+			openDays: 3,
+			openSlots: 3
+		});
+		// Once days are picked, the per-day checks decide instead.
+		const onD1 = await options({ clerkshipId: FM, studentId: S2, dates: [D1] });
+		expect(find(onD1.preceptors, DR_FM).codes).toEqual(['preceptor_capacity']);
+	});
+
+	it('keeps outpatient days out of a week the student is on an inpatient block', async () => {
+		await holder
+			.db!.updateTable('clerkships')
+			.set({ scheduling_kind: 'block' })
+			.where('id', '=', IM)
+			.execute();
+		try {
+			// An Internal Medicine (block) day and a Family Medicine day in the same week.
+			const [fmDay, imDay] = weekKey(D1) === weekKey(D2) ? [D1, D2] : [D4, D3];
+			await addPins(holder.db!, SCHED, USER, {
+				student_id: S1,
+				preceptor_id: DR_IM,
+				clerkship_id: IM,
+				site_id: HOSPITAL,
+				dates: [imDay]
+			});
+
+			const fm = { studentId: S1, clerkshipId: FM, preceptorId: DR_FM, siteId: CLINIC };
+			const checked = await options({ ...fm, dates: [fmDay] });
+			expect(checked.dates[0].valid).toBe(false);
+			const issue = checked.dates[0].issues.find((i) => i.code === 'block_week_conflict')!;
+			expect(issue.message).toContain('Internal Medicine (an inpatient block)');
+			expect(issue.message).toContain(`the week of ${weekKey(fmDay)}`);
+			expect(issue.message).toContain('Inpatient blocks take the whole week');
+			// …so it isn't an open day, before anything is added to the plan, and the
+			// date picker marks it with the reason.
+			const unpicked = await options(fm);
+			expect(unpicked.openDates).not.toContain(fmDay);
+			expect(unpicked.days.find((d) => d.date === fmDay)!.blockWeek).toContain('inpatient block');
+			// Another student is unaffected.
+			const s2 = await options({ ...fm, studentId: S2, dates: [fmDay] });
+			expect(s2.dates[0].valid).toBe(true);
+
+			// The other way round: a block can't go into a week with outpatient days.
+			await clearPins(holder.db!, SCHED, USER);
+			await addPins(holder.db!, SCHED, USER, {
+				student_id: S1,
+				preceptor_id: DR_FM,
+				clerkship_id: FM,
+				site_id: CLINIC,
+				dates: [fmDay]
+			});
+			const block = await options({
+				studentId: S1,
+				clerkshipId: IM,
+				preceptorId: DR_IM,
+				siteId: HOSPITAL,
+				dates: [imDay]
+			});
+			expect(block.dates[0].issues.map((i) => i.code)).toContain('block_week_conflict');
+			expect(block.dates[0].issues.find((i) => i.code === 'block_week_conflict')!.message).toMatch(
+				/already has outpatient days the week of/
+			);
+		} finally {
+			await holder
+				.db!.updateTable('clerkships')
+				.set({ scheduling_kind: 'scattered' })
+				.where('id', '=', IM)
+				.execute();
+		}
 	});
 });

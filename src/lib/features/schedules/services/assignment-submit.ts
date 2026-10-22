@@ -263,9 +263,9 @@ export const CATEGORY_COPY: Record<OverrideCategory, { title: string; describe: 
 			'This preceptor is marked not to supervise the same student on a day another already-assigned preceptor is on.'
 	},
 	block_week_conflict: {
-		title: 'Week used by an inpatient block',
+		title: 'Clashes with an inpatient block week',
 		describe:
-			'An inpatient block occupies the whole week, so this outpatient day overlaps a week the student is already on a block (or a block is being added to a week that already has outpatient days).'
+			'Inpatient (block) clerkships take the student’s whole week. Either the student is already on an inpatient block that week, so outpatient days can’t go there, or this block is going into a week that already has outpatient days. Pick a day in another week.'
 	},
 	preceptor_unavailable: {
 		title: 'Preceptor is not available',

@@ -487,7 +487,7 @@ export function evaluateAssignments(inputs: ValidationInputs): ScheduleValidatio
 			if (!blockWeeks.has(weekKey(a.date))) continue;
 			violations.push({
 				code: 'block_week_conflict',
-				message: `Outpatient day on ${a.date} falls in a week used by an inpatient block`,
+				message: `Outpatient day on ${a.date} is in the week of ${weekKey(a.date)}, when the student is on an inpatient block. Inpatient blocks take the whole week, so move this day to another week.`,
 				entity_refs: { student_id: a.student_id },
 				assignment_id: a.id!,
 				assignment_ids: [a.id!],
