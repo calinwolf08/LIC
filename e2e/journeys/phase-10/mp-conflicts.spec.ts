@@ -189,7 +189,7 @@ test.describe('MP-6 planner conflict matrix', { tag: ['@stage2', '@long'] }, () 
 		await plan.commit();
 		await expect(plan.commitResult()).toContainText(/Committed 5 assignments/);
 		await expect(plan.commitResult()).toContainText(/1 pin/);
-		await expect(plan.rows()).toHaveCount(1);
+		await expect(plan.planned()).toHaveText('Planned (1)');
 
 		// --- The committed schedule reflects exactly what committed ---
 		const v = await readValidation(asAdmin);

@@ -54,7 +54,7 @@ test.describe('MP-5 planner build modes', { tag: ['@stage2', '@long'] }, () => {
 		// --- Range mode: Mon–Fri of week 1 with Tue + Thu toggled off → Mon/Wed/Fri ---
 		const made = await plan.addRange(clinical, world.anchor, addDays(world.anchor, 4), [2, 4]);
 		expect(made).toBe(3);
-		await expect(plan.rows()).toHaveCount(3);
+		await expect(plan.planned()).toHaveText('Planned (3)');
 		await expect(plan.conflictCount()).toHaveText('0');
 
 		// --- Individual single add ---
@@ -65,7 +65,7 @@ test.describe('MP-5 planner build modes', { tag: ['@stage2', '@long'] }, () => {
 		await plan.addPin({ ...clinical, session: 'am', date: addDays(world.anchor, 8) });
 		await plan.addPin({ ...clinical, session: 'pm', date: addDays(world.anchor, 8) });
 		await expect(plan.conflictCount()).toHaveText('0');
-		expect(await plan.rows().count()).toBe(6);
+		expect(await plan.plannedCount()).toBe(6);
 
 		// --- Non-clinical: a free day hides the clinical pickers and renders distinctly ---
 		await plan.pick('plan-student', 'Student 1');
@@ -74,15 +74,16 @@ test.describe('MP-5 planner build modes', { tag: ['@stage2', '@long'] }, () => {
 		await expect(asAdmin.getByTestId('plan-preceptor')).toHaveCount(0);
 		await plan.addPin({ student: 'Student 1', kind: 'free_day', date: addDays(world.anchor, 9) });
 		await plan.addPin({ student: 'Student 1', kind: 'exam', date: addDays(world.anchor, 10) });
-		await expect(asAdmin.getByTestId('plan-pins').getByText('Free day')).toBeVisible();
-		await expect(asAdmin.getByTestId('plan-pins').getByText('Exam')).toBeVisible();
+		await plan.showList();
+		await expect(asAdmin.getByTestId('plan-list').getByText('Free day')).toBeVisible();
+		await expect(asAdmin.getByTestId('plan-list').getByText('Exam')).toBeVisible();
 		await expect(plan.conflictCount()).toHaveText('0');
 
 		// --- Remove one pin ---
 		const ids = await plan.pinIds();
 		expect(ids).toHaveLength(8);
 		await plan.removePin(ids[ids.length - 1]); // drop the exam pin
-		await expect(plan.rows()).toHaveCount(7);
+		await expect(plan.planned()).toHaveText('Planned (7)');
 
 		// --- Commit the clean plan ---
 		await expect(plan.commitButton()).toHaveText(/Commit 7 assignments/);

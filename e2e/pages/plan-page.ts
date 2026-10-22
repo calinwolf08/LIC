@@ -147,9 +147,9 @@ export class PlanPage {
 		await this.showAll(override);
 		await this.fillPickers(form);
 		await this.pickDays([form.date]);
-		const before = await this.rows().count();
+		const before = await this.plannedCount();
 		await this.submit(override);
-		await expect(this.rows()).toHaveCount(before + 1, { timeout: 10000 });
+		await expect(this.planned()).toHaveText(`Planned (${before + 1})`, { timeout: 10000 });
 		await this.showAll(false);
 	}
 
@@ -171,12 +171,12 @@ export class PlanPage {
 		await this.showAll(false);
 		await this.fillPickers({ ...form, kind: 'clinical' });
 		await this.pickRange(from, to, weekdaysOff);
-		const before = await this.rows().count();
+		const before = await this.plannedCount();
 		await expect(this.addButton()).toBeEnabled({ timeout: 10000 });
 		const label = (await this.addButton().textContent()) ?? '';
 		const want = parseInt(label.match(/Add (\d+) days/)?.[1] ?? '1', 10);
 		await this.submit(false);
-		await expect(this.rows()).toHaveCount(before + want, { timeout: 10000 });
+		await expect(this.planned()).toHaveText(`Planned (${before + want})`, { timeout: 10000 });
 		return want;
 	}
 
@@ -247,12 +247,52 @@ export class PlanPage {
 		return this.page.getByTestId('plan-add');
 	}
 
+	/** Planned assignments in the List view (call showList() first). */
 	rows(): Locator {
-		return this.page.locator('li[data-testid^="plan-pin-"]');
+		return this.page.getByTestId('plan-list').locator('li[data-testid^="plan-pin-"]');
+	}
+
+	/** The "Planned (N)" heading over the calendar/list, visible in either view. */
+	planned(): Locator {
+		return this.page.getByTestId('plan-count');
+	}
+
+	async plannedCount(): Promise<number> {
+		const text = (await this.planned().textContent()) ?? '';
+		return parseInt(text.match(/\((\d+)\)/)?.[1] ?? '0', 10);
+	}
+
+	/** Switch the plan panel to the List view (the toggle button). */
+	async showList() {
+		await this.page.getByTestId('plan-view-list').click();
+		await expect(this.page.getByTestId('plan-view-list')).toHaveAttribute('aria-pressed', 'true');
+	}
+
+	/** Switch the plan panel to the Calendar view (the toggle button). */
+	async showCalendar() {
+		await this.page.getByTestId('plan-view-calendar').click();
+		await expect(this.page.getByTestId('plan-calendar')).toBeVisible();
+	}
+
+	/** Filter the plan panel (calendar and list) by student / preceptor name ('' clears). */
+	async filterStudent(name: string) {
+		if (name) await this.pick('plan-filter-student', name);
+		else await this.page.getByTestId('plan-filter-student').selectOption('');
+	}
+
+	async filterPreceptor(name: string) {
+		if (name) await this.pick('plan-filter-preceptor', name);
+		else await this.page.getByTestId('plan-filter-preceptor').selectOption('');
+	}
+
+	/** The requirements matrix cell for a student × clerkship (ids). */
+	requirementCell(studentId: string, clerkshipId: string): Locator {
+		return this.page.getByTestId(`plan-progress-${studentId}-${clerkshipId}`);
 	}
 
 	/** The pin ids currently staged, in list order. */
 	async pinIds(): Promise<string[]> {
+		await this.showList();
 		return this.rows().evaluateAll((els) =>
 			els.map((e) => e.getAttribute('data-testid')!.replace('plan-pin-', ''))
 		);
@@ -290,9 +330,19 @@ export class PlanPage {
 	}
 
 	async removePin(pinId: string) {
-		const before = await this.rows().count();
+		await this.showList();
+		const before = await this.plannedCount();
 		await this.page.getByTestId(`plan-pin-remove-${pinId}`).click();
-		await expect(this.rows()).toHaveCount(before - 1, { timeout: 10000 });
+		await expect(this.planned()).toHaveText(`Planned (${before - 1})`, { timeout: 10000 });
+	}
+
+	/** Remove a planned assignment with the × on its calendar chip. */
+	async removeFromCalendar(pinId: string) {
+		await this.showCalendar();
+		const before = await this.plannedCount();
+		await this.page.getByTestId(`plan-cal-remove-${pinId}`).click();
+		await expect(this.planned()).toHaveText(`Planned (${before - 1})`, { timeout: 10000 });
+		await expect(this.calendarPin(pinId)).toHaveCount(0);
 	}
 
 	conflictCount(): Locator {

@@ -143,6 +143,23 @@ export class AssignmentDialog {
 		return dayStateHelper(this.page, date);
 	}
 
+	/**
+	 * Whether a day is selected, paging the picker to its month first with the
+	 * Previous/Next month buttons (a selection can span months; only the visible
+	 * month's days are on screen).
+	 */
+	async isSelected(date: string): Promise<boolean> {
+		const target = date.slice(0, 7);
+		const label = this.root.getByTestId('picker-month');
+		for (let i = 0; i < 24; i++) {
+			const shown = (await label.getAttribute('data-month')) ?? '';
+			if (shown === target) break;
+			await this.root.getByTestId(shown < target ? 'picker-next' : 'picker-prev').click();
+		}
+		return (await this.root.getByTestId(`day-${date}`).getAttribute('data-selected')) === 'true';
+	}
+
+	/** Selected days in the month currently shown in the picker. */
 	async selectedDates(): Promise<string[]> {
 		const cells = this.root.locator('[data-testid^="day-"][data-selected="true"]');
 		const ids = await cells.evaluateAll((els) =>
