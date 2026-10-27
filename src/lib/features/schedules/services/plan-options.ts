@@ -87,8 +87,12 @@ export interface PlanSelection {
 	siteId?: string | null;
 	/** The days being staged (one for a single date, the expanded days for a range). */
 	dates?: string[];
+	/** A session, or 'any' to use whichever session works on each day. */
 	session?: string | null;
 }
+
+/** The planner's session filter: one session, or 'any' (per day, whichever fits). */
+export type PlanSessionChoice = SessionSlot | 'any';
 
 export interface PlanIssue {
 	code: PlanIssueCode;
@@ -124,6 +128,8 @@ export interface PlanDateCheck {
 	date: string;
 	valid: boolean;
 	issues: PlanIssue[];
+	/** The session the day would be added as (with 'any', whichever fits that day). */
+	session: SessionSlot;
 }
 
 export interface PlanOptions {
@@ -135,6 +141,8 @@ export interface PlanOptions {
 	dates: PlanDateCheck[];
 	/** Every day in the schedule (from today) that works for the current selection. */
 	openDates: string[];
+	/** The session each open day would be added as. */
+	openSessions: Record<string, SessionSlot>;
 	/**
 	 * Every day of the schedule, coloured for the date picker the way the assignment
 	 * dialog's day states are: the picked preceptor's availability (session and site
@@ -358,9 +366,15 @@ interface Tuple {
 	preceptorId?: string | null;
 	siteId?: string | null;
 	date?: string;
-	session: SessionSlot;
+	session: PlanSessionChoice;
 	clinical: boolean;
 }
+
+/** A tuple pinned to one session (what the checks run against). */
+type SessionTuple = Tuple & { session: SessionSlot };
+
+/** With 'any', the sessions tried for a day, in order of preference. */
+const ANY_SESSIONS: SessionSlot[] = ['full', 'am', 'pm'];
 
 function capacityFor(inputs: PlanOptionsInputs, preceptorId: string, clerkshipId?: string | null) {
 	const caps = inputs.capacity.get(preceptorId);
@@ -368,7 +382,7 @@ function capacityFor(inputs: PlanOptionsInputs, preceptorId: string, clerkshipId
 }
 
 /** Every hard conflict this (possibly partial) choice has. Unpicked fields are skipped. */
-export function tupleIssues(inputs: PlanOptionsInputs, t: Tuple): PlanIssue[] {
+export function tupleIssues(inputs: PlanOptionsInputs, t: SessionTuple): PlanIssue[] {
 	const issues: PlanIssue[] = [];
 	const add = (code: PlanFilterCode, message: string) => issues.push({ code, message });
 
@@ -422,13 +436,41 @@ export function tupleIssues(inputs: PlanOptionsInputs, t: Tuple): PlanIssue[] {
  * only works if at least one preceptor could take it, so a clerkship, site or date
  * nobody can staff is filtered too.
  */
-function dayIssues(inputs: PlanOptionsInputs, t: Tuple): PlanIssue[] {
+function sessionIssues(inputs: PlanOptionsInputs, t: SessionTuple): PlanIssue[] {
 	const issues = tupleIssues(inputs, t);
 	if (issues.length > 0 || !t.clinical || t.preceptorId) return issues;
 	const someone = inputs.preceptors.some(
 		(p) => tupleIssues(inputs, { ...t, preceptorId: p.id }).length === 0
 	);
 	return someone ? [] : [{ code: 'no_preceptor', message: PLAN_REASON.no_preceptor }];
+}
+
+/**
+ * The session a day would be added as, and its issues. With 'any' the first session
+ * that works wins (full, then morning, then afternoon); when none does, the closest
+ * miss is reported — one the preceptor is at least available for, with the fewest issues.
+ */
+function resolveDay(
+	inputs: PlanOptionsInputs,
+	t: Tuple
+): { session: SessionSlot; issues: PlanIssue[] } {
+	if (t.session !== 'any' || !t.date) {
+		const session = t.session === 'any' ? 'full' : t.session;
+		return { session, issues: sessionIssues(inputs, { ...t, session }) };
+	}
+	const rank = (issues: PlanIssue[]) =>
+		(issues.some((i) => i.code === 'preceptor_unavailable') ? 1000 : 0) + issues.length;
+	let best: { session: SessionSlot; issues: PlanIssue[] } | null = null;
+	for (const session of ANY_SESSIONS) {
+		const issues = sessionIssues(inputs, { ...t, session });
+		if (issues.length === 0) return { session, issues };
+		if (!best || rank(issues) < rank(best.issues)) best = { session, issues };
+	}
+	return best!;
+}
+
+function dayIssues(inputs: PlanOptionsInputs, t: Tuple): PlanIssue[] {
+	return resolveDay(inputs, t).issues;
 }
 
 function judge(inputs: PlanOptionsInputs, base: Tuple, dates: string[], option: Named): PlanOption {
@@ -488,7 +530,11 @@ export function computePlanOptions(
 		clerkshipId: clinical ? selection.clerkshipId || null : null,
 		preceptorId: clinical ? selection.preceptorId || null : null,
 		siteId: clinical ? selection.siteId || null : null,
-		session: clinical ? normalizeSession(selection.session) : 'full',
+		session: !clinical
+			? 'full'
+			: selection.session === 'any'
+				? 'any'
+				: normalizeSession(selection.session),
 		clinical
 	};
 	const dates = [...new Set(selection.dates ?? [])].sort();
@@ -527,15 +573,19 @@ export function computePlanOptions(
 		: [];
 
 	const dateChecks = dates.map((date) => {
-		const issues = dayIssues(inputs, { ...base, date });
-		return { date, valid: issues.length === 0, issues };
+		const { session, issues } = resolveDay(inputs, { ...base, date });
+		return { date, valid: issues.length === 0, issues, session };
 	});
 
-	const openDates = remaining.filter((date) => dayIssues(inputs, { ...base, date }).length === 0);
+	const openSessions: Record<string, SessionSlot> = {};
+	for (const date of remaining) {
+		const day = resolveDay(inputs, { ...base, date });
+		if (day.issues.length === 0) openSessions[date] = day.session;
+	}
+	const openDates = Object.keys(openSessions);
 
-	const open = new Set(openDates);
 	const days = eachDay(inputs.start, inputs.end).map((date) =>
-		dayState(inputs, { ...base, date }, open.has(date))
+		dayState(inputs, { ...base, date }, openSessions[date] ?? null)
 	);
 
 	return {
@@ -545,6 +595,7 @@ export function computePlanOptions(
 		sites,
 		dates: dateChecks,
 		openDates,
+		openSessions,
 		days,
 		capacity: preceptorCapacity(inputs, remaining)
 	};
@@ -594,8 +645,16 @@ function blockWeekClash(inputs: PlanOptionsInputs, t: Tuple & { date: string }):
 }
 
 /** One day of the date picker for the current selection (see PlanOptions.days). */
-function dayState(inputs: PlanOptionsInputs, t: Tuple & { date: string }, open: boolean): DayState {
+function dayState(
+	inputs: PlanOptionsInputs,
+	t: Tuple & { date: string },
+	openAs: SessionSlot | null
+): DayState {
 	const { date } = t;
+	const open = openAs !== null;
+	// With 'any', a day is off only when no session fits, and busy only when every
+	// session clashes with what the student already has.
+	const candidates = t.session === 'any' ? ANY_SESSIONS : [t.session];
 	const names = new Map(inputs.students.map((s) => [s.id, s.name]));
 	const studentSessions = t.studentId
 		? (inputs.studentSessions.get(`${t.studentId}:${date}`) ?? [])
@@ -617,13 +676,15 @@ function dayState(inputs: PlanOptionsInputs, t: Tuple & { date: string }, open: 
 	} else if (!t.preceptorId) {
 		state = open ? 'available' : 'unset';
 	} else {
-		const fit = preceptorFitViolations(inputs.fit, {
-			preceptorId: t.preceptorId,
-			siteId: t.siteId,
-			date,
-			session: t.session
-		}).map((v) => v.code);
-		const off = fit.includes('preceptor_unavailable') || fit.includes('preceptor_wrong_site');
+		const off = candidates.every((session) => {
+			const fit = preceptorFitViolations(inputs.fit, {
+				preceptorId: t.preceptorId!,
+				siteId: t.siteId,
+				date,
+				session
+			}).map((v) => v.code);
+			return fit.includes('preceptor_unavailable') || fit.includes('preceptor_wrong_site');
+		});
 		state = off
 			? 'unavailable'
 			: inputs.fit.withAvailability.has(t.preceptorId) || slots.length > 0
@@ -638,13 +699,16 @@ function dayState(inputs: PlanOptionsInputs, t: Tuple & { date: string }, open: 
 		preceptorBookings: bookings,
 		preceptorAtCapacity:
 			!!t.preceptorId && bookings.length >= capacityFor(inputs, t.preceptorId, t.clerkshipId),
-		studentBusy: studentSessions.some((s) => sessionsOverlap(s, t.session)),
+		studentBusy: candidates.every((session) =>
+			studentSessions.some((s) => sessionsOverlap(s, session))
+		),
 		blockWeek: blockWeekClash(inputs, t) ?? undefined,
 		studentBookedCredit: 0,
 		studentSessions,
 		availableSession: sessions[0] ?? null,
 		availableSessions: sessions,
 		availableCredit: null,
-		isPast: date < inputs.today
+		isPast: date < inputs.today,
+		planSession: openAs ?? undefined
 	};
 }

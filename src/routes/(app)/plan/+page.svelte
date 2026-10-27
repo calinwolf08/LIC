@@ -7,7 +7,10 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { OVERRIDE_LABELS } from '$lib/features/scheduling/services/assignment-validation';
 	import AssignmentDatePicker from '$lib/features/schedules/components/assignment-date-picker.svelte';
-	import { defaultCreditForSession } from '$lib/features/scheduling/services/session-slots';
+	import {
+		defaultCreditForSession,
+		type SessionSlot
+	} from '$lib/features/scheduling/services/session-slots';
 	import type { PlanProgressRow } from '$lib/features/schedules/services/plan-progress';
 	import PlanCalendar, {
 		type PlanCalendarItem
@@ -61,7 +64,8 @@
 	let preceptorId = $state('');
 	let siteId = $state('');
 	let kind = $state<'clinical' | 'free_day' | 'exam'>('clinical');
-	let session = $state<'full' | 'am' | 'pm'>('full');
+	/** 'any' adds each day as whichever session fits it (the preceptor's half days too). */
+	let session = $state<'any' | 'full' | 'am' | 'pm'>('any');
 	/** Days picked in the availability-aware date picker. */
 	let pickedDates = $state<string[]>([]);
 	let pickerMode = $state<'single' | 'range' | 'individual'>('range');
@@ -231,12 +235,35 @@
 	);
 
 	// ---- requirement progress ---------------------------------------------
-	const creditPerDay = $derived(clinical ? defaultCreditForSession(session) : 0);
+	/** The session a picked day would be added as. */
+	function sessionFor(date: string): SessionSlot {
+		return checks.get(date)?.session ?? (session === 'any' ? 'full' : session);
+	}
+	const creditOf = (s: SessionSlot) => (clinical ? defaultCreditForSession(s) : 0);
 	/** Saved + planned vs required for the picked student and clerkship. */
 	const pickProgress = $derived(
 		progress.find((r) => r.studentId === studentId && r.clerkshipId === clerkshipId) ?? null
 	);
-	const selectionCredit = $derived(Math.round(daysToAdd.length * creditPerDay * 100) / 100);
+	const selectionCredit = $derived(
+		Math.round(daysToAdd.reduce((n, d) => n + creditOf(sessionFor(d)), 0) * 100) / 100
+	);
+	/** "2 AM · 1 PM" — how the picked days split by session, when they're not all full days. */
+	const sessionMix = $derived.by(() => {
+		if (!clinical || daysToAdd.length === 0) return '';
+		const n = { full: 0, am: 0, pm: 0 };
+		for (const d of daysToAdd) n[sessionFor(d)]++;
+		if (n.full === daysToAdd.length) return '';
+		return (
+			[
+				[n.full, 'full'],
+				[n.am, 'AM'],
+				[n.pm, 'PM']
+			] as const
+		)
+			.filter(([c]) => c > 0)
+			.map(([c, l]) => `${c} ${l}`)
+			.join(' · ');
+	});
 	const afterSelection = $derived(
 		pickProgress
 			? Math.round((pickProgress.assigned + pickProgress.planned + selectionCredit) * 100) / 100
@@ -244,9 +271,16 @@
 	);
 	/** The next open days, enough to meet the requirement (what's still needed). */
 	const fillDays = $derived.by(() => {
-		if (!pickProgress || pickProgress.remaining <= 0 || creditPerDay <= 0) return [];
-		const need = Math.ceil(pickProgress.remaining / creditPerDay);
-		return (options?.openDates ?? []).filter((d) => d >= minDate).slice(0, need);
+		if (!clinical || !pickProgress || pickProgress.remaining <= 0) return [];
+		const out: string[] = [];
+		let credit = 0;
+		for (const d of options?.openDates ?? []) {
+			if (d < minDate) continue;
+			if (credit >= pickProgress.remaining - 1e-9) break;
+			out.push(d);
+			credit += creditOf(options?.openSessions?.[d] ?? 'full');
+		}
+		return out;
 	});
 
 	const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -326,12 +360,14 @@
 	/** Stage the days: working days as-is, overridden days grouped by what they override. */
 	async function addDays(days: string[]): Promise<boolean> {
 		const groups = new Map<string, string[]>();
+		// One request per session and set of overridden conflicts.
 		for (const day of days) {
-			const key = issueCodes(checks.get(day)).join(',');
+			const key = `${clinical ? sessionFor(day) : 'full'}|${issueCodes(checks.get(day)).join(',')}`;
 			groups.set(key, [...(groups.get(key) ?? []), day]);
 		}
 		for (const [key, group] of groups) {
-			const codes = key ? key.split(',') : [];
+			const [daySession, codeList] = key.split('|') as [SessionSlot, string];
+			const codes = codeList ? codeList.split(',') : [];
 			const res = await fetch('/api/schedules/plan/pins', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -342,8 +378,8 @@
 					clerkship_id: clinical ? clerkshipId || null : null,
 					site_id: clinical ? siteId : null,
 					dates: group,
-					session: clinical ? session : 'full',
-					credit_value: clinical ? defaultCreditForSession(session) : 1,
+					session: daySession,
+					credit_value: clinical ? defaultCreditForSession(daySession) : 1,
 					override_codes: codes,
 					override_note: codes.length
 						? `${OVERRIDE_NOTE_PREFIX}${codes.map(codeLabel).join(', ')}`
@@ -366,7 +402,7 @@
 		preceptorId = '';
 		siteId = '';
 		kind = 'clinical';
-		session = 'full';
+		session = 'any';
 		pickedDates = [];
 		showAll = false;
 	}
@@ -719,9 +755,10 @@
 							bind:value={session}
 							data-testid="plan-session"
 						>
-							<option value="full">Full day</option>
-							<option value="am">Morning</option>
-							<option value="pm">Afternoon</option>
+							<option value="any">All sessions</option>
+							<option value="full">Full day only</option>
+							<option value="am">Mornings only</option>
+							<option value="pm">Afternoons only</option>
 						</select>
 					</div>
 				{/if}
@@ -729,6 +766,12 @@
 				<!-- dates -->
 				<div class="space-y-1" data-testid="plan-dates">
 					<Label>Dates</Label>
+					{#if clinical}
+						<p class="text-xs text-muted-foreground" data-testid="plan-session-hint">
+							Open days are labelled with the session they’ll be added as: Full, AM or PM (half a
+							day’s credit).
+						</p>
+					{/if}
 					{#if data.activeSchedule && pickerMonth}
 						<AssignmentDatePicker
 							rangeStart={data.activeSchedule.startDate}
@@ -742,7 +785,12 @@
 						/>
 					{/if}
 					<div class="flex items-center justify-between text-xs text-muted-foreground">
-						<span data-testid="plan-dates-count">{dates.length} day(s) selected</span>
+						<span
+							><span data-testid="plan-dates-count">{dates.length} day(s) selected</span
+							>{#if sessionMix}<span data-testid="plan-session-mix">
+									· {sessionMix}</span
+								>{/if}</span
+						>
 						{#if pickedDates.length > 0}
 							<button
 								type="button"

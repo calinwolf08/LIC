@@ -518,4 +518,51 @@ describe('POST /api/schedules/plan/options', () => {
 				.execute();
 		}
 	});
+	it('with "All sessions", each day uses whichever session fits (half-day preceptors too)', async () => {
+		// Dr. IM: only the morning of D1, full days D2 and D3.
+		const fullOnly = await options({ clerkshipId: IM, session: 'full' });
+		expect(find(fullOnly.preceptors, DR_IM).openDays).toBe(2);
+		const any = await options({ clerkshipId: IM, session: 'any' });
+		expect(find(any.preceptors, DR_IM).openDays).toBe(3);
+
+		const picked = await options({ preceptorId: DR_IM, studentId: S1, session: 'any' });
+		expect(picked.openSessions).toMatchObject({ [D1]: 'am', [D2]: 'full', [D3]: 'full' });
+		const day = (date: string) => picked.days.find((d) => d.date === date)!;
+		expect(day(D1)).toMatchObject({ state: 'available', planSession: 'am' });
+		expect(day(D2).planSession).toBe('full');
+
+		// Picked days report the session they'd be added as.
+		const checked = await options({
+			preceptorId: DR_IM,
+			clerkshipId: IM,
+			siteId: HOSPITAL,
+			studentId: S1,
+			session: 'any',
+			dates: [D1, D2]
+		});
+		expect(checked.dates).toEqual([
+			expect.objectContaining({ date: D1, valid: true, session: 'am' }),
+			expect.objectContaining({ date: D2, valid: true, session: 'full' })
+		]);
+
+		// A student already booked for the morning gets the afternoon of a full day.
+		await addPins(holder.db!, SCHED, USER, {
+			student_id: S1,
+			preceptor_id: DR_FM,
+			clerkship_id: FM,
+			site_id: CLINIC,
+			dates: [D2],
+			session: 'am',
+			credit_value: 0.5
+		});
+		const afternoon = await options({
+			preceptorId: DR_IM,
+			clerkshipId: IM,
+			siteId: HOSPITAL,
+			studentId: S1,
+			session: 'any',
+			dates: [D2]
+		});
+		expect(afternoon.dates[0]).toMatchObject({ valid: true, session: 'pm' });
+	});
 });

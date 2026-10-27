@@ -155,6 +155,8 @@
 		if (day.studentBusy) return '⛔ busy';
 		if (day.blockWeek) return '⛔ block wk';
 		if (day.preceptorAtCapacity) return '● full';
+		// The planner says which session an open day would be added as.
+		if (day.planSession) return SESSION_MARK[day.planSession];
 		if (day.preceptorBookings.length > 0) {
 			const first = day.preceptorBookings[0].studentName.split(' ')[0];
 			return day.preceptorBookings.length > 1
@@ -165,6 +167,13 @@
 		if (day.isPast) return 'past';
 		return '';
 	}
+
+	const SESSION_MARK: Record<string, string> = { full: 'Full', am: 'AM', pm: 'PM' };
+	const SESSION_TITLE: Record<string, string> = {
+		full: 'adds a full day (1 day credit)',
+		am: 'adds a morning (½ day credit)',
+		pm: 'adds an afternoon (½ day credit)'
+	};
 
 	const CONFLICT_REASON: Record<string, string> = {
 		busy: 'student already assigned',
@@ -198,6 +207,7 @@
 			if (day.preceptorAtCapacity) bits.push('at capacity');
 			if (day.studentBusy) bits.push('student already has an assignment');
 			if (day.blockWeek) bits.push(day.blockWeek);
+			if (day.planSession) bits.push(SESSION_TITLE[day.planSession]);
 			if (day.isPast) bits.push('already passed');
 		}
 		return bits.join(' · ');
@@ -341,6 +351,7 @@
 					data-date={cell.date}
 					data-state={dataState(cell.date)}
 					data-selected={selected.includes(cell.date)}
+					data-session={dayStates.get(cell.date)?.planSession}
 					disabled={disabled || !inRange(cell.date)}
 					title={titleFor(cell.date)}
 					onclick={() => cell.date && toggle(cell.date)}

@@ -29,7 +29,7 @@ const selectionSchema = z.object({
 	siteId: z.string().min(1).nullish(),
 	// A range is expanded client-side; a year of weekdays is the realistic ceiling.
 	dates: z.array(z.string().regex(DATE)).max(400).optional(),
-	session: z.enum(['full', 'am', 'pm']).optional()
+	session: z.enum(['any', 'full', 'am', 'pm']).optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {

@@ -34,6 +34,11 @@ export interface DayState {
 	 * can't. Only the planner fills this in.
 	 */
 	blockWeek?: string;
+	/**
+	 * The session the planner would add this day as, when the day works for the
+	 * current selection. Only the planner fills this in; the picker labels the day.
+	 */
+	planSession?: SessionSlot;
 	/** Sum of the student's existing credit on this day (excluding `excludeId`). */
 	studentBookedCredit: number;
 	/**
