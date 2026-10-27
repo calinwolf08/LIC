@@ -9,12 +9,12 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 
 ## Summary
 
-- Spec files: **98** across 10 phases
+- Spec files: **99** across 10 phases
 - Journeys: **46**
 - Requirements mapped: **55**; findings/decisions mapped: **63**
 - Constraints covered: **16/16** ✅
-- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7, MP-1, MP-2, MP-3, MP-4, MP-5, MP-6, MP-7, MP-8, MP-9
-- Tags: `@long` ×26, `@smoke` ×2, `@stage1` ×59, `@stage2` ×40, `@tenant` ×1
+- Scenarios: AG-1, AG-2, AG-3, AG-4, AG-5, AG-6, AG-7, MP-1, MP-2, MP-3, MP-4, MP-5, MP-6, MP-7, MP-8, MP-9, MP-10
+- Tags: `@long` ×26, `@smoke` ×2, `@stage1` ×59, `@stage2` ×41, `@tenant` ×1
 
 ## Journeys by phase
 
@@ -42,6 +42,7 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | 10 | — | `phase-10/mp-eligibility.spec.ts` | @long @stage2 | R6.1, R6.4 | — |
 | 10 | — | `phase-10/mp-filtering.spec.ts` | @stage2 | R6.1, R6.2 | — |
 | 10 | — | `phase-10/mp-plan-panel.spec.ts` | @stage2 | R6.1, R6.2, R6.5 | — |
+| 10 | — | `phase-10/mp-sessions.spec.ts` | @stage2 | R6.1, R6.2 | — |
 | 2 | J2.7 | `phase-2/availability-editing.spec.ts` | @stage1 | R3.3, R3.4 | P8-d |
 | 2 | J2.4 | `phase-2/clerkship-config.spec.ts` | @stage1 | R4.1, R4.2, R4.3, R4.4 | — |
 | 2 | J2.5, J2.6 | `phase-2/drill-through-and-lists.spec.ts` | @stage1 | R2.1, R2.2, R2.3, R10.x | — |
@@ -155,8 +156,8 @@ findings from `// @coverage @req(...)` / `@finding(...)` annotations.
 | R5 | ag-strategies.spec.ts, generation-settings-ui.spec.ts |
 | R5.1 | J2.1, J7.4, J7.7 |
 | R5.2 | J2.1, J7.4 |
-| R6.1 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, mp-capacity.spec.ts, mp-commit.spec.ts, mp-conflicts.spec.ts, mp-eligibility.spec.ts, mp-filtering.spec.ts, mp-plan-panel.spec.ts, plan-preview-parity.spec.ts, plan-workspace-ui.spec.ts |
-| R6.2 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, mp-capacity.spec.ts, mp-filtering.spec.ts, mp-plan-panel.spec.ts, plan-workspace-ui.spec.ts |
+| R6.1 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, mp-capacity.spec.ts, mp-commit.spec.ts, mp-conflicts.spec.ts, mp-eligibility.spec.ts, mp-filtering.spec.ts, mp-plan-panel.spec.ts, mp-sessions.spec.ts, plan-preview-parity.spec.ts, plan-workspace-ui.spec.ts |
+| R6.2 | J3.1, J3.2, mp-build-cohort.spec.ts, mp-build-modes.spec.ts, mp-capacity.spec.ts, mp-filtering.spec.ts, mp-plan-panel.spec.ts, mp-sessions.spec.ts, plan-workspace-ui.spec.ts |
 | R6.3 | J3.1, mp-build-cohort.spec.ts, mp-build-modes.spec.ts |
 | R6.4 | J3.1, J7.5, mp-eligibility.spec.ts |
 | R6.5 | J3.1, J3.5, mp-commit.spec.ts, mp-edit-reassign-remove.spec.ts, mp-plan-panel.spec.ts |
