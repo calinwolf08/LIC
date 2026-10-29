@@ -83,8 +83,10 @@ export class DailyRotationStrategy extends BaseStrategy {
 		// Take as many days as we can, up to the requirement. A short supply is a
 		// partial result (review finding F-21), not a discarded one.
 		const assignments: import('./base-strategy').ProposedAssignment[] = [];
-		const requiredDates = datesWithAvailability.slice(0, totalDays);
-		const insufficientDates = datesWithAvailability.length < totalDays;
+		// Walk the days until the requirement is met in credit: a half-day slot earns
+		// half a day, so it may take more than `totalDays` placements.
+		const requiredDates = datesWithAvailability;
+		let credit = 0;
 
 		// Track rotation index for round-robin
 		let rotationIndex = 0;
@@ -95,6 +97,7 @@ export class DailyRotationStrategy extends BaseStrategy {
 
 		// Assign each day, rotating through preceptors
 		for (const date of requiredDates) {
+			if (credit >= totalDays - 1e-9) break;
 			// Find preceptors available on this date with remaining daily capacity
 			// Check both pending assignments (from context) and local assignments (this call)
 			const availableToday = candidates.filter((p) => {
@@ -156,17 +159,21 @@ export class DailyRotationStrategy extends BaseStrategy {
 			);
 
 			previousPreceptorId = selectedPreceptor.id;
+			credit += this.slotCredit(selectedPreceptor, date);
 		}
 
-		const complete = assignments.length >= totalDays;
+		const complete = credit >= totalDays - 1e-9;
+		const insufficientDates = !complete && assignments.length === datesWithAvailability.length;
 		return {
 			success: complete,
 			assignments,
 			error: complete
 				? undefined
-				: insufficientDates
-					? `Insufficient dates with preceptor availability: ${datesWithAvailability.length} < ${totalDays}`
-					: `Only ${assignments.length} of ${totalDays} days could be assigned`,
+				: config.requirementType === 'elective'
+					? `Could only place ${Math.round(credit * 100) / 100} of ${totalDays} elective days: its preceptor pool (${this.preceptorNames(candidates)}) has no more open days while this student is free. Add preceptors to the elective's pool, or more availability.`
+					: insufficientDates
+						? `Could only place ${Math.round(credit * 100) / 100} of ${totalDays} required days: ${this.preceptorNames(candidates)} ${candidates.length === 1 ? 'has' : 'have'} no more open days while this student is free. Add availability or capacity, or another preceptor.`
+						: `Only ${Math.round(credit * 100) / 100} of ${totalDays} days could be assigned`,
 			metadata: {
 				strategyUsed: this.getName(),
 				preceptorsConsidered: candidates.length,

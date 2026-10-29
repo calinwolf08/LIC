@@ -135,7 +135,7 @@ export class BlockBasedStrategy extends BaseStrategy {
 			// so the student still gets the days that ARE placeable, then stop.
 			const chosen = placed ?? bestPartial;
 			if (!chosen || chosen.window.length === 0) {
-				stalledReason = `No preceptor available for block ${blockNum + 1} (${remaining} day(s) remaining)`;
+				stalledReason = `No preceptor could take block ${blockNum + 1} (${remaining} day(s) still needed): ${this.preceptorNames(candidates)} ${candidates.length === 1 ? 'is' : 'are'} full or unavailable in the weeks this student is free. Add availability or capacity, or another preceptor.`;
 				break;
 			}
 
@@ -154,7 +154,7 @@ export class BlockBasedStrategy extends BaseStrategy {
 
 			// A partial block means we could not fully fill it — nothing more to place.
 			if (!placed) {
-				stalledReason = `Only ${chosen.window.length} of ${blockLen} days could be filled for block ${blockNum}`;
+				stalledReason = `Block ${blockNum} could only get ${chosen.window.length} of ${blockLen} days: ${this.preceptorNames(candidates)} ${candidates.length === 1 ? 'is' : 'are'} full or unavailable for the rest of it in the weeks this student is free.`;
 				break;
 			}
 		}

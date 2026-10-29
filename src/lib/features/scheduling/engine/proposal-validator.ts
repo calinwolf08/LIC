@@ -25,6 +25,7 @@
 import type { Kysely } from 'kysely';
 import type { DB } from '$lib/db/types';
 import { validateAssignmentCandidate, type Violation } from '../services/assignment-validation';
+import { normalizeSession } from '../services/session-slots';
 
 export interface ProposalInput {
 	studentId: string;
@@ -34,6 +35,8 @@ export interface ProposalInput {
 	date: string;
 	/** Optional pre-resolved site; otherwise resolved from availability. */
 	siteId?: string | null;
+	/** Optional session; otherwise the preceptor's slot that day (a half day stays a half day). */
+	session?: string | null;
 }
 
 export interface ProposalDecision {
@@ -54,23 +57,28 @@ export class ProposalValidator {
 		private bypassed: Set<string> = new Set()
 	) {}
 
-	/** Resolve the site a preceptor is available at on a date (for site checks). */
-	private async resolveSite(preceptorId: string, date: string): Promise<string | null> {
+	/** The site and session of a preceptor's slot on a date (for site and session checks). */
+	private async resolveSlot(
+		preceptorId: string,
+		date: string
+	): Promise<{ siteId: string | null; session: string | null }> {
 		const row = await this.db
 			.selectFrom('preceptor_availability')
-			.select('site_id')
+			.select(['site_id', 'session'])
 			.where('preceptor_id', '=', preceptorId)
 			.where('date', '=', date)
 			.where('is_available', '=', 1)
 			.executeTakeFirst();
-		return row?.site_id ?? null;
+		return { siteId: row?.site_id ?? null, session: row?.session ?? null };
 	}
 
 	async validate(proposal: ProposalInput): Promise<ProposalDecision> {
-		const site =
-			proposal.siteId !== undefined
-				? proposal.siteId
-				: await this.resolveSite(proposal.preceptorId, proposal.date);
+		const slot =
+			proposal.siteId !== undefined && proposal.session !== undefined
+				? null
+				: await this.resolveSlot(proposal.preceptorId, proposal.date);
+		const site = proposal.siteId !== undefined ? proposal.siteId : (slot?.siteId ?? null);
+		const session = proposal.session !== undefined ? proposal.session : (slot?.session ?? null);
 
 		const result = await validateAssignmentCandidate(
 			this.db,
@@ -80,7 +88,8 @@ export class ProposalValidator {
 				preceptor_id: proposal.preceptorId,
 				clerkship_id: proposal.clerkshipId,
 				site_id: site,
-				date: proposal.date
+				date: proposal.date,
+				...(session ? { session: normalizeSession(session) } : {})
 			},
 			// Generation-time codes (`past_date`, `over_required_days`) are handled by
 			// the engine's credit accounting, not here.

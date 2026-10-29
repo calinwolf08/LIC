@@ -22,6 +22,15 @@
 
 	let { data }: Props = $props();
 
+	/** Why the last generation left requirements unmet, by clerkship (then student). */
+	const unmetReasons = $derived(
+		[...(data.summary.lastRun?.result?.unmetRequirements ?? [])].sort(
+			(a, b) =>
+				a.clerkshipName.localeCompare(b.clerkshipName) || a.studentName.localeCompare(b.studentName)
+		)
+	);
+	const fmt = (n: number) => String(Math.round(n * 100) / 100);
+
 	let suggestions = $derived(
 		data.summary.violationStats ? generateSuggestions(data.summary.violationStats) : []
 	);
@@ -90,6 +99,33 @@
 							<SuggestionsPanel {suggestions} />
 						</div>
 					{/if}
+				</div>
+			{/if}
+
+			<!-- Why the last generation fell short: what to fix -->
+			{#if unmetReasons.length > 0}
+				<div class="rounded-lg border" data-testid="results-unmet-reasons">
+					<div class="border-b bg-muted/50 px-4 py-3">
+						<h3 class="font-semibold">Why requirements weren't met ({unmetReasons.length})</h3>
+						<p class="text-xs text-muted-foreground">
+							From the last generation{data.summary.lastRun?.createdAt
+								? ` (${new Date(data.summary.lastRun.createdAt).toLocaleString()})`
+								: ''}. Fix what each one points at, then generate again.
+						</p>
+					</div>
+					<ul class="max-h-[28rem] divide-y overflow-y-auto text-sm">
+						{#each unmetReasons as u, i (i)}
+							<li class="px-4 py-2" data-testid="results-unmet-reason">
+								<div class="flex flex-wrap items-baseline justify-between gap-2">
+									<span class="font-medium">{u.clerkshipName} · {u.studentName}</span>
+									<span class="text-xs whitespace-nowrap text-red-700 dark:text-red-300">
+										{fmt(u.assignedDays)} of {fmt(u.requiredDays)} days placed
+									</span>
+								</div>
+								<p class="text-muted-foreground">{u.reason}</p>
+							</li>
+						{/each}
+					</ul>
 				</div>
 			{/if}
 

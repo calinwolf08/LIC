@@ -675,7 +675,7 @@ export async function getScheduleSummaryData(
 		scopedStudentIds.length > 0
 			? await db
 					.selectFrom('schedule_assignments')
-					.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date'])
+					.select(['id', 'student_id', 'preceptor_id', 'clerkship_id', 'date', 'credit_value'])
 					.where('student_id', 'in', scopedStudentIds)
 					.where('date', '>=', startDate)
 					.where('date', '<=', endDate)
@@ -693,7 +693,11 @@ export async function getScheduleSummaryData(
 			studentClerkshipCounts.set(a.student_id, new Map());
 		}
 		const clerkshipCounts = studentClerkshipCounts.get(a.student_id)!;
-		clerkshipCounts.set(a.clerkship_id, (clerkshipCounts.get(a.clerkship_id) || 0) + 1);
+		// Count credit, not rows: a half day is half a required day.
+		clerkshipCounts.set(
+			a.clerkship_id,
+			(clerkshipCounts.get(a.clerkship_id) || 0) + Number(a.credit_value ?? 1)
+		);
 	}
 
 	// Calculate unmet requirements
@@ -709,7 +713,7 @@ export async function getScheduleSummaryData(
 		let allMet = true;
 
 		for (const clerkship of clerkships) {
-			const assigned = clerkshipCounts.get(clerkship.id) || 0;
+			const assigned = Math.round((clerkshipCounts.get(clerkship.id) || 0) * 100) / 100;
 			if (assigned > 0) hasAnyAssignment = true;
 
 			if (assigned < clerkship.required_days) {
@@ -719,7 +723,7 @@ export async function getScheduleSummaryData(
 					clerkshipName: clerkship.name,
 					requiredDays: clerkship.required_days,
 					assignedDays: assigned,
-					gap: clerkship.required_days - assigned
+					gap: Math.round((clerkship.required_days - assigned) * 100) / 100
 				});
 			}
 		}

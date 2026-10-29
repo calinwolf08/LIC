@@ -40,7 +40,24 @@ export interface FallbackAssignment {
 	tier: 1 | 2 | 3;
 	fallbackTeamId: string;
 	originalTeamId?: string;
+	/** The preceptor's slot that day ('full', 'am' or 'pm'). */
+	session?: string;
+	/** Requirement credit the day earns (a half day is usually 0.5). */
+	credit?: number;
 }
+
+/**
+ * The engine's say on whether a fallback day may go on a date: blackouts, the
+ * student's inpatient-block weeks, sessions they already hold, mutually exclusive
+ * preceptors. Without it every open slot is fair game.
+ */
+export type FallbackDayFilter = (day: {
+	studentId: string;
+	clerkshipId: string;
+	preceptorId: string;
+	date: string;
+	session: string;
+}) => boolean;
 
 /**
  * Result of gap filling
@@ -105,6 +122,7 @@ export class FallbackGapFiller {
 		options: {
 			startDate: string;
 			endDate: string;
+			canPlace?: FallbackDayFilter;
 		}
 	): Promise<GapFillerResult> {
 		const result: GapFillerResult = {
@@ -157,10 +175,11 @@ export class FallbackGapFiller {
 					allAssignments.push(pending);
 				}
 
-				const totalAssigned = requirement.assignedDays + fillResult.assignments.length;
-				const addedDays = fillResult.assignments.length;
+				const addedDays =
+					Math.round(fillResult.assignments.reduce((n, a) => n + (a.credit ?? 1), 0) * 100) / 100;
+				const totalAssigned = requirement.assignedDays + addedDays;
 
-				if (totalAssigned >= requirement.requiredDays) {
+				if (totalAssigned >= requirement.requiredDays - 1e-9) {
 					// Fully fulfilled
 					result.fulfilledRequirements.push(`${requirement.studentId}-${requirement.clerkshipId}`);
 				} else {
@@ -189,7 +208,7 @@ export class FallbackGapFiller {
 		requirement: UnmetRequirement,
 		config: ResolvedRequirementConfiguration,
 		allAssignments: PendingAssignment[],
-		options: { startDate: string; endDate: string }
+		options: { startDate: string; endDate: string; canPlace?: FallbackDayFilter }
 	): Promise<{ assignments: FallbackAssignment[] }> {
 		const assignments: FallbackAssignment[] = [];
 		let remainingDays = requirement.remainingDays;
@@ -272,8 +291,19 @@ export class FallbackGapFiller {
 			if (availableDates.length === 0) continue;
 
 			// Assign as many days as possible with this preceptor
-			for (const date of availableDates) {
-				if (remainingDays <= 0) break;
+			for (const { date, session, credit } of availableDates) {
+				if (remainingDays <= 1e-9) break;
+				if (
+					options.canPlace &&
+					!options.canPlace({
+						studentId: requirement.studentId,
+						clerkshipId: requirement.clerkshipId,
+						preceptorId: preceptor.id,
+						date,
+						session
+					})
+				)
+					continue;
 
 				assignments.push({
 					studentId: requirement.studentId,
@@ -282,11 +312,13 @@ export class FallbackGapFiller {
 					date,
 					tier: preceptor.tier,
 					fallbackTeamId: preceptor.teamId,
-					originalTeamId: primaryTeamId
+					originalTeamId: primaryTeamId,
+					session,
+					credit
 				});
 
 				studentExistingDates.add(date);
-				remainingDays--;
+				remainingDays -= credit;
 			}
 		}
 
@@ -304,11 +336,11 @@ export class FallbackGapFiller {
 		requirementType: 'outpatient' | 'inpatient' | 'elective',
 		studentExistingDates: Set<string>,
 		allAssignments: Array<PendingAssignment | FallbackAssignment>
-	): Promise<string[]> {
+	): Promise<Array<{ date: string; session: string; credit: number }>> {
 		// Get preceptor's availability records
 		const availability = await this.db
 			.selectFrom('preceptor_availability')
-			.select('date')
+			.select(['date', 'session', 'credit_value'])
 			.where('preceptor_id', '=', preceptorId)
 			.where('is_available', '=', 1)
 			.where('date', '>=', startDate)
@@ -316,7 +348,7 @@ export class FallbackGapFiller {
 			.orderBy('date', 'asc')
 			.execute();
 
-		const availableDates: string[] = [];
+		const availableDates: Array<{ date: string; session: string; credit: number }> = [];
 
 		// Build map of assignments per preceptor per date for capacity checking
 		const assignmentsByDate = new Map<string, number>();
@@ -362,7 +394,14 @@ export class FallbackGapFiller {
 			const totalCount = (dbCount?.count || 0) + pendingCount;
 			if (totalCount >= rule.maxStudentsPerDay) continue;
 
-			availableDates.push(date);
+			const session = record.session ?? 'full';
+			const credit =
+				record.credit_value != null && Number(record.credit_value) > 0
+					? Number(record.credit_value)
+					: session === 'full'
+						? 1
+						: 0.5;
+			availableDates.push({ date, session, credit });
 		}
 
 		return availableDates;

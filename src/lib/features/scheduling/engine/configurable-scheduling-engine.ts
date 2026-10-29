@@ -10,7 +10,7 @@ import type { DB } from '$lib/db/types';
 import type { Student } from '$lib/features/students/types';
 import type { Clerkship } from '$lib/features/clerkships/types';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
-import { StrategySelector, StrategyContextBuilder } from '../strategies';
+import { BlockBasedStrategy, StrategySelector, StrategyContextBuilder } from '../strategies';
 import {
 	FallbackResolver,
 	FallbackGapFiller,
@@ -91,6 +91,7 @@ export interface PendingAssignment {
 
 export class ConfigurableSchedulingEngine {
 	private strategySelector: StrategySelector;
+	private blockStrategy = new BlockBasedStrategy();
 	private contextBuilder: StrategyContextBuilder;
 	private fallbackResolver: FallbackResolver;
 	private fallbackGapFiller: FallbackGapFiller;
@@ -262,7 +263,8 @@ export class ConfigurableSchedulingEngine {
 			);
 			await this.runFallbackGapFilling(intermediateResult.unmetRequirements, {
 				startDate,
-				endDate
+				endDate,
+				scheduleId
 			});
 		}
 
@@ -612,6 +614,30 @@ export class ConfigurableSchedulingEngine {
 		});
 	}
 
+	/**
+	 * Requirement credit a batch of placements earns: each day its preceptor slot's
+	 * credit, so half days count as half (two mornings make one required day).
+	 */
+	private creditForPlacements(
+		context: {
+			availablePreceptors: Array<{
+				id: string;
+				sessionByDate?: Record<string, 'full' | 'am' | 'pm'>;
+				creditByDate?: Record<string, number>;
+			}>;
+		},
+		placements: Array<{ preceptorId: string; date: string }>
+	): number {
+		let total = 0;
+		for (const a of placements) {
+			const p = context.availablePreceptors.find((x) => x.id === a.preceptorId);
+			const credit = p?.creditByDate?.[a.date];
+			const session = normalizeSession(p?.sessionByDate?.[a.date]);
+			total += credit !== undefined && credit > 0 ? credit : session === 'full' ? 1 : 0.5;
+		}
+		return Math.round(total * 100) / 100;
+	}
+
 	/** The session a placement occupies, from the chosen preceptor's slot that day (L1). */
 	private sessionForPlacement(
 		context: {
@@ -667,8 +693,20 @@ export class ConfigurableSchedulingEngine {
 				this.clerkshipKinds.get(clerkship.id!) ?? 'scattered'
 			);
 
-			// Select strategy based on configuration
-			const strategy = this.strategySelector.selectStrategy(config);
+			// Select strategy based on configuration. An inpatient block is whole weeks by
+			// definition, so it is always placed in blocks (a week at a time unless a block
+			// size is configured), keeping the same preceptor across blocks where it can.
+			const isBlock = (this.clerkshipKinds.get(clerkship.id!) ?? 'scattered') === 'block';
+			let strategy = this.strategySelector.selectStrategy(config);
+			if (isBlock && !(strategy instanceof BlockBasedStrategy)) {
+				strategy = this.blockStrategy;
+				context.config = {
+					...config,
+					assignmentStrategy: AssignmentStrategy.BLOCK_BASED,
+					blockSizeDays: config.blockSizeDays ?? 5,
+					preferContinuousBlocks: true
+				};
+			}
 			if (!strategy) {
 				this.resultBuilder.addUnmetRequirement({
 					studentId: student.id!,
@@ -728,7 +766,7 @@ export class ConfigurableSchedulingEngine {
 							session: this.sessionForPlacement(context, assignment.preceptorId, assignment.date)
 						});
 					});
-					acceptedDays = assignmentsToProcess.length;
+					acceptedDays = this.creditForPlacements(context, assignmentsToProcess);
 					console.log(
 						`[Engine] Successfully assigned ${acceptedDays} non-elective days for ${student.name} to ${clerkship.name}`
 					);
@@ -736,7 +774,7 @@ export class ConfigurableSchedulingEngine {
 			}
 
 			// Record unmet requirement from ACCEPTED days, not proposed ones.
-			if (acceptedDays < config.requiredDays) {
+			if (acceptedDays < config.requiredDays - 1e-9) {
 				const uniqueReasons = [...new Set(rejectionReasons)];
 				const reason =
 					uniqueReasons.length > 0
@@ -844,7 +882,7 @@ export class ConfigurableSchedulingEngine {
 				// session for half-day placement, L1).
 				const availability = await this.db
 					.selectFrom('preceptor_availability')
-					.select(['preceptor_id', 'date', 'site_id', 'preference', 'session'])
+					.select(['preceptor_id', 'date', 'site_id', 'preference', 'session', 'credit_value'])
 					.where('preceptor_id', 'in', elective.preceptorIds)
 					.where('is_available', '=', 1)
 					.execute();
@@ -859,10 +897,12 @@ export class ConfigurableSchedulingEngine {
 						const availableDates = preceptorAvailability.map((a) => a.date);
 						const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
 						const sessionByDate: Record<string, 'full' | 'am' | 'pm'> = {};
+						const creditByDate: Record<string, number> = {};
 						for (const a of preceptorAvailability) {
 							preferenceByDate[a.date] =
 								(a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
 							sessionByDate[a.date] = normalizeSession(a.session);
+							if (a.credit_value != null) creditByDate[a.date] = Number(a.credit_value);
 						}
 
 						return {
@@ -874,6 +914,7 @@ export class ConfigurableSchedulingEngine {
 							availability: availableDates,
 							preferenceByDate,
 							sessionByDate,
+							creditByDate,
 							currentAssignmentCount: 0,
 							// Use preceptor's max_students setting for daily capacity
 							maxStudentsPerDay: preceptor.max_students ?? config.maxStudentsPerDay ?? 1,
@@ -962,7 +1003,7 @@ export class ConfigurableSchedulingEngine {
 							session: this.sessionForPlacement(context, assignment.preceptorId, assignment.date)
 						});
 					});
-					acceptedDays = electiveAssignments.length;
+					acceptedDays = this.creditForPlacements(context, electiveAssignments);
 					console.log(
 						`[Engine] Successfully assigned ${acceptedDays} days for "${elective.name}" to ${student.name}`
 					);
@@ -970,7 +1011,7 @@ export class ConfigurableSchedulingEngine {
 			}
 
 			// Record unmet requirement from ACCEPTED days.
-			if (acceptedDays < remainingMin) {
+			if (acceptedDays < remainingMin - 1e-9) {
 				const uniqueReasons = [...new Set(rejectionReasons)];
 				const reason =
 					uniqueReasons.length > 0
@@ -1166,8 +1207,12 @@ export class ConfigurableSchedulingEngine {
 				pairs.push({ student, clerkship, score });
 			}
 		}
+		// Inpatient blocks go first: they need whole free weeks, which scattered
+		// outpatient days would otherwise break up. Then scarcest first.
+		const isBlock = (c: Clerkship) => (this.clerkshipKinds.get(c.id!) ?? 'scattered') === 'block';
 		return pairs.sort(
 			(a, b) =>
+				Number(isBlock(b.clerkship)) - Number(isBlock(a.clerkship)) ||
 				b.score - a.score ||
 				a.student.id!.localeCompare(b.student.id!) ||
 				a.clerkship.id!.localeCompare(b.clerkship.id!)
@@ -1220,10 +1265,20 @@ export class ConfigurableSchedulingEngine {
 	 */
 	private async runFallbackGapFilling(
 		unmetRequirements: UnmetRequirement[],
-		options: { startDate: string; endDate: string }
+		options: { startDate: string; endDate: string; scheduleId?: string }
 	): Promise<void> {
+		// The gap filler places single days from the clerkship's teams. That can't
+		// make an inpatient block (whole weeks) or an elective (its own preceptor
+		// pool), so those stay unmet with the reason primary scheduling gave.
+		const kept = unmetRequirements.filter(
+			(r) =>
+				r.requirementType === 'elective' ||
+				(this.clerkshipKinds.get(r.clerkshipId) ?? 'scattered') === 'block'
+		);
+		const fillable = unmetRequirements.filter((r) => !kept.includes(r));
+
 		// Convert unmet requirements to the format expected by gap filler
-		const fallbackUnmetRequirements: FallbackUnmetRequirement[] = unmetRequirements.map((req) => ({
+		const fallbackUnmetRequirements: FallbackUnmetRequirement[] = fillable.map((req) => ({
 			studentId: req.studentId,
 			studentName: req.studentName,
 			clerkshipId: req.clerkshipId,
@@ -1239,12 +1294,51 @@ export class ConfigurableSchedulingEngine {
 			primaryHealthSystemId: undefined
 		}));
 
+		// A fallback day obeys the same rules as a primary one: no blackouts, no
+		// outpatient day in a student's inpatient-block week, no clashing session, no
+		// mutually exclusive preceptors on one day.
+		let blackoutQuery = this.db.selectFrom('blackout_dates').select('date');
+		if (options.scheduleId) {
+			const scheduleId = options.scheduleId;
+			blackoutQuery = blackoutQuery.where((eb) =>
+				eb.or([eb('schedule_id', '=', scheduleId), eb('schedule_id', 'is', null)])
+			);
+		}
+		const blackouts = new Set((await blackoutQuery.execute()).map((b) => b.date));
+		const canPlace = (day: {
+			studentId: string;
+			clerkshipId: string;
+			preceptorId: string;
+			date: string;
+			session: string;
+		}): boolean => {
+			if (blackouts.has(day.date)) return false;
+			const week = weekKey(day.date);
+			const slot = normalizeSession(day.session);
+			for (const a of this.pendingAssignments) {
+				if (a.studentId !== day.studentId) continue;
+				if (
+					weekKey(a.date) === week &&
+					(this.clerkshipKinds.get(a.clerkshipId) ?? 'scattered') === 'block'
+				)
+					return false;
+				if (a.date !== day.date) continue;
+				if (sessionsOverlap(normalizeSession(a.session), slot)) return false;
+				if (
+					a.preceptorId !== day.preceptorId &&
+					this.mutualExclusions.has(mutualExclusionKey(a.preceptorId, day.preceptorId))
+				)
+					return false;
+			}
+			return true;
+		};
+
 		// Run gap filling
 		const result = await this.fallbackGapFiller.fillGaps(
 			fallbackUnmetRequirements,
 			this.pendingAssignments,
 			this.clerkshipConfigs,
-			options
+			{ startDate: options.startDate, endDate: options.endDate, canPlace }
 		);
 
 		console.log(`[Engine] Fallback filled ${result.assignments.length} additional assignments`);
@@ -1254,6 +1348,7 @@ export class ConfigurableSchedulingEngine {
 
 		// Clear existing unmet requirements and rebuild based on fallback results
 		this.resultBuilder.clearUnmetRequirements();
+		for (const req of kept) this.resultBuilder.addUnmetRequirement(req);
 
 		// Add fallback assignments to result builder and pending assignments
 		for (const assignment of result.assignments) {
@@ -1282,7 +1377,8 @@ export class ConfigurableSchedulingEngine {
 				studentId: assignment.studentId,
 				preceptorId: assignment.preceptorId,
 				clerkshipId: assignment.clerkshipId,
-				date: assignment.date
+				date: assignment.date,
+				session: normalizeSession(assignment.session)
 			});
 		}
 
@@ -1302,7 +1398,7 @@ export class ConfigurableSchedulingEngine {
 				requiredDays: partial.requiredDays,
 				assignedDays: partial.assignedDays,
 				remainingDays: partial.requiredDays - partial.assignedDays,
-				reason: `Partially fulfilled by fallback: ${partial.assignedDays}/${partial.requiredDays} days assigned`
+				reason: `${originalReq?.reason ?? 'Primary scheduling fell short.'} Other preceptors covered ${partial.addedDays} more day(s); ${Math.round((partial.requiredDays - partial.assignedDays) * 100) / 100} still needed.`
 			});
 		}
 
@@ -1317,7 +1413,7 @@ export class ConfigurableSchedulingEngine {
 				requiredDays: unmet.requiredDays,
 				assignedDays: unmet.assignedDays,
 				remainingDays: unmet.remainingDays,
-				reason: `${unmet.reason} (fallback also failed)`
+				reason: `${unmet.reason} No other preceptor could take the remaining days either.`
 			});
 		}
 	}

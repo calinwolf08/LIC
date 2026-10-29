@@ -441,7 +441,13 @@ describe('Integration Suite 2: Scheduling Engine', () => {
 				endDate: day,
 				dryRun: false
 			});
-			expect(result.success).toBe(true);
+			// A half day earns half a required day, so each one-day clerkship is half met
+			// and says so, rather than counting the morning as a whole day.
+			expect(result.success).toBe(false);
+			expect(result.unmetRequirements.map((u) => [u.assignedDays, u.remainingDays])).toEqual([
+				[0.5, 0.5],
+				[0.5, 0.5]
+			]);
 
 			// The student holds two assignments on the one day — a morning and an
 			// afternoon — each worth half a day of credit (L1).

@@ -289,6 +289,25 @@ export interface ScheduleResultsSummary {
 	};
 	/** Students missing requirements */
 	studentsWithUnmetRequirements: StudentWithUnmetRequirements[];
+	/**
+	 * The latest generation run (Results page): its `result.unmetRequirements` say
+	 * why each requirement fell short and whose availability to look at.
+	 */
+	lastRun?: {
+		createdAt: string;
+		result: {
+			unmetRequirements?: Array<{
+				studentId: string;
+				studentName: string;
+				clerkshipName: string;
+				requirementType: string;
+				requiredDays: number;
+				assignedDays: number;
+				remainingDays: number;
+				reason: string;
+			}>;
+		} | null;
+	} | null;
 	/** Breakdown by clerkship */
 	clerkshipBreakdown: Array<{
 		clerkshipId: string;

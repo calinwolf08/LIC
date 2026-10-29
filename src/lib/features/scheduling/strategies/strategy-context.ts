@@ -259,7 +259,7 @@ export class StrategyContextBuilder {
 			// Get preceptor availability with site info and preference (H8)
 			const availability = await this.db
 				.selectFrom('preceptor_availability')
-				.select(['date', 'site_id', 'preference', 'session'])
+				.select(['date', 'site_id', 'preference', 'session', 'credit_value'])
 				.where('preceptor_id', '=', preceptor.id)
 				.where('is_available', '=', 1)
 				.execute();
@@ -267,9 +267,11 @@ export class StrategyContextBuilder {
 			const availabilityDates = availability.map((a) => a.date);
 			const preferenceByDate: Record<string, 'preferred' | 'in_a_pinch' | null> = {};
 			const sessionByDate: Record<string, 'full' | 'am' | 'pm'> = {};
+			const creditByDate: Record<string, number> = {};
 			for (const a of availability) {
 				preferenceByDate[a.date] = (a.preference as 'preferred' | 'in_a_pinch' | null) ?? null;
 				sessionByDate[a.date] = normalizeSession(a.session);
+				if (a.credit_value != null) creditByDate[a.date] = Number(a.credit_value);
 			}
 
 			// Get current assignment count from database
@@ -316,6 +318,7 @@ export class StrategyContextBuilder {
 				availability: availabilityDates,
 				preferenceByDate,
 				sessionByDate,
+				creditByDate,
 				currentAssignmentCount: totalAssignmentCount,
 				maxStudentsPerDay: capacityRule?.max_students_per_day ?? defaultMaxPerDay,
 				maxStudentsPerYear: capacityRule?.max_students_per_year ?? 50,

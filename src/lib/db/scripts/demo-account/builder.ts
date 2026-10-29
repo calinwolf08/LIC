@@ -234,6 +234,8 @@ export async function buildScenario(
 				const date = addDays(start, day);
 				const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
 				if (!(slot.weekdays as number[]).includes(weekday)) continue;
+				const week = Math.floor(day / 7);
+				if (slot.weeks && (week < slot.weeks[0] || week > slot.weeks[1])) continue;
 				availabilityRows.push({
 					id: id(),
 					preceptor_id: preceptorId,
@@ -261,16 +263,29 @@ export async function buildScenario(
 	}
 	count('availability days', availabilityRows.length);
 
-	for (const c of scenario.clerkships) {
-		const members = scenario.preceptors.filter((p) => p.teaches.includes(c.name));
-		if (members.length === 0) continue;
+	// Teams: the clerkship's named teams, else one team of everyone who teaches it.
+	const teams = scenario.clerkships.flatMap((c) =>
+		c.teams
+			? c.teams.map((t) => ({ clerkship: c.name, name: t.name, members: t.members }))
+			: [
+					{
+						clerkship: c.name,
+						name: `${c.name} team`,
+						members: scenario.preceptors
+							.filter((p) => p.teaches.includes(c.name))
+							.map((p) => p.name)
+					}
+				]
+	);
+	for (const team of teams) {
+		if (team.members.length === 0) continue;
 		const teamId = id();
 		await db
 			.insertInto('preceptor_teams')
 			.values({
 				id: teamId,
-				clerkship_id: lookup(clerkships, 'clerkship', c.name),
-				name: `${c.name} team`,
+				clerkship_id: lookup(clerkships, 'clerkship', team.clerkship),
+				name: team.name,
 				require_same_health_system: 0,
 				require_same_site: 0,
 				require_same_specialty: 0,
@@ -279,13 +294,13 @@ export async function buildScenario(
 				updated_at: ts
 			})
 			.execute();
-		for (const [index, member] of members.entries()) {
+		for (const [index, member] of team.members.entries()) {
 			await db
 				.insertInto('preceptor_team_members')
 				.values({
 					id: id(),
 					team_id: teamId,
-					preceptor_id: lookup(preceptors, 'preceptor', member.name),
+					preceptor_id: lookup(preceptors, 'preceptor', member),
 					role: index === 0 ? 'lead' : 'member',
 					priority: index + 1,
 					is_fallback_only: 0,

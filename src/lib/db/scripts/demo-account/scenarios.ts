@@ -20,6 +20,8 @@ export interface AvailabilitySpec {
 	/** Credit a day in this slot earns (0.5 for a half day). */
 	credit?: number;
 	preference?: 'preferred' | 'in_a_pinch';
+	/** Only these weeks of the schedule, 0-based and inclusive (default: every week). */
+	weeks?: [number, number];
 }
 
 export interface ClerkshipSpec {
@@ -41,6 +43,11 @@ export interface ClerkshipSpec {
 		preceptors: string[];
 		sites: string[];
 	}>;
+	/**
+	 * Named preceptor teams for the clerkship. Omitted: one team of everyone who
+	 * teaches it.
+	 */
+	teams?: Array<{ name: string; members: string[] }>;
 }
 
 export interface PreceptorSpec {
@@ -392,5 +399,242 @@ export const DEMO_SCENARIOS: ScheduleScenario[] = [
 			{ name: 'Q3', startDay: 56, endDay: 83 },
 			{ name: 'Q4', startDay: 84, endDay: 111 }
 		]
-	}
+	},
+	fullSemester('E'),
+	fullSemester('F')
 ];
+
+/**
+ * Demos E and F: one realistic 16-week semester, built twice. E has enough room
+ * for every requirement, so generation should meet them all. F is the same
+ * program with three planted shortfalls, each of which generation should report
+ * clearly so the coordinator knows what to fix:
+ *
+ *   1. Psychiatry: not enough preceptor days (Dr. Lambert works Mondays only and
+ *      Dr. Mensah's Tuesday mornings are half days).
+ *   2. Family Medicine's required Sports Medicine elective: its pool is one
+ *      preceptor on Wednesdays, too few days for every student.
+ *   3. Obstetrics & Gynecology (an inpatient block): one preceptor taking one
+ *      student, and only for the first 12 weeks — fewer whole weeks than the
+ *      students' blocks need.
+ *
+ * Everything else is identical, so a requirement F misses and E meets points at
+ * one of those three gaps.
+ */
+function fullSemester(tag: 'E' | 'F'): ScheduleScenario {
+	const short = tag === 'F';
+	const systems = ['Crestview Health', 'Harbor Health', 'Pinecrest Health'];
+	return {
+		tag,
+		name: short
+			? 'Demo F · Full semester — falls short'
+			: 'Demo E · Full semester — everything fits',
+		purpose: short
+			? 'Demo E with three planted gaps: too few Psychiatry preceptor days, a Sports Medicine elective pool too small for every student, and too few Obstetrics & Gynecology block weeks. Generation should meet everything else and report each gap.'
+			: 'A realistic 16-week semester: 8 students, 6 clerkships (3 inpatient blocks, 3 outpatient), 3 health systems, 6 sites, 14 preceptors in teams, a required and an optional elective, half-day and "in a pinch" availability, core preceptors, a mutual exclusion, 2 blackouts and 2 quarters. There is room for every requirement.',
+		weeks: 16,
+		healthSystems: systems,
+		sites: [
+			{ name: 'Crestview University Hospital', healthSystem: 'Crestview Health' },
+			{ name: 'Crestview Family Clinic', healthSystem: 'Crestview Health' },
+			{ name: "Harbor Children's Hospital", healthSystem: 'Harbor Health' },
+			{ name: "Harbor Women's Center", healthSystem: 'Harbor Health' },
+			{ name: 'Pinecrest Behavioral Health', healthSystem: 'Pinecrest Health' },
+			{ name: 'Pinecrest Rural Clinic', healthSystem: 'Pinecrest Health' }
+		],
+		clerkships: [
+			{
+				name: 'Internal Medicine',
+				type: 'inpatient',
+				kind: 'block',
+				requiredDays: 10,
+				sites: ['Crestview University Hospital']
+			},
+			{
+				name: 'Surgery',
+				type: 'inpatient',
+				kind: 'block',
+				requiredDays: 10,
+				strategy: 'team_continuity',
+				sites: ['Crestview University Hospital'],
+				teams: [
+					{ name: 'Surgery · Red team', members: ['Dr. Sam Fischer', 'Dr. Nadia Volkov'] },
+					{ name: 'Surgery · Blue team', members: ['Dr. Owen Burke', 'Dr. Hana Sato'] }
+				]
+			},
+			{
+				name: 'Obstetrics & Gynecology',
+				type: 'inpatient',
+				kind: 'block',
+				requiredDays: 10,
+				sites: ["Harbor Women's Center"]
+			},
+			{
+				name: 'Pediatrics',
+				type: 'outpatient',
+				kind: 'scattered',
+				requiredDays: 10,
+				minRequiredDays: 8,
+				sites: ["Harbor Children's Hospital"]
+			},
+			{
+				name: 'Psychiatry',
+				type: 'outpatient',
+				kind: 'scattered',
+				requiredDays: 8,
+				sites: ['Pinecrest Behavioral Health']
+			},
+			{
+				name: 'Family Medicine',
+				type: 'outpatient',
+				kind: 'scattered',
+				requiredDays: 12,
+				sites: ['Crestview Family Clinic', 'Pinecrest Rural Clinic'],
+				electives: [
+					{
+						name: 'Sports Medicine',
+						minimumDays: 3,
+						required: true,
+						preceptors: ['Dr. Tom Becker'],
+						sites: ['Crestview Family Clinic']
+					},
+					{
+						name: 'Dermatology',
+						minimumDays: 2,
+						required: false,
+						preceptors: ['Dr. Lila Okafor'],
+						sites: ['Crestview Family Clinic']
+					}
+				]
+			}
+		],
+		preceptors: [
+			// Internal Medicine.
+			{
+				name: 'Dr. Elena Ruiz',
+				healthSystem: 'Crestview Health',
+				sites: ['Crestview University Hospital'],
+				maxStudents: 2,
+				teaches: ['Internal Medicine'],
+				availability: [{ weekdays: WEEKDAYS }]
+			},
+			{
+				name: 'Dr. Marcus Webb',
+				healthSystem: 'Crestview Health',
+				sites: ['Crestview University Hospital'],
+				maxStudents: 2,
+				teaches: ['Internal Medicine'],
+				availability: [{ weekdays: WEEKDAYS }]
+			},
+			// Surgery: two teams of two.
+			...['Dr. Sam Fischer', 'Dr. Nadia Volkov', 'Dr. Owen Burke', 'Dr. Hana Sato'].map(
+				(name): PreceptorSpec => ({
+					name,
+					healthSystem: 'Crestview Health',
+					sites: ['Crestview University Hospital'],
+					maxStudents: 1,
+					teaches: ['Surgery'],
+					availability: [{ weekdays: WEEKDAYS }]
+				})
+			),
+			// Obstetrics & Gynecology.
+			{
+				name: 'Dr. Grace Liu',
+				healthSystem: 'Harbor Health',
+				sites: ["Harbor Women's Center"],
+				maxStudents: short ? 1 : 2,
+				teaches: ['Obstetrics & Gynecology'],
+				availability: [{ weekdays: WEEKDAYS, ...(short ? { weeks: [0, 11] } : {}) }]
+			},
+			...(short
+				? []
+				: [
+						{
+							name: 'Dr. Rafael Costa',
+							healthSystem: 'Harbor Health',
+							sites: ["Harbor Women's Center"],
+							maxStudents: 2,
+							teaches: ['Obstetrics & Gynecology'],
+							// Willing, but only as a last resort.
+							availability: [{ weekdays: WEEKDAYS, preference: 'in_a_pinch' }]
+						} satisfies PreceptorSpec
+					]),
+			// Pediatrics: part-week preceptors.
+			{
+				name: 'Dr. Amir Haddad',
+				healthSystem: 'Harbor Health',
+				sites: ["Harbor Children's Hospital"],
+				maxStudents: 2,
+				teaches: ['Pediatrics'],
+				availability: [{ weekdays: [1, 3, 5] }]
+			},
+			{
+				name: 'Dr. Julia Brandt',
+				healthSystem: 'Harbor Health',
+				sites: ["Harbor Children's Hospital"],
+				maxStudents: 2,
+				teaches: ['Pediatrics'],
+				availability: [{ weekdays: [2, 4] }]
+			},
+			// Psychiatry: a full-time preceptor and a half-day one.
+			{
+				name: 'Dr. Ivy Lambert',
+				healthSystem: 'Pinecrest Health',
+				sites: ['Pinecrest Behavioral Health'],
+				maxStudents: short ? 1 : 2,
+				teaches: ['Psychiatry'],
+				availability: [{ weekdays: short ? [1] : WEEKDAYS }]
+			},
+			{
+				name: 'Dr. Kofi Mensah',
+				healthSystem: 'Pinecrest Health',
+				sites: ['Pinecrest Behavioral Health'],
+				maxStudents: 1,
+				teaches: ['Psychiatry'],
+				availability: [{ weekdays: short ? [2] : [2, 4], session: 'am', credit: 0.5 }]
+			},
+			// Family Medicine (two clinics) and its elective pools.
+			{
+				name: 'Dr. Tom Becker',
+				healthSystem: 'Crestview Health',
+				sites: ['Crestview Family Clinic'],
+				maxStudents: short ? 1 : 2,
+				teaches: ['Family Medicine'],
+				availability: [{ weekdays: short ? [3] : WEEKDAYS }]
+			},
+			{
+				name: 'Dr. Lila Okafor',
+				healthSystem: 'Crestview Health',
+				sites: ['Crestview Family Clinic'],
+				maxStudents: 2,
+				teaches: ['Family Medicine'],
+				availability: [{ weekdays: [1, 3] }]
+			},
+			{
+				name: 'Dr. Ben Yates',
+				healthSystem: 'Pinecrest Health',
+				sites: ['Pinecrest Rural Clinic'],
+				maxStudents: 2,
+				teaches: ['Family Medicine'],
+				availability: [{ weekdays: WEEKDAYS }]
+			}
+		],
+		students: [
+			{ name: 'Aiden Cole', onboardedAt: systems, corePreceptors: ['Dr. Ben Yates'] },
+			{ name: 'Bella Moss', onboardedAt: systems, corePreceptors: ['Dr. Lila Okafor'] },
+			...students(
+				['Caleb Price', 'Delia Fox', 'Ethan Ward', 'Freya Nash', 'Gavin Holt', 'Hazel Pike'],
+				systems
+			)
+		],
+		mutualExclusions: [['Dr. Sam Fischer', 'Dr. Owen Burke']],
+		blackouts: [
+			{ day: 39, reason: 'Fall break' },
+			{ day: 80, reason: 'Program holiday' }
+		],
+		quarters: [
+			{ name: 'Q1', startDay: 0, endDay: 55 },
+			{ name: 'Q2', startDay: 56, endDay: 111 }
+		]
+	};
+}

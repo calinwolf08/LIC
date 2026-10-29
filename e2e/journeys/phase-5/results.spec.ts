@@ -7,13 +7,17 @@
  * The run must report that honestly:
  *   - exactly the available slots are filled (5), the rest are unmet;
  *   - the student-status partition still sums to the whole roster (3);
- *   - the results page shows the unmet table and an incomplete schedule;
+ *   - the results page shows the unmet table and an incomplete schedule, and says
+ *     why each requirement fell short, naming the preceptor whose availability or
+ *     capacity to look at;
  *   - /api/schedule/summary's lastRun agrees (incomplete, students unmet).
- * Then raising the preceptor's capacity and re-running Completion shrinks the
- * unmet set to zero — the diagnostics move with the fix.
+ * Then raising the preceptor's capacity and re-running Completion (from the
+ * Generate button) shrinks the unmet set to zero — the diagnostics move with the
+ * fix, and the explanations go away.
  */
 
 import { test, expect, apiOf, assignmentsForSchedule, type Page } from '../../fixtures';
+import { GeneratePage } from '../../pages';
 import { generationSandbox } from './helpers';
 import type { Kysely } from 'kysely';
 import type { DB } from '../../../src/lib/db/types';
@@ -72,20 +76,39 @@ test.describe('J5.7 results & diagnostics', { tag: ['@stage2'] }, () => {
 		await expect(results).toBeVisible({ timeout: 15000 });
 		expect(await results.getAttribute('data-complete')).toBe('false');
 		await expect(asAdmin.getByTestId('results-unmet')).toBeVisible();
+		// …and why: each short requirement names the preceptor to look at.
+		const preceptorName = (
+			await kysely
+				.selectFrom('preceptors')
+				.select('name')
+				.where('id', '=', gen.preceptorId)
+				.executeTakeFirstOrThrow()
+		).name;
+		const reasons = asAdmin.getByTestId('results-unmet-reason');
+		await expect(reasons.first()).toBeVisible();
+		expect(await reasons.count()).toBeGreaterThan(0);
+		for (const text of await reasons.allTextContents()) {
+			expect(text).toMatch(/of 5 days placed/);
+			expect(text).toContain(preceptorName);
+			expect(text).toMatch(/no more open days|full or unavailable/);
+		}
 
 		// --- Raise the preceptor's capacity, then Completion fills the rest ---
 		const bump = await apiOf(asAdmin).patch(`/api/preceptors/${gen.preceptorId}`, {
 			max_students: 3
 		});
 		expect(bump.ok).toBe(true);
-		expect((await generate(asAdmin, gen.sandbox.start, gen.sandbox.end, 'completion')).ok).toBe(
-			true
-		);
+		await new GeneratePage(asAdmin).generate('completion');
 
 		// 5 days × capacity 3 = 15 slots; every student's 5 days now placed.
 		expect(await assignmentsForSchedule(kysely, gen.scheduleId)).toHaveLength(15);
 		const s2 = (await apiOf(asAdmin).get<Summary>('/api/schedule/summary')).data!;
 		expect(s2.studentsWithUnmetRequirements.length).toBe(0);
 		expect(s2.isComplete).toBe(true);
+		await asAdmin.goto('/generate/results');
+		await expect(asAdmin.getByTestId('results')).toHaveAttribute('data-complete', 'true', {
+			timeout: 15000
+		});
+		await expect(asAdmin.getByTestId('results-unmet-reasons')).toHaveCount(0);
 	});
 });

@@ -9,6 +9,9 @@
 import { BaseStrategy, type StrategyContext, type StrategyResult } from './base-strategy';
 import type { ResolvedRequirementConfiguration } from '$lib/features/scheduling-config/types';
 
+/** 7.5 days, 8 days — credit without a trailing ".0". */
+const formatDays = (n: number) => String(Math.round(n * 100) / 100);
+
 /**
  * Team Continuity Strategy
  *
@@ -51,14 +54,14 @@ export class TeamContinuityStrategy extends BaseStrategy {
 		// Use config.requiredDays which respects requirement overrides
 		const requiredDays = config.requiredDays;
 
-		// Check if we have enough dates available
-		if (availableDates.length < requiredDays) {
-			return {
-				success: false,
-				assignments: [],
-				error: `Insufficient available dates: ${availableDates.length} < ${requiredDays}`
-			};
-		}
+		// Days earn their slot's credit (a half day is half a required day), so the
+		// requirement is counted in credit, not in placements.
+		const creditOf = (list: Array<{ preceptorId: string; date: string }>) =>
+			list.reduce((n, a) => {
+				const p = availablePreceptors.find((x) => x.id === a.preceptorId);
+				return n + (p ? this.slotCredit(p, a.date) : 1);
+			}, 0);
+		const met = (credit: number) => credit >= requiredDays - 1e-9;
 
 		// Get team members sorted by priority, or fall back to all preceptors
 		const teamMembers = this.getTeamMembersSortedByPriority(context);
@@ -142,7 +145,7 @@ export class TeamContinuityStrategy extends BaseStrategy {
 				);
 
 				usedDates.add(date);
-				remainingDays--;
+				remainingDays -= this.slotCredit(preceptor, date);
 				assignedToThisPreceptor++;
 
 				// Track assignment for this preceptor in this strategy run
@@ -158,12 +161,12 @@ export class TeamContinuityStrategy extends BaseStrategy {
 		}
 
 		// Check if we met the requirement
-		if (assignments.length < requiredDays) {
+		if (!met(creditOf(assignments))) {
 			// Try to find any available preceptor for remaining dates
 			const additionalAssignments = this.fillRemainingDays(
 				context,
 				availableDates.filter((d) => !usedDates.has(d)),
-				requiredDays - assignments.length,
+				requiredDays - creditOf(assignments),
 				student.id,
 				clerkship.id,
 				config.requirementType,
@@ -174,7 +177,8 @@ export class TeamContinuityStrategy extends BaseStrategy {
 		}
 
 		// Final check - return partial assignments even if requirement not fully met
-		if (assignments.length < requiredDays) {
+		const assignedCredit = creditOf(assignments);
+		if (!met(assignedCredit)) {
 			// Return partial success with whatever assignments we could make
 			// This ensures all available capacity is used even when full requirement can't be met
 			const primaryPreceptorDays = assignments.filter(
@@ -186,7 +190,7 @@ export class TeamContinuityStrategy extends BaseStrategy {
 			return {
 				success: false,
 				assignments, // Return partial assignments instead of empty array
-				error: `Could only assign ${assignments.length} of ${requiredDays} required days. Team members have insufficient availability.`,
+				error: `Could only place ${formatDays(assignedCredit)} of ${requiredDays} required days: ${this.preceptorNames(availablePreceptors)} ${availablePreceptors.length === 1 ? 'has' : 'have'} no more open days (availability or daily capacity) while this student is free. Add availability or capacity, or another preceptor.`,
 				metadata: {
 					strategyUsed: this.getName(),
 					preceptorsConsidered: teamMembers.length,
@@ -371,8 +375,9 @@ export class TeamContinuityStrategy extends BaseStrategy {
 			(a, b) => bestRankForDate(a) - bestRankForDate(b) || a.localeCompare(b)
 		);
 
+		let credit = 0;
 		for (const date of orderedDates) {
-			if (assignments.length >= daysNeeded) break;
+			if (credit >= daysNeeded - 1e-9) break;
 			if (usedDates.has(date)) continue;
 
 			// Prefer the preceptor whose availability on this date ranks best (H8), then load.
@@ -400,6 +405,7 @@ export class TeamContinuityStrategy extends BaseStrategy {
 
 				// Track this assignment
 				assignmentsPerPreceptor.set(preceptor.id, strategyRunAssignments + 1);
+				credit += this.slotCredit(preceptor, date);
 
 				usedDates.add(date);
 				break; // Move to next date

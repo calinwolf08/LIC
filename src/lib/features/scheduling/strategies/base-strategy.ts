@@ -71,6 +71,11 @@ export interface StrategyContext {
 		 * another on the same student-day. Dates absent from the map default to 'full'.
 		 */
 		sessionByDate?: Record<string, 'full' | 'am' | 'pm'>;
+		/**
+		 * Per-date requirement credit of this preceptor's slot (a half day is usually
+		 * 0.5). Dates absent from the map earn 1 for a full day and 0.5 for a half day.
+		 */
+		creditByDate?: Record<string, number>;
 		currentAssignmentCount: number; // For load balancing
 		maxStudentsPerDay: number;
 		maxStudentsPerYear: number;
@@ -247,6 +252,29 @@ export abstract class BaseStrategy implements SchedulingStrategy {
 		if (pref === 'preferred') return 0;
 		if (pref === 'in_a_pinch') return 2;
 		return 1;
+	}
+
+	/**
+	 * Helper: The preceptors a shortfall message names — "Dr. A and Dr. B",
+	 * "Dr. A, Dr. B and 3 others" — so the coordinator knows whose availability to look at.
+	 */
+	protected preceptorNames(preceptors: StrategyContext['availablePreceptors']): string {
+		const names = [...new Set(preceptors.map((p) => p.name))];
+		if (names.length === 0) return 'no preceptor';
+		if (names.length === 1) return names[0];
+		if (names.length <= 3) return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+		return `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`;
+	}
+
+	/**
+	 * Helper: Requirement credit a day with this preceptor earns — its slot's credit,
+	 * so two half days make one required day rather than two.
+	 */
+	protected slotCredit(preceptor: StrategyContext['availablePreceptors'][0], date: string): number {
+		const credit = preceptor.creditByDate?.[date];
+		if (credit !== undefined && credit > 0) return credit;
+		const session = preceptor.sessionByDate?.[date];
+		return session === 'am' || session === 'pm' ? 0.5 : 1;
 	}
 
 	/**

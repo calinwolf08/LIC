@@ -102,8 +102,10 @@ describe.each(ENGINES)('demo account on $dialect', ({ dialect, connect }) => {
 			const totalStudents = DEMO_SCENARIOS.reduce((n, s) => n + s.students.length, 0);
 			expect(await countFor('schedule_students', scheduleIds)).toBe(totalStudents);
 			expect(await countFor('schedule_assignments', scheduleIds)).toBe(0);
-			expect(await countFor('schedule_quarters', scheduleIds)).toBe(4);
-			expect(await countFor('blackout_dates', scheduleIds)).toBe(2);
+			const total = (pick: (s: (typeof DEMO_SCENARIOS)[number]) => unknown[] | undefined) =>
+				DEMO_SCENARIOS.reduce((n, s) => n + (pick(s)?.length ?? 0), 0);
+			expect(await countFor('schedule_quarters', scheduleIds)).toBe(total((s) => s.quarters));
+			expect(await countFor('blackout_dates', scheduleIds)).toBe(total((s) => s.blackouts));
 		}
 	);
 
